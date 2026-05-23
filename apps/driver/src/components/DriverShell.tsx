@@ -58,7 +58,6 @@ export function DriverShell({ session }: DriverShellProps) {
 	const [recentOutcomeDelivery, setRecentOutcomeDelivery] =
 		useState<DriverDelivery | null>(null)
 	const autoOnlineAttemptedRef = useRef<string | null>(null)
-	const autoRouteStartedRef = useRef<Set<string>>(new Set())
 	const locationSyncInFlightRef = useRef(false)
 
 	const dashboard = useQuery({
@@ -209,7 +208,6 @@ export function DriverShell({ session }: DriverShellProps) {
 	const isOnline = currentDriver?.onlineStatus
 		? currentDriver.onlineStatus === 'online'
 		: currentDriver?.status !== 'offline'
-	const routeCandidate = activeDelivery ?? nextDelivery
 	const currentDriverId = currentDriver?.id ?? null
 	const activeDeliveryId = activeDelivery?.id ?? null
 	const nextDeliveryId = nextDelivery?.id ?? null
@@ -273,38 +271,6 @@ export function DriverShell({ session }: DriverShellProps) {
 
 		return () => window.clearInterval(intervalId)
 	}, [currentDriverId, isOnline, syncDriverLocation])
-
-	useEffect(() => {
-		if (!routeCandidate || !isOnline) return
-		if (
-			routeCandidate.status !== 'assigned' &&
-			routeCandidate.status !== 'available' &&
-			routeCandidate.status !== 'accepted'
-		) {
-			return
-		}
-		if (acceptDelivery.isPending || startDelivery.isPending) return
-
-		const runKey = routeCandidate.id
-		if (autoRouteStartedRef.current.has(runKey)) return
-		autoRouteStartedRef.current.add(runKey)
-
-		const startRoute = async () => {
-			try {
-				if (
-					routeCandidate.status === 'assigned' ||
-					routeCandidate.status === 'available'
-				) {
-					await acceptDelivery.mutateAsync(routeCandidate.id)
-				}
-				await startDelivery.mutateAsync(routeCandidate.id)
-			} catch {
-				autoRouteStartedRef.current.delete(runKey)
-			}
-		}
-
-		void startRoute()
-	}, [acceptDelivery, isOnline, routeCandidate, startDelivery])
 
 	const handleOnlineStatusPress = () => {
 		if (isOnline) {

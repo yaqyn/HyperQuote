@@ -343,6 +343,34 @@ async function assertCustomerToSalesToDeliveryFlow(env, customer, runId) {
 			`Warehouse driver assignment failed: ${assignError.message}`,
 		)
 	}
+	const preSignoffDelivery = await employee.client
+		.from('deliveries')
+		.select('id')
+		.eq('order_id', order.id)
+		.eq('driver_id', driverRow.id)
+		.maybeSingle()
+	if (preSignoffDelivery.error) {
+		throw new Error(
+			`Pre-signoff delivery visibility check failed: ${preSignoffDelivery.error.message}`,
+		)
+	}
+	assert(
+		preSignoffDelivery.data === null,
+		'warehouse driver choice must not create a driver-visible delivery before signoff',
+	)
+	const preSignoffDashboard = await driver.client.rpc('driver_app_dashboard')
+	if (preSignoffDashboard.error) {
+		throw new Error(
+			`Pre-signoff driver dashboard failed: ${preSignoffDashboard.error.message}`,
+		)
+	}
+	assert(
+		preSignoffDashboard.data?.nextDelivery === null &&
+			preSignoffDashboard.data?.activeDelivery === null &&
+			Array.isArray(preSignoffDashboard.data?.deliveries) &&
+			preSignoffDashboard.data.deliveries.length === 0,
+		'driver dashboard must stay empty until warehouse signoff',
+	)
 	await mustRpc(employee.client, 'warehouse_toggle_loading_item', {
 		p_order_id: order.id,
 		p_product_slug: product.slug,

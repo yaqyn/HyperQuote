@@ -427,6 +427,7 @@ const ACTOR_RPC_NAMES = new Set([
 	'warehouse_reject_loading',
 	'warehouse_reject_receiving',
 	'warehouse_remove_loading_driver',
+	'warehouse_replace_loading_driver',
 	'warehouse_reset_loading',
 	'warehouse_toggle_loading_item',
 ])

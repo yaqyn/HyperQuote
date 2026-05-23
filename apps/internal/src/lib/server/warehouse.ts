@@ -269,6 +269,22 @@ function isWarehouseAdvisor(row: SupabaseWarehouseEmployeeRow): boolean {
 	)
 }
 
+function warehouseLoadingActionError(message: string): string {
+	if (message.includes('assigned_driver_unavailable')) {
+		return 'Selected driver is unavailable. Choose another driver before signoff.'
+	}
+	if (
+		message.includes('driver_not_available') ||
+		message.includes('truck_not_available')
+	) {
+		return 'That driver is unavailable. Choose another driver.'
+	}
+	if (message.includes('driver_not_online')) {
+		return 'That driver is offline. Choose another online driver.'
+	}
+	return message
+}
+
 function formatSupabaseAddress(address: SupabaseLoadingAddressRow | null) {
 	if (!address) return ''
 	return [address.street, address.area, address.city, address.governorate]
@@ -782,7 +798,12 @@ export const assignTruckToOrder = createServerFn({ method: 'POST' })
 			p_order_id: data.quoteId,
 			p_truck_id: data.truckId,
 		})
-		if (error) return { success: false as const, error: error.message }
+		if (error) {
+			return {
+				success: false as const,
+				error: warehouseLoadingActionError(error.message),
+			}
+		}
 		return { success: true as const, quoteId: data.quoteId }
 	})
 
@@ -837,6 +858,46 @@ export const removeTruckFromOrder = createServerFn({ method: 'POST' })
 		return { success: true as const }
 	})
 
+export const replaceTruckOnOrder = createServerFn({ method: 'POST' })
+	.inputValidator(
+		z.object({
+			fromTruckId: z.string(),
+			driverId: z.string(),
+			quoteId: z.string(),
+			truckId: z.string(),
+		}),
+	)
+	.handler(async ({ data }) => {
+		if (
+			!isUuid(data.quoteId) ||
+			!isUuid(data.fromTruckId) ||
+			!isUuid(data.driverId) ||
+			!isUuid(data.truckId)
+		) {
+			return {
+				success: false as const,
+				error: 'Order, driver, or truck not found',
+			}
+		}
+		const auth = await getInternalSupabaseClient()
+		const { error } = await auth.client.rpc(
+			'warehouse_replace_loading_driver',
+			{
+				p_driver_id: data.driverId,
+				p_from_truck_id: data.fromTruckId,
+				p_order_id: data.quoteId,
+				p_truck_id: data.truckId,
+			},
+		)
+		if (error) {
+			return {
+				success: false as const,
+				error: warehouseLoadingActionError(error.message),
+			}
+		}
+		return { success: true as const, quoteId: data.quoteId }
+	})
+
 export const recordWarehouseSignoff = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
@@ -870,7 +931,12 @@ export const recordWarehouseSignoff = createServerFn({ method: 'POST' })
 				security_method: data.securityMethod,
 			},
 		})
-		if (error) return { success: false as const, error: error.message }
+		if (error) {
+			return {
+				success: false as const,
+				error: warehouseLoadingActionError(error.message),
+			}
+		}
 		return {
 			completed: true as const,
 			quoteId: data.quoteId,

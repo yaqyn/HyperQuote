@@ -22,6 +22,7 @@ import {
 	passOrderToDispatch,
 	recordWarehouseSignoff,
 	removeTruckFromOrder,
+	replaceTruckOnOrder,
 	resetWarehouseOrder,
 	type SecurityMethod,
 	toggleItemLoaded,
@@ -386,6 +387,7 @@ function LoadStage({
 	const [showTruckPicker, setShowTruckPicker] = useState(
 		order.truckAssignments.length === 0,
 	)
+	const [assignError, setAssignError] = useState<string | null>(null)
 	const assignedTrucksRef = useRef<HTMLElement | null>(null)
 	const truckPickerRef = useRef<HTMLDivElement | null>(null)
 	const loadChecklistRef = useRef<HTMLElement | null>(null)
@@ -579,10 +581,23 @@ function LoadStage({
 						<TruckPicker
 							order={order}
 							onAssigned={() => {
+								setAssignError(null)
 								setShowTruckPicker(false)
 								onChange()
 							}}
+							onError={(message) => {
+								setAssignError(message)
+								qc.invalidateQueries({ queryKey: ['warehouse-trucks'] })
+							}}
 						/>
+						{assignError && (
+							<p
+								role="alert"
+								className="mt-3 border-[3px] border-[#CC3300] bg-[#FFF0ED] px-4 py-3 font-[family-name:var(--font-geist-mono)] text-[11px] uppercase tracking-[0.16em] text-[#CC3300]"
+							>
+								{assignError}
+							</p>
+						)}
 					</motion.div>
 				)}
 			</AnimatePresence>
@@ -667,9 +682,13 @@ function SectionHeading({ index, title }: { index: string; title: string }) {
 function TruckPicker({
 	order,
 	onAssigned,
+	onError,
+	replaceTruckId,
 }: {
 	order: WarehouseOrderDetailView
 	onAssigned: () => void
+	onError?: (message: string) => void
+	replaceTruckId?: string | null
 }) {
 	const qc = useQueryClient()
 	const { data } = useQuery({
@@ -683,22 +702,38 @@ function TruckPicker({
 
 	const mutation = useMutation({
 		mutationFn: (input: { driverId: string; truckId: string }) =>
-			assignTruckToOrder({
-				data: {
-					driverId: input.driverId,
-					quoteId: order.quoteId,
-					truckId: input.truckId,
-				},
-			}),
+			replaceTruckId
+				? replaceTruckOnOrder({
+						data: {
+							driverId: input.driverId,
+							fromTruckId: replaceTruckId,
+							quoteId: order.quoteId,
+							truckId: input.truckId,
+						},
+					})
+				: assignTruckToOrder({
+						data: {
+							driverId: input.driverId,
+							quoteId: order.quoteId,
+							truckId: input.truckId,
+						},
+					}),
 		onSuccess: (res) => {
 			if (res.success) {
 				qc.invalidateQueries({ queryKey: ['warehouse-trucks'] })
 				onAssigned()
+				return
 			}
+			onError?.(res.error)
 		},
+		onError: (e: Error) => onError?.(e.message),
 	})
 
-	const assignedIds = new Set(order.truckAssignments.map((a) => a.truckId))
+	const assignedIds = new Set(
+		order.truckAssignments
+			.filter((a) => a.truckId !== replaceTruckId)
+			.map((a) => a.truckId),
+	)
 	const trucks = (data?.trucks ?? [])
 		.filter((t) => !assignedIds.has(t.id))
 		.filter((t) => t.status === 'available' || t.status === 'loading')
@@ -706,7 +741,10 @@ function TruckPicker({
 	return (
 		<section>
 			<div className="hidden lg:block">
-				<SectionHeading index="01" title="Choose truck" />
+				<SectionHeading
+					index="01"
+					title={replaceTruckId ? 'Choose replacement' : 'Choose truck'}
+				/>
 				<p className="mt-2 text-[12px] leading-relaxed text-black/55 max-w-[480px]">
 					Only online available drivers with a usable truck asset show up here.
 				</p>
@@ -758,7 +796,7 @@ function TruckPicker({
 								</p>
 							</div>
 							<span className="hidden shrink-0 bg-[#E6B400] px-2 py-1 font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.2em] md:inline-flex">
-								Tap to pick
+								{replaceTruckId ? 'Swap in' : 'Tap to pick'}
 							</span>
 						</div>
 					</motion.button>
@@ -888,6 +926,7 @@ function SignoffStage({
 	const [securityToken, setSecurityToken] = useState('')
 	const [error, setError] = useState<string | null>(null)
 	const [mobileAdvisorOpen, setMobileAdvisorOpen] = useState(false)
+	const [replaceTruckId, setReplaceTruckId] = useState<string | null>(null)
 
 	const qc = useQueryClient()
 
@@ -918,6 +957,11 @@ function SignoffStage({
 		onSuccess: (res) => {
 			if (!res.success) {
 				setError(res.error)
+				if (res.error.toLowerCase().includes('driver is unavailable')) {
+					setReplaceTruckId(order.truckAssignments[0]?.truckId ?? null)
+					qc.invalidateQueries({ queryKey: ['warehouse-order', order.quoteId] })
+					qc.invalidateQueries({ queryKey: ['warehouse-trucks'] })
+				}
 				return
 			}
 			qc.invalidateQueries({ queryKey: ['warehouse-order', order.quoteId] })
@@ -1102,8 +1146,79 @@ function SignoffStage({
 				</motion.div>
 			)}
 
+			<div>
+				<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-black/55">
+					Driver assignment
+				</p>
+				<div className="mt-3 flex flex-col gap-2 md:grid md:grid-cols-2">
+					{order.truckAssignments.map((assignment) => (
+						<motion.div
+							key={assignment.truckId}
+							layout
+							className="border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] px-4 py-3"
+						>
+							<div className="flex items-start justify-between gap-3">
+								<div className="min-w-0">
+									<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.18em] text-black/55">
+										{assignment.plateNumber}
+									</p>
+									<p className="mt-0.5 truncate text-[15px] font-bold">
+										{assignment.driverName}
+									</p>
+									<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[9px] uppercase tracking-[0.14em] text-black/45">
+										{assignment.itemsLoaded.length} items ready
+									</p>
+								</div>
+								<motion.button
+									type="button"
+									onClick={() =>
+										setReplaceTruckId((current) =>
+											current === assignment.truckId
+												? null
+												: assignment.truckId,
+										)
+									}
+									whileTap={{ scale: 0.96 }}
+									className="shrink-0 border-2 border-[var(--color-text)] bg-[var(--color-surface)] px-3 py-1.5 font-[family-name:var(--font-geist-mono)] text-[9px] font-bold uppercase tracking-[0.16em] transition-colors hover:bg-[var(--color-text)] hover:text-[#FFFFFF]"
+								>
+									{replaceTruckId === assignment.truckId ? 'Close' : 'Change'}
+								</motion.button>
+							</div>
+						</motion.div>
+					))}
+				</div>
+				<AnimatePresence>
+					{replaceTruckId && (
+						<motion.div
+							key="replace-driver"
+							initial={{ opacity: 0, y: 8 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: -8 }}
+							transition={{ duration: 0.2 }}
+							className="mt-4"
+						>
+							<TruckPicker
+								order={order}
+								replaceTruckId={replaceTruckId}
+								onAssigned={() => {
+									setReplaceTruckId(null)
+									setError(null)
+									qc.invalidateQueries({
+										queryKey: ['warehouse-order', order.quoteId],
+									})
+									qc.invalidateQueries({ queryKey: ['warehouse-queue'] })
+									qc.invalidateQueries({ queryKey: ['warehouse-trucks'] })
+									onChange()
+								}}
+								onError={setError}
+							/>
+						</motion.div>
+					)}
+				</AnimatePresence>
+			</div>
+
 			{/* Advisor picker — employees.md seed, HR panel will add role
-          filtering later. For now the full payroll is selectable. */}
+	          filtering later. For now the full payroll is selectable. */}
 			<div className="hidden lg:block">
 				<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.22em] text-black/55">
 					Advisor

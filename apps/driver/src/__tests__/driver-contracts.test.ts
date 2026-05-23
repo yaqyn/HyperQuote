@@ -1,4 +1,5 @@
-import { describe, expectTypeOf, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 import type {
 	DeliveryContact,
 	DeliveryItem,
@@ -28,5 +29,15 @@ describe('driver app contracts', () => {
 		expectTypeOf<
 			InstanceType<typeof DeviceLocationProvider>
 		>().toMatchTypeOf<LocationProvider>()
+	})
+
+	it('keeps route transitions behind explicit driver actions', () => {
+		const source = readFileSync(
+			new URL('../components/DriverShell.tsx', import.meta.url),
+			'utf8',
+		)
+
+		expect(source).not.toContain('autoRouteStarted')
+		expect(source).not.toContain('mutateAsync(routeCandidate.id)')
 	})
 })

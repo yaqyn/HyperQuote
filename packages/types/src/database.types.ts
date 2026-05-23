@@ -7509,6 +7509,30 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			service_warehouse_replace_loading_driver: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_driver_id: string
+					p_from_truck_id: string
+					p_order_id: string
+					p_truck_id?: string
+				}
+				Returns: {
+					assigned_items: Json
+					created_at: string
+					driver_id: string
+					id: string
+					loading_task_id: string
+					truck_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_task_drivers'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			service_warehouse_reset_loading: {
 				Args: {
 					p_actor_pool: string
@@ -7777,6 +7801,28 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			warehouse_replace_loading_driver: {
+				Args: {
+					p_driver_id: string
+					p_from_truck_id: string
+					p_order_id: string
+					p_truck_id?: string
+				}
+				Returns: {
+					assigned_items: Json
+					created_at: string
+					driver_id: string
+					id: string
+					loading_task_id: string
+					truck_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_task_drivers'
 					isOneToOne: true
 					isSetofReturn: false
 				}
