@@ -1,3 +1,4 @@
+import jsQR from 'jsqr'
 import {
 	ArrowLeft,
 	ClipboardList,
@@ -167,6 +168,8 @@ interface BarcodeDetectorConstructor {
 	new (options?: { formats?: string[] }): BarcodeDetectorInstance
 }
 
+const QR_SCAN_WIDTH = 640
+
 function getBarcodeDetector(): BarcodeDetectorConstructor | null {
 	const browserGlobal = globalThis as typeof globalThis & {
 		BarcodeDetector?: BarcodeDetectorConstructor
@@ -174,46 +177,66 @@ function getBarcodeDetector(): BarcodeDetectorConstructor | null {
 	return browserGlobal.BarcodeDetector ?? null
 }
 
-function ArrivalVerificationForm({
-	deliveryId,
-	isMutating,
-	isRejecting,
-	onArrival,
-	onReject,
-	rejectError,
+function canUseCameraScanner(): boolean {
+	return (
+		typeof navigator !== 'undefined' &&
+		Boolean(navigator.mediaDevices?.getUserMedia)
+	)
+}
+
+function decodeQrFromVideo(
+	video: HTMLVideoElement,
+	canvas: HTMLCanvasElement,
+): string | null {
+	if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return null
+	if (video.videoWidth <= 0 || video.videoHeight <= 0) return null
+
+	const scale = Math.min(1, QR_SCAN_WIDTH / video.videoWidth)
+	const width = Math.max(1, Math.round(video.videoWidth * scale))
+	const height = Math.max(1, Math.round(video.videoHeight * scale))
+	canvas.width = width
+	canvas.height = height
+
+	const context = canvas.getContext('2d', {
+		willReadFrequently: true,
+	})
+	if (!context) return null
+
+	context.drawImage(video, 0, 0, width, height)
+	const image = context.getImageData(0, 0, width, height)
+	const result = jsQR(image.data, image.width, image.height, {
+		inversionAttempts: 'attemptBoth',
+	})
+	return result?.data ?? null
+}
+
+function QrSecretScanner({
+	isDisabled,
+	onSecretScanned,
 }: {
-	deliveryId: string
-	isMutating: boolean
-	isRejecting: boolean
-	onArrival: (deliveryId: string, secretCode: string) => void
-	onReject: (deliveryId: string, reason: string, evidenceText: string) => void
-	rejectError?: string | null
+	isDisabled: boolean
+	onSecretScanned: (secretCode: string) => void
 }) {
 	const { t } = useTranslation('driver')
-	const [mode, setMode] = useState<'secret' | 'reject'>('secret')
-	const [secretCode, setSecretCode] = useState('')
 	const [scannerActive, setScannerActive] = useState(false)
 	const [scannerError, setScannerError] = useState<string | null>(null)
 	const streamRef = useRef<MediaStream | null>(null)
 	const frameRef = useRef<number | null>(null)
 	const videoRef = useRef<HTMLVideoElement | null>(null)
-	const canSubmit = isDeliverySecretCodeReady(secretCode) && !isMutating
-	const scannerSupported =
-		typeof navigator !== 'undefined' &&
-		Boolean(navigator.mediaDevices?.getUserMedia) &&
-		getBarcodeDetector() !== null
+	const scannerSupported = canUseCameraScanner()
 
 	useEffect(() => {
 		if (!scannerActive) return
-		const Detector = getBarcodeDetector()
-		if (!Detector || !navigator.mediaDevices?.getUserMedia) {
+		if (!navigator.mediaDevices?.getUserMedia) {
 			setScannerError(t('arrival.scannerUnavailable'))
 			setScannerActive(false)
 			return
 		}
 
 		let canceled = false
-		const detector = new Detector({ formats: ['qr_code'] })
+		const canvas = document.createElement('canvas')
+		const Detector = getBarcodeDetector()
+		const detector = Detector ? new Detector({ formats: ['qr_code'] }) : null
 
 		const stopScanner = () => {
 			if (frameRef.current !== null) {
@@ -227,17 +250,36 @@ function ArrivalVerificationForm({
 			if (videoRef.current) videoRef.current.srcObject = null
 		}
 
+		const commitScan = (rawValue: string): boolean => {
+			const code = extractDeliverySecretCode(rawValue)
+			if (!code) {
+				setScannerError(t('arrival.scannerInvalid'))
+				return false
+			}
+			onSecretScanned(code)
+			setScannerError(null)
+			setScannerActive(false)
+			stopScanner()
+			return true
+		}
+
 		const scanFrame = async () => {
-			if (canceled || !videoRef.current) return
-			try {
-				const results = await detector.detect(videoRef.current)
-				const value = results.find((result) => result.rawValue)?.rawValue
-				if (value) {
-					setSecretCode(value.toUpperCase())
-					setScannerActive(false)
-					stopScanner()
-					return
+			const video = videoRef.current
+			if (canceled || !video) return
+			if (detector) {
+				try {
+					const results = await detector.detect(video)
+					const value = results.find((result) => result.rawValue)?.rawValue
+					if (value && commitScan(value)) return
+				} catch {
+					// Some WebViews expose BarcodeDetector but fail at runtime.
+					// Keep scanning through the canvas decoder below.
 				}
+			}
+
+			try {
+				const canvasValue = decodeQrFromVideo(video, canvas)
+				if (canvasValue && commitScan(canvasValue)) return
 			} catch {
 				setScannerError(t('arrival.scannerError'))
 			}
@@ -248,7 +290,7 @@ function ArrivalVerificationForm({
 			try {
 				const stream = await navigator.mediaDevices.getUserMedia({
 					audio: false,
-					video: { facingMode: 'environment' },
+					video: { facingMode: { ideal: 'environment' } },
 				})
 				if (canceled) {
 					for (const track of stream.getTracks()) {
@@ -274,7 +316,73 @@ function ArrivalVerificationForm({
 			canceled = true
 			stopScanner()
 		}
-	}, [scannerActive, t])
+	}, [onSecretScanned, scannerActive, t])
+
+	if (!scannerSupported) return null
+
+	return (
+		<>
+			<Button
+				type="button"
+				isDisabled={isDisabled}
+				onPress={() => {
+					setScannerError(null)
+					setScannerActive((active) => !active)
+				}}
+				className="flex h-10 w-full items-center justify-between border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
+			>
+				<span>
+					{scannerActive ? t('arrival.stopScan') : t('arrival.scanQr')}
+				</span>
+				{scannerActive ? (
+					<QrCode aria-hidden="true" size={17} />
+				) : (
+					<ScanLine aria-hidden="true" size={17} />
+				)}
+			</Button>
+
+			{scannerActive && (
+				<div className="overflow-hidden border border-[var(--color-border)] bg-black">
+					<video
+						ref={videoRef}
+						muted
+						playsInline
+						className="aspect-video w-full object-cover"
+					/>
+					<p className="bg-[var(--color-surface)] px-3 py-1.5 text-xs text-[var(--color-text-muted)]">
+						{t('arrival.scanning')}
+					</p>
+				</div>
+			)}
+
+			{scannerError && (
+				<p className="text-xs font-semibold text-[#B91C1C] sm:text-sm">
+					{scannerError}
+				</p>
+			)}
+		</>
+	)
+}
+
+function ArrivalVerificationForm({
+	deliveryId,
+	isMutating,
+	isRejecting,
+	onArrival,
+	onReject,
+	rejectError,
+}: {
+	deliveryId: string
+	isMutating: boolean
+	isRejecting: boolean
+	onArrival: (deliveryId: string, secretCode: string) => void
+	onReject: (deliveryId: string, reason: string, evidenceText: string) => void
+	rejectError?: string | null
+}) {
+	const { t } = useTranslation('driver')
+	const [mode, setMode] = useState<'secret' | 'reject'>('secret')
+	const [secretCode, setSecretCode] = useState('')
+	const canSubmit = isDeliverySecretCodeReady(secretCode) && !isMutating
 
 	if (mode === 'reject') {
 		return (
@@ -307,26 +415,10 @@ function ArrivalVerificationForm({
 				/>
 			</TextField>
 
-			{scannerSupported && (
-				<Button
-					type="button"
-					isDisabled={isMutating}
-					onPress={() => {
-						setScannerError(null)
-						setScannerActive((active) => !active)
-					}}
-					className="flex h-10 w-full items-center justify-between border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
-				>
-					<span>
-						{scannerActive ? t('arrival.stopScan') : t('arrival.scanQr')}
-					</span>
-					{scannerActive ? (
-						<QrCode aria-hidden="true" size={17} />
-					) : (
-						<ScanLine aria-hidden="true" size={17} />
-					)}
-				</Button>
-			)}
+			<QrSecretScanner
+				isDisabled={isMutating}
+				onSecretScanned={setSecretCode}
+			/>
 
 			<div className="grid grid-cols-[minmax(0,1fr)_3rem] gap-2">
 				<Button
@@ -351,26 +443,6 @@ function ArrivalVerificationForm({
 					<OctagonX aria-hidden="true" size={18} />
 				</Button>
 			</div>
-
-			{scannerActive && (
-				<div className="overflow-hidden border border-[var(--color-border)] bg-black">
-					<video
-						ref={videoRef}
-						muted
-						playsInline
-						className="aspect-video w-full object-cover"
-					/>
-					<p className="bg-[var(--color-surface)] px-3 py-1.5 text-xs text-[var(--color-text-muted)]">
-						{t('arrival.scanning')}
-					</p>
-				</div>
-			)}
-
-			{scannerError && (
-				<p className="text-xs font-semibold text-[#B91C1C] sm:text-sm">
-					{scannerError}
-				</p>
-			)}
 		</div>
 	)
 }
@@ -416,6 +488,10 @@ function VerificationForm({
 					className="h-10 w-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15 sm:h-12 sm:text-base"
 				/>
 			</TextField>
+			<QrSecretScanner
+				isDisabled={isCompleting || isMutating}
+				onSecretScanned={setCompletionCode}
+			/>
 			<Button
 				type="button"
 				isDisabled={isCompleting || isMutating}

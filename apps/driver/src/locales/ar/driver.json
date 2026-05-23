@@ -18,6 +18,7 @@
 		"confirm": "تأكيد الوصول",
 		"scanQr": "مسح QR",
 		"scannerError": "تعذر تشغيل الكاميرا. أدخل الرمز.",
+		"scannerInvalid": "تم مسح QR لكنه ليس رمز توصيل.",
 		"scannerUnavailable": "ماسح QR غير متاح. أدخل الرمز.",
 		"scanning": "وجه الكاميرا إلى رمز QR لدى العميل.",
 		"secretCode": "رمز العميل السري",

@@ -18,6 +18,7 @@
 		"confirm": "Confirm arrival",
 		"scanQr": "Scan QR",
 		"scannerError": "Camera could not start. Enter the code.",
+		"scannerInvalid": "QR scanned, but it is not a delivery code.",
 		"scannerUnavailable": "QR scanner is not available. Enter the code.",
 		"scanning": "Point the camera at the customer QR code.",
 		"secretCode": "Customer secret code",

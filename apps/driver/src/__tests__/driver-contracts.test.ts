@@ -61,7 +61,19 @@ describe('driver app contracts', () => {
 			'utf8',
 		)
 
-		expect(source).toContain('setSecretCode(value.toUpperCase())')
+		expect(source).toContain('onSecretScanned={setSecretCode}')
+		expect(source).toContain('onSecretScanned={setCompletionCode}')
 		expect(source).not.toContain('onArrival(deliveryId, value)')
+	})
+
+	it('decodes QR camera frames without relying only on BarcodeDetector', () => {
+		const source = readFileSync(
+			new URL('../components/ActiveDeliveryFlow.tsx', import.meta.url),
+			'utf8',
+		)
+
+		expect(source).toContain('jsQR(')
+		expect(source).toContain('decodeQrFromVideo(video, canvas)')
+		expect(source).not.toContain('getBarcodeDetector() !== null')
 	})
 })
