@@ -200,16 +200,29 @@ export function fallbackPortalCustomerToolRequest(
 	if (isProfileRequest(lower, userMessage)) {
 		return {
 			action: 'customer_profile',
+			commandName: '/profile',
 			searchQuery: userMessage,
 		}
 	}
 	if (isCustomerOrdersRequest(lower, userMessage)) {
+		const orderScope = isDraftOrderScope(lower, userMessage) ? 'drafts' : 'all'
+		const action =
+			targetReference || lower.includes('latest')
+				? 'order_detail'
+				: 'customer_orders'
+		if (action === 'order_detail') {
+			return {
+				action,
+				...(targetReference ? {} : { commandName: '/latest-order' }),
+				orderScope,
+				searchQuery: userMessage,
+				targetReference,
+			}
+		}
 		return {
-			action:
-				targetReference || lower.includes('latest')
-					? 'order_detail'
-					: 'customer_orders',
-			orderScope: isDraftOrderScope(lower, userMessage) ? 'drafts' : 'all',
+			action,
+			commandName: orderScope === 'drafts' ? '/drafts' : '/orders',
+			orderScope,
 			searchQuery: userMessage,
 			targetReference,
 		}
@@ -223,6 +236,7 @@ export function fallbackPortalCustomerToolRequest(
 	if (isProductSearchRequest(lower, userMessage)) {
 		return {
 			action: 'product_search',
+			commandName: '/products',
 			searchQuery: userMessage,
 		}
 	}
@@ -791,7 +805,13 @@ function isCustomerOrdersRequest(lower: string, raw: string): boolean {
 }
 
 function isDraftOrderScope(lower: string, raw: string): boolean {
-	return /\b(draft|drafts|saved)\b/.test(lower) || /مسودة|مسودات/.test(raw)
+	const asksDrafts = /\b(draft|drafts|saved)\b/.test(lower)
+	const asksOtherOrderStates =
+		/\b(submitted|confirmed|delivered|assigned|accepted|rejected|cancelled|canceled)\b/.test(
+			lower,
+		) ||
+		(/\borders?\b/.test(lower) && !/\bdrafts?\s+orders?\b/.test(lower))
+	return (asksDrafts && !asksOtherOrderStates) || /مسودة|مسودات/.test(raw)
 }
 
 function isProfileRequest(lower: string, raw: string): boolean {

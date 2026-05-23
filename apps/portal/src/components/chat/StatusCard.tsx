@@ -163,7 +163,7 @@ export function StatusCard({ data }: StatusCardProps) {
 
 			<div className="py-2">
 				<p className="voice-mono text-[11px] uppercase tracking-[0.18em] text-[var(--p-text-muted)]">
-					{t('orders.items', { count: items.length })}
+					{t('orders.itemsTitle', isArabic ? 'الأصناف' : 'Items')}
 				</p>
 				{visibleItems.length > 0 ? (
 					<ul className="mt-2 space-y-1.5">

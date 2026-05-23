@@ -673,7 +673,7 @@ async function renderPortalCustomerResponse(
 
 	const fallbackText = fallbackToolAnswer(result.context)
 	if (result.route.commandName) {
-		return textOnlyChunks(fallbackText, customEvents)
+		return textOnlyChunks(commandToolAnswer(result, fallbackText), customEvents)
 	}
 	if (result.context.type === 'products') {
 		return textOnlyChunks(fallbackText, customEvents)
@@ -765,6 +765,44 @@ function fallbackToolAnswer(context: PortalToolContext): string {
 			return (
 				context.message ?? "I'm Lyon. How can I help with HyperQuote today?"
 			)
+	}
+}
+
+function commandToolAnswer(
+	result: PortalToolResult,
+	fallbackText: string,
+): string {
+	const commandName = result.route.commandName
+	if (!commandName) return fallbackText
+	switch (commandName) {
+		case '/products':
+			if (result.context.type !== 'products') return fallbackText
+			if (result.context.products.length === 0) {
+				return 'No matching visible products found.'
+			}
+			return `Showing ${result.context.products.length} of ${result.context.totalVisibleProducts} visible product${result.context.totalVisibleProducts === 1 ? '' : 's'}.`
+		case '/orders':
+			if (result.context.type !== 'orders') return fallbackText
+			return result.context.orders.length === 0
+				? 'No quote requests or orders found.'
+				: `Showing ${result.context.orders.length} quote request${result.context.orders.length === 1 ? '' : 's'} / order${result.context.orders.length === 1 ? '' : 's'}.`
+		case '/drafts':
+			if (result.context.type !== 'orders') return fallbackText
+			return result.context.orders.length === 0
+				? 'No editable drafts found.'
+				: `Showing ${result.context.orders.length} editable draft${result.context.orders.length === 1 ? '' : 's'}.`
+		case '/latest-order':
+			if (result.context.type !== 'order_detail') return fallbackText
+			return result.context.order
+				? `Latest: ${result.context.order.reference} (${result.context.order.status.replace(/_/g, ' ')}).`
+				: 'No quote request or order found.'
+		case '/profile':
+			return fallbackText
+		case '/clear-all-drafts':
+			return fallbackText
+		case '/clear':
+		case '/new':
+			return 'Started a fresh chat.'
 	}
 }
 

@@ -75,29 +75,48 @@ describe('portal customer AI agent', () => {
 
 	it('routes customer profile, addresses, and projects to scoped context', () => {
 		expect(
-			fallbackPortalCustomerToolRequest('show my company profile').action,
-		).toBe('customer_profile')
+			fallbackPortalCustomerToolRequest('show my company profile'),
+		).toMatchObject({
+			action: 'customer_profile',
+			commandName: '/profile',
+		})
 		expect(
-			fallbackPortalCustomerToolRequest('what address is saved?').action,
-		).toBe('customer_profile')
-		expect(fallbackPortalCustomerToolRequest('اعرض مشاريعي').action).toBe(
-			'customer_profile',
-		)
+			fallbackPortalCustomerToolRequest('what address is saved?'),
+		).toMatchObject({
+			action: 'customer_profile',
+			commandName: '/profile',
+		})
+		expect(fallbackPortalCustomerToolRequest('اعرض مشاريعي')).toMatchObject({
+			action: 'customer_profile',
+			commandName: '/profile',
+		})
 	})
 
 	it('routes order lists and delivery tracking across English and Arabic', () => {
 		expect(
 			fallbackPortalCustomerToolRequest(
 				'show my drafts, submitted orders, confirmed orders, and delivered orders',
-			).action,
-		).toBe('customer_orders')
-		expect(fallbackPortalCustomerToolRequest('اعرض المسودات').action).toBe(
-			'customer_orders',
-		)
+			),
+		).toMatchObject({
+			action: 'customer_orders',
+			commandName: '/orders',
+			orderScope: 'all',
+		})
+		expect(fallbackPortalCustomerToolRequest('show my orders')).toMatchObject({
+			action: 'customer_orders',
+			commandName: '/orders',
+			orderScope: 'all',
+		})
+		expect(fallbackPortalCustomerToolRequest('اعرض المسودات')).toMatchObject({
+			action: 'customer_orders',
+			commandName: '/drafts',
+			orderScope: 'drafts',
+		})
 		expect(
 			fallbackPortalCustomerToolRequest('list my draft orders'),
 		).toMatchObject({
 			action: 'customer_orders',
+			commandName: '/drafts',
 			orderScope: 'drafts',
 		})
 		expect(
@@ -113,11 +132,19 @@ describe('portal customer AI agent', () => {
 
 	it('routes product and draft authoring requests', () => {
 		expect(
-			fallbackPortalCustomerToolRequest('find 42.5 cement products').action,
-		).toBe('product_search')
-		expect(fallbackPortalCustomerToolRequest('its a tree house').action).toBe(
-			'product_search',
+			fallbackPortalCustomerToolRequest('find 42.5 cement products'),
+		).toMatchObject({
+			action: 'product_search',
+			commandName: '/products',
+		})
+		expect(fallbackPortalCustomerToolRequest('its a tree house')).toMatchObject(
+			{
+				action: 'product_search',
+			},
 		)
+		expect(
+			fallbackPortalCustomerToolRequest('its a tree house').commandName,
+		).toBeUndefined()
 		expect(
 			fallbackPortalCustomerToolRequest('we need to build a tree house').action,
 		).toBe('product_search')
@@ -137,9 +164,12 @@ describe('portal customer AI agent', () => {
 		expect(
 			fallbackPortalCustomerToolRequest('make me a random order').action,
 		).toBe('create_draft_from_plan')
-		expect(fallbackPortalCustomerToolRequest('show metal options').action).toBe(
-			'product_search',
-		)
+		expect(
+			fallbackPortalCustomerToolRequest('show metal options'),
+		).toMatchObject({
+			action: 'product_search',
+			commandName: '/products',
+		})
 		expect(
 			fallbackPortalCustomerToolRequest(
 				'3ayez draft quote for cement and rebar',
