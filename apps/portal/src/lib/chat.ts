@@ -27,6 +27,8 @@ import {
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
+import type { ActionButtonData } from './chat-types'
+import { PORTAL_CHAT_COMMANDS } from './portal-chat-commands'
 import {
 	buildPortalCustomerAgentPrompt,
 	detectPortalAiLocale,
@@ -39,8 +41,12 @@ import {
 	parsePortalCustomerToolRequest,
 	portalCustomerPolicyRefusal,
 	routePortalChatCommand,
-	routePortalCustomerDraftFollowUp,
 } from './portal-customer-agent'
+import {
+	type EditableDraftDescriptor,
+	editableDraftDescriptorFromText,
+	editableDraftDescriptorLabel,
+} from './portal-draft-targeting'
 import { getAuthenticatedPortalCustomer } from './server/_supabase'
 import {
 	type DeliveryInfo,
@@ -310,21 +316,16 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 			return chunks as unknown as Array<{ [k: string]: {} }>
 		}
 
-		const commandRoute = routePortalChatCommand(userText)
-		const deterministicRoute =
-			commandRoute ??
-			routePortalCustomerDraftFollowUp(modelMessages, userText) ??
-			fallbackPortalCustomerToolRequest(userText)
-		const route = shouldUseDeterministicRoute(deterministicRoute)
-			? deterministicRoute
-			: await requestPortalCustomerTool(
-					modelMessages,
-					userText,
-					await loadVisibleProductCatalog(
-						supabase,
-						PRODUCT_CATALOG_CONTEXT_LIMIT,
-					),
-				)
+		const route =
+			routePortalChatCommand(userText) ??
+			(await requestPortalCustomerTool(
+				modelMessages,
+				userText,
+				await loadVisibleProductCatalog(
+					supabase,
+					PRODUCT_CATALOG_CONTEXT_LIMIT,
+				),
+			))
 		const result = await executePortalCustomerToolRequest(
 			supabase,
 			customerId,
@@ -350,18 +351,10 @@ async function requestPortalCustomerTool(
 	userText: string,
 	catalog: ProductCatalogResult,
 ): Promise<PortalCustomerToolRequest> {
-	const draftFollowUp = routePortalCustomerDraftFollowUp(messages, userText)
-	if (draftFollowUp) return draftFollowUp
+	const safeFallback = fallbackPortalCustomerToolRequest(userText)
+	if (safeFallback.action === 'refuse') return safeFallback
 
-	const deterministicRoute = fallbackPortalCustomerToolRequest(userText)
-	if (
-		deterministicRoute.action === 'refuse' ||
-		isDraftWriteAction(deterministicRoute.action)
-	) {
-		return deterministicRoute
-	}
-
-	if (!isAIEnabled()) return deterministicRoute
+	if (!isAIEnabled()) return safeFallback
 
 	try {
 		const rawRoute = await completeChat(
@@ -376,12 +369,6 @@ async function requestPortalCustomerTool(
 	} catch {
 		return fallbackPortalCustomerToolRequest(userText)
 	}
-}
-
-function shouldUseDeterministicRoute(
-	route: PortalCustomerToolRequest,
-): boolean {
-	return route.commandName !== undefined || route.action !== 'chat'
 }
 
 function toAgentCatalogSnapshot(
@@ -654,10 +641,14 @@ async function renderPortalCustomerResponse(
 
 	if (result.context.type === 'chat') {
 		const simpleAnswer = simpleCustomerChatAnswer(modelMessages)
-		return textOnlyChunks(
+		const fallbackText =
 			result.context.message ??
-				simpleAnswer ??
-				"I'm Lyon. Tell me what you are building, or what product, order, delivery, or draft you want help with.",
+			simpleAnswer ??
+			"I'm Lyon. Tell me what you are building, or what product, order, delivery, or draft you want help with."
+		return textOnlyChunks(
+			result.route.commandName
+				? commandToolAnswer(result, fallbackText)
+				: fallbackText,
 			customEvents,
 		)
 	}
@@ -775,35 +766,155 @@ function commandToolAnswer(
 	const commandName = result.route.commandName
 	if (!commandName) return fallbackText
 	switch (commandName) {
+		case '/help':
+			return helpCommandAnswer()
 		case '/products':
 			if (result.context.type !== 'products') return fallbackText
 			if (result.context.products.length === 0) {
 				return 'No matching visible products found.'
 			}
-			return `Showing ${result.context.products.length} of ${result.context.totalVisibleProducts} visible product${result.context.totalVisibleProducts === 1 ? '' : 's'}.`
+			return [
+				'## Catalog',
+				`Showing ${result.context.products.length} of ${result.context.totalVisibleProducts} visible product${result.context.totalVisibleProducts === 1 ? '' : 's'}.`,
+				'Use the cards below for the best matches, or open Market for the full catalog.',
+			].join('\n')
+		case '/market':
+			return [
+				'## Market',
+				'Open the catalog, start a new draft quote, or ask Lyon for a material plan in plain language.',
+			].join('\n')
+		case '/new-draft':
+			return [
+				'## New Draft',
+				'Start a draft quote from the quote drawer. Drafts stay editable until you review and submit them yourself.',
+			].join('\n')
 		case '/orders':
 			if (result.context.type !== 'orders') return fallbackText
 			return result.context.orders.length === 0
 				? 'No quote requests or orders found.'
-				: `Showing ${result.context.orders.length} quote request${result.context.orders.length === 1 ? '' : 's'} / order${result.context.orders.length === 1 ? '' : 's'}.`
+				: [
+						'## Orders Desk',
+						`Showing ${result.context.orders.length} quote request${result.context.orders.length === 1 ? '' : 's'} / order${result.context.orders.length === 1 ? '' : 's'}.`,
+						'The cards below include items, status, dates, and the right action for each record.',
+					].join('\n')
 		case '/drafts':
 			if (result.context.type !== 'orders') return fallbackText
 			return result.context.orders.length === 0
 				? 'No editable drafts found.'
-				: `Showing ${result.context.orders.length} editable draft${result.context.orders.length === 1 ? '' : 's'}.`
+				: [
+						'## Draft Desk',
+						`Showing ${result.context.orders.length} editable draft${result.context.orders.length === 1 ? '' : 's'}.`,
+						'Each draft card can open the record, move it into the chat draft editor, or submit after your confirmation.',
+					].join('\n')
 		case '/latest-order':
 			if (result.context.type !== 'order_detail') return fallbackText
 			return result.context.order
-				? `Latest: ${result.context.order.reference} (${result.context.order.status.replace(/_/g, ' ')}).`
+				? [
+						'## Latest Record',
+						`${result.context.order.reference} is ${result.context.order.status.replace(/_/g, ' ')}.`,
+						'Use the card below to open the record.',
+					].join('\n')
 				: 'No quote request or order found.'
+		case '/track':
+			if (result.context.type !== 'delivery_tracking') return fallbackText
+			return result.context.tracking
+				? [
+						'## Delivery Tracking',
+						`${result.context.tracking.order.reference} is ${result.context.tracking.delivery.currentStage.replace(/_/g, ' ')}.`,
+						'The tracking card below shows the customer-visible driver and route details.',
+					].join('\n')
+				: 'I do not see an active customer-visible delivery tracking record for your account.'
 		case '/profile':
-			return fallbackText
+			return result.context.type === 'profile'
+				? profileCommandAnswer(result.context)
+				: fallbackText
+		case '/support':
+			return [
+				'## Support',
+				'Choose the best support path below. You can contact the team, open the support panel, or jump into public docs.',
+			].join('\n')
+		case '/docs':
+			return [
+				'## Docs',
+				'Open the public docs, FAQ, or ask a docs question after `/docs`.',
+			].join('\n')
 		case '/clear-all-drafts':
 			return fallbackText
 		case '/clear':
 		case '/new':
 			return 'Started a fresh chat.'
 	}
+}
+
+function helpCommandAnswer(): string {
+	const rows = PORTAL_CHAT_COMMANDS.map((command) => {
+		return `| \`${command.name}\` | ${command.title} | ${command.description} |`
+	})
+	return [
+		'## Command Guide',
+		'Slash commands are fixed server shortcuts. Normal chat still lets Lyon decide which safe tool to use.',
+		'',
+		'| Command | Opens | What it does |',
+		'| --- | --- | --- |',
+		...rows,
+	].join('\n')
+}
+
+function profileCommandAnswer(
+	context: Extract<PortalToolContext, { type: 'profile' }>,
+): string {
+	const defaultAddress = context.addresses.find((address) => address.is_default)
+	const otherAddresses = context.addresses.filter(
+		(address) => !address.is_default,
+	)
+	const projects = context.projects.slice(0, 5)
+	const profile = context.profile
+	const status = `${formatPlainStatus(profile.status)} (${formatPlainStatus(profile.tier)} tier)`
+	const creditLimit = formatCurrency(profile.credit_limit)
+	return [
+		'## Customer Profile',
+		'',
+		'| Field | Details |',
+		'| --- | --- |',
+		`| Company | ${profile.company_name} |`,
+		`| Primary contact | ${profile.contact_name} |`,
+		`| Phone | ${profile.phone} |`,
+		`| Email | ${profile.email || 'Not saved'} |`,
+		`| Account status | ${status} |`,
+		`| Credit limit | ${creditLimit} |`,
+		`| Payment history | ${formatPlainStatus(profile.payment_history)} |`,
+		`| Trade license | ${formatPlainStatus(profile.trade_license_status ?? 'not uploaded')} |`,
+		'',
+		'### Delivery Addresses',
+		defaultAddress
+			? `- Default: ${formatAddress(defaultAddress)}`
+			: '- No default address is saved.',
+		...otherAddresses
+			.slice(0, 4)
+			.map((address) => `- ${formatAddress(address)}`),
+		'',
+		'### Projects',
+		...(projects.length > 0
+			? projects.map((project) => `- ${project.name}`)
+			: ['- No active projects are saved.']),
+	].join('\n')
+}
+
+function formatAddress(address: CustomerAddressRow): string {
+	const label = address.label ? `${address.label}: ` : ''
+	return `${label}${address.street}, ${address.city}, ${address.governorate}`
+}
+
+function formatCurrency(value: number): string {
+	return `EGP ${new Intl.NumberFormat('en-EG', {
+		maximumFractionDigits: 0,
+	}).format(value)}`
+}
+
+function formatPlainStatus(value: string): string {
+	return value
+		.replace(/_/g, ' ')
+		.replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
 function profileFallbackAnswer(
@@ -944,6 +1055,7 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 		default:
 			break
 	}
+	events.push(...commandActionEvents(result))
 	if (result.invalidatesOrders) events.push(customerOrdersInvalidationEvent())
 	return events
 }
@@ -1412,14 +1524,18 @@ async function updateDraftItems(
 	route: PortalCustomerToolRequest,
 	userText: string,
 ): Promise<DraftWriteContext> {
-	const draft = await findEditableDraft(
+	const draftResolution = await resolveEditableDraft(
 		supabase,
 		customerId,
 		route.targetReference,
+		route.searchQuery || userText,
 	)
+	const draft = draftResolution.draft
 	if (!draft) {
 		return {
-			message: 'I could not find an editable draft in your customer account.',
+			message:
+				draftResolution.message ??
+				'I could not find an editable draft in your customer account.',
 		}
 	}
 	const currentItems = sortedQuoteRequestItems(draft)
@@ -1608,14 +1724,18 @@ async function updateDraftMetadata(
 	route: PortalCustomerToolRequest,
 	userText: string,
 ): Promise<DraftWriteContext> {
-	const draft = await findEditableDraft(
+	const draftResolution = await resolveEditableDraft(
 		supabase,
 		customerId,
 		route.targetReference,
+		route.searchQuery || userText,
 	)
+	const draft = draftResolution.draft
 	if (!draft)
 		return {
-			message: 'I could not find an editable draft in your customer account.',
+			message:
+				draftResolution.message ??
+				'I could not find an editable draft in your customer account.',
 		}
 	const draftName =
 		route.draftName ?? inferredDraftNameFromText(userText) ?? draft.draft_name
@@ -1771,13 +1891,19 @@ async function deleteDraft(
 	customerId: string,
 	route: PortalCustomerToolRequest,
 ): Promise<DraftWriteContext> {
-	const draft = await findEditableDraft(
+	const draftResolution = await resolveEditableDraft(
 		supabase,
 		customerId,
 		route.targetReference,
+		route.searchQuery,
 	)
+	const draft = draftResolution.draft
 	if (!draft)
-		return { message: 'I could not find an editable draft to delete.' }
+		return {
+			message:
+				draftResolution.message ??
+				'I could not find an editable draft to delete.',
+		}
 	await deleteDraftIds(supabase, customerId, [draft.id])
 	return {
 		deleted: [draft.request_number],
@@ -1812,26 +1938,88 @@ async function findSourceQuoteRequest(
 	)
 }
 
-async function findEditableDraft(
+async function resolveEditableDraft(
 	supabase: AuthedSupabase,
 	customerId: string,
-	targetReference?: string,
-): Promise<QuoteRequestRow | null> {
+	targetReference: string | undefined,
+	descriptorText: string | undefined,
+): Promise<{ draft: QuoteRequestRow | null; message?: string }> {
 	const drafts = await loadEditableDrafts(supabase, customerId)
 	if (targetReference) {
-		return (
-			drafts.find((draft) => {
-				return (
-					referenceEquals(draft.request_number, targetReference) ||
-					referenceEquals(draft.id, targetReference) ||
-					(draft.draft_name
-						? referenceEquals(draft.draft_name, targetReference)
-						: false)
-				)
-			}) ?? null
-		)
+		const exact =
+			drafts.find((draft) =>
+				editableDraftMatchesReference(draft, targetReference),
+			) ?? null
+		return exact
+			? { draft: exact }
+			: { draft: null, message: 'I could not find that editable draft.' }
 	}
-	return drafts[0] ?? null
+	const descriptor = editableDraftDescriptorFromText(descriptorText ?? '')
+	if (descriptor.specific) {
+		const matches = drafts.filter((draft) =>
+			editableDraftMatchesDescriptor(draft, descriptor),
+		)
+		if (matches.length === 1) return { draft: matches[0] ?? null }
+		const label = editableDraftDescriptorLabel(descriptor)
+		if (matches.length > 1) {
+			return {
+				draft: null,
+				message: `I found multiple editable drafts matching ${label}: ${matches.map((draft) => draft.request_number).join(', ')}. Tell me the exact reference to edit.`,
+			}
+		}
+		return {
+			draft: null,
+			message: `I could not find an editable draft matching ${label}. I did not change any draft.`,
+		}
+	}
+	return { draft: drafts[0] ?? null }
+}
+
+function editableDraftMatchesReference(
+	draft: QuoteRequestRow,
+	targetReference: string,
+): boolean {
+	return (
+		referenceEquals(draft.request_number, targetReference) ||
+		referenceEquals(draft.id, targetReference) ||
+		(draft.draft_name
+			? referenceEquals(draft.draft_name, targetReference)
+			: false)
+	)
+}
+
+function editableDraftMatchesDescriptor(
+	draft: QuoteRequestRow,
+	descriptor: EditableDraftDescriptor,
+): boolean {
+	const items = sortedQuoteRequestItems(draft)
+	if (
+		descriptor.quantities.length > 0 &&
+		!items.some((item) =>
+			descriptor.quantities.some((quantity) =>
+				quantitiesEqual(item.quantity, quantity),
+			),
+		)
+	) {
+		return false
+	}
+	if (descriptor.materialTokens.length === 0) return true
+	const draftText = normalizeForMatch(
+		items
+			.flatMap((item) => {
+				const product = firstRelation(item.products)
+				return [
+					item.customer_description,
+					item.product_name_ar,
+					product?.name,
+					product?.name_ar,
+					product?.category,
+				]
+			})
+			.filter(Boolean)
+			.join(' '),
+	)
+	return descriptor.materialTokens.every((token) => draftText.includes(token))
 }
 
 function sortedQuoteRequestItems(
@@ -2313,6 +2501,218 @@ function draftCleanupEvent(result: DraftWriteContext): StreamChunk {
 				reference: result.reference,
 				renamed: result.renamed ?? [],
 			},
+		},
+	}
+}
+
+function commandActionEvents(result: PortalToolResult): StreamChunk[] {
+	switch (result.route.commandName) {
+		case '/help':
+			return [
+				actionButtonEvent({
+					icon: 'support',
+					label: 'Support',
+					labelAr: 'الدعم',
+					route: '/support',
+				}),
+				actionButtonEvent({
+					icon: 'orders',
+					label: 'Orders',
+					labelAr: 'الطلبات',
+					route: '/orders',
+				}),
+				actionButtonEvent({
+					icon: 'market',
+					label: 'Market',
+					labelAr: 'السوق',
+					route: '/market',
+				}),
+			]
+		case '/products':
+		case '/market':
+			return [
+				actionButtonEvent({
+					icon: 'market',
+					label: 'Open market',
+					labelAr: 'افتح السوق',
+					route: '/market',
+				}),
+				actionButtonEvent({
+					icon: 'draft',
+					label: 'New draft',
+					labelAr: 'مسودة جديدة',
+					params: { draft: 'true' },
+					route: '/orders',
+				}),
+			]
+		case '/new-draft':
+			return [
+				actionButtonEvent({
+					icon: 'draft',
+					label: 'Open quote drawer',
+					labelAr: 'افتح درج العرض',
+					params: { draft: 'true' },
+					route: '/orders',
+				}),
+				actionButtonEvent({
+					event: 'open_draft_panel',
+					icon: 'draft',
+					label: 'Chat draft desk',
+					labelAr: 'مكتب المسودات',
+				}),
+				actionButtonEvent({
+					icon: 'market',
+					label: 'Browse market',
+					labelAr: 'تصفح السوق',
+					route: '/market',
+				}),
+			]
+		case '/orders':
+			return [
+				actionButtonEvent({
+					icon: 'orders',
+					label: 'Open orders',
+					labelAr: 'افتح الطلبات',
+					route: '/orders',
+				}),
+				actionButtonEvent({
+					icon: 'draft',
+					label: 'New draft',
+					labelAr: 'مسودة جديدة',
+					params: { draft: 'true' },
+					route: '/orders',
+				}),
+			]
+		case '/drafts':
+			return [
+				actionButtonEvent({
+					icon: 'orders',
+					label: 'Open drafts',
+					labelAr: 'افتح المسودات',
+					route: '/orders',
+				}),
+				actionButtonEvent({
+					event: 'open_draft_panel',
+					icon: 'draft',
+					label: 'Edit in chat',
+					labelAr: 'تعديل في الشات',
+				}),
+				actionButtonEvent({
+					icon: 'draft',
+					label: 'New draft',
+					labelAr: 'مسودة جديدة',
+					params: { draft: 'true' },
+					route: '/orders',
+				}),
+			]
+		case '/latest-order':
+		case '/track':
+			return [
+				actionButtonEvent({
+					icon: 'orders',
+					label: 'Open orders',
+					labelAr: 'افتح الطلبات',
+					route: '/orders',
+				}),
+				actionButtonEvent({
+					icon: 'support',
+					label: 'Support',
+					labelAr: 'الدعم',
+					route: '/support',
+				}),
+			]
+		case '/profile':
+			return [
+				actionButtonEvent({
+					icon: 'profile',
+					label: 'Open profile panel',
+					labelAr: 'افتح الملف الشخصي',
+					route: '/profile',
+				}),
+				actionButtonEvent({
+					icon: 'support',
+					label: 'Support',
+					labelAr: 'الدعم',
+					route: '/support',
+				}),
+			]
+		case '/support':
+			return [
+				actionButtonEvent({
+					icon: 'support',
+					label: 'Support panel',
+					labelAr: 'لوحة الدعم',
+					route: '/support',
+				}),
+				actionButtonEvent({
+					href: 'mailto:support@hyperquote.net',
+					icon: 'mail',
+					label: 'Email support',
+					labelAr: 'راسل الدعم',
+				}),
+				actionButtonEvent({
+					href: 'https://www.hyperquote.net/docs',
+					icon: 'book',
+					label: 'Docs',
+					labelAr: 'الوثائق',
+				}),
+				actionButtonEvent({
+					href: 'https://www.hyperquote.net/support#faq',
+					icon: 'help',
+					label: 'FAQ',
+					labelAr: 'الأسئلة الشائعة',
+				}),
+			]
+		case '/docs':
+			return [
+				actionButtonEvent({
+					href: 'https://www.hyperquote.net/docs',
+					icon: 'book',
+					label: 'Open docs',
+					labelAr: 'افتح الوثائق',
+				}),
+				actionButtonEvent({
+					href: 'https://www.hyperquote.net/support#faq',
+					icon: 'help',
+					label: 'FAQ',
+					labelAr: 'الأسئلة الشائعة',
+				}),
+				actionButtonEvent({
+					icon: 'support',
+					label: 'Support',
+					labelAr: 'الدعم',
+					route: '/support',
+				}),
+			]
+		case '/clear-all-drafts':
+			return [
+				actionButtonEvent({
+					icon: 'orders',
+					label: 'Open orders',
+					labelAr: 'افتح الطلبات',
+					route: '/orders',
+				}),
+				actionButtonEvent({
+					icon: 'draft',
+					label: 'New draft',
+					labelAr: 'مسودة جديدة',
+					params: { draft: 'true' },
+					route: '/orders',
+				}),
+			]
+		default:
+			return []
+	}
+}
+
+function actionButtonEvent(data: ActionButtonData): StreamChunk {
+	return {
+		type: 'CUSTOM' as const,
+		timestamp: Date.now(),
+		name: 'rich_message',
+		value: {
+			type: 'action_button',
+			data,
 		},
 	}
 }

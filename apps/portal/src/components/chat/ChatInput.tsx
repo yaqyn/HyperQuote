@@ -9,6 +9,7 @@ const SMOOTH_EASE = cubicBezier(0.22, 1, 0.36, 1)
 
 const MAX_LINES = 5
 const LINE_HEIGHT = 20
+const COMMANDS_WITH_ARGUMENTS = new Set(['/docs', '/products', '/track'])
 
 function autoResizeChatTextarea(ta: HTMLTextAreaElement) {
 	ta.style.height = 'auto'
@@ -104,8 +105,9 @@ export function ChatInput({ chat }: ChatInputProps) {
 	}, [value, chat])
 
 	const selectCommand = useCallback((command: PortalChatCommand) => {
-		const nextValue =
-			command.name === '/products' ? `${command.name} ` : command.name
+		const nextValue = COMMANDS_WITH_ARGUMENTS.has(command.name)
+			? `${command.name} `
+			: command.name
 		setValue(nextValue)
 		setCommandMenuDismissed(false)
 		requestAnimationFrame(() => {

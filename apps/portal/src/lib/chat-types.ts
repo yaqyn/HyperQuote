@@ -44,9 +44,22 @@ export interface StatusCardData {
 }
 
 export interface ActionButtonData {
+	event?: 'open_draft_panel'
+	href?: string
+	icon?:
+		| 'book'
+		| 'draft'
+		| 'external'
+		| 'help'
+		| 'mail'
+		| 'market'
+		| 'orders'
+		| 'profile'
+		| 'support'
+		| 'track'
 	label: string
 	labelAr: string
-	route: string
+	route?: string
 	params?: Record<string, string>
 }
 

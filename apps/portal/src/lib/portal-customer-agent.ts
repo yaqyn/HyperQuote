@@ -1,8 +1,4 @@
 import {
-	classifyWebsitePublicChatIntent,
-	retrieveWebsiteDocs,
-} from '@hyperquote/docs/retrieval'
-import {
 	type PortalChatCommandName,
 	parsePortalChatCommand,
 } from './portal-chat-commands'
@@ -50,11 +46,6 @@ export interface PortalCustomerToolRequest {
 	targetReference?: string
 }
 
-export interface PortalCustomerChatMessage {
-	content: string
-	role: 'assistant' | 'user'
-}
-
 export interface PortalCustomerCatalogSnapshotItem {
 	category: string
 	name: string
@@ -93,8 +84,10 @@ Tool rules:
 - update_draft_items: edit an existing editable draft like a workspace: set a line quantity, remove a line, clear all lines, or set a line note. Never submit the draft. Use target_reference when the conversation includes a QR/order id or draft edit link.
 - duplicate_order_to_draft, update_draft_metadata, cleanup_drafts, delete_draft: draft-only, customer-scoped edits.
 - refuse: submit/place/confirm order requests, cross-customer data, internal finance, supplier costs/margins, employee data, secrets, or driver-only operational data outside the customer's own delivery tracking.
+- Use conversation context like a capable assistant. If the user corrects a draft target after a draft edit, keep the prior requested edit/name and use the corrected draft description in search_query. Do not list drafts when the user is correcting which draft to edit.
+- When a draft target is described naturally (for example by product and quantity), put that description in search_query even if there is no target_reference. The server will match it against the customer's editable drafts.
 
-Fast fixed commands customers can type directly: /products, /orders, /drafts, /latest-order, /profile, /clear-all-drafts. The server executes these deterministically and may skip model answering. /clear and /new are local UI commands.
+Fast fixed commands customers can type directly: /help, /products, /market, /new-draft, /orders, /drafts, /latest-order, /track, /profile, /support, /docs, /clear-all-drafts. The server executes these deterministically and may skip model answering. /clear and /new are local UI commands.
 
 Never request submit, confirm, accept, payment, cancellation, internal, supplier-cost, employee, or cross-customer writes. Do not invent products. If matching is uncertain, use chat and ask what material, size, grade, or quantity is missing.
 
@@ -138,114 +131,6 @@ export function fallbackPortalCustomerToolRequest(
 		return { action: 'refuse', reason: refusal, searchQuery: '' }
 	}
 
-	const lower = userMessage.toLowerCase()
-	const targetReference = extractTargetReference(userMessage)
-	const draftName = extractDraftName(userMessage)
-	const draftItemEdit = inferDraftItemEdit(userMessage)
-
-	if (isCleanupDraftRequest(lower, userMessage)) {
-		return {
-			action: 'cleanup_drafts',
-			cleanupMode: detectCleanupMode(lower, userMessage),
-			searchQuery: userMessage,
-			targetReference,
-		}
-	}
-	if (isDeleteDraftRequest(lower, userMessage)) {
-		return {
-			action: 'delete_draft',
-			searchQuery: userMessage,
-			targetReference,
-		}
-	}
-	if (isDuplicateDraftRequest(lower, userMessage)) {
-		return {
-			action: 'duplicate_order_to_draft',
-			draftName,
-			searchQuery: userMessage,
-			targetReference,
-		}
-	}
-	if (draftItemEdit) {
-		return {
-			action: 'update_draft_items',
-			...draftItemEdit,
-			searchQuery: userMessage,
-			targetReference,
-		}
-	}
-	if (isDraftMetadataRequest(lower, userMessage)) {
-		return {
-			action: 'update_draft_metadata',
-			draftName,
-			draftNotes: extractDraftNotes(userMessage),
-			searchQuery: userMessage,
-			targetReference,
-		}
-	}
-	if (isDraftCreationRequest(lower, userMessage)) {
-		return {
-			action: 'create_draft_from_plan',
-			draftName,
-			searchQuery: userMessage,
-		}
-	}
-	if (isDeliveryTrackingRequest(lower, userMessage)) {
-		return {
-			action: 'delivery_tracking',
-			searchQuery: userMessage,
-			targetReference,
-		}
-	}
-	if (isProfileRequest(lower, userMessage)) {
-		return {
-			action: 'customer_profile',
-			commandName: '/profile',
-			searchQuery: userMessage,
-		}
-	}
-	if (isCustomerOrdersRequest(lower, userMessage)) {
-		const orderScope = isDraftOrderScope(lower, userMessage) ? 'drafts' : 'all'
-		const action =
-			targetReference || lower.includes('latest')
-				? 'order_detail'
-				: 'customer_orders'
-		if (action === 'order_detail') {
-			return {
-				action,
-				...(targetReference ? {} : { commandName: '/latest-order' }),
-				orderScope,
-				searchQuery: userMessage,
-				targetReference,
-			}
-		}
-		return {
-			action,
-			commandName: orderScope === 'drafts' ? '/drafts' : '/orders',
-			orderScope,
-			searchQuery: userMessage,
-			targetReference,
-		}
-	}
-	if (isProjectPlanningRequest(lower, userMessage)) {
-		return {
-			action: 'product_search',
-			searchQuery: userMessage,
-		}
-	}
-	if (isProductSearchRequest(lower, userMessage)) {
-		return {
-			action: 'product_search',
-			commandName: '/products',
-			searchQuery: userMessage,
-		}
-	}
-
-	const docs = retrieveWebsiteDocs(userMessage)
-	if (classifyWebsitePublicChatIntent(userMessage, docs) === 'public_docs') {
-		return { action: 'public_docs', searchQuery: userMessage }
-	}
-
 	return { action: 'chat', searchQuery: '' }
 }
 
@@ -257,11 +142,29 @@ export function routePortalChatCommand(
 
 	const searchQuery = command.args || command.name
 	switch (command.name) {
+		case '/help':
+			return {
+				action: 'chat',
+				commandName: command.name,
+				searchQuery: '',
+			}
 		case '/products':
 			return {
 				action: 'product_search',
 				commandName: command.name,
 				searchQuery,
+			}
+		case '/market':
+			return {
+				action: 'chat',
+				commandName: command.name,
+				searchQuery: '',
+			}
+		case '/new-draft':
+			return {
+				action: 'chat',
+				commandName: command.name,
+				searchQuery: '',
 			}
 		case '/orders':
 			return {
@@ -283,6 +186,13 @@ export function routePortalChatCommand(
 				commandName: command.name,
 				searchQuery,
 			}
+		case '/track':
+			return {
+				action: 'delivery_tracking',
+				commandName: command.name,
+				searchQuery,
+				targetReference: command.args || undefined,
+			}
 		case '/profile':
 			return {
 				action: 'customer_profile',
@@ -296,6 +206,24 @@ export function routePortalChatCommand(
 				commandName: command.name,
 				searchQuery,
 			}
+		case '/support':
+			return {
+				action: 'chat',
+				commandName: command.name,
+				searchQuery: '',
+			}
+		case '/docs':
+			return command.args
+				? {
+						action: 'public_docs',
+						commandName: command.name,
+						searchQuery: command.args,
+					}
+				: {
+						action: 'chat',
+						commandName: command.name,
+						searchQuery: '',
+					}
 		case '/clear':
 		case '/new':
 			return {
@@ -305,17 +233,6 @@ export function routePortalChatCommand(
 				searchQuery: '',
 			}
 	}
-}
-
-export function routePortalCustomerDraftFollowUp(
-	messages: PortalCustomerChatMessage[],
-	userMessage: string,
-): PortalCustomerToolRequest | null {
-	return (
-		routeDraftItemEditFollowUp(messages, userMessage) ??
-		routeOfferedDraftConfirmation(messages, userMessage) ??
-		routeDraftQuantityOrConfirmation(messages, userMessage)
-	)
 }
 
 export function parsePortalCustomerToolRequest(
@@ -404,16 +321,6 @@ export function enforcePortalCustomerToolRequest(
 			searchQuery: '',
 		}
 	}
-	if (request.action === 'public_docs') return request
-
-	const fallback = fallbackPortalCustomerToolRequest(userMessage)
-	if (fallback.action === 'public_docs') return fallback
-	if (
-		isDraftWriteAction(request.action) &&
-		!isDraftWriteAction(fallback.action)
-	) {
-		return fallback
-	}
 
 	return request
 }
@@ -443,204 +350,9 @@ export function extractTargetReference(
 	return reference?.replace(/\s+/g, '-')
 }
 
-function routeOfferedDraftConfirmation(
-	messages: PortalCustomerChatMessage[],
-	userMessage: string,
-): PortalCustomerToolRequest | null {
-	if (!isAffirmativeDraftFollowUp(userMessage)) return null
-	const previousAssistant = lastAssistantMessage(messages)
-	if (!previousAssistant) return null
-	const offeredDraft =
-		/\badd\b[\s\S]{0,80}\b(available|orderable)\b[\s\S]{0,80}\bdraft\b/i.test(
-			previousAssistant.content,
-		) ||
-		/أضيف[\s\S]{0,80}المتاحة[\s\S]{0,80}مسودة/.test(previousAssistant.content)
-	if (!offeredDraft) return null
-	return {
-		action: 'create_draft_from_plan',
-		searchQuery: previousAssistant.content.slice(0, 1600),
-	}
-}
-
-function routeDraftItemEditFollowUp(
-	messages: PortalCustomerChatMessage[],
-	userMessage: string,
-): PortalCustomerToolRequest | null {
-	const currentEdit = inferDraftItemEdit(userMessage)
-	const priorMessages = messagesWithoutCurrentUserMessage(messages, userMessage)
-	const recentContext = priorMessages
-		.slice(-6)
-		.map((message) => message.content)
-		.join('\n')
-	if (currentEdit && hasRecentDraftContext(recentContext)) {
-		return {
-			action: 'update_draft_items',
-			...currentEdit,
-			searchQuery: `${recentContext}\n${userMessage}`.slice(0, 1600),
-			targetReference:
-				extractTargetReference(userMessage) ??
-				extractTargetReference(recentContext),
-		}
-	}
-
-	if (!isDelegatingDraftEditFollowUp(userMessage)) return null
-	const previousAssistant = lastAssistantMessage(priorMessages)
-	if (!previousAssistant || !hasRecentDraftContext(previousAssistant.content)) {
-		return null
-	}
-	const assistantEdit = inferDraftItemEdit(previousAssistant.content)
-	if (!assistantEdit) return null
-	return {
-		action: 'update_draft_items',
-		...assistantEdit,
-		searchQuery: `${previousAssistant.content}\n${userMessage}`.slice(0, 1600),
-		targetReference: extractTargetReference(previousAssistant.content),
-	}
-}
-
-function routeDraftQuantityOrConfirmation(
-	messages: PortalCustomerChatMessage[],
-	userMessage: string,
-): PortalCustomerToolRequest | null {
-	const quantity = parseFollowUpQuantity(userMessage)
-	const isQuantityReply = quantity !== null && isShortQuantityReply(userMessage)
-	const isConfirmationReply = isAffirmativeDraftFollowUp(userMessage)
-	if (!isQuantityReply && !isConfirmationReply) return null
-
-	const priorMessages = messagesWithoutCurrentUserMessage(messages, userMessage)
-	const previousAssistant = lastAssistantMessage(priorMessages)
-	if (!previousAssistant || !isDraftQuantityPrompt(previousAssistant.content)) {
-		return null
-	}
-
-	const recentUserMessages = priorMessages
-		.filter((message) => message.role === 'user')
-		.slice(-4)
-		.map((message) => message.content.trim())
-		.filter(Boolean)
-	const hasDraftIntent =
-		recentUserMessages.some(isDraftCreationContext) ||
-		isDraftCreationContext(previousAssistant.content)
-	const hasMaterialContext =
-		recentUserMessages.some(isMaterialContext) ||
-		isMaterialContext(previousAssistant.content)
-	if (!hasDraftIntent || !hasMaterialContext) return null
-
-	return {
-		action: 'create_draft_from_plan',
-		searchQuery: [
-			...recentUserMessages,
-			previousAssistant.content,
-			quantity === null ? userMessage : `quantity ${quantity}`,
-		]
-			.join('\n')
-			.slice(0, 1600),
-	}
-}
-
-function lastAssistantMessage(
-	messages: PortalCustomerChatMessage[],
-): PortalCustomerChatMessage | null {
-	return (
-		[...messages].reverse().find((message) => message.role === 'assistant') ??
-		null
-	)
-}
-
-function messagesWithoutCurrentUserMessage(
-	messages: PortalCustomerChatMessage[],
-	userMessage: string,
-): PortalCustomerChatMessage[] {
-	const lastMessage = messages.at(-1)
-	if (
-		lastMessage?.role === 'user' &&
-		lastMessage.content.trim() === userMessage.trim()
-	) {
-		return messages.slice(0, -1)
-	}
-	return messages
-}
-
-function isAffirmativeDraftFollowUp(userMessage: string): boolean {
-	const normalized = normalizeForAgentMatch(userMessage)
-	return (
-		/^(yes|yeah|yep|ok|okay|sure|confirm|confirmed|correct|go ahead|do it|create it|draft it|add them|add available|add the available items)$/.test(
-			normalized,
-		) ||
-		/^(ايوه|اه|تمام|ماشي|اكد|أكد|صح|ضيف|أضيف|اعمل|يلا)$/.test(
-			userMessage.trim(),
-		)
-	)
-}
-
-function isDraftQuantityPrompt(text: string): boolean {
-	const normalized = normalizeForAgentMatch(text)
-	const mentionsDraft =
-		/\b(draft|quote|rfq|request)\b/.test(normalized) ||
-		/مسودة|عرض\s+سعر|طلب\s+عرض/.test(text)
-	const mentionsQuantity =
-		/\b(how many|quantity|qty|piece|pieces|unit|units|confirming|before creating)\b/.test(
-			normalized,
-		) || /كم|عدد|قطعة/.test(text)
-	return mentionsDraft && mentionsQuantity
-}
-
-function isDraftCreationContext(text: string): boolean {
-	const normalized = normalizeForAgentMatch(text)
-	return (
-		/\b(create|make|start|build|prepare|generate|draft|quote|rfq|request|order|cart|add)\b/.test(
-			normalized,
-		) || /اعمل|جهز|حضّر|حضر|انشئ|مسودة|عرض\s+سعر|طلب\s+عرض/.test(text)
-	)
-}
-
-function isMaterialContext(text: string): boolean {
-	const normalized = normalizeForAgentMatch(text)
-	return (
-		/\b(product|products|material|materials|wood|wooden|timber|lumber|cement|rebar|steel|metal|metals|concrete|sand|aggregate|brick|bricks|paint|tiles?)\b/.test(
-			normalized,
-		) ||
-		/منتج|منتجات|مواد|خشب|اسمنت|أسمنت|حديد|معدن|معادن|خرسانة|رمل|طوب|دهان|بويات|سيراميك/.test(
-			text,
-		)
-	)
-}
-
-function parseFollowUpQuantity(text: string): number | null {
-	const normalized = normalizeForAgentMatch(text)
-	const digitMatch = normalized.match(/\b(\d+(?:\.\d+)?)\b/)
-	if (digitMatch)
-		return normalizeQuantity(Number.parseFloat(digitMatch[1] ?? ''))
-	const wordNumbers: Record<string, number> = {
-		eight: 8,
-		five: 5,
-		four: 4,
-		nine: 9,
-		one: 1,
-		seven: 7,
-		six: 6,
-		ten: 10,
-		three: 3,
-		two: 2,
-	}
-	return normalizeQuantity(wordNumbers[normalized] ?? Number.NaN)
-}
-
 function normalizeQuantity(value: number): number | null {
 	if (!Number.isFinite(value) || value <= 0) return null
 	return Math.min(value, 1_000_000)
-}
-
-function isShortQuantityReply(text: string): boolean {
-	const normalized = normalizeForAgentMatch(text)
-	const withoutUnit = normalized
-		.replace(/\b(just|only|qty|quantity|piece|pieces|unit|units)\b/g, ' ')
-		.replace(/\s+/g, ' ')
-		.trim()
-	return (
-		/^\d+(?:\.\d+)?$/.test(withoutUnit) ||
-		/^(one|two|three|four|five|six|seven|eight|nine|ten)$/.test(withoutUnit)
-	)
 }
 
 function asksToSubmitOrder(lower: string, raw: string): boolean {
@@ -668,40 +380,6 @@ function asksForPrivateOrCrossScope(lower: string, raw: string): boolean {
 		/عميل\s+(تاني|تانى|اخر|آخر)|كل\s+العملاء|بيانات\s+داخلية|تكلفة\s+المورد|هامش|موظف|موظفين|سر|توكن|مفتاح/.test(
 			raw,
 		)
-	)
-}
-
-function isCleanupDraftRequest(lower: string, raw: string): boolean {
-	return (
-		(/\b(clean|cleanup|clean up|merge|dedupe|deduplicate)\b/.test(lower) &&
-			/\bdrafts?\b/.test(lower)) ||
-		/(?:(?:نضف|نظف|ادمج).{0,40}المسودات|(?:امسح|احذف).{0,20}كل.{0,20}المسودات)/.test(
-			raw,
-		)
-	)
-}
-
-function isDeleteDraftRequest(lower: string, raw: string): boolean {
-	return (
-		(/\b(delete|discard)\b/.test(lower) && /\bdrafts?\b/.test(lower)) ||
-		/\bremove\s+(?:my\s+|this\s+|the\s+)?draft\b/.test(lower) ||
-		/امسح|احذف|الغى\s+المسودة|الغي\s+المسودة/.test(raw)
-	)
-}
-
-function isDuplicateDraftRequest(lower: string, raw: string): boolean {
-	return (
-		(/\b(copy|duplicate|repeat|same as|reorder|again)\b/.test(lower) &&
-			/\b(order|quote|draft|request)\b/.test(lower)) ||
-		/كرر|انسخ|زي\s+الطلب|نفس\s+الطلب/.test(raw)
-	)
-}
-
-function isDraftMetadataRequest(lower: string, raw: string): boolean {
-	return (
-		(/\b(rename|call|name|update|change|edit|save)\b/.test(lower) &&
-			/\bdrafts?\b/.test(lower)) ||
-		/سمي|غير\s+اسم|اسم\s+المسودة|عدل\s+المسودة/.test(raw)
 	)
 }
 
@@ -758,140 +436,6 @@ export function inferDraftItemEdit(
 		}
 	}
 	return null
-}
-
-function isDraftCreationRequest(lower: string, raw: string): boolean {
-	const arabicDraftAction = /اعمل|جهز|حضّر|حضر|انشئ|اختار|رشح/.test(raw)
-	const arabicDraftTarget = /مسودة|عرض\s+سعر|طلب\s+عرض|اوردر|طلب/.test(raw)
-	const arabicCatalogTarget =
-		/مواد|منتجات|كتالوج|اسمنت|أسمنت|حديد|معدن|معادن|خرسانة|رمل|طوب|بويات|سيراميك/.test(
-			raw,
-		)
-	const explicitEnglishDraftWrite =
-		/\b(create|make|start|build|prepare|generate|add)\b/.test(lower) &&
-		/\b(draft|quote|rfq|request|order|cart)\b/.test(lower)
-	const explicitEnglishCatalogDraft =
-		/\bdraft\b/.test(lower) &&
-		/\b(materials?|products?|catalog|catalogue|cement|rebar|steel|metals?|concrete|sand|aggregate|bricks?|paints?|tiles?)\b/.test(
-			lower,
-		)
-	return (
-		explicitEnglishDraftWrite ||
-		explicitEnglishCatalogDraft ||
-		(arabicDraftAction && arabicDraftTarget && arabicCatalogTarget)
-	)
-}
-
-function isDeliveryTrackingRequest(lower: string, raw: string): boolean {
-	return (
-		(/\b(track|tracking|delivery|driver|truck|plate|eta|route|location|where is)\b/.test(
-			lower,
-		) &&
-			/\b(my|order|delivery|driver|truck|eta|route|location)\b/.test(lower)) ||
-		/تتبع|توصيل|السائق|السواق|الشاحنة|العربية|اللوحة|الموقع|مكان|يوصل|فين/.test(
-			raw,
-		)
-	)
-}
-
-function isCustomerOrdersRequest(lower: string, raw: string): boolean {
-	return (
-		(/\b(order|orders|quote|quotes|rfq|request|requests|status|draft|saved|submitted|confirmed|delivered)\b/.test(
-			lower,
-		) &&
-			/\b(my|show|list|latest|status|where|open|view|what)\b/.test(lower)) ||
-		/طلبي|طلباتي|طلب|طلبات|عروضي|عرض|حالة|مسودة|مسودات/.test(raw)
-	)
-}
-
-function isDraftOrderScope(lower: string, raw: string): boolean {
-	const asksDrafts = /\b(draft|drafts|saved)\b/.test(lower)
-	const asksOtherOrderStates =
-		/\b(submitted|confirmed|delivered|assigned|accepted|rejected|cancelled|canceled)\b/.test(
-			lower,
-		) ||
-		(/\borders?\b/.test(lower) && !/\bdrafts?\s+orders?\b/.test(lower))
-	return (asksDrafts && !asksOtherOrderStates) || /مسودة|مسودات/.test(raw)
-}
-
-function isProfileRequest(lower: string, raw: string): boolean {
-	return (
-		(/\b(profile|account|company|address|addresses|project|projects|site|sites|contact)\b/.test(
-			lower,
-		) &&
-			/\b(my|our|show|list|what|where|update|which)\b/.test(lower)) ||
-		/حسابي|بروفايل|الشركة|العنوان|عناويني|مشروعي|مشاريعي/.test(raw)
-	)
-}
-
-function isProductSearchRequest(lower: string, raw: string): boolean {
-	if (
-		/\b(no|why|published|policy|explain)\b.*\b(price|prices|pricing)\b/.test(
-			lower,
-		)
-	) {
-		return false
-	}
-	return (
-		/\b(product|products|catalog|catalogue|market|material|materials|cement|rebar|steel|metals?|concrete|sand|aggregate|brick|paint|tiles?)\b/.test(
-			lower,
-		) ||
-		(/\b(price|prices)\b/.test(lower) &&
-			/\b(cement|rebar|steel|metals?|concrete|sand|aggregate|brick|paint|tiles?)\b/.test(
-				lower,
-			)) ||
-		/منتج|منتجات|كتالوج|السوق|مواد|اسمنت|أسمنت|حديد|معدن|معادن|خرسانة|رمل|طوب/.test(
-			raw,
-		)
-	)
-}
-
-function isProjectPlanningRequest(lower: string, raw: string): boolean {
-	const planningAction =
-		/\b(need|want|build|make|plan|planning|project|materials?|what do i need|how much)\b/.test(
-			lower,
-		) || /احتاج|عايز|ابني|أبني|اعمل|مشروع|مواد/.test(raw)
-	const projectTarget =
-		/\b(tree\s*house|treehouse|house|room|roof|wall|floor|deck|platform|shed|stairs?|ladder|foundation|fence|gate|kitchen|bathroom|villa|warehouse)\b/.test(
-			lower,
-		) ||
-		/بيت|غرفة|اوضة|سقف|حائط|حيطة|جدار|ارضية|أرضية|سلم|منصة|فيلا|مخزن/.test(raw)
-	const projectAnswer =
-		/\b(it'?s|its|this is|for a|for an)\b/.test(lower) ||
-		/ده|دي|دا|هذا|هذه/.test(raw)
-	return projectTarget && (planningAction || projectAnswer)
-}
-
-function detectCleanupMode(
-	lower: string,
-	raw: string,
-): PortalCustomerToolRequest['cleanupMode'] {
-	if (
-		/\b(delete|remove|discard|all|full)\b/.test(lower) ||
-		/كل|امسح|احذف/.test(raw)
-	) {
-		return 'delete_all'
-	}
-	if (/\b(merge|dedupe|deduplicate)\b/.test(lower) || /ادمج/.test(raw)) {
-		return 'merge'
-	}
-	return 'remove_empty'
-}
-
-function extractDraftName(userMessage: string): string | undefined {
-	const quoted = userMessage.match(/["“”']([^"“”']{1,120})["“”']/)?.[1]
-	if (quoted) return quoted.trim()
-	const named = userMessage.match(
-		/\b(?:rename|call|name)\s+(?:my\s+)?draft\s+(?:to|as)?\s*([A-Za-z0-9 _./-]{2,120})/i,
-	)?.[1]
-	return named?.trim()
-}
-
-function extractDraftNotes(userMessage: string): string | undefined {
-	const note = userMessage.match(
-		/\b(?:draft\s+)?notes?\s*(?:to|as|:|=)\s*(.{2,600})$/i,
-	)?.[1]
-	return note?.trim()
 }
 
 function defaultRefusal(userMessage: string): string {
@@ -1005,24 +549,6 @@ function isItemNoteRequest(normalized: string, raw: string): boolean {
 		/\b(line|item|product|material|wood|timber|lumber|cement|rebar|steel|metal|concrete|sand|brick|paint|tile)\b/.test(
 			normalized,
 		) || /بند|منتج|مادة|خشب|اسمنت|أسمنت|حديد/.test(raw)
-	)
-}
-
-function hasRecentDraftContext(text: string): boolean {
-	const normalized = normalizeForAgentMatch(text)
-	return (
-		/\b(draft|quote|rfq|request|orders?\/edit|qr[- ]?\d|wood|cement|rebar|steel|item|quantity|qty)\b/.test(
-			normalized,
-		) || /مسودة|عرض|طلب|كمية|منتج/.test(text)
-	)
-}
-
-function isDelegatingDraftEditFollowUp(text: string): boolean {
-	const normalized = normalizeForAgentMatch(text)
-	return (
-		/\b(can'?t|cannot|can you|could you|do it|yourself|u do it|do it yourself)\b/.test(
-			normalized,
-		) || /ينفع|تقدر|اعملها|بنفسك/.test(text)
 	)
 }
 

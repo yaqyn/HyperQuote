@@ -6,10 +6,28 @@ export const PORTAL_CHAT_COMMANDS = [
 		title: 'Clear chat',
 	},
 	{
+		description: 'Show this command menu with the safest shortcuts.',
+		name: '/help',
+		scope: 'server',
+		title: 'Command guide',
+	},
+	{
 		description: 'List visible catalog products, with optional search terms.',
 		name: '/products',
 		scope: 'server',
 		title: 'Products',
+	},
+	{
+		description: 'Open catalog and draft quote shortcuts.',
+		name: '/market',
+		scope: 'server',
+		title: 'Market',
+	},
+	{
+		description: 'Start a new draft quote from the portal quote drawer.',
+		name: '/new-draft',
+		scope: 'server',
+		title: 'New draft',
 	},
 	{
 		description: 'List customer-owned quote requests and orders.',
@@ -30,6 +48,12 @@ export const PORTAL_CHAT_COMMANDS = [
 		title: 'Latest order',
 	},
 	{
+		description: 'Track the latest customer-visible delivery.',
+		name: '/track',
+		scope: 'server',
+		title: 'Track delivery',
+	},
+	{
 		description: 'Start a clean chat page without contacting the server.',
 		name: '/new',
 		scope: 'local',
@@ -47,6 +71,18 @@ export const PORTAL_CHAT_COMMANDS = [
 		name: '/profile',
 		scope: 'server',
 		title: 'Profile',
+	},
+	{
+		description: 'Open support, contact, FAQ, and public docs links.',
+		name: '/support',
+		scope: 'server',
+		title: 'Support',
+	},
+	{
+		description: 'Open docs, or ask a public docs question after the command.',
+		name: '/docs',
+		scope: 'server',
+		title: 'Docs',
 	},
 ] as const
 
