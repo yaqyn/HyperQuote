@@ -1,3 +1,5 @@
+import type { CommandPaletteData } from './chat-types'
+
 export const PORTAL_CHAT_COMMANDS = [
 	{
 		category: 'Workspace',
@@ -9,10 +11,10 @@ export const PORTAL_CHAT_COMMANDS = [
 	},
 	{
 		category: 'Workspace',
-		description: 'Show this command menu with the safest shortcuts.',
+		description: 'Show this command menu without contacting the server.',
 		inputMode: 'run',
 		name: '/help',
-		scope: 'server',
+		scope: 'local',
 		title: 'Command guide',
 	},
 	{
@@ -354,4 +356,29 @@ export function portalChatCommandInputMode(
 		PORTAL_CHAT_COMMANDS.find((command) => command.name === name)?.inputMode ??
 		'run'
 	)
+}
+
+export function portalChatCommandPaletteGroups(): CommandPaletteData['groups'] {
+	const order: PortalChatCommandCategory[] = [
+		'Workspace',
+		'Catalog',
+		'Drafts',
+		'Orders',
+		'Account',
+		'Support',
+	]
+	return order
+		.map((category) => ({
+			commands: PORTAL_CHAT_COMMANDS.filter(
+				(command) => command.category === category,
+			).map((command) => ({
+				command: command.name,
+				description: command.description,
+				inputMode: command.inputMode,
+				scope: command.scope,
+				title: command.title,
+			})),
+			title: category,
+		}))
+		.filter((group) => group.commands.length > 0)
 }

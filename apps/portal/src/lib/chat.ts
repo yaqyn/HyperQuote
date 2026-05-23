@@ -39,10 +39,7 @@ import {
 	productIntentTerms,
 	productSearchTerm,
 } from './portal-catalog-intent'
-import {
-	PORTAL_CHAT_COMMANDS,
-	type PortalChatCommandCategory,
-} from './portal-chat-commands'
+import { portalChatCommandPaletteGroups } from './portal-chat-commands'
 import {
 	buildPortalCustomerAgentPrompt,
 	detectPortalAiLocale,
@@ -1335,16 +1332,9 @@ function commandToolAnswer(
 }
 
 function helpCommandAnswer(): string {
-	const rows = PORTAL_CHAT_COMMANDS.map((command) => {
-		return `| \`${command.name}\` | ${command.category} | ${command.title} | ${command.description} |`
-	})
 	return [
 		'## Command Guide',
-		'Fixed shortcuts for customer-safe portal work. Lyon can still choose the same skills naturally from the conversation.',
-		'',
-		'| Command | Area | Title | Description |',
-		'| --- | --- | --- | --- |',
-		...rows,
+		'Run safe shortcuts below, or prepare commands that need details.',
 	].join('\n')
 }
 
@@ -4009,28 +3999,7 @@ function supportOptionsEvent(): StreamChunk {
 }
 
 function commandPaletteGroups(): CommandPaletteData['groups'] {
-	const order: PortalChatCommandCategory[] = [
-		'Workspace',
-		'Catalog',
-		'Drafts',
-		'Orders',
-		'Account',
-		'Support',
-	]
-	return order
-		.map((category) => ({
-			commands: PORTAL_CHAT_COMMANDS.filter(
-				(command) => command.category === category,
-			).map((command) => ({
-				command: command.name,
-				description: command.description,
-				inputMode: command.inputMode,
-				scope: command.scope,
-				title: command.title,
-			})),
-			title: category,
-		}))
-		.filter((group) => group.commands.length > 0)
+	return portalChatCommandPaletteGroups()
 }
 
 function toolActionEvents(result: PortalToolResult): StreamChunk[] {

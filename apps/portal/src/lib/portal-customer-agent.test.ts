@@ -56,6 +56,7 @@ describe('portal customer AI agent', () => {
 			true,
 		)
 		expect(isLocalPortalChatCommand('/clear')).toBe(true)
+		expect(isLocalPortalChatCommand('/help')).toBe(true)
 		expect(isLocalPortalChatCommand('/cart')).toBe(true)
 		expect(isLocalPortalChatCommand('/open-cart')).toBe(true)
 		expect(portalChatCommandInputMode('/feedback')).toBe('prefill')

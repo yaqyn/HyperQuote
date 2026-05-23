@@ -124,12 +124,13 @@ export function ChatInput({ chat }: ChatInputProps) {
 	)
 
 	const handleSubmit = useCallback(() => {
-		if (!value.trim() || chat.isLoading) return
-		chat.sendMessage(value.trim())
+		const message = value.trim()
+		if (!message || chat.isLoading) return
 		setValue('')
 		if (textareaRef.current) {
 			textareaRef.current.style.height = 'auto'
 		}
+		chat.sendMessage(message)
 		requestAnimationFrame(() => {
 			const inputs =
 				document.querySelectorAll<HTMLTextAreaElement>('[data-chat-input]')
@@ -141,9 +142,9 @@ export function ChatInput({ chat }: ChatInputProps) {
 		(command: PortalChatCommand) => {
 			if (portalChatCommandInputMode(command.name) === 'run') {
 				if (chat.isLoading) return
-				chat.sendMessage(command.name)
 				setValue('')
 				setCommandMenuDismissed(true)
+				chat.sendMessage(command.name)
 				requestAnimationFrame(() => {
 					if (!textareaRef.current) return
 					textareaRef.current.focus()
@@ -183,8 +184,8 @@ export function ChatInput({ chat }: ChatInputProps) {
 				return
 			}
 
-			chat.sendMessage(commandText)
 			setValue('')
+			chat.sendMessage(commandText)
 			requestAnimationFrame(() => {
 				textareaRef.current?.focus()
 			})
@@ -379,8 +380,8 @@ export function ChatInput({ chat }: ChatInputProps) {
 							const existing = value.trim()
 							const combined = [existing, voice].filter(Boolean).join(' ')
 							if (combined) {
-								chat.sendMessage(combined)
 								setValue('')
+								chat.sendMessage(combined)
 							}
 							stopListening(true)
 						}}

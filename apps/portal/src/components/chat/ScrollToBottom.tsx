@@ -25,10 +25,10 @@ export function ScrollToBottom({ show, onClick }: ScrollToBottomProps) {
 					transition={{ duration: 0.15 }}
 					onClick={onClick}
 					aria-label={t('chat.jumpToLatest', 'Jump to latest')}
-					className="relative isolate flex h-9 items-center gap-2 rounded-full bg-[var(--p-bg)]/45 px-3.5 text-[12px] font-semibold text-[var(--p-accent)] shadow-none backdrop-blur-md transition-colors hover:text-[var(--p-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)]"
+					className="relative isolate flex h-9 items-center gap-2 rounded-full bg-white/35 px-3.5 text-[12px] font-semibold text-[var(--p-text)] shadow-none backdrop-blur-sm transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] dark:bg-white/[0.08]"
 				>
 					<span
-						className="absolute -inset-1 -z-10 rounded-full bg-[var(--p-accent)]/10 blur-md"
+						className="absolute -inset-1 -z-10 rounded-full bg-white/30 opacity-70 blur-sm dark:bg-white/15"
 						aria-hidden
 					/>
 					<span aria-hidden>↓</span>

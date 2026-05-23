@@ -26,6 +26,7 @@ import { logPortalError } from '../lib/log'
 import {
 	isLocalPortalChatCommand,
 	parsePortalChatCommand,
+	portalChatCommandPaletteGroups,
 } from '../lib/portal-chat-commands'
 import { useChatStore } from '../stores/chat'
 import { useDraftQuoteStore } from '../stores/draft-quote'
@@ -224,6 +225,26 @@ function localCartResponse(options: { opened?: boolean } = {}): {
 		},
 	]
 	return { richContent, text }
+}
+
+function localHelpResponse(): {
+	richContent: RichContent[]
+	text: string
+} {
+	return {
+		text: '## Command Guide\nRun safe shortcuts below, or prepare commands that need details.',
+		richContent: [
+			{
+				type: 'command_palette',
+				data: {
+					description:
+						'Run safe shortcuts directly, or prepare commands that need a target, product, date, or message.',
+					groups: portalChatCommandPaletteGroups(),
+					title: 'Portal Command Desk',
+				},
+			},
+		],
+	}
 }
 
 function cartTextTable(
@@ -476,6 +497,16 @@ export function usePortalChat({
 		(message: string) => {
 			const command = parsePortalChatCommand(message)
 			if (command && isLocalPortalChatCommand(command.name)) {
+				if (command.name === '/help') {
+					const response = localHelpResponse()
+					richContentRef.current = response.richContent
+					chat.setMessages([
+						...chatMessagesRef.current,
+						textMessage('user', message),
+						textMessage('assistant', response.text),
+					])
+					return
+				}
 				if (command.name === '/cart' || command.name === '/open-cart') {
 					if (command.name === '/open-cart') {
 						usePortalStore.getState().setDraftQuoteOpen(true)
@@ -485,7 +516,7 @@ export function usePortalChat({
 					})
 					richContentRef.current = response.richContent
 					chat.setMessages([
-						...chat.messages,
+						...chatMessagesRef.current,
 						textMessage('user', message),
 						textMessage('assistant', response.text),
 					])
@@ -499,7 +530,7 @@ export function usePortalChat({
 				setIsResponsePending(false)
 			})
 		},
-		[chat.messages, chat.sendMessage, chat.setMessages, clear],
+		[chat.sendMessage, chat.setMessages, clear],
 	)
 
 	const isLoading = chat.isLoading || isResponsePending
