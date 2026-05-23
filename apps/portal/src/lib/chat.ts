@@ -1070,9 +1070,12 @@ function commandToolAnswer(
 				'Start a fresh quote drawer or move into the chat draft desk.',
 			].join('\n')
 		case '/cart':
+		case '/open-cart':
 			return [
 				'## Cart',
-				'Your live quote drawer is stored in this browser. Use the cart button below to open it.',
+				commandName === '/open-cart'
+					? 'Opened the live quote drawer in the portal UI.'
+					: 'Your live quote drawer is stored in this browser. Use the cart button below to open it.',
 			].join('\n')
 		case '/orders':
 			if (result.context.type !== 'orders') return fallbackText
@@ -3821,6 +3824,7 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 			]
 		case '/new-draft':
 		case '/cart':
+		case '/open-cart':
 			return [
 				actionButtonEvent({
 					icon: 'draft',

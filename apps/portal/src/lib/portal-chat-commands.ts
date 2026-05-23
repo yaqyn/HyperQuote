@@ -64,6 +64,14 @@ export const PORTAL_CHAT_COMMANDS = [
 		title: 'Cart',
 	},
 	{
+		category: 'Drafts',
+		description: 'Open the live quote drawer without leaving chat.',
+		inputMode: 'run',
+		name: '/open-cart',
+		scope: 'local',
+		title: 'Open cart',
+	},
+	{
 		category: 'Orders',
 		description: 'List customer-owned quote requests and orders.',
 		inputMode: 'run',

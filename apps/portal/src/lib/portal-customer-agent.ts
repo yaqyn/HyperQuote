@@ -204,6 +204,7 @@ export function routePortalChatCommand(
 				searchQuery: '',
 			}
 		case '/cart':
+		case '/open-cart':
 			return {
 				action: 'chat',
 				commandName: command.name,

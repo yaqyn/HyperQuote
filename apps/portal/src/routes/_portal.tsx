@@ -1,3 +1,4 @@
+import { createQuoteCartSync } from '@hyperquote/quote-cart'
 import {
 	createFileRoute,
 	Outlet,
@@ -11,6 +12,11 @@ import { DraftQuoteDrawer } from '../components/shared/DraftQuoteDrawer'
 import { ChatSidebar } from '../components/sidebar/ChatSidebar'
 import { useShortcut } from '../hooks/useShortcut'
 import { checkPortalAuth } from '../lib/auth'
+import {
+	getPortalQuoteCart,
+	savePortalQuoteCart,
+} from '../lib/server/cart-sync'
+import { useDraftQuoteStore } from '../stores/draft-quote'
 import { usePortalStore } from '../stores/portal'
 
 const SMOOTH_EASE = cubicBezier(0.22, 1, 0.36, 1)
@@ -41,6 +47,7 @@ function PortalLayout() {
 	const isDraftQuoteOpen = usePortalStore((s) => s.isDraftQuoteOpen)
 	const setDraftQuoteOpen = usePortalStore((s) => s.setDraftQuoteOpen)
 	const isCompactViewport = useCompactViewport()
+	usePortalQuoteCartSync(!isInternalUser)
 
 	useEffect(() => {
 		if (!isCompactViewport || !isSidebarOpen) return
@@ -207,6 +214,29 @@ function useCompactViewport() {
 	}, [])
 
 	return isCompact
+}
+
+function usePortalQuoteCartSync(enabled: boolean) {
+	useEffect(() => {
+		if (!enabled) return
+		const controller = createQuoteCartSync({
+			adapter: {
+				load: async () => {
+					const result = await getPortalQuoteCart()
+					return result.success ? result.cart : null
+				},
+				save: async (snapshot) => {
+					const result = await savePortalQuoteCart({
+						data: { ...snapshot, source: 'portal' },
+					})
+					return result.success ? result.cart : null
+				},
+			},
+			source: 'portal',
+			store: useDraftQuoteStore,
+		})
+		return () => controller.stop()
+	}, [enabled])
 }
 
 function PortalShortcuts() {

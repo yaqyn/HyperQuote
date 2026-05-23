@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
+const QUOTE_CART_SYNC_CHANNEL = 'hyperquote:quote-cart-sync'
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -65,6 +66,42 @@ export interface QuoteCartState {
 	duplicate: (productId: string) => void
 	clear: () => void
 	totalUnits: () => number
+}
+
+export interface QuoteCartSnapshot {
+	globalNote: string
+	items: QuoteCartItem[]
+}
+
+export interface RemoteQuoteCartSnapshot extends QuoteCartSnapshot {
+	updatedAt: string
+	version: number
+}
+
+export interface QuoteCartSyncAdapter {
+	load: () => Promise<RemoteQuoteCartSnapshot | null>
+	save: (snapshot: QuoteCartSnapshot) => Promise<RemoteQuoteCartSnapshot | null>
+}
+
+export interface QuoteCartSyncOptions {
+	adapter?: QuoteCartSyncAdapter
+	broadcast?: boolean
+	intervalMs?: number
+	source: 'portal' | 'website'
+	store?: QuoteCartStoreApi
+}
+
+export interface QuoteCartSyncController {
+	pull: () => Promise<void>
+	stop: () => void
+}
+
+export interface QuoteCartStoreApi {
+	getState: () => QuoteCartState
+	setState: (partial: Partial<QuoteCartState>, replace?: false) => void
+	subscribe: (
+		listener: (state: QuoteCartState, previousState: QuoteCartState) => void,
+	) => () => void
 }
 
 export function isQuoteCartProductId(value: string): boolean {
@@ -136,6 +173,171 @@ export function getQuoteCartFingerprint(
 				unitOfMeasureAr: item.unitOfMeasureAr,
 			})),
 	})
+}
+
+export function getQuoteCartSnapshot(
+	state: Pick<QuoteCartState, 'globalNote' | 'items'>,
+): QuoteCartSnapshot {
+	return sanitizeQuoteCartSnapshot({
+		globalNote: state.globalNote,
+		items: state.items,
+	})
+}
+
+export function applyQuoteCartSnapshot(
+	store: QuoteCartStoreApi,
+	snapshot: unknown,
+) {
+	const sanitized = sanitizeQuoteCartSnapshot(snapshot)
+	store.setState({
+		globalNote: sanitized.globalNote,
+		items: sanitized.items,
+	})
+}
+
+export function createQuoteCartSync(
+	options: QuoteCartSyncOptions,
+): QuoteCartSyncController {
+	const store = options.store ?? useQuoteCartStore
+	const source = options.source
+	const intervalMs = Math.max(1000, options.intervalMs ?? 2500)
+	const clientId = randomSyncClientId()
+	let stopped = false
+	let applyingRemote = false
+	let saveTimer: ReturnType<typeof setTimeout> | null = null
+	let lastFingerprint = getQuoteCartFingerprint(
+		store.getState().items,
+		store.getState().globalNote,
+	)
+	let lastRemoteUpdatedAt = ''
+
+	const channel =
+		options.broadcast === false ? null : createQuoteCartBroadcastChannel()
+
+	function broadcast(snapshot: QuoteCartSnapshot) {
+		try {
+			channel?.postMessage({
+				clientId,
+				snapshot,
+				source,
+				type: 'quote-cart-sync',
+			})
+		} catch {
+			// BroadcastChannel can fail in hardened browser modes; remote sync still works.
+		}
+	}
+
+	function readSnapshot() {
+		return getQuoteCartSnapshot(store.getState())
+	}
+
+	function applyRemoteSnapshot(snapshot: QuoteCartSnapshot) {
+		applyingRemote = true
+		try {
+			applyQuoteCartSnapshot(store, snapshot)
+			lastFingerprint = getQuoteCartFingerprint(
+				snapshot.items,
+				snapshot.globalNote,
+			)
+		} finally {
+			applyingRemote = false
+		}
+	}
+
+	function scheduleSave() {
+		if (stopped || applyingRemote) return
+		const snapshot = readSnapshot()
+		const fingerprint = getQuoteCartFingerprint(
+			snapshot.items,
+			snapshot.globalNote,
+		)
+		if (fingerprint === lastFingerprint) return
+		lastFingerprint = fingerprint
+		broadcast(snapshot)
+		if (!options.adapter) return
+		if (saveTimer) clearTimeout(saveTimer)
+		saveTimer = setTimeout(() => {
+			saveRemote(snapshot).catch(() => undefined)
+		}, 450)
+	}
+
+	async function saveRemote(snapshot: QuoteCartSnapshot) {
+		if (stopped || !options.adapter) return
+		const remote = await options.adapter.save(snapshot)
+		if (!remote) return
+		lastRemoteUpdatedAt = remote.updatedAt
+		const remoteSnapshot = getQuoteCartSnapshot(remote)
+		const remoteFingerprint = getQuoteCartFingerprint(
+			remoteSnapshot.items,
+			remoteSnapshot.globalNote,
+		)
+		const localFingerprint = getQuoteCartFingerprint(
+			snapshot.items,
+			snapshot.globalNote,
+		)
+		if (remoteFingerprint !== localFingerprint) {
+			applyRemoteSnapshot(remoteSnapshot)
+			broadcast(remoteSnapshot)
+			return
+		}
+		lastFingerprint = remoteFingerprint
+	}
+
+	async function pull() {
+		if (stopped || !options.adapter) return
+		const remote = await options.adapter.load()
+		const localSnapshot = readSnapshot()
+		if (!remote) {
+			if (quoteCartSnapshotHasContent(localSnapshot)) {
+				await saveRemote(localSnapshot)
+			}
+			return
+		}
+		if (
+			!quoteCartSnapshotHasContent(remote) &&
+			quoteCartSnapshotHasContent(localSnapshot)
+		) {
+			lastRemoteUpdatedAt = remote.updatedAt
+			await saveRemote(localSnapshot)
+			return
+		}
+		if (remote.updatedAt === lastRemoteUpdatedAt) return
+		lastRemoteUpdatedAt = remote.updatedAt
+		const remoteFingerprint = getQuoteCartFingerprint(
+			remote.items,
+			remote.globalNote,
+		)
+		if (remoteFingerprint === lastFingerprint) return
+		applyRemoteSnapshot(remote)
+	}
+
+	const unsubscribe = store.subscribe(scheduleSave)
+
+	channel?.addEventListener('message', (event) => {
+		const message = asRecord(event.data)
+		if (message?.type !== 'quote-cart-sync' || message.clientId === clientId) {
+			return
+		}
+		applyRemoteSnapshot(sanitizeQuoteCartSnapshot(message.snapshot))
+	})
+
+	void pull()
+	const interval = options.adapter
+		? setInterval(() => {
+				void pull()
+			}, intervalMs)
+		: null
+
+	return {
+		pull,
+		stop: () => {
+			stopped = true
+			unsubscribe()
+			if (saveTimer) clearTimeout(saveTimer)
+			if (interval) clearInterval(interval)
+			channel?.close()
+		},
+	}
 }
 
 export function createQuoteCartStore(storageKey = QUOTE_CART_STORAGE_KEY) {
@@ -231,6 +433,29 @@ export function createQuoteCartStore(storageKey = QUOTE_CART_STORAGE_KEY) {
 }
 
 export const useQuoteCartStore = createQuoteCartStore()
+
+function createQuoteCartBroadcastChannel(): BroadcastChannel | null {
+	if (typeof BroadcastChannel === 'undefined') return null
+	try {
+		return new BroadcastChannel(QUOTE_CART_SYNC_CHANNEL)
+	} catch {
+		return null
+	}
+}
+
+function randomSyncClientId(): string {
+	if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+		return crypto.randomUUID()
+	}
+	return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function quoteCartSnapshotHasContent(snapshot: QuoteCartSnapshot): boolean {
+	return (
+		snapshot.globalNote.trim().length > 0 ||
+		snapshot.items.some((item) => item.quantity > 0)
+	)
+}
 
 function migrateLegacyWebsiteQuoteCartStorage() {
 	if (typeof window === 'undefined') return

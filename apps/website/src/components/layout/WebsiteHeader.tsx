@@ -1,4 +1,5 @@
 import {
+	createQuoteCartSync,
 	getQuoteCartFingerprint,
 	toQuoteRequestItemPayloads,
 } from '@hyperquote/quote-cart'
@@ -33,6 +34,10 @@ import { useScrolled } from '../../hooks/useScrolled'
 import { useWebsiteAccountState } from '../../hooks/useWebsiteAccountState'
 import { sendOTP, signOutWebsiteAccount } from '../../lib/auth'
 import { getPortalHref } from '../../lib/portal-url'
+import {
+	getWebsiteQuoteCart,
+	saveWebsiteQuoteCart,
+} from '../../lib/quote-cart-sync'
 import {
 	saveWebsiteQuoteDraft,
 	submitWebsiteQuoteRequest,
@@ -138,6 +143,28 @@ export function WebsiteHeader() {
 	const wasHome = useRef(isHome)
 	const [introDone, setIntroDone] = useState(!isHome)
 	const { accountState, refreshAccountState } = useWebsiteAccountState()
+
+	useEffect(() => {
+		const controller = createQuoteCartSync({
+			adapter: accountState.authenticated
+				? {
+						load: async () => {
+							const result = await getWebsiteQuoteCart()
+							return result.success ? result.cart : null
+						},
+						save: async (snapshot) => {
+							const result = await saveWebsiteQuoteCart({
+								data: { ...snapshot, source: 'website' },
+							})
+							return result.success ? result.cart : null
+						},
+					}
+				: undefined,
+			source: 'website',
+			store: useQuoteCart,
+		})
+		return () => controller.stop()
+	}, [accountState.authenticated])
 
 	useEffect(() => {
 		if (items.length > 0 && cartSuccess?.type === 'submit') {

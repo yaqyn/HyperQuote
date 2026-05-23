@@ -57,6 +57,7 @@ describe('portal customer AI agent', () => {
 		)
 		expect(isLocalPortalChatCommand('/clear')).toBe(true)
 		expect(isLocalPortalChatCommand('/cart')).toBe(true)
+		expect(isLocalPortalChatCommand('/open-cart')).toBe(true)
 		expect(portalChatCommandInputMode('/feedback')).toBe('prefill')
 		expect(portalChatCommandInputMode('/profile')).toBe('run')
 		expect(routePortalChatCommand('/help')).toMatchObject({
@@ -86,6 +87,10 @@ describe('portal customer AI agent', () => {
 		expect(routePortalChatCommand('/new-draft')).toMatchObject({
 			action: 'chat',
 			commandName: '/new-draft',
+		})
+		expect(routePortalChatCommand('/open-cart')).toMatchObject({
+			action: 'chat',
+			commandName: '/open-cart',
 		})
 		expect(routePortalChatCommand('/orders')).toMatchObject({
 			action: 'customer_orders',

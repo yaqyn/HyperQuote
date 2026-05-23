@@ -1,3 +1,11 @@
+import {
+	createQuoteCartSync,
+	type getQuoteCartSnapshot,
+	type QuoteCartItem,
+	type QuoteCartState,
+	type QuoteCartStoreApi,
+	type RemoteQuoteCartSnapshot,
+} from '@hyperquote/quote-cart'
 import { describe, expect, it } from 'vitest'
 import {
 	sanitizeDraftQuoteSnapshot,
@@ -187,4 +195,143 @@ describe('draft quote cart recovery', () => {
 			toDraftQuoteRequestItemPayloads(snapshot.items, { isArabic: false }),
 		).toEqual([])
 	})
+
+	it('pushes a local authenticated cart when no remote cart exists yet', async () => {
+		const productId = '22222222-2222-4222-8222-222222222222'
+		const item = cartItem({ productId, quantity: 6 })
+		const memory = createMemoryQuoteCartStore({
+			globalNote: 'roof framing',
+			items: [item],
+		})
+		const savedSnapshots: ReturnType<typeof getQuoteCartSnapshot>[] = []
+		const controller = createQuoteCartSync({
+			adapter: {
+				load: async () => null,
+				save: async (snapshot) => {
+					savedSnapshots.push(snapshot)
+					return {
+						...snapshot,
+						updatedAt: '2026-05-23T10:00:00.000Z',
+						version: 1,
+					}
+				},
+			},
+			broadcast: false,
+			intervalMs: 60_000,
+			source: 'website',
+			store: memory.store,
+		})
+
+		await controller.pull()
+		controller.stop()
+
+		expect(savedSnapshots.length).toBeGreaterThan(0)
+		expect(savedSnapshots.at(-1)).toMatchObject({
+			globalNote: 'roof framing',
+			items: [{ productId, quantity: 6 }],
+		})
+	})
+
+	it('applies the server-sanitized cart after remote save', async () => {
+		const keptProductId = '22222222-2222-4222-8222-222222222222'
+		const droppedProductId = '33333333-3333-4333-8333-333333333333'
+		const memory = createMemoryQuoteCartStore({
+			globalNote: '',
+			items: [
+				cartItem({ productId: keptProductId, quantity: 2 }),
+				cartItem({ productId: droppedProductId, quantity: 9 }),
+			],
+		})
+		const remote: RemoteQuoteCartSnapshot = {
+			globalNote: '',
+			items: [cartItem({ productId: keptProductId, quantity: 2 })],
+			updatedAt: '2026-05-23T10:01:00.000Z',
+			version: 2,
+		}
+		const controller = createQuoteCartSync({
+			adapter: {
+				load: async () => null,
+				save: async () => remote,
+			},
+			broadcast: false,
+			intervalMs: 60_000,
+			source: 'portal',
+			store: memory.store,
+		})
+
+		memory.store.setState({
+			items: [
+				cartItem({ productId: keptProductId, quantity: 2 }),
+				cartItem({ productId: droppedProductId, quantity: 10 }),
+			],
+		})
+		await controller.pull()
+		controller.stop()
+
+		expect(memory.getState().items).toHaveLength(1)
+		expect(memory.getState().items[0]?.productId).toBe(keptProductId)
+	})
 })
+
+function cartItem(input: {
+	productId: string
+	quantity: number
+}): QuoteCartItem {
+	return {
+		category: 'material',
+		categoryName: 'Material',
+		categoryNameAr: 'مواد',
+		imageUrl: '',
+		name: 'Wood',
+		nameAr: 'خشب',
+		note: '',
+		productId: input.productId,
+		quantity: input.quantity,
+		slug: `wood-${input.productId.slice(0, 8)}`,
+		unitOfMeasure: 'piece',
+		unitOfMeasureAr: 'قطعة',
+	}
+}
+
+function createMemoryQuoteCartStore(input: {
+	globalNote: string
+	items: QuoteCartItem[]
+}): { getState: () => QuoteCartState; store: QuoteCartStoreApi } {
+	const listeners = new Set<
+		(state: QuoteCartState, previousState: QuoteCartState) => void
+	>()
+	let state = createQuoteCartState(input)
+	const store: QuoteCartStoreApi = {
+		getState: () => state,
+		setState: (partial) => {
+			const previousState = state
+			state = { ...state, ...partial }
+			for (const listener of listeners) {
+				listener(state, previousState)
+			}
+		},
+		subscribe: (listener) => {
+			listeners.add(listener)
+			return () => listeners.delete(listener)
+		},
+	}
+	return { getState: () => state, store }
+}
+
+function createQuoteCartState(input: {
+	globalNote: string
+	items: QuoteCartItem[]
+}): QuoteCartState {
+	return {
+		add: () => undefined,
+		clear: () => undefined,
+		duplicate: () => undefined,
+		globalNote: input.globalNote,
+		items: input.items,
+		remove: () => undefined,
+		setGlobalNote: () => undefined,
+		totalUnits: () => input.items.reduce((sum, item) => sum + item.quantity, 0),
+		updateNote: () => undefined,
+		updateQuantity: () => undefined,
+	}
+}

@@ -112,14 +112,33 @@ function textMessage(role: 'assistant' | 'user', content: string): UIMessage {
 	}
 }
 
-function localCartResponse(): { richContent: RichContent[]; text: string } {
+function localCartResponse(options: { opened?: boolean } = {}): {
+	richContent: RichContent[]
+	text: string
+} {
 	const cart = useDraftQuoteStore.getState()
 	const itemCount = cart.items.length
 	const totalUnits = cart.items.reduce((sum, item) => sum + item.quantity, 0)
-	const text =
-		itemCount === 0
+	const table = cartTextTable(
+		cart.items,
+		itemCount,
+		totalUnits,
+		cart.globalNote,
+	)
+	const tableWithoutHeading = table.replace(/^## Cart\n\n/, '')
+	const text = options.opened
+		? [
+				'## Cart',
+				itemCount === 0
+					? 'Opened the quote drawer. It is empty right now.'
+					: 'Opened the quote drawer with your current items.',
+				itemCount > 0 ? tableWithoutHeading : '',
+			]
+				.filter(Boolean)
+				.join('\n\n')
+		: itemCount === 0
 			? '## Cart\nYour quote drawer is empty.'
-			: cartTextTable(cart.items, itemCount, totalUnits, cart.globalNote)
+			: table
 	const richContent: RichContent[] = [
 		...(itemCount > 0
 			? [
@@ -312,8 +331,13 @@ export function usePortalChat() {
 		(message: string) => {
 			const command = parsePortalChatCommand(message)
 			if (command && isLocalPortalChatCommand(command.name)) {
-				if (command.name === '/cart') {
-					const response = localCartResponse()
+				if (command.name === '/cart' || command.name === '/open-cart') {
+					if (command.name === '/open-cart') {
+						usePortalStore.getState().setDraftQuoteOpen(true)
+					}
+					const response = localCartResponse({
+						opened: command.name === '/open-cart',
+					})
 					richContentRef.current = response.richContent
 					chat.setMessages([
 						...chat.messages,

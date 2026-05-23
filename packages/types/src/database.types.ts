@@ -410,6 +410,51 @@ export type Database = {
 					},
 				]
 			}
+			customer_quote_carts: {
+				Row: {
+					created_at: string
+					customer_id: string
+					global_note: string
+					items: Json
+					source: string
+					updated_at: string
+					version: number
+				}
+				Insert: {
+					created_at?: string
+					customer_id: string
+					global_note?: string
+					items?: Json
+					source?: string
+					updated_at?: string
+					version?: number
+				}
+				Update: {
+					created_at?: string
+					customer_id?: string
+					global_note?: string
+					items?: Json
+					source?: string
+					updated_at?: string
+					version?: number
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'customer_quote_carts_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: true
+						referencedRelation: 'ceo_customer_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'customer_quote_carts_customer_id_fkey'
+						columns: ['customer_id']
+						isOneToOne: true
+						referencedRelation: 'customers'
+						referencedColumns: ['id']
+					},
+				]
+			}
 			customers: {
 				Row: {
 					assigned_sales_rep_id: string | null
