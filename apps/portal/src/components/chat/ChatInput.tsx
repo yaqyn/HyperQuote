@@ -108,19 +108,31 @@ export function ChatInput({ chat }: ChatInputProps) {
 		})
 	}, [value, chat])
 
-	const selectCommand = useCallback((command: PortalChatCommand) => {
-		const nextValue =
-			portalChatCommandInputMode(command.name) === 'prefill'
-				? `${command.name} `
-				: command.name
-		setValue(nextValue)
-		setCommandMenuDismissed(false)
-		requestAnimationFrame(() => {
-			if (!textareaRef.current) return
-			textareaRef.current.focus()
-			autoResizeChatTextarea(textareaRef.current)
-		})
-	}, [])
+	const selectCommand = useCallback(
+		(command: PortalChatCommand) => {
+			if (portalChatCommandInputMode(command.name) === 'run') {
+				if (chat.isLoading) return
+				chat.sendMessage(command.name)
+				setValue('')
+				setCommandMenuDismissed(true)
+				requestAnimationFrame(() => {
+					if (!textareaRef.current) return
+					textareaRef.current.focus()
+					autoResizeChatTextarea(textareaRef.current)
+				})
+				return
+			}
+
+			setValue(`${command.name} `)
+			setCommandMenuDismissed(true)
+			requestAnimationFrame(() => {
+				if (!textareaRef.current) return
+				textareaRef.current.focus()
+				autoResizeChatTextarea(textareaRef.current)
+			})
+		},
+		[chat],
+	)
 
 	useEffect(() => {
 		function handleCommandEvent(event: Event) {
@@ -176,11 +188,7 @@ export function ChatInput({ chat }: ChatInputProps) {
 				if (e.key === 'Enter' && !e.shiftKey) {
 					e.preventDefault()
 					const command = commandSuggestions[activeCommandIndex]
-					if (command?.name === trimmedLeadingValue) {
-						handleSubmit()
-					} else if (command) {
-						selectCommand(command)
-					}
+					if (command) selectCommand(command)
 					return
 				}
 				if (e.key === 'Tab') {
@@ -206,7 +214,6 @@ export function ChatInput({ chat }: ChatInputProps) {
 			commandSuggestions,
 			handleSubmit,
 			selectCommand,
-			trimmedLeadingValue,
 		],
 	)
 
@@ -470,23 +477,20 @@ function CommandMenu({
 								event.preventDefault()
 								onSelect(command)
 							}}
-							className={`grid w-full grid-cols-1 gap-1 rounded-lg px-2.5 py-2 text-start transition-colors sm:grid-cols-[minmax(9rem,auto)_minmax(0,1fr)] sm:gap-3 ${
+							className={`grid w-full grid-cols-1 gap-1 rounded-lg px-3 py-2.5 text-start transition-colors ${
 								active ? 'bg-[var(--p-hover)]' : 'hover:bg-[var(--p-hover)]'
 							}`}
 						>
-							<span className="voice-mono break-all pt-0.5 text-[12px] font-semibold text-[var(--p-text)]">
-								{command.name}
-							</span>
 							<span className="min-w-0">
-								<span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-									<span className="truncate text-[13px] font-semibold text-[var(--p-text)]">
+								<span className="flex min-w-0 items-baseline gap-2">
+									<span className="truncate text-[13px] font-semibold text-[var(--p-text)] sm:text-[14px]">
 										{command.title}
 									</span>
-									<span className="voice-mono text-[9px] uppercase tracking-[0.14em] text-[var(--p-text-faint)]">
-										{command.category}
+									<span className="voice-mono shrink-0 text-[11px] font-light text-[var(--p-text-faint)]">
+										{command.name}
 									</span>
 								</span>
-								<span className="mt-0.5 block text-[12px] leading-4 text-[var(--p-text-muted)]">
+								<span className="mt-1 block text-[12px] leading-4 text-[var(--p-text-muted)]">
 									{command.description}
 								</span>
 							</span>
