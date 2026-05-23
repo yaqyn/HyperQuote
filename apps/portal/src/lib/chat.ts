@@ -735,7 +735,7 @@ function buildPortalToolAnswerPrompt(
 Answer from the supplied Portal tool result only.
 Be natural and concise. Match the user's language from the conversation.
 Do not expose IDs unless they are customer-facing references.
-For draft writes, say the draft is still a draft and the customer must review/submit manually in the normal UI.
+For draft writes, state only what changed. Do not add draft/submission disclaimers or edit links.
 For missing data, say what is missing instead of guessing.
 ${toolAnswerStyleInstructions(context)}
 
@@ -773,7 +773,7 @@ function toolAnswerStyleInstructions(
 		case 'products':
 			return 'For catalog results, list real visible products with Available/Unavailable status only, and ask before creating a draft unless the user explicitly requested one.'
 		case 'draft_write':
-			return 'For draft writes, state exactly what changed and keep the wording customer-facing. Never imply the order was submitted.'
+			return 'For draft writes, state exactly what changed and keep the wording customer-facing. Do not add draft/submission disclaimers, review instructions, or edit links.'
 	}
 }
 
@@ -1466,7 +1466,7 @@ async function createDraftFromPlan(
 		editRoute: `/orders/edit/${draft.id}`,
 		items,
 		reference: draft.request_number,
-		message: `I created draft ${draft.request_number} with ${items.length} material line${items.length === 1 ? '' : 's'}. Review it in Orders before submitting; nothing was submitted.`,
+		message: `I created ${draft.request_number} with ${items.length} material line${items.length === 1 ? '' : 's'}.`,
 	}
 }
 
@@ -1640,7 +1640,7 @@ async function updateDraftItems(
 			editRoute: `/orders/edit/${draft.id}`,
 			items: [],
 			reference: draft.request_number,
-			message: `I cleared all material lines from draft ${draft.request_number}. It is still only a draft; nothing was submitted.`,
+			message: `I cleared all material lines from ${draft.request_number}.`,
 		}
 	}
 
@@ -1701,7 +1701,7 @@ async function updateDraftItems(
 			editRoute: `/orders/edit/${draft.id}`,
 			items: remainingItems,
 			reference: draft.request_number,
-			message: `I removed ${draftItemDisplayName(item)} from draft ${draft.request_number}. It is still only a draft; review it before submitting.`,
+			message: `I removed ${draftItemDisplayName(item)} from ${draft.request_number}.`,
 		}
 	}
 
@@ -1751,7 +1751,7 @@ async function updateDraftItems(
 			editRoute: `/orders/edit/${draft.id}`,
 			items: updatedItems.map(toDraftMaterialItem),
 			reference: draft.request_number,
-			message: `I changed ${draftItemDisplayName(item)} in draft ${draft.request_number} from ${item.quantity} to ${quantity} ${item.unit_of_measure}. It is still only a draft; review it before submitting.`,
+			message: `I changed ${draftItemDisplayName(item)} in ${draft.request_number} from ${item.quantity} to ${quantity} ${item.unit_of_measure}.`,
 		}
 	}
 
@@ -1784,7 +1784,7 @@ async function updateDraftItems(
 		editRoute: `/orders/edit/${draft.id}`,
 		items: updatedItems.map(toDraftMaterialItem),
 		reference: draft.request_number,
-		message: `I updated the note on ${draftItemDisplayName(item)} in draft ${draft.request_number}. It is still only a draft; review it before submitting.`,
+		message: `I updated the note on ${draftItemDisplayName(item)} in ${draft.request_number}.`,
 	}
 }
 
@@ -1836,7 +1836,7 @@ async function updateDraftMetadata(
 			draftName && draftName !== draft.draft_name
 				? [{ from: draft.draft_name ?? draft.request_number, to: draftName }]
 				: [],
-		message: `I updated draft ${draft.request_number}. It is still only a draft; review it before submitting.`,
+		message: `I updated ${draft.request_number}.`,
 	}
 }
 
