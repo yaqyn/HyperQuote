@@ -7,6 +7,7 @@
 import { motion } from 'motion/react'
 import type { RichContent } from '../../lib/chat-types'
 import { ActionButton } from './ActionButton'
+import { CommandPalette } from './CommandPalette'
 import { DeliveryTrackingCard } from './DeliveryTrackingCard'
 import { DraftCleanupResult } from './DraftCleanupResult'
 import { MaterialList } from './MaterialList'
@@ -49,6 +50,20 @@ function RichMessage({ type, data }: RichMessageProps) {
 				<ActionButton
 					data={
 						data as RichContent extends { type: 'action_button'; data: infer D }
+							? D
+							: never
+					}
+				/>
+			)
+			break
+		case 'command_palette':
+			content = (
+				<CommandPalette
+					data={
+						data as RichContent extends {
+							type: 'command_palette'
+							data: infer D
+						}
 							? D
 							: never
 					}

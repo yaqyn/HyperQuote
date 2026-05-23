@@ -45,10 +45,12 @@ export interface StatusCardData {
 }
 
 export interface ActionButtonData {
+	command?: string
 	event?: 'open_draft_panel'
 	href?: string
 	icon?:
 		| 'book'
+		| 'command'
 		| 'draft'
 		| 'external'
 		| 'help'
@@ -62,6 +64,21 @@ export interface ActionButtonData {
 	labelAr: string
 	route?: string
 	params?: Record<string, string>
+}
+
+export interface CommandPaletteData {
+	description: string
+	groups: {
+		commands: {
+			command: string
+			description: string
+			inputMode: 'prefill' | 'run'
+			scope: 'local' | 'server'
+			title: string
+		}[]
+		title: string
+	}[]
+	title: string
 }
 
 export interface MaterialListData {
@@ -112,12 +129,14 @@ export type RichContent =
 	| { type: 'product_card'; data: ProductCardData }
 	| { type: 'status_card'; data: StatusCardData }
 	| { type: 'action_button'; data: ActionButtonData }
+	| { type: 'command_palette'; data: CommandPaletteData }
 	| { type: 'material_list'; data: MaterialListData }
 	| { type: 'delivery_tracking'; data: DeliveryTrackingData }
 	| { type: 'draft_cleanup_result'; data: DraftCleanupResultData }
 	| { type: 'disclaimer'; data: DisclaimerData }
 
 export const PORTAL_CHAT_OPEN_DRAFT_EVENT = 'portal:chat-open-draft'
+export const PORTAL_CHAT_RUN_COMMAND_EVENT = 'portal:chat-run-command'
 
 // ============================================================================
 // Chat Message Types

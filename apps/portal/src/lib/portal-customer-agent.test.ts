@@ -3,6 +3,7 @@ import {
 	isLocalPortalChatCommand,
 	PORTAL_CHAT_COMMANDS,
 	parsePortalChatCommand,
+	portalChatCommandInputMode,
 } from './portal-chat-commands'
 import {
 	buildPortalCustomerAgentPrompt,
@@ -50,8 +51,14 @@ describe('portal customer AI agent', () => {
 		expect(PORTAL_CHAT_COMMANDS.every((command) => command.description)).toBe(
 			true,
 		)
+		expect(PORTAL_CHAT_COMMANDS.every((command) => command.category)).toBe(true)
+		expect(PORTAL_CHAT_COMMANDS.every((command) => command.inputMode)).toBe(
+			true,
+		)
 		expect(isLocalPortalChatCommand('/clear')).toBe(true)
 		expect(isLocalPortalChatCommand('/cart')).toBe(true)
+		expect(portalChatCommandInputMode('/feedback')).toBe('prefill')
+		expect(portalChatCommandInputMode('/profile')).toBe('run')
 		expect(routePortalChatCommand('/help')).toMatchObject({
 			action: 'chat',
 			commandName: '/help',

@@ -8,6 +8,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import {
 	BookOpen,
+	Command,
 	ExternalLink,
 	HelpCircle,
 	Mail,
@@ -23,6 +24,7 @@ import { useTranslation } from 'react-i18next'
 import {
 	type ActionButtonData,
 	PORTAL_CHAT_OPEN_DRAFT_EVENT,
+	PORTAL_CHAT_RUN_COMMAND_EVENT,
 } from '../../lib/chat-types'
 
 interface ActionButtonProps {
@@ -31,6 +33,7 @@ interface ActionButtonProps {
 
 const ACTION_ICONS = {
 	book: BookOpen,
+	command: Command,
 	draft: SquarePen,
 	external: ExternalLink,
 	help: HelpCircle,
@@ -66,6 +69,14 @@ export function ActionButton({ data }: ActionButtonProps) {
 	}
 
 	const handlePress = () => {
+		if (data.command) {
+			window.dispatchEvent(
+				new CustomEvent(PORTAL_CHAT_RUN_COMMAND_EVENT, {
+					detail: { command: data.command },
+				}),
+			)
+			return
+		}
 		if (data.event === 'open_draft_panel') {
 			window.dispatchEvent(new CustomEvent(PORTAL_CHAT_OPEN_DRAFT_EVENT))
 			return

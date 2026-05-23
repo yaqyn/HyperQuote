@@ -1,223 +1,297 @@
 export const PORTAL_CHAT_COMMANDS = [
 	{
+		category: 'Workspace',
 		description: 'Start a clean chat page without contacting the server.',
+		inputMode: 'run',
 		name: '/clear',
 		scope: 'local',
 		title: 'Clear chat',
 	},
 	{
+		category: 'Workspace',
 		description: 'Show this command menu with the safest shortcuts.',
+		inputMode: 'run',
 		name: '/help',
 		scope: 'server',
 		title: 'Command guide',
 	},
 	{
+		category: 'Catalog',
 		description: 'List visible catalog products, with optional search terms.',
+		inputMode: 'run',
 		name: '/products',
 		scope: 'server',
 		title: 'Products',
 	},
 	{
+		category: 'Catalog',
 		description: 'Open catalog and draft quote shortcuts.',
+		inputMode: 'run',
 		name: '/market',
 		scope: 'server',
 		title: 'Market',
 	},
 	{
+		category: 'Catalog',
 		description: 'Compare visible catalog products for a material need.',
+		inputMode: 'prefill',
 		name: '/compare-products',
 		scope: 'server',
 		title: 'Compare products',
 	},
 	{
+		category: 'Catalog',
 		description: 'Get material suggestions without writing to a draft.',
+		inputMode: 'prefill',
 		name: '/recommend-materials',
 		scope: 'server',
 		title: 'Recommend materials',
 	},
 	{
+		category: 'Drafts',
 		description: 'Start a new draft quote from the portal quote drawer.',
+		inputMode: 'run',
 		name: '/new-draft',
 		scope: 'server',
 		title: 'New draft',
 	},
 	{
+		category: 'Drafts',
 		description: 'Show the live quote drawer cart saved in this browser.',
+		inputMode: 'run',
 		name: '/cart',
 		scope: 'local',
 		title: 'Cart',
 	},
 	{
+		category: 'Orders',
 		description: 'List customer-owned quote requests and orders.',
+		inputMode: 'run',
 		name: '/orders',
 		scope: 'server',
 		title: 'Orders',
 	},
 	{
+		category: 'Drafts',
 		description: 'List editable customer-owned drafts.',
+		inputMode: 'run',
 		name: '/drafts',
 		scope: 'server',
 		title: 'Drafts',
 	},
 	{
+		category: 'Drafts',
 		description: 'Show one editable draft by reference or description.',
+		inputMode: 'prefill',
 		name: '/draft',
 		scope: 'server',
 		title: 'Draft detail',
 	},
 	{
+		category: 'Drafts',
 		description: 'Open one editable draft in the chat draft desk.',
+		inputMode: 'prefill',
 		name: '/edit-draft',
 		scope: 'server',
 		title: 'Edit draft',
 	},
 	{
+		category: 'Drafts',
 		description: 'Delete one editable draft by reference or description.',
+		inputMode: 'prefill',
 		name: '/delete-draft',
 		scope: 'server',
 		title: 'Delete draft',
 	},
 	{
+		category: 'Drafts',
 		description: 'Clear all item lines from one editable draft.',
+		inputMode: 'prefill',
 		name: '/clear-draft',
 		scope: 'server',
 		title: 'Clear draft',
 	},
 	{
+		category: 'Drafts',
 		description: 'Rename one editable draft.',
+		inputMode: 'prefill',
 		name: '/rename-draft',
 		scope: 'server',
 		title: 'Rename draft',
 	},
 	{
+		category: 'Drafts',
 		description: 'Update the simple note on one editable draft.',
+		inputMode: 'prefill',
 		name: '/note-draft',
 		scope: 'server',
 		title: 'Draft note',
 	},
 	{
+		category: 'Drafts',
 		description: 'Validate one editable draft for unavailable or stale items.',
+		inputMode: 'prefill',
 		name: '/validate-draft',
 		scope: 'server',
 		title: 'Validate draft',
 	},
 	{
+		category: 'Drafts',
 		description: 'Add available catalog products to one editable draft.',
+		inputMode: 'prefill',
 		name: '/add-to-draft',
 		scope: 'server',
 		title: 'Add to draft',
 	},
 	{
+		category: 'Drafts',
 		description: 'Replace one draft item with another catalog product.',
+		inputMode: 'prefill',
 		name: '/replace-draft-item',
 		scope: 'server',
 		title: 'Replace draft item',
 	},
 	{
+		category: 'Drafts',
 		description: 'Set delivery date or saved address on one editable draft.',
+		inputMode: 'prefill',
 		name: '/set-draft-delivery',
 		scope: 'server',
 		title: 'Set draft delivery',
 	},
 	{
+		category: 'Drafts',
 		description: 'Copy a previous quote request or order into a new draft.',
+		inputMode: 'prefill',
 		name: '/reorder',
 		scope: 'server',
 		title: 'Reorder',
 	},
 	{
+		category: 'Orders',
 		description: 'Show the latest customer-owned quote request or order.',
+		inputMode: 'run',
 		name: '/latest-order',
 		scope: 'server',
 		title: 'Latest order',
 	},
 	{
+		category: 'Orders',
 		description: 'Show status for one quote request or order.',
+		inputMode: 'prefill',
 		name: '/status',
 		scope: 'server',
 		title: 'Status',
 	},
 	{
+		category: 'Orders',
 		description: 'Show recent visible activity for one quote request or order.',
+		inputMode: 'prefill',
 		name: '/activity',
 		scope: 'server',
 		title: 'Activity',
 	},
 	{
+		category: 'Orders',
 		description: 'Track the latest customer-visible delivery.',
+		inputMode: 'run',
 		name: '/track',
 		scope: 'server',
 		title: 'Track delivery',
 	},
 	{
+		category: 'Orders',
 		description: 'List active customer-visible deliveries.',
+		inputMode: 'run',
 		name: '/deliveries',
 		scope: 'server',
 		title: 'Deliveries',
 	},
 	{
+		category: 'Workspace',
 		description: 'Start a clean chat page without contacting the server.',
+		inputMode: 'run',
 		name: '/new',
 		scope: 'local',
 		title: 'New chat',
 	},
 	{
+		category: 'Drafts',
 		description: 'Delete all editable customer-owned drafts.',
+		inputMode: 'prefill',
 		name: '/clear-all-drafts',
 		scope: 'server',
 		title: 'Clear all drafts',
 	},
 	{
+		category: 'Account',
 		description:
 			'Show the signed-in customer profile, addresses, and projects.',
+		inputMode: 'run',
 		name: '/profile',
 		scope: 'server',
 		title: 'Profile',
 	},
 	{
+		category: 'Account',
 		description: 'Show saved customer delivery addresses.',
+		inputMode: 'run',
 		name: '/addresses',
 		scope: 'server',
 		title: 'Addresses',
 	},
 	{
+		category: 'Account',
 		description: 'Show saved customer projects.',
+		inputMode: 'run',
 		name: '/projects',
 		scope: 'server',
 		title: 'Projects',
 	},
 	{
+		category: 'Account',
 		description: 'Summarize stale drafts and missing account setup.',
+		inputMode: 'run',
 		name: '/account-health',
 		scope: 'server',
 		title: 'Account health',
 	},
 	{
+		category: 'Support',
 		description: 'Open support, contact, FAQ, and public docs links.',
+		inputMode: 'run',
 		name: '/support',
 		scope: 'server',
 		title: 'Support',
 	},
 	{
+		category: 'Support',
 		description: 'Open direct support contact options.',
+		inputMode: 'run',
 		name: '/contact',
 		scope: 'server',
 		title: 'Contact',
 	},
 	{
+		category: 'Support',
 		description: 'Send a short support feedback ticket.',
+		inputMode: 'prefill',
 		name: '/feedback',
 		scope: 'server',
 		title: 'Feedback',
 	},
 	{
+		category: 'Support',
 		description: 'Open docs, or ask a public docs question after the command.',
+		inputMode: 'run',
 		name: '/docs',
 		scope: 'server',
 		title: 'Docs',
 	},
 	{
+		category: 'Support',
 		description: 'Search public docs directly.',
+		inputMode: 'prefill',
 		name: '/docs-search',
 		scope: 'server',
 		title: 'Docs search',
@@ -226,6 +300,10 @@ export const PORTAL_CHAT_COMMANDS = [
 
 export type PortalChatCommandName =
 	(typeof PORTAL_CHAT_COMMANDS)[number]['name']
+export type PortalChatCommandCategory =
+	(typeof PORTAL_CHAT_COMMANDS)[number]['category']
+export type PortalChatCommandInputMode =
+	(typeof PORTAL_CHAT_COMMANDS)[number]['inputMode']
 export type PortalChatCommandScope =
 	(typeof PORTAL_CHAT_COMMANDS)[number]['scope']
 
@@ -258,5 +336,14 @@ export function isLocalPortalChatCommand(name: PortalChatCommandName): boolean {
 	return (
 		PORTAL_CHAT_COMMANDS.find((command) => command.name === name)?.scope ===
 		'local'
+	)
+}
+
+export function portalChatCommandInputMode(
+	name: PortalChatCommandName,
+): PortalChatCommandInputMode {
+	return (
+		PORTAL_CHAT_COMMANDS.find((command) => command.name === name)?.inputMode ??
+		'run'
 	)
 }

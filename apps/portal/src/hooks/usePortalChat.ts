@@ -119,13 +119,7 @@ function localCartResponse(): { richContent: RichContent[]; text: string } {
 	const text =
 		itemCount === 0
 			? '## Cart\nYour quote drawer is empty.'
-			: [
-					'## Cart',
-					`${itemCount} item${itemCount === 1 ? '' : 's'} in the quote drawer, ${totalUnits} total unit${totalUnits === 1 ? '' : 's'}.`,
-					cart.globalNote ? `Note: ${cart.globalNote}` : '',
-				]
-					.filter(Boolean)
-					.join('\n')
+			: cartTextTable(cart.items, itemCount, totalUnits, cart.globalNote)
 	const richContent: RichContent[] = [
 		...(itemCount > 0
 			? [
@@ -164,6 +158,29 @@ function localCartResponse(): { richContent: RichContent[]; text: string } {
 		},
 	]
 	return { richContent, text }
+}
+
+function cartTextTable(
+	items: ReturnType<typeof useDraftQuoteStore.getState>['items'],
+	itemCount: number,
+	totalUnits: number,
+	globalNote: string,
+): string {
+	return [
+		'## Cart',
+		'',
+		`| Metric | Value |`,
+		'| --- | ---: |',
+		`| Items | ${itemCount} |`,
+		`| Total units | ${totalUnits} |`,
+		...(globalNote ? [`| Note | ${globalNote.replace(/\|/g, '\\|')} |`] : []),
+		'',
+		'| Product | Qty | Unit |',
+		'| --- | ---: | --- |',
+		...items.map((item) => {
+			return `| ${item.name.replace(/\|/g, '\\|')} | ${item.quantity} | ${item.unitOfMeasure.replace(/\|/g, '\\|')} |`
+		}),
+	].join('\n')
 }
 
 // ============================================================================

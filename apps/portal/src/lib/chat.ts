@@ -27,14 +27,17 @@ import {
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import type { ActionButtonData } from './chat-types'
+import type { ActionButtonData, CommandPaletteData } from './chat-types'
 import {
 	draftProductIntentTerms,
 	isOpenEndedCatalogSelectionRequest,
 	productIntentTerms,
 	productSearchTerm,
 } from './portal-catalog-intent'
-import { PORTAL_CHAT_COMMANDS } from './portal-chat-commands'
+import {
+	PORTAL_CHAT_COMMANDS,
+	type PortalChatCommandCategory,
+} from './portal-chat-commands'
 import {
 	buildPortalCustomerAgentPrompt,
 	detectPortalAiLocale,
@@ -958,6 +961,7 @@ function buildPortalToolAnswerPrompt(
 
 Use only this portal tool result. Answer naturally, briefly, and in the user's language.
 Do not expose raw IDs or internal fields. If something is missing, ask a short question.
+Use markdown tables for lists of records, products, addresses, projects, deliveries, activity, or line items.
 ${toolAnswerStyleInstructions(context)}
 
 Portal tool result:
@@ -1054,18 +1058,7 @@ function commandToolAnswer(
 		case '/compare-products':
 		case '/recommend-materials':
 			if (result.context.type !== 'products') return fallbackText
-			if (result.context.products.length === 0) {
-				return 'No matching visible products found.'
-			}
-			return [
-				commandName === '/compare-products'
-					? '## Product Comparison'
-					: commandName === '/recommend-materials'
-						? '## Material Recommendations'
-						: '## Catalog',
-				`Showing ${result.context.products.length} of ${result.context.totalVisibleProducts} visible product${result.context.totalVisibleProducts === 1 ? '' : 's'}.`,
-				'Use the cards below for the best matches, or open Market for the full catalog.',
-			].join('\n')
+			return productCommandAnswer(commandName, result.context)
 		case '/market':
 			return [
 				'## Market',
@@ -1083,39 +1076,27 @@ function commandToolAnswer(
 			].join('\n')
 		case '/orders':
 			if (result.context.type !== 'orders') return fallbackText
-			return result.context.orders.length === 0
-				? 'No quote requests or orders found.'
-				: [
-						'## Orders Desk',
-						`Showing ${result.context.orders.length} quote request${result.context.orders.length === 1 ? '' : 's'} / order${result.context.orders.length === 1 ? '' : 's'}.`,
-						'The cards below include items, status, dates, and the right action for each record.',
-					].join('\n')
+			return ordersCommandAnswer('Orders Desk', result.context.orders, 'all')
 		case '/drafts':
 			if (result.context.type !== 'orders') return fallbackText
-			return result.context.orders.length === 0
-				? 'No editable drafts found.'
-				: [
-						'## Draft Desk',
-						`Showing ${result.context.orders.length} editable draft${result.context.orders.length === 1 ? '' : 's'}.`,
-						'Each draft card can open the record or move it into the chat draft editor.',
-					].join('\n')
+			return ordersCommandAnswer('Draft Desk', result.context.orders, 'drafts')
 		case '/draft':
 		case '/edit-draft':
 		case '/status':
 		case '/latest-order':
 			if (result.context.type !== 'order_detail') return fallbackText
 			return result.context.order
-				? [
+				? orderDetailCommandAnswer(
 						commandName === '/edit-draft'
-							? '## Edit Draft'
+							? 'Edit Draft'
 							: commandName === '/draft'
-								? '## Draft Detail'
+								? 'Draft Detail'
 								: commandName === '/status'
-									? '## Status'
-									: '## Latest Record',
-						`${result.context.order.reference} is ${result.context.order.status.replace(/_/g, ' ')}.`,
-						'Use the card below to open the record.',
-					].join('\n')
+									? 'Status'
+									: 'Latest Record',
+						result.context.order,
+						result.context.documents,
+					)
 				: 'No quote request or order found.'
 		case '/validate-draft':
 			if (result.context.type !== 'draft_validation') return fallbackText
@@ -1168,7 +1149,13 @@ function commandToolAnswer(
 		case '/contact':
 			return [
 				commandName === '/contact' ? '## Contact' : '## Support',
-				'Choose the best support path below. You can contact the team, open the support panel, or jump into public docs.',
+				'',
+				'| Channel | Best for |',
+				'| --- | --- |',
+				'| Support panel | Account, order, delivery, or portal help |',
+				'| Email support | Issues that need attachments or longer context |',
+				'| Docs | Public product, quote, and portal guidance |',
+				'| FAQ | Quick policy and workflow answers |',
 			].join('\n')
 		case '/feedback':
 			return result.context.type === 'support_request'
@@ -1181,7 +1168,12 @@ function commandToolAnswer(
 		case '/docs-search':
 			return [
 				'## Docs',
-				'Open the public docs, FAQ, or ask a docs question after `/docs`.',
+				'',
+				'| Resource | Use it for |',
+				'| --- | --- |',
+				'| Public docs | HyperQuote workflow and portal guidance |',
+				'| FAQ | Short answers about common customer questions |',
+				'| Support | Account-specific help |',
 			].join('\n')
 		case '/clear':
 		case '/new':
@@ -1191,30 +1183,114 @@ function commandToolAnswer(
 
 function helpCommandAnswer(): string {
 	const rows = PORTAL_CHAT_COMMANDS.map((command) => {
-		return `| \`${command.name}\` | ${command.title} | ${command.description} |`
+		return `| \`${command.name}\` | ${command.category} | ${command.title} | ${command.description} |`
 	})
 	return [
 		'## Command Guide',
-		'Slash commands are fixed server shortcuts. Normal chat still lets Lyon decide which safe tool to use.',
+		'Fixed shortcuts for customer-safe portal work. Lyon can still choose the same skills naturally from the conversation.',
 		'',
-		'| Command | Opens | What it does |',
-		'| --- | --- | --- |',
+		'| Command | Area | Title | Description |',
+		'| --- | --- | --- | --- |',
 		...rows,
+	].join('\n')
+}
+
+function productCommandAnswer(
+	commandName: string,
+	context: Extract<PortalToolContext, { type: 'products' }>,
+): string {
+	const heading =
+		commandName === '/compare-products'
+			? 'Product Comparison'
+			: commandName === '/recommend-materials'
+				? 'Material Recommendations'
+				: 'Catalog'
+	return [`## ${heading}`, '', productFallbackAnswer(context)].join('\n')
+}
+
+function ordersCommandAnswer(
+	title: string,
+	orders: CustomerOrderSummary[],
+	orderScope: PortalCustomerOrderScope,
+): string {
+	if (orders.length === 0) {
+		return `## ${title}\n\nNo ${portalOrderScopeTitle(orderScope)} found.`
+	}
+	const visibleOrders = orders.slice(0, 20)
+	const rows = visibleOrders.map((order) => {
+		return `| ${markdownTableCell(order.reference)} | ${markdownTableCell(formatPlainStatus(order.status))} | ${order.date.slice(0, 10)} | ${markdownTableCell(order.name ?? 'Not named')} | ${markdownTableCell(orderItemsSummary(order))} | ${order.amount === null ? 'Not set' : markdownTableCell(formatCurrency(order.amount))} |`
+	})
+	return [
+		`## ${title}`,
+		'',
+		`Showing ${visibleOrders.length} of ${orders.length} visible ${orderScope === 'drafts' ? 'drafts' : 'records'}.`,
+		'',
+		'| Reference | Status | Date | Name | Items | Amount |',
+		'| --- | --- | --- | --- | --- | --- |',
+		...rows,
+	].join('\n')
+}
+
+function orderDetailCommandAnswer(
+	title: string,
+	order: CustomerOrderSummary,
+	documents: DocumentRow[],
+): string {
+	const rows = [
+		`| Reference | ${markdownTableCell(order.reference)} |`,
+		`| Quote request | ${markdownTableCell(order.requestReference)} |`,
+		`| Status | ${markdownTableCell(formatPlainStatus(order.status))} |`,
+		`| Date | ${order.date.slice(0, 10)} |`,
+		`| Name | ${markdownTableCell(order.name ?? 'Not named')} |`,
+		`| Amount | ${order.amount === null ? 'Not set' : markdownTableCell(formatCurrency(order.amount))} |`,
+	]
+	const itemRows = order.items.slice(0, 12).map((item) => {
+		return `| ${markdownTableCell(item.name)} | ${item.qty} | ${markdownTableCell(item.unit)} | ${item.orderable === false ? 'Unavailable' : 'Available'} |`
+	})
+	const docRows = documents.slice(0, 6).map((document) => {
+		return `| ${markdownTableCell(document.title)} | ${markdownTableCell(formatPlainStatus(document.type))} | ${document.created_at.slice(0, 10)} |`
+	})
+	return [
+		`## ${title}`,
+		'',
+		'| Field | Value |',
+		'| --- | --- |',
+		...rows,
+		'',
+		'### Items',
+		order.items.length === 0
+			? 'No material lines are saved.'
+			: [
+					'| Product | Qty | Unit | Status |',
+					'| --- | ---: | --- | --- |',
+					...itemRows,
+				].join('\n'),
+		...(documents.length > 0
+			? [
+					'',
+					'### Documents',
+					'| Document | Type | Date |',
+					'| --- | --- | --- |',
+					...docRows,
+				]
+			: []),
 	].join('\n')
 }
 
 function profileCommandAnswer(
 	context: Extract<PortalToolContext, { type: 'profile' }>,
 ): string {
-	const defaultAddress = context.addresses.find((address) => address.is_default)
-	const otherAddresses = context.addresses.filter(
-		(address) => !address.is_default,
-	)
 	const projects = context.projects.slice(0, 5)
 	const profile = context.profile
 	const status = `${formatPlainStatus(profile.status)} (${formatPlainStatus(profile.tier)} tier)`
 	const creditLimit = formatCurrency(profile.credit_limit)
 	const notes = profileAccountNotes(context)
+	const addressRows = context.addresses.slice(0, 8).map((address) => {
+		return `| ${markdownTableCell(address.label ?? 'Address')} | ${address.is_default ? 'Yes' : 'No'} | ${markdownTableCell(address.street)} | ${markdownTableCell(address.city)} | ${markdownTableCell(address.governorate)} |`
+	})
+	const projectRows = projects.map((project) => {
+		return `| ${markdownTableCell(project.name)} | ${markdownTableCell(project.description ?? 'No description')} |`
+	})
 	return [
 		'## Customer Profile',
 		'',
@@ -1230,17 +1306,20 @@ function profileCommandAnswer(
 		`| Trade license | ${markdownTableCell(formatPlainStatus(profile.trade_license_status ?? 'not uploaded'))} |`,
 		'',
 		'### Delivery Addresses',
-		defaultAddress
-			? `- Default: ${formatAddress(defaultAddress)}`
-			: '- No default address is saved.',
-		...otherAddresses
-			.slice(0, 4)
-			.map((address) => `- ${formatAddress(address)}`),
+		context.addresses.length === 0
+			? 'No delivery addresses are saved.'
+			: [
+					'| Label | Default | Street | City | Governorate |',
+					'| --- | --- | --- | --- | --- |',
+					...addressRows,
+				].join('\n'),
 		'',
 		'### Projects',
-		...(projects.length > 0
-			? projects.map((project) => `- ${project.name}`)
-			: ['- No active projects are saved.']),
+		projects.length === 0
+			? 'No active projects are saved.'
+			: ['| Project | Description |', '| --- | --- |', ...projectRows].join(
+					'\n',
+				),
 		'',
 		'### Account Notes',
 		...notes.map((note) => `- ${note}`),
@@ -1268,9 +1347,15 @@ function profileAccountNotes(
 		: ['Account basics look complete from the customer portal data.']
 }
 
-function formatAddress(address: CustomerAddressRow): string {
-	const label = address.label ? `${address.label}: ` : ''
-	return `${label}${address.street}, ${address.city}, ${address.governorate}`
+function orderItemsSummary(order: CustomerOrderSummary): string {
+	if (order.items.length === 0) return 'No items'
+	const visible = order.items.slice(0, 3).map((item) => {
+		return `${item.name} (${item.qty} ${item.unit})`
+	})
+	const hidden = order.items.length - visible.length
+	return hidden > 0
+		? `${visible.join(', ')} +${hidden} more`
+		: visible.join(', ')
 }
 
 function markdownTableCell(value: string): string {
@@ -1293,32 +1378,11 @@ function ordersFallbackAnswer(
 	orders: CustomerOrderSummary[],
 	orderScope: PortalCustomerOrderScope = 'all',
 ): string {
-	if (orders.length === 0) {
-		return `I do not see any ${portalOrderScopeTitle(orderScope)} in your customer account right now.`
-	}
-	if (orderScope === 'drafts') {
-		const latest = orders.slice(0, 6).map((order) => {
-			return `${order.requestReference} has ${order.itemCount} item${order.itemCount === 1 ? '' : 's'}`
-		})
-		return `I found ${orders.length} editable draft${orders.length === 1 ? '' : 's'}: ${latest.join('; ')}.`
-	}
-	if (orderScope !== 'all') {
-		const latest = orders.slice(0, 6).map((order) => {
-			return `${order.reference} is ${order.status.replace(/_/g, ' ')} with ${order.itemCount} item${order.itemCount === 1 ? '' : 's'}`
-		})
-		return `I found ${orders.length} ${portalOrderScopeTitle(orderScope)}: ${latest.join('; ')}.`
-	}
-	const counts = orders.reduce<Record<string, number>>((summary, order) => {
-		summary[order.status] = (summary[order.status] ?? 0) + 1
-		return summary
-	}, {})
-	const countText = Object.entries(counts)
-		.map(([status, count]) => `${count} ${status.replace(/_/g, ' ')}`)
-		.join(', ')
-	const latest = orders.slice(0, 4).map((order) => {
-		return `${order.reference} is ${order.status.replace(/_/g, ' ')}`
-	})
-	return `I found ${orders.length} visible quote requests/orders: ${countText}. Latest: ${latest.join('; ')}.`
+	return ordersCommandAnswer(
+		portalOrderScopeTitle(orderScope),
+		orders,
+		orderScope,
+	)
 }
 
 function orderDetailFallbackAnswer(
@@ -1327,11 +1391,7 @@ function orderDetailFallbackAnswer(
 ): string {
 	if (!order)
 		return 'I could not find that order or quote request in your customer account.'
-	const docsText =
-		documents.length > 0
-			? ` Visible documents: ${documents.map((document) => document.title).join(', ')}.`
-			: ''
-	return `${order.reference} is ${order.status.replace(/_/g, ' ')} with ${order.itemCount} item${order.itemCount === 1 ? '' : 's'}.${order.amount === null ? '' : ` Amount: EGP ${order.amount}.`}${docsText}`
+	return orderDetailCommandAnswer('Record Detail', order, documents)
 }
 
 function deliveryTrackingFallbackAnswer(
@@ -1348,56 +1408,86 @@ function deliveryListFallbackAnswer(
 	deliveries: DeliveryTrackingContext[],
 ): string {
 	if (deliveries.length === 0) {
-		return 'I do not see any active customer-visible deliveries right now.'
+		return '## Deliveries\n\nNo active customer-visible deliveries found.'
 	}
 	const rows = deliveries.slice(0, 6).map(({ delivery, order }) => {
-		return `- ${order.reference}: ${delivery.currentStage.replace(/_/g, ' ')}. ETA ${delivery.estimatedArrival}.`
+		return `| ${markdownTableCell(order.reference)} | ${markdownTableCell(delivery.deliveryNumber)} | ${markdownTableCell(formatPlainStatus(delivery.currentStage))} | ${markdownTableCell(delivery.driverName)} | ${markdownTableCell(delivery.estimatedArrival)} |`
 	})
 	return [
-		`I found ${deliveries.length} active delivery record${deliveries.length === 1 ? '' : 's'}:`,
+		'## Deliveries',
+		'',
+		`Showing ${Math.min(deliveries.length, 6)} of ${deliveries.length} active delivery record${deliveries.length === 1 ? '' : 's'}.`,
+		'',
+		'| Order | Delivery | Stage | Driver | ETA |',
+		'| --- | --- | --- | --- | --- |',
 		...rows,
 	].join('\n')
 }
 
 function addressesFallbackAnswer(addresses: CustomerAddressRow[]): string {
-	if (addresses.length === 0) return 'No saved delivery addresses found.'
+	if (addresses.length === 0)
+		return '## Delivery Addresses\n\nNo saved delivery addresses found.'
 	const rows = addresses.map((address) => {
-		const defaultText = address.is_default ? 'Default: ' : ''
-		return `- ${defaultText}${formatAddress(address)}`
+		return `| ${markdownTableCell(address.label ?? 'Address')} | ${address.is_default ? 'Yes' : 'No'} | ${markdownTableCell(address.street)} | ${markdownTableCell(address.city)} | ${markdownTableCell(address.governorate)} |`
 	})
-	return ['## Delivery Addresses', ...rows].join('\n')
+	return [
+		'## Delivery Addresses',
+		'',
+		'| Label | Default | Street | City | Governorate |',
+		'| --- | --- | --- | --- | --- |',
+		...rows,
+	].join('\n')
 }
 
 function projectsFallbackAnswer(projects: CustomerProjectRow[]): string {
-	if (projects.length === 0) return 'No active projects are saved.'
+	if (projects.length === 0)
+		return '## Projects\n\nNo active projects are saved.'
 	return [
 		'## Projects',
-		...projects
-			.slice(0, 8)
-			.map(
-				(project) =>
-					`- ${project.name}${project.description ? `: ${project.description}` : ''}`,
-			),
+		'',
+		'| Project | Description | Created |',
+		'| --- | --- | --- |',
+		...projects.slice(0, 12).map((project) => {
+			return `| ${markdownTableCell(project.name)} | ${markdownTableCell(project.description ?? 'No description')} | ${project.created_at.slice(0, 10)} |`
+		}),
 	].join('\n')
 }
 
 function accountHealthFallbackAnswer(health: AccountHealthContext): string {
+	const issueRows =
+		health.issues.length > 0
+			? health.issues.map(
+					(issue) => `| Attention | ${markdownTableCell(issue)} |`,
+				)
+			: ['| Clear | Account basics look clear from the portal data. |']
 	const lines = [
 		'## Account Health',
-		`- Editable drafts: ${health.draftCount}`,
-		`- Saved addresses: ${health.addresses.length}`,
-		`- Active projects: ${health.projects.length}`,
+		'',
+		'| Area | Count |',
+		'| --- | ---: |',
+		`| Editable drafts | ${health.draftCount} |`,
+		`| Saved addresses | ${health.addresses.length} |`,
+		`| Active projects | ${health.projects.length} |`,
+		`| Stale drafts | ${health.staleDrafts.length} |`,
 	]
 	if (health.staleDrafts.length > 0) {
+		const draftRows = health.staleDrafts.slice(0, 8).map((draft) => {
+			return `| ${markdownTableCell(draft.requestReference)} | ${draft.date.slice(0, 10)} | ${markdownTableCell(orderItemsSummary(draft))} |`
+		})
 		lines.push(
-			`- Stale drafts: ${health.staleDrafts.map((draft) => draft.requestReference).join(', ')}`,
+			'',
+			'### Stale Drafts',
+			'| Draft | Date | Items |',
+			'| --- | --- | --- |',
+			...draftRows,
 		)
 	}
-	lines.push('### Notes')
 	lines.push(
-		...(health.issues.length > 0
-			? health.issues.map((issue) => `- ${issue}`)
-			: ['- Account basics look clear from the portal data.']),
+		'',
+		'### Notes',
+		'| Status | Detail |',
+		'| --- | --- |',
+		...issueRows,
 	)
 	return lines.join('\n')
 }
@@ -1407,11 +1497,25 @@ function draftValidationFallbackAnswer(
 ): string {
 	if (!validation.draft) return validation.issues.join(' ')
 	if (validation.issues.length === 0) {
-		return `${validation.draft.requestReference} has ${validation.draft.itemCount} available material line${validation.draft.itemCount === 1 ? '' : 's'} and no validation issues from the current catalog data.`
+		return [
+			'## Draft Validation',
+			'',
+			'| Draft | Items | Catalog result |',
+			'| --- | ---: | --- |',
+			`| ${markdownTableCell(validation.draft.requestReference)} | ${validation.draft.itemCount} | No validation issues from current catalog data |`,
+		].join('\n')
 	}
 	return [
-		`${validation.draft.requestReference} needs attention:`,
-		...validation.issues.map((issue) => `- ${issue}`),
+		'## Draft Validation',
+		'',
+		`| Draft | Items |`,
+		'| --- | ---: |',
+		`| ${markdownTableCell(validation.draft.requestReference)} | ${validation.draft.itemCount} |`,
+		'',
+		'### Issues',
+		'| Detail |',
+		'| --- |',
+		...validation.issues.map((issue) => `| ${markdownTableCell(issue)} |`),
 	].join('\n')
 }
 
@@ -1421,21 +1525,35 @@ function orderActivityFallbackAnswer(
 ): string {
 	if (!order) return 'I could not find that customer-owned record.'
 	if (events.length === 0) {
-		return `I do not see recent activity events for ${order.reference}.`
+		return `## Activity\n\nNo recent activity events found for ${order.reference}.`
 	}
 	return [
-		`Recent activity for ${order.reference}:`,
+		'## Activity',
+		'',
+		`Recent visible activity for ${order.reference}.`,
+		'',
+		'| Date | Action | Entity |',
+		'| --- | --- | --- |',
 		...events.slice(0, 8).map((event) => {
-			return `- ${event.created_at.slice(0, 10)}: ${formatPlainStatus(event.action)}`
+			return `| ${event.created_at.slice(0, 10)} | ${markdownTableCell(formatPlainStatus(event.action))} | ${markdownTableCell(formatPlainStatus(event.entity_type))} |`
 		}),
 	].join('\n')
 }
 
 function supportRequestFallbackAnswer(context: SupportRequestContext): string {
 	if (!context.ticket) {
-		return context.message ?? 'I did not create a support ticket.'
+		return `## Support Request\n\n${context.message ?? 'No support ticket was created.'}`
 	}
-	return `Support ticket ${context.ticket.reference} was created for "${context.ticket.subject}". Status: ${context.ticket.status.replace(/_/g, ' ')}.`
+	return [
+		'## Support Request',
+		'',
+		'| Field | Value |',
+		'| --- | --- |',
+		`| Ticket | ${markdownTableCell(context.ticket.reference)} |`,
+		`| Subject | ${markdownTableCell(context.ticket.subject)} |`,
+		`| Status | ${markdownTableCell(formatPlainStatus(context.ticket.status))} |`,
+		`| Created | ${context.ticket.created_at.slice(0, 10)} |`,
+	].join('\n')
 }
 
 function productFallbackAnswer(
@@ -1452,7 +1570,7 @@ function productFallbackAnswer(
 			isArabic && product.name_ar
 				? `${product.name_ar} / ${product.name}`
 				: `${product.name}${product.name_ar ? ` / ${product.name_ar}` : ''}`
-		return `| ${name} | ${availabilityLabel(product, context.locale)} | ${unitLabel(product, context.locale)} | ${formatPriceRange(product, context.locale)} |`
+		return `| ${markdownTableCell(name)} | ${availabilityLabel(product, context.locale)} | ${markdownTableCell(unitLabel(product, context.locale))} | ${markdownTableCell(formatPriceRange(product, context.locale))} |`
 	})
 	if (isArabic) {
 		return [
@@ -1472,12 +1590,15 @@ function productFallbackAnswer(
 		'| --- | --- | --- | --- |',
 		...rows,
 		'',
-		'Unavailable products are for visibility only and will not be added to a draft. Want me to add the available items to a draft for review?',
+		'Unavailable products are for visibility only and will not be added to a draft. Want me to add the available items to a draft?',
 	].join('\n')
 }
 
 function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 	const events: StreamChunk[] = []
+	if (result.route.commandName === '/help') {
+		events.push(commandPaletteEvent())
+	}
 	switch (result.context.type) {
 		case 'products':
 			for (const product of result.context.products.slice(0, 3)) {
@@ -3611,6 +3732,49 @@ function draftCleanupEvent(result: DraftWriteContext): StreamChunk {
 			},
 		},
 	}
+}
+
+function commandPaletteEvent(): StreamChunk {
+	const groups = commandPaletteGroups()
+	return {
+		type: 'CUSTOM' as const,
+		timestamp: Date.now(),
+		name: 'rich_message',
+		value: {
+			type: 'command_palette',
+			data: {
+				description:
+					'Run safe shortcuts directly, or prepare commands that need a target, product, date, or message.',
+				groups,
+				title: 'Portal Command Desk',
+			} satisfies CommandPaletteData,
+		},
+	}
+}
+
+function commandPaletteGroups(): CommandPaletteData['groups'] {
+	const order: PortalChatCommandCategory[] = [
+		'Workspace',
+		'Catalog',
+		'Drafts',
+		'Orders',
+		'Account',
+		'Support',
+	]
+	return order
+		.map((category) => ({
+			commands: PORTAL_CHAT_COMMANDS.filter(
+				(command) => command.category === category,
+			).map((command) => ({
+				command: command.name,
+				description: command.description,
+				inputMode: command.inputMode,
+				scope: command.scope,
+				title: command.title,
+			})),
+			title: category,
+		}))
+		.filter((group) => group.commands.length > 0)
 }
 
 function toolActionEvents(result: PortalToolResult): StreamChunk[] {

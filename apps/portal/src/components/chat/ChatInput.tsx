@@ -3,33 +3,17 @@ import { AnimatePresence, cubicBezier, motion } from 'motion/react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { usePortalChat } from '../../hooks/usePortalChat'
-import { PORTAL_CHAT_COMMANDS } from '../../lib/portal-chat-commands'
+import { PORTAL_CHAT_RUN_COMMAND_EVENT } from '../../lib/chat-types'
+import {
+	PORTAL_CHAT_COMMANDS,
+	parsePortalChatCommand,
+	portalChatCommandInputMode,
+} from '../../lib/portal-chat-commands'
 
 const SMOOTH_EASE = cubicBezier(0.22, 1, 0.36, 1)
 
 const MAX_LINES = 5
 const LINE_HEIGHT = 20
-const COMMANDS_WITH_ARGUMENTS = new Set([
-	'/activity',
-	'/add-to-draft',
-	'/compare-products',
-	'/delete-draft',
-	'/docs',
-	'/docs-search',
-	'/draft',
-	'/edit-draft',
-	'/feedback',
-	'/note-draft',
-	'/products',
-	'/recommend-materials',
-	'/rename-draft',
-	'/reorder',
-	'/replace-draft-item',
-	'/set-draft-delivery',
-	'/status',
-	'/track',
-	'/validate-draft',
-])
 
 function autoResizeChatTextarea(ta: HTMLTextAreaElement) {
 	ta.style.height = 'auto'
@@ -125,9 +109,10 @@ export function ChatInput({ chat }: ChatInputProps) {
 	}, [value, chat])
 
 	const selectCommand = useCallback((command: PortalChatCommand) => {
-		const nextValue = COMMANDS_WITH_ARGUMENTS.has(command.name)
-			? `${command.name} `
-			: command.name
+		const nextValue =
+			portalChatCommandInputMode(command.name) === 'prefill'
+				? `${command.name} `
+				: command.name
 		setValue(nextValue)
 		setCommandMenuDismissed(false)
 		requestAnimationFrame(() => {
@@ -136,6 +121,42 @@ export function ChatInput({ chat }: ChatInputProps) {
 			autoResizeChatTextarea(textareaRef.current)
 		})
 	}, [])
+
+	useEffect(() => {
+		function handleCommandEvent(event: Event) {
+			const detail = (event as CustomEvent<{ command?: string }>).detail
+			const commandText = detail?.command?.trim()
+			if (!commandText) return
+			const parsed = parsePortalChatCommand(commandText)
+			if (!parsed) return
+
+			if (portalChatCommandInputMode(parsed.name) === 'prefill') {
+				const nextValue = parsed.args ? commandText : `${parsed.name} `
+				setValue(nextValue)
+				setCommandMenuDismissed(false)
+				requestAnimationFrame(() => {
+					if (!textareaRef.current) return
+					textareaRef.current.focus()
+					autoResizeChatTextarea(textareaRef.current)
+				})
+				return
+			}
+
+			chat.sendMessage(commandText)
+			setValue('')
+			requestAnimationFrame(() => {
+				textareaRef.current?.focus()
+			})
+		}
+
+		window.addEventListener(PORTAL_CHAT_RUN_COMMAND_EVENT, handleCommandEvent)
+		return () => {
+			window.removeEventListener(
+				PORTAL_CHAT_RUN_COMMAND_EVENT,
+				handleCommandEvent,
+			)
+		}
+	}, [chat])
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -457,8 +478,13 @@ function CommandMenu({
 								{command.name}
 							</span>
 							<span className="min-w-0">
-								<span className="block truncate text-[13px] font-semibold text-[var(--p-text)]">
-									{command.title}
+								<span className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+									<span className="truncate text-[13px] font-semibold text-[var(--p-text)]">
+										{command.title}
+									</span>
+									<span className="voice-mono text-[9px] uppercase tracking-[0.14em] text-[var(--p-text-faint)]">
+										{command.category}
+									</span>
 								</span>
 								<span className="mt-0.5 block text-[12px] leading-4 text-[var(--p-text-muted)]">
 									{command.description}
