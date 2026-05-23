@@ -204,6 +204,13 @@ describe('website docs retrieval', () => {
 		})
 		assert.deepEqual(
 			parseWebsiteChatRoute(
+				'Greeting received, no actionable request',
+				'hello',
+			),
+			{ action: 'chat', searchQuery: '' },
+		)
+		assert.deepEqual(
+			parseWebsiteChatRoute(
 				'{"action":"chat","search_query":"HyperQuote VAT"}',
 				'thanks',
 			),

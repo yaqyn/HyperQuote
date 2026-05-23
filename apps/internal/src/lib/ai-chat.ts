@@ -168,6 +168,8 @@ async function getInternalAiSource(
 		options.setReadEntities(answer.readEntities)
 		return textStream(answer.text)
 	}
+	const simpleAnswer = simpleEmployeeChatAnswer(options.userText)
+	if (simpleAnswer) return textStream(simpleAnswer)
 	if (isAIEnabled()) return streamChat(messages, OPS_ASSISTANT)
 	return textStream(employeeFallbackResponse(options.userText))
 }
@@ -237,6 +239,23 @@ function employeeFallbackResponse(userText: string): string {
 		return 'I can help you find allowed operational records in the current panel and explain what needs attention. I cannot cross role boundaries or perform writes from chat.'
 	}
 	return 'I can help with allowed internal context: summarize records, explain workflow state, draft notes, and point you to the normal authorized action when a change is needed.'
+}
+
+function simpleEmployeeChatAnswer(userText: string): string | null {
+	const normalized = userText
+		.toLowerCase()
+		.normalize('NFKD')
+		.replace(/[^\p{L}\p{N}\s]+/gu, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+	if (
+		!/^(hi|hello|hey|yo|good morning|good afternoon|good evening)$/.test(
+			normalized,
+		)
+	) {
+		return null
+	}
+	return 'Hi, I can help summarize allowed internal records, explain workflow state, draft notes, or point you to the authorized panel action.'
 }
 
 async function recordInternalAiAudit(

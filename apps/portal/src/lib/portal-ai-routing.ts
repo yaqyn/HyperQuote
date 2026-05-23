@@ -45,8 +45,8 @@ Use customer_profile for the signed-in customer's company profile, addresses, or
 Use customer_orders for lists/status summaries covering drafts, saved, submitted, confirmed, out-for-delivery, delivered, cancelled, or rejected records.
 Use order_detail for one specific quote request/order or for "latest order" detail.
 Use delivery_tracking for customer-visible driver, truck, ETA, route, or location questions for the customer's own delivery.
-Use product_search for published product/catalog/material search or price-range questions.
-Use create_draft_from_plan when the customer asks you to prepare an editable quote/order/material draft from the catalog, including open-ended planning requests. Draft write tools must be grounded in active catalog products; uncertain materials should be discussed instead of invented as draft lines.
+Use product_search for published product/catalog/material search, price-range questions, and broad project planning prompts such as "tree house", "roof", "room", or "what materials do I need". Product planning must be grounded in catalog availability and should ask before adding items to a draft.
+Use create_draft_from_plan only when the customer explicitly asks you to create/make/prepare/add an editable draft, quote request, order draft, RFQ, cart, or catalog selection. Draft write tools must be grounded in active orderable catalog products; never invent draft lines.
 Use duplicate_order_to_draft only when the user asks to copy or repeat a past order/quote into a new draft.
 Use update_draft_metadata only for draft rename, notes, project, delivery date, or metadata changes.
 Use cleanup_drafts for merging drafts, removing empty drafts, or deleting all drafts after an explicit cleanup/delete-drafts request.
@@ -152,6 +152,12 @@ export function fallbackPortalCustomerRoute(
 					: 'customer_orders',
 			searchQuery: userMessage,
 			targetReference,
+		}
+	}
+	if (isProjectPlanningRequest(lower, userMessage)) {
+		return {
+			action: 'product_search',
+			searchQuery: userMessage,
 		}
 	}
 	if (isProductSearchRequest(lower, userMessage)) {
@@ -342,24 +348,24 @@ function isDraftMetadataRequest(lower: string, raw: string): boolean {
 }
 
 function isDraftCreationRequest(lower: string, raw: string): boolean {
-	const arabicDraftAction =
-		/مسودة|عرض\s+سعر|طلب\s+عرض|اعمل|جهز|حضّر|حضر|انشئ|اختار|رشح/.test(raw)
+	const arabicDraftAction = /اعمل|جهز|حضّر|حضر|انشئ|اختار|رشح/.test(raw)
+	const arabicDraftTarget = /مسودة|عرض\s+سعر|طلب\s+عرض|اوردر|طلب/.test(raw)
 	const arabicCatalogTarget =
 		/مواد|منتجات|كتالوج|اسمنت|أسمنت|حديد|معدن|معادن|خرسانة|رمل|طوب|بويات|سيراميك/.test(
 			raw,
 		)
-	return (
-		(/\b(create|make|start|build|prepare|generate|draft|quote request|material list|plan)\b/.test(
+	const explicitEnglishDraftWrite =
+		/\b(create|make|start|build|prepare|generate|draft|add)\b/.test(lower) &&
+		/\b(draft|quote|rfq|request|order|cart)\b/.test(lower)
+	const explicitEnglishCatalogDraft =
+		/\bdraft\b/.test(lower) &&
+		/\b(materials?|products?|catalog|catalogue|cement|rebar|steel|metals?|concrete|sand|aggregate|bricks?|paints?|tiles?)\b/.test(
 			lower,
-		) &&
-			/\b(draft|quote|rfq|request|order|materials?|products?|catalog|catalogue|cement|rebar|steel|metals?|concrete|sand|aggregate|brick|paint|tiles?)\b/.test(
-				lower,
-			)) ||
-		(/\b(need|want|add|choose|pick|select|recommend|suggest)\b/.test(lower) &&
-			/\b(materials?|products?|cement|rebar|steel|metals?|concrete|sand|aggregate|brick|paint|tiles?)\b/.test(
-				lower,
-			)) ||
-		(arabicDraftAction && arabicCatalogTarget)
+		)
+	return (
+		explicitEnglishDraftWrite ||
+		explicitEnglishCatalogDraft ||
+		(arabicDraftAction && arabicDraftTarget && arabicCatalogTarget)
 	)
 }
 
@@ -415,6 +421,22 @@ function isProductSearchRequest(lower: string, raw: string): boolean {
 			raw,
 		)
 	)
+}
+
+function isProjectPlanningRequest(lower: string, raw: string): boolean {
+	const planningAction =
+		/\b(need|want|build|make|plan|planning|project|materials?|what do i need|how much)\b/.test(
+			lower,
+		) || /احتاج|عايز|ابني|أبني|اعمل|مشروع|مواد/.test(raw)
+	const projectTarget =
+		/\b(tree\s*house|treehouse|house|room|roof|wall|floor|deck|platform|shed|stairs?|ladder|foundation|fence|gate|kitchen|bathroom|villa|warehouse)\b/.test(
+			lower,
+		) ||
+		/بيت|غرفة|اوضة|سقف|حائط|حيطة|جدار|ارضية|أرضية|سلم|منصة|فيلا|مخزن/.test(raw)
+	const projectAnswer =
+		/\b(it'?s|its|this is|for a|for an)\b/.test(lower) ||
+		/ده|دي|دا|هذا|هذه/.test(raw)
+	return projectTarget && (planningAction || projectAnswer)
 }
 
 function detectCleanupMode(

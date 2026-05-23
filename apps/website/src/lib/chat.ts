@@ -152,13 +152,18 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 			)
 
 			if (route.action === 'chat') {
-				if (aiEnabled) {
+				const simpleAnswer = simpleWebsiteChatAnswer(modelMessages)
+				if (simpleAnswer) {
+					for await (const chunk of textOnlyStream(simpleAnswer)) {
+						chunks.push(chunk)
+					}
+				} else if (aiEnabled) {
 					for await (const chunk of streamChat(modelMessages, LYON_WEBSITE)) {
 						chunks.push(chunk as WebsiteStreamChunk)
 					}
 				} else {
 					for await (const chunk of textOnlyStream(
-						'AI is not configured on this server.',
+						'I can answer public HyperQuote questions from the docs. Ask about quotes, delivery, payments, the market, or Lyon.',
 					)) {
 						chunks.push(chunk)
 					}
@@ -234,6 +239,35 @@ function modelChatMessages(messages: ChatMessageInput[]): ChatMessageInput[] {
 		role: message.role,
 		content: message.content.slice(0, MODEL_CHAT_MESSAGE_CHARACTERS),
 	}))
+}
+
+function simpleWebsiteChatAnswer(messages: ChatMessageInput[]): string | null {
+	const lastUser = [...messages]
+		.reverse()
+		.find((message) => message.role === 'user')
+	const userText = lastUser?.content.trim() ?? ''
+	const normalized = normalizeForSimpleChat(userText)
+	const isArabic = detectDocsQueryLocale(userText) === 'ar'
+	const isGreeting =
+		/^(hi|hello|hey|yo|salam|good morning|good afternoon|good evening)$/.test(
+			normalized,
+		) || /^(اهلا|أهلا|هاي|مرحبا|السلام عليكم)$/.test(userText)
+	if (!isGreeting) return null
+	return isArabic
+		? 'أهلاً، أنا ليون. اسألني عن هايبركوت، الأسعار، السوق، الطلبات، التوصيل، أو المدفوعات.'
+		: "Hi, I'm Lyon. Ask me about HyperQuote, pricing, the market, orders, delivery, or payments."
+}
+
+function normalizeForSimpleChat(value: string): string {
+	return value
+		.toLowerCase()
+		.normalize('NFKD')
+		.replace(/[إأآٱ]/g, 'ا')
+		.replace(/ى/g, 'ي')
+		.replace(/ة/g, 'ه')
+		.replace(/[^\p{L}\p{N}\s]+/gu, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
 }
 
 function fallbackWebsitePublicChatRoute(

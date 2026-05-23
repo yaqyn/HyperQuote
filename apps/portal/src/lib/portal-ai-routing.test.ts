@@ -9,6 +9,7 @@ describe('portal AI customer routing', () => {
 	it('keeps friendly chat conversational', () => {
 		expect(fallbackPortalCustomerRoute('hey, how are you?').action).toBe('chat')
 		expect(fallbackPortalCustomerRoute('اهلا عامل ايه؟').action).toBe('chat')
+		expect(fallbackPortalCustomerRoute('hello').action).toBe('chat')
 	})
 
 	it('routes public HyperQuote docs questions to shared docs retrieval', () => {
@@ -51,6 +52,12 @@ describe('portal AI customer routing', () => {
 	it('routes product and draft authoring requests', () => {
 		expect(
 			fallbackPortalCustomerRoute('find 42.5 cement products').action,
+		).toBe('product_search')
+		expect(fallbackPortalCustomerRoute('its a tree house').action).toBe(
+			'product_search',
+		)
+		expect(
+			fallbackPortalCustomerRoute('we need to build a tree house').action,
 		).toBe('product_search')
 		expect(
 			fallbackPortalCustomerRoute('create a draft quote for 20 tons cement')
@@ -144,5 +151,11 @@ describe('portal AI customer routing', () => {
 		expect(parsePortalCustomerRoute('not json', 'find cement').action).toBe(
 			'product_search',
 		)
+		expect(
+			parsePortalCustomerRoute(
+				'Greeting received, no actionable request',
+				'hello',
+			).action,
+		).toBe('chat')
 	})
 })

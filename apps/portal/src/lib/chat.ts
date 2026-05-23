@@ -53,6 +53,8 @@ const MODEL_CHAT_MESSAGES = 10
 const MODEL_CHAT_MESSAGE_CHARACTERS = 2000
 const OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE = 24
 const OPEN_ENDED_DRAFT_ITEM_COUNT = 3
+const PRODUCT_CATALOG_CONTEXT_LIMIT = 160
+const PRODUCT_CATALOG_RESULT_COUNT = 12
 
 const portalChatInput = z.object({
 	messages: z
@@ -95,6 +97,12 @@ interface PortalAiProduct {
 	subcategory_ar: string | null
 	unit_of_measure: string
 	unit_of_measure_ar: string
+}
+
+interface ProductCatalogResult {
+	catalogComplete: boolean
+	products: PortalAiProduct[]
+	totalVisibleProducts: number
 }
 
 interface CustomerProfileRow {
@@ -246,7 +254,14 @@ type PortalToolContext =
 			order: CustomerOrderSummary | null
 	  }
 	| { type: 'delivery_tracking'; tracking: DeliveryTrackingContext | null }
-	| { type: 'products'; products: PortalAiProduct[] }
+	| {
+			catalogComplete: boolean
+			locale: 'ar' | 'en'
+			products: PortalAiProduct[]
+			query: string
+			totalVisibleProducts: number
+			type: 'products'
+	  }
 	| { type: 'draft_write'; operation: string; result: DraftWriteContext }
 
 interface PortalToolResult {
@@ -311,6 +326,9 @@ async function routePortalCustomerChat(
 	messages: ChatMessageInput[],
 	userText: string,
 ): Promise<PortalCustomerRoute> {
+	const confirmedDraft = routeDraftConfirmation(messages, userText)
+	if (confirmedDraft) return confirmedDraft
+
 	if (!isAIEnabled()) return fallbackPortalCustomerRoute(userText)
 
 	try {
@@ -326,6 +344,53 @@ async function routePortalCustomerChat(
 	} catch {
 		return fallbackPortalCustomerRoute(userText)
 	}
+}
+
+function routeDraftConfirmation(
+	messages: ChatMessageInput[],
+	userText: string,
+): PortalCustomerRoute | null {
+	if (!isAffirmativeDraftFollowUp(userText)) return null
+	const previousAssistant = [...messages]
+		.reverse()
+		.find((message) => message.role === 'assistant')
+	if (!previousAssistant) return null
+	const offeredDraft =
+		/\badd\b[\s\S]{0,80}\b(available|orderable)\b[\s\S]{0,80}\bdraft\b/i.test(
+			previousAssistant.content,
+		) ||
+		/أضيف[\s\S]{0,80}المتاحة[\s\S]{0,80}مسودة/.test(previousAssistant.content)
+	if (!offeredDraft) return null
+	return {
+		action: 'create_draft_from_plan',
+		searchQuery: previousAssistant.content.slice(0, 1600),
+	}
+}
+
+function isAffirmativeDraftFollowUp(userText: string): boolean {
+	const normalized = normalizeForMatch(userText)
+	return (
+		/^(yes|yeah|yep|ok|okay|sure|do it|create it|draft it|add them|add available|add the available items)$/.test(
+			normalized,
+		) || /^(ايوه|اه|تمام|ماشي|ضيف|أضيف|اعمل|يلا)$/.test(userText.trim())
+	)
+}
+
+function simpleCustomerChatAnswer(messages: ChatMessageInput[]): string | null {
+	const lastUser = [...messages]
+		.reverse()
+		.find((message) => message.role === 'user')
+	const userText = lastUser?.content.trim() ?? ''
+	const normalized = normalizeForMatch(userText)
+	const isArabic = detectPortalAiLocale(userText) === 'ar'
+	const isGreeting =
+		/^(hi|hello|hey|yo|salam|good morning|good afternoon|good evening)$/.test(
+			normalized,
+		) || /^(اهلا|أهلا|هاي|مرحبا|السلام عليكم)$/.test(userText)
+	if (!isGreeting) return null
+	return isArabic
+		? 'أهلاً، أنا ليون. قلّي بتبني إيه أو محتاج أي منتج/طلب/توصيل أراجعه معاك.'
+		: "Hi, I'm Lyon. Tell me what you are building or which product, order, delivery, or draft you want to check."
 }
 
 async function executePortalCustomerRoute(
@@ -405,13 +470,20 @@ async function executePortalCustomerRoute(
 			}
 		}
 		case 'product_search': {
-			const products = await findPublishedProducts(
+			const catalog = await findPublishedProducts(
 				supabase,
 				route.searchQuery || userText,
-				5,
+				PRODUCT_CATALOG_RESULT_COUNT,
 			)
 			return {
-				context: { type: 'products', products },
+				context: {
+					catalogComplete: catalog.catalogComplete,
+					locale: detectPortalAiLocale(userText),
+					products: catalog.products,
+					query: route.searchQuery || userText,
+					totalVisibleProducts: catalog.totalVisibleProducts,
+					type: 'products',
+				},
 				invalidatesOrders: false,
 				readEntities: ['published_products'],
 				route,
@@ -517,11 +589,10 @@ async function renderPortalCustomerResponse(
 	const customEvents = richEventsForToolResult(result)
 
 	if (result.context.type === 'chat') {
-		if (isAIEnabled()) {
-			return streamWithCustomEvents(modelMessages, LYON_PORTAL, customEvents)
-		}
+		const simpleAnswer = simpleCustomerChatAnswer(modelMessages)
 		return textOnlyChunks(
-			"I'm Lyon. I can help with HyperQuote docs, your profile, orders, deliveries, published products, and editable quote-request drafts.",
+			simpleAnswer ??
+				"I'm Lyon. Tell me what you are building, or what product, order, delivery, or draft you want help with.",
 			customEvents,
 		)
 	}
@@ -536,6 +607,9 @@ async function renderPortalCustomerResponse(
 	}
 
 	const fallbackText = fallbackToolAnswer(result.context)
+	if (result.context.type === 'products') {
+		return textOnlyChunks(fallbackText, customEvents)
+	}
 	if (!isAIEnabled()) return textOnlyChunks(fallbackText, customEvents)
 
 	try {
@@ -610,7 +684,7 @@ function fallbackToolAnswer(context: PortalToolContext): string {
 		case 'delivery_tracking':
 			return deliveryTrackingFallbackAnswer(context.tracking)
 		case 'products':
-			return productFallbackAnswer(context.products)
+			return productFallbackAnswer(context)
 		case 'draft_write':
 			return context.result.message
 		case 'refusal':
@@ -681,14 +755,42 @@ function deliveryTrackingFallbackAnswer(
 	return `${order.reference} is ${delivery.currentStage.replace(/_/g, ' ')}. Driver: ${delivery.driverName} (${delivery.driverPhone}). Truck ${delivery.truckNumber}, plate ${delivery.vehiclePlate}. ETA: ${delivery.estimatedArrival}. Last update: ${delivery.lastUpdated}.`
 }
 
-function productFallbackAnswer(products: PortalAiProduct[]): string {
-	if (products.length === 0) {
-		return 'I could not find a matching published product in the catalog.'
+function productFallbackAnswer(
+	context: Extract<PortalToolContext, { type: 'products' }>,
+): string {
+	const isArabic = context.locale === 'ar'
+	if (context.products.length === 0) {
+		return isArabic
+			? 'مش لاقي منتج منشور مناسب في الكتالوج حاليًا. قلّي المادة الأساسية أو المقاس المطلوب وأدور تاني.'
+			: 'I could not find a matching published product in the catalog. Tell me the main material or size and I will search again.'
 	}
-	const topProducts = products.slice(0, 3).map((product) => {
-		return `${product.name}${product.name_ar ? ` / ${product.name_ar}` : ''} (${formatPriceRange(product, 'en')})`
+	const rows = context.products.slice(0, 6).map((product) => {
+		const name =
+			isArabic && product.name_ar
+				? `${product.name_ar} / ${product.name}`
+				: `${product.name}${product.name_ar ? ` / ${product.name_ar}` : ''}`
+		return `| ${name} | ${availabilityLabel(product, context.locale)} | ${unitLabel(product, context.locale)} | ${formatPriceRange(product, context.locale)} |`
 	})
-	return `I found these published catalog matches: ${topProducts.join('; ')}.`
+	if (isArabic) {
+		return [
+			'دي اختيارات حقيقية من الكتالوج كبداية:',
+			'',
+			'| المنتج | الحالة | الوحدة | السعر |',
+			'| --- | --- | --- | --- |',
+			...rows,
+			'',
+			'المنتجات غير المتاحة للعلم فقط ولن أضيفها لمسودة. تحب أضيف المنتجات المتاحة لمسودة تراجعها؟',
+		].join('\n')
+	}
+	return [
+		'Here are real catalog-backed starting points:',
+		'',
+		'| Product | Status | Unit | Price |',
+		'| --- | --- | --- | --- |',
+		...rows,
+		'',
+		'Unavailable products are for visibility only and will not be added to a draft. Want me to add the available items to a draft for review?',
+	].join('\n')
 }
 
 function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
@@ -881,22 +983,43 @@ async function findPublishedProducts(
 	supabase: AuthedSupabase,
 	userText: string,
 	limit: number,
-): Promise<PortalAiProduct[]> {
-	const query = productSearchTerm(userText)
-	const filter = query ? publicProductSearchFilter(query) : null
-	let builder = supabase
+): Promise<ProductCatalogResult> {
+	const catalog = await loadVisibleProductCatalog(
+		supabase,
+		PRODUCT_CATALOG_CONTEXT_LIMIT,
+	)
+	return {
+		...catalog,
+		products: rankProductsForPlanning(
+			catalog.products,
+			productIntentTerms(userText),
+			limit,
+		),
+	}
+}
+
+async function loadVisibleProductCatalog(
+	supabase: AuthedSupabase,
+	limit: number,
+): Promise<ProductCatalogResult> {
+	const { data, error, count } = await supabase
 		.from('products')
 		.select(
 			'id, sku, slug, name, name_ar, category, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar',
+			{ count: 'exact' },
 		)
 		.eq('is_active', true)
 		.neq('availability_status', 'hidden')
+		.order('name', { ascending: true })
 		.limit(limit)
-	if (filter) builder = builder.or(filter)
 
-	const { data, error } = await builder
 	if (error) throw new Error(error.message)
-	return (data ?? []) as PortalAiProduct[]
+	const products = (data ?? []) as PortalAiProduct[]
+	return {
+		catalogComplete: (count ?? products.length) <= products.length,
+		products,
+		totalVisibleProducts: count ?? products.length,
+	}
 }
 
 async function findOrderableProductsForDraft(
@@ -904,6 +1027,35 @@ async function findOrderableProductsForDraft(
 	userText: string,
 ): Promise<PortalAiProduct[]> {
 	const openEndedSelection = isOpenEndedCatalogSelectionRequest(userText)
+	const intentTerms = productIntentTerms(userText)
+	if (intentTerms.length > 0 || openEndedSelection) {
+		const builder = supabase
+			.from('products')
+			.select(
+				'id, sku, slug, name, name_ar, category, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar',
+			)
+			.eq('is_active', true)
+			.neq('availability_status', 'hidden')
+			.neq('availability_status', 'out_of_stock')
+			.order('name', { ascending: true })
+			.limit(OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE)
+		const { data, error } = await builder
+		if (error) throw new Error(error.message)
+		const products = (data ?? []) as PortalAiProduct[]
+		if (openEndedSelection && intentTerms.length === 0) {
+			return deterministicProductSample(
+				products,
+				userText,
+				OPEN_ENDED_DRAFT_ITEM_COUNT,
+			)
+		}
+		return rankProductsForPlanning(
+			products,
+			intentTerms,
+			openEndedSelection ? OPEN_ENDED_DRAFT_ITEM_COUNT : 8,
+		)
+	}
+
 	const query = openEndedSelection ? null : productSearchTerm(userText)
 	const limit = openEndedSelection ? OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE : 8
 	let builder = supabase
@@ -952,8 +1104,8 @@ async function createDraftFromPlan(
 		)
 		return {
 			message:
-				visibleMatches.length > 0
-					? `I found catalog matches, but none are orderable right now: ${visibleMatches.map((product) => `${product.name} (${product.availability_status.replace(/_/g, ' ')})`).join(', ')}. I did not create a draft.`
+				visibleMatches.products.length > 0
+					? `I found catalog matches, but none are available to add right now: ${visibleMatches.products.map((product) => `${product.name} (${availabilityLabel(product, detectPortalAiLocale(userText))})`).join(', ')}. I did not create a draft.`
 					: 'I could not find an available catalog product to add. I did not create a draft.',
 		}
 	}
@@ -1588,7 +1740,7 @@ function productCardEvent(product: PortalAiProduct): StreamChunk {
 		value: {
 			type: 'product_card',
 			data: {
-				available: product.availability_status === 'available',
+				available: isCustomerVisibleAvailable(product),
 				id: product.id,
 				image: product.image_urls?.[0],
 				name: product.name,
@@ -1725,6 +1877,30 @@ function formatPriceRange(
 	}
 	if (min != null && max != null) return `EGP ${min} - ${max}/${unit}`
 	return `EGP ${min ?? max}/${unit}`
+}
+
+function availabilityLabel(
+	product: PortalAiProduct,
+	locale: 'ar' | 'en',
+): string {
+	const available = isCustomerVisibleAvailable(product)
+	if (locale === 'ar') {
+		return available ? 'متاح' : 'غير متاح'
+	}
+	return available ? 'Available' : 'Unavailable'
+}
+
+function isCustomerVisibleAvailable(product: PortalAiProduct): boolean {
+	return (
+		product.availability_status !== 'hidden' &&
+		product.availability_status !== 'out_of_stock'
+	)
+}
+
+function unitLabel(product: PortalAiProduct, locale: 'ar' | 'en'): string {
+	return locale === 'ar' && product.unit_of_measure_ar
+		? product.unit_of_measure_ar
+		: product.unit_of_measure
 }
 
 function specsForCard(
@@ -1872,11 +2048,230 @@ function productSearchTerm(userText: string): string {
 		['طوب', 'brick'],
 		['tile', 'tile'],
 		['سيراميك', 'tile'],
+		['wood', 'wood'],
+		['timber', 'wood'],
+		['lumber', 'wood'],
+		['خشب', 'wood'],
 	] as const
 	for (const [needle, replacement] of knownTerms) {
 		if (normalized.includes(normalizeForMatch(needle))) return replacement
 	}
 	return userText.slice(0, 120)
+}
+
+function productIntentTerms(userText: string): string[] {
+	const normalized = normalizeForMatch(userText)
+	const terms = new Set(productPlanningTerms(userText))
+	const addTerms = (values: string[]) => {
+		for (const value of values) {
+			const normalizedValue = normalizeForMatch(value)
+			if (normalizedValue) terms.add(normalizedValue)
+		}
+	}
+	const synonymGroups = [
+		['wood', 'timber', 'lumber', 'plywood', 'board', 'خشب'],
+		['steel', 'rebar', 'metal', 'metals', 'حديد', 'معدن', 'معادن'],
+		['cement', 'opc', 'src', 'اسمنت', 'أسمنت'],
+		['concrete', 'خرسانة'],
+		['sand', 'aggregate', 'gravel', 'رمل', 'زلط'],
+		['brick', 'block', 'bricks', 'طوب'],
+		['tile', 'tiles', 'ceramic', 'سيراميك'],
+		['paint', 'coating', 'sealant', 'دهان', 'بويات'],
+	]
+	for (const group of synonymGroups) {
+		if (group.some((term) => normalized.includes(normalizeForMatch(term)))) {
+			addTerms(group)
+		}
+	}
+	const query = productSearchTerm(userText)
+	if (query) addTerms(query.split(/\s+/))
+	addTerms(
+		normalized
+			.split(' ')
+			.filter(
+				(token) => token.length > 2 && !PRODUCT_INTENT_STOP_WORDS.has(token),
+			)
+			.slice(0, 24),
+	)
+	return Array.from(terms)
+}
+
+const PRODUCT_INTENT_STOP_WORDS = new Set([
+	'about',
+	'add',
+	'available',
+	'catalog',
+	'catalogue',
+	'create',
+	'draft',
+	'for',
+	'from',
+	'items',
+	'make',
+	'material',
+	'materials',
+	'need',
+	'order',
+	'plan',
+	'please',
+	'product',
+	'products',
+	'quote',
+	'real',
+	'review',
+	'search',
+	'the',
+	'this',
+	'want',
+	'with',
+	'عايز',
+	'عايزه',
+	'محتاج',
+	'مواد',
+	'منتج',
+	'منتجات',
+	'متاح',
+	'مسودة',
+])
+
+function productPlanningTerms(userText: string): string[] {
+	const normalized = normalizeForMatch(userText)
+	const terms = new Set<string>()
+	const addTerms = (values: string[]) => {
+		for (const value of values) terms.add(normalizeForMatch(value))
+	}
+
+	if (/\b(tree\s*house|treehouse|wood|timber|lumber)\b/.test(normalized)) {
+		addTerms([
+			'wood',
+			'timber',
+			'lumber',
+			'plywood',
+			'board',
+			'roof',
+			'paint',
+			'sealant',
+			'screw',
+			'nail',
+			'bracket',
+			'ladder',
+			'خشب',
+			'دهان',
+			'مسامير',
+		])
+	}
+	if (/\b(roof|shed|house|room|villa|warehouse)\b/.test(normalized)) {
+		addTerms([
+			'cement',
+			'concrete',
+			'steel',
+			'rebar',
+			'brick',
+			'block',
+			'tile',
+			'insulation',
+			'roof',
+			'paint',
+			'اسمنت',
+			'خرسانة',
+			'حديد',
+			'طوب',
+		])
+	}
+	if (
+		/\b(floor|wall|foundation|deck|platform|stairs?|ladder)\b/.test(normalized)
+	) {
+		addTerms([
+			'cement',
+			'concrete',
+			'steel',
+			'rebar',
+			'aggregate',
+			'sand',
+			'tile',
+			'wood',
+			'اسمنت',
+			'رمل',
+			'حديد',
+		])
+	}
+	if (
+		/بيت|غرفة|اوضة|سقف|حائط|حيطة|جدار|ارضية|أرضية|سلم|منصة|فيلا|مخزن|خشب/.test(
+			userText,
+		)
+	) {
+		addTerms([
+			'خشب',
+			'اسمنت',
+			'حديد',
+			'طوب',
+			'خرسانة',
+			'رمل',
+			'دهان',
+			'wood',
+			'cement',
+			'steel',
+			'brick',
+		])
+	}
+
+	return Array.from(terms).filter(Boolean)
+}
+
+function rankProductsForPlanning(
+	products: PortalAiProduct[],
+	terms: string[],
+	limit: number,
+): PortalAiProduct[] {
+	return products
+		.map((product) => ({
+			product,
+			score: productPlanningScore(product, terms),
+		}))
+		.sort((left, right) => {
+			if (right.score !== left.score) return right.score - left.score
+			const availability =
+				productAvailabilityRank(left.product) -
+				productAvailabilityRank(right.product)
+			if (availability !== 0) return availability
+			return left.product.name.localeCompare(right.product.name)
+		})
+		.slice(0, limit)
+		.map((ranked) => ranked.product)
+}
+
+function productPlanningScore(
+	product: PortalAiProduct,
+	terms: string[],
+): number {
+	const searchable = normalizeForMatch(
+		[
+			product.name,
+			product.name_ar ?? '',
+			product.sku,
+			product.category,
+			product.subcategory ?? '',
+			product.subcategory_ar ?? '',
+			product.description ?? '',
+			product.description_ar ?? '',
+			JSON.stringify(product.specifications ?? {}),
+			JSON.stringify(product.specifications_ar ?? {}),
+		].join(' '),
+	)
+	let score = isCustomerVisibleAvailable(product) ? 2 : 0
+	if (product.availability_status === 'out_of_stock') score -= 2
+	for (const term of terms) {
+		if (term.length > 1 && searchable.includes(term)) {
+			score += term.length + 8
+		}
+	}
+	return score
+}
+
+function productAvailabilityRank(product: PortalAiProduct): number {
+	if (isCustomerVisibleAvailable(product)) return 0
+	if (product.availability_status === 'out_of_stock') return 2
+	return 3
 }
 
 function isOpenEndedCatalogSelectionRequest(userText: string): boolean {
