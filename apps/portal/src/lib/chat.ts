@@ -1394,9 +1394,6 @@ async function renderPortalCustomerResponse(
 			result.context.message ??
 			simpleAnswer ??
 			"I'm Lyon. What should we build, check, or edit?"
-		if (commandShouldUseRichOnly(result, customEvents)) {
-			return richOnlyChunks(customEvents)
-		}
 		return textOnlyChunks(
 			result.route.commandName
 				? commandToolAnswer(result, fallbackText)
@@ -1423,9 +1420,6 @@ async function renderPortalCustomerResponse(
 
 	const fallbackText = fallbackToolAnswer(result.context)
 	if (result.route.commandName) {
-		if (commandShouldUseRichOnly(result, customEvents)) {
-			return richOnlyChunks(customEvents)
-		}
 		return textOnlyChunks(commandToolAnswer(result, fallbackText), customEvents)
 	}
 	if (result.context.type === 'products') {
@@ -2197,24 +2191,6 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 	}
 	if (result.invalidatesOrders) events.push(customerOrdersInvalidationEvent())
 	return events
-}
-
-function commandShouldUseRichOnly(
-	result: PortalToolResult,
-	events: StreamChunk[],
-): boolean {
-	if (result.context.type === 'products') return false
-	return Boolean(result.route.commandName) && events.some(isPrimaryRichEvent)
-}
-
-function isPrimaryRichEvent(event: StreamChunk): boolean {
-	if (event.type !== 'CUSTOM' || event.name !== 'rich_message') return false
-	const value = event.value as { type?: unknown } | undefined
-	return (
-		typeof value?.type === 'string' &&
-		value.type !== 'action_button' &&
-		value.type !== 'disclaimer'
-	)
 }
 
 async function loadCustomerProfileContext(
@@ -4875,10 +4851,6 @@ function textOnlyChunks(
 			finishReason: 'stop' as const,
 		},
 	]
-}
-
-function richOnlyChunks(customEvents: StreamChunk[]): StreamChunk[] {
-	return textOnlyChunks(' ', customEvents)
 }
 
 function recentRouteMessages(messages: ChatMessageInput[]): ChatMessageInput[] {
