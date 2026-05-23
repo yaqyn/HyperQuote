@@ -267,6 +267,7 @@ export function usePortalChat({
 	const [isChatStoreHydrated, setIsChatStoreHydrated] = useState(() =>
 		useChatStore.persist.hasHydrated(),
 	)
+	const [isResponsePending, setIsResponsePending] = useState(false)
 	const activeDraftRef = useRef<ActiveChatDraftContext | null>(activeDraft)
 	const loadedRoleRef = useRef<'customer' | 'supplier' | null>(null)
 	const lastPersistedChatFingerprintRef = useRef('')
@@ -450,11 +451,17 @@ export function usePortalChat({
 	const clear = useCallback(() => {
 		chat.stop()
 		chat.clear()
+		setIsResponsePending(false)
 		richContentRef.current = []
 		lastChunksRef.current = []
 		lastPersistedChatFingerprintRef.current = ''
 		clearStoreActive(activeRole)
 	}, [activeRole, chat.clear, chat.stop, clearStoreActive])
+
+	const stop = useCallback(() => {
+		chat.stop()
+		setIsResponsePending(false)
+	}, [chat.stop])
 
 	const sendMessage = useCallback(
 		(message: string) => {
@@ -478,16 +485,21 @@ export function usePortalChat({
 				clear()
 				return
 			}
-			chat.sendMessage(message)
+			setIsResponsePending(true)
+			void chat.sendMessage(message).finally(() => {
+				setIsResponsePending(false)
+			})
 		},
 		[chat.messages, chat.sendMessage, chat.setMessages, clear],
 	)
 
+	const isLoading = chat.isLoading || isResponsePending
+
 	return {
 		messages,
 		sendMessage,
-		isLoading: chat.isLoading,
-		stop: chat.stop,
+		isLoading,
+		stop,
 		clear,
 		error: chat.error,
 		richContent: richContentRef.current,
