@@ -732,11 +732,8 @@ function buildPortalToolAnswerPrompt(
 ): string {
 	return `${LYON_PORTAL}
 
-Answer from the supplied Portal tool result only.
-Be natural and concise. Match the user's language from the conversation.
-Do not expose IDs unless they are customer-facing references.
-For draft writes, state only what changed. Do not add draft/submission disclaimers or edit links.
-For missing data, say what is missing instead of guessing.
+Use only this portal tool result. Answer naturally, briefly, and in the user's language.
+Do not expose raw IDs or internal fields. If something is missing, ask a short question.
 ${toolAnswerStyleInstructions(context)}
 
 Portal tool result:
@@ -751,29 +748,17 @@ function toolAnswerStyleInstructions(
 ): string {
 	switch (context.type) {
 		case 'profile':
-			return [
-				'For profile/account-info answers, use a polished markdown snapshot:',
-				'- Start with `## Customer Profile`.',
-				'- Include a compact `Field | Details` table for company, contact, phone, email, status/tier, credit limit, payment history, and trade license.',
-				'- Add short sections for delivery addresses, projects, and account notes.',
-				'- Do not mention `/profile`; you chose the internal profile tool yourself.',
-			].join('\n')
+			return 'Profile: give a clean markdown snapshot with account, addresses, projects, and useful notes.'
 		case 'orders':
-			return [
-				'For order/draft lists, summarize what matters first: counts, stale drafts, latest status, and any obvious next action.',
-				'The supplied list is already filtered to the requested orderScope; do not mention or describe records outside that list.',
-				'Do not mention internal fields like orderScope or order_scope.',
-				'Use concise markdown and refer to customer-facing quote/order references only.',
-				'Do not mention `/orders` or `/drafts`; you chose the internal orders tool yourself.',
-			].join('\n')
+			return 'Orders: summarize only the supplied records. Use customer references, not internal scope/tool names.'
 		case 'order_detail':
-			return 'For a single order, explain the current status, item summary, dates, and a sensible next step. Do not mention `/latest-order`.'
+			return 'Order detail: explain status, items, dates, and a practical next step.'
 		case 'delivery_tracking':
-			return 'For delivery tracking, explain the visible delivery stage, ETA/driver/truck details when present, and the practical next step. Do not mention `/track`.'
+			return 'Delivery: explain the visible stage, ETA/driver/truck details when present, and the next step.'
 		case 'products':
-			return 'For catalog results, list real visible products with Available/Unavailable status only, and ask before creating a draft unless the user explicitly requested one.'
+			return 'Products: use real visible products and only Available/Unavailable status. Ask before drafting unless explicitly requested.'
 		case 'draft_write':
-			return 'For draft writes, state exactly what changed and keep the wording customer-facing. Do not add draft/submission disclaimers, review instructions, or edit links.'
+			return 'Draft write: say only what changed. No draft/submission disclaimers, review instructions, or edit links.'
 	}
 }
 
