@@ -275,6 +275,7 @@ export function ChatDraftsPanel({
 	)
 	const actionsMenuRef = useRef<HTMLDivElement>(null)
 	const draftMenuRef = useRef<HTMLDivElement>(null)
+	const knownSavedDraftIdsRef = useRef<Set<string>>(new Set())
 	const productMenuRef = useRef<HTMLDivElement>(null)
 	const [activeDraftKey, setActiveDraftKey] = useState<string | null>(null)
 	const [actionsMenuOpen, setActionsMenuOpen] = useState(false)
@@ -414,6 +415,46 @@ export function ChatDraftsPanel({
 		setActiveDraftKey(firstDraft.id)
 		setEditor(createEditorFromOrder(firstDraft))
 	}, [activeDraftKey, savedDrafts])
+
+	useEffect(() => {
+		if (
+			!activeDraftKey ||
+			activeDraftKey === NEW_DRAFT_KEY ||
+			!editor ||
+			editor.id !== activeDraftKey ||
+			dirty
+		) {
+			return
+		}
+
+		const serverDraft = savedDrafts.find((draft) => draft.id === activeDraftKey)
+		if (!serverDraft) {
+			if (!knownSavedDraftIdsRef.current.has(activeDraftKey)) return
+			setActiveDraftKey(NEW_DRAFT_KEY)
+			setActionsMenuOpen(false)
+			setConfirmCartAddOpen(false)
+			setConfirmSubmitOpen(false)
+			setConfirmDeleteId(null)
+			setDraftMenuOpen(false)
+			setEditor(createNewEditor(defaultDraftName))
+			setProductMenuOpen(false)
+			setProductSearch('')
+			setSubmitError(null)
+			return
+		}
+
+		const serverEditor = createEditorFromOrder(serverDraft)
+		if (serverEditor.baseFingerprint === editor.baseFingerprint) return
+		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
+		setEditor(serverEditor)
+	}, [activeDraftKey, defaultDraftName, dirty, editor, savedDrafts])
+
+	useEffect(() => {
+		knownSavedDraftIdsRef.current = new Set(
+			savedDrafts.map((draft) => draft.id),
+		)
+	}, [savedDrafts])
 
 	useEffect(() => {
 		function handleOpenDraft(event: Event) {
@@ -574,19 +615,17 @@ export function ChatDraftsPanel({
 	const deleteMutation = useMutation({
 		mutationFn: (draftId: string) =>
 			deleteOrder({ data: { orderId: draftId } }),
-		onSuccess: (_result, draftId) => {
-			const nextDraft = savedDrafts.find((draft) => draft.id !== draftId)
+		onSuccess: () => {
 			setActionsMenuOpen(false)
 			setConfirmCartAddOpen(false)
 			setConfirmSubmitOpen(false)
 			setConfirmDeleteId(null)
-			if (nextDraft) {
-				setActiveDraftKey(nextDraft.id)
-				setEditor(createEditorFromOrder(nextDraft))
-			} else {
-				setActiveDraftKey(null)
-				setEditor(null)
-			}
+			setActiveDraftKey(NEW_DRAFT_KEY)
+			setDraftMenuOpen(false)
+			setEditor(createNewEditor(defaultDraftName))
+			setProductMenuOpen(false)
+			setProductSearch('')
+			setSubmitError(null)
 			queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
 			toast.success(t('orders.draftDeleted'))
 		},
@@ -617,6 +656,20 @@ export function ChatDraftsPanel({
 		setProductMenuOpen(false)
 		setProductSearch('')
 		setSubmitError(null)
+	}
+
+	function clearEditorWorkspace() {
+		setActiveDraftKey(NEW_DRAFT_KEY)
+		setActionsMenuOpen(false)
+		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
+		setConfirmDeleteId(null)
+		setDraftMenuOpen(false)
+		setEditor(createNewEditor(defaultDraftName))
+		setProductMenuOpen(false)
+		setProductSearch('')
+		setSubmitError(null)
+		toast.success(t('orders.draftCleared', 'Draft cleared.'))
 	}
 
 	function updateEditor(
@@ -758,12 +811,17 @@ export function ChatDraftsPanel({
 	}
 
 	function handleDeleteEditor() {
-		if (!editor?.id) return
-		if (confirmDeleteId === editor.id) {
+		if (!editor) return
+		const deleteKey = editor.id ?? NEW_DRAFT_KEY
+		if (confirmDeleteId === deleteKey) {
+			if (!editor.id) {
+				clearEditorWorkspace()
+				return
+			}
 			deleteMutation.mutate(editor.id)
 			return
 		}
-		setConfirmDeleteId(editor.id)
+		setConfirmDeleteId(deleteKey)
 	}
 
 	if (submittedReference) {
@@ -1318,22 +1376,22 @@ export function ChatDraftsPanel({
 										<button
 											type="button"
 											onClick={handleDeleteEditor}
-											disabled={!editor.id || deleteMutation.isPending}
+											disabled={deleteMutation.isPending}
 											className={`flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-[12px] font-semibold transition-colors disabled:pointer-events-none disabled:opacity-45 ${
-												editor.id && confirmDeleteId === editor.id
+												confirmDeleteId === (editor.id ?? NEW_DRAFT_KEY)
 													? 'bg-[var(--p-error)] text-white hover:opacity-90'
 													: 'text-[var(--p-error)] hover:bg-[var(--p-hover)]'
 											}`}
 										>
-											{editor.id && confirmDeleteId === editor.id ? (
+											{confirmDeleteId === (editor.id ?? NEW_DRAFT_KEY) ? (
 												<Check size={14} strokeWidth={1.8} />
 											) : (
 												<Trash2 size={14} strokeWidth={1.7} />
 											)}
 											<span className="truncate">
-												{editor.id && confirmDeleteId === editor.id
-													? t('orders.confirmDelete')
-													: t('orders.delete')}
+												{confirmDeleteId === (editor.id ?? NEW_DRAFT_KEY)
+													? t('orders.confirmDeleteClear', 'Confirm')
+													: t('orders.deleteClear', 'Delete / Clear')}
 											</span>
 										</button>
 									</motion.div>
