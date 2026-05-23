@@ -5,7 +5,7 @@ import {
 } from '../lib/draft-quote-cart'
 
 describe('draft quote cart recovery', () => {
-	it('normalizes legacy local cart rows before save or submit', () => {
+	it('purges legacy fake local cart rows before save or submit', () => {
 		const snapshot = sanitizeDraftQuoteSnapshot({
 			globalNote: '  keep this note  ',
 			items: [
@@ -17,38 +17,11 @@ describe('draft quote cart recovery', () => {
 		})
 
 		expect(snapshot.globalNote).toBe('keep this note')
-		expect(snapshot.items).toEqual([
-			{
-				category: 'material',
-				categoryName: 'material',
-				categoryNameAr: 'مواد',
-				imageUrl: '',
-				name: 'Custom material',
-				nameAr: 'مواد مخصصة',
-				note: '',
-				productId: 'old-local-row',
-				quantity: 2,
-				slug: 'old-local-row',
-				unitOfMeasure: 'unit',
-				unitOfMeasureAr: 'وحدة',
-			},
-		])
+		expect(snapshot.items).toEqual([])
 
 		expect(
 			toDraftQuoteRequestItemPayloads(snapshot.items, { isArabic: false }),
-		).toEqual([
-			{
-				customerDescription: 'Custom material',
-				isUnmatched: true,
-				matchConfidence: undefined,
-				notes: undefined,
-				productId: undefined,
-				quantity: 2,
-				sortOrder: 0,
-				unitOfMeasure: 'unit',
-				unitOfMeasureAr: 'وحدة',
-			},
-		])
+		).toEqual([])
 	})
 
 	it('keeps valid catalog lines linked for server revalidation', () => {
@@ -88,7 +61,7 @@ describe('draft quote cart recovery', () => {
 		])
 	})
 
-	it('never emits text product ids as catalog product links', () => {
+	it('drops text product ids instead of emitting unmatched quote lines', () => {
 		const snapshot = sanitizeDraftQuoteSnapshot({
 			items: [
 				{
@@ -109,36 +82,10 @@ describe('draft quote cart recovery', () => {
 			],
 		})
 
-		expect(snapshot.items.map((item) => item.productId)).toEqual([
-			'wood',
-			'metal',
-		])
+		expect(snapshot.items).toEqual([])
 		expect(
 			toDraftQuoteRequestItemPayloads(snapshot.items, { isArabic: false }),
-		).toEqual([
-			{
-				customerDescription: 'Wood',
-				isUnmatched: true,
-				matchConfidence: undefined,
-				notes: undefined,
-				productId: undefined,
-				quantity: 4,
-				sortOrder: 0,
-				unitOfMeasure: 'piece',
-				unitOfMeasureAr: 'piece',
-			},
-			{
-				customerDescription: 'Metal',
-				isUnmatched: true,
-				matchConfidence: undefined,
-				notes: undefined,
-				productId: undefined,
-				quantity: 2,
-				sortOrder: 1,
-				unitOfMeasure: 'kg',
-				unitOfMeasureAr: 'kg',
-			},
-		])
+		).toEqual([])
 	})
 
 	it('merges duplicate persisted catalog rows instead of fabricating product ids', () => {

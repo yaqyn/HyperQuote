@@ -280,8 +280,9 @@ export const getPublicCatalog = createServerFn({ method: 'POST' })
 
 		const categories = input.category ?? []
 		if (categories.length) query = query.in('category', categories)
-		if (input.availability && input.availability !== 'all')
-			query = query.eq('availability_status', input.availability)
+		if (input.availability && input.availability !== 'all') {
+			query = query.neq('availability_status', 'out_of_stock')
+		}
 		if (input.priceTier?.length) query = query.in('price_tier', input.priceTier)
 		if (input.search) {
 			const searchFilter = publicProductSearchFilter(input.search)

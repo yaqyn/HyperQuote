@@ -67,6 +67,10 @@ export interface QuoteCartState {
 	totalUnits: () => number
 }
 
+export function isQuoteCartProductId(value: string): boolean {
+	return UUID_RE.test(value)
+}
+
 export function sanitizeQuoteCartSnapshot(value: unknown): {
 	globalNote: string
 	items: QuoteCartItem[]
@@ -88,7 +92,7 @@ export function toQuoteRequestItemPayloads(
 	return sanitizeQuoteCartItems(items)
 		.filter((item) => item.quantity > 0)
 		.map((item, index) => {
-			const productId = UUID_RE.test(item.productId)
+			const productId = isQuoteCartProductId(item.productId)
 				? item.productId
 				: undefined
 			const customerDescription =
@@ -143,6 +147,7 @@ export function createQuoteCartStore(storageKey = QUOTE_CART_STORAGE_KEY) {
 				add: (item, quantity = 1) =>
 					set((state) => {
 						const normalized = normalizeQuoteCartItemInput(item, quantity)
+						if (!normalized) return state
 						const existing = state.items.find(
 							(cartItem) => cartItem.productId === normalized.productId,
 						)
@@ -247,8 +252,8 @@ function sanitizeQuoteCartItems(value: unknown): QuoteCartItem[] {
 	if (!Array.isArray(value)) return []
 
 	const itemsByProductId = new Map<string, QuoteCartItem>()
-	for (const [index, item] of value.entries()) {
-		const normalized = normalizeQuoteCartItem(item, index)
+	for (const item of value) {
+		const normalized = normalizeQuoteCartItem(item)
 		if (!normalized) continue
 
 		const existing = itemsByProductId.get(normalized.productId)
@@ -263,21 +268,12 @@ function sanitizeQuoteCartItems(value: unknown): QuoteCartItem[] {
 	return Array.from(itemsByProductId.values())
 }
 
-function normalizeQuoteCartItem(
-	value: unknown,
-	index: number,
-): QuoteCartItem | null {
+function normalizeQuoteCartItem(value: unknown): QuoteCartItem | null {
 	const record = asRecord(value)
 	if (!record) return null
 
-	const productId = textFrom(
-		record.productId,
-		record.product_id,
-		record.id,
-		record.sku,
-		record.slug,
-		`legacy-cart-item-${index + 1}`,
-	)
+	const productId = textFrom(record.productId, record.product_id, record.id)
+	if (!isQuoteCartProductId(productId)) return null
 	const name = textFrom(
 		record.name,
 		record.customerDescription,
@@ -349,7 +345,8 @@ function normalizeQuoteCartItem(
 function normalizeQuoteCartItemInput(
 	item: QuoteCartItemInput,
 	quantity: number,
-): QuoteCartItem {
+): QuoteCartItem | null {
+	if (!isQuoteCartProductId(item.productId)) return null
 	const categoryName =
 		item.categoryName?.trim() || humanCategoryLabel(item.category)
 	const unitOfMeasureAr = item.unitOfMeasureAr?.trim() || item.unitOfMeasure

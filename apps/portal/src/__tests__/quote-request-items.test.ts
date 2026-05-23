@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
 	assertAllProductLinksOrderable,
+	isOrderableQuoteProduct,
 	QUOTE_REQUEST_ITEM_PRODUCT_NOT_ORDERABLE,
 	toQuoteRequestItemRows,
 } from '../lib/server/quote-request-items'
@@ -95,5 +96,38 @@ describe('quote request item insert rows', () => {
 				new Set([orderableProductId]),
 			),
 		).toThrowError(QUOTE_REQUEST_ITEM_PRODUCT_NOT_ORDERABLE)
+	})
+
+	it('treats low-stock catalog rows as customer-orderable', () => {
+		expect(
+			isOrderableQuoteProduct({
+				availability_status: 'available',
+				is_active: true,
+			}),
+		).toBe(true)
+		expect(
+			isOrderableQuoteProduct({
+				availability_status: 'low_stock',
+				is_active: true,
+			}),
+		).toBe(true)
+		expect(
+			isOrderableQuoteProduct({
+				availability_status: 'out_of_stock',
+				is_active: true,
+			}),
+		).toBe(false)
+		expect(
+			isOrderableQuoteProduct({
+				availability_status: 'hidden',
+				is_active: true,
+			}),
+		).toBe(false)
+		expect(
+			isOrderableQuoteProduct({
+				availability_status: 'available',
+				is_active: false,
+			}),
+		).toBe(false)
 	})
 })

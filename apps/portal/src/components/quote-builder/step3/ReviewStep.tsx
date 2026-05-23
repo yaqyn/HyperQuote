@@ -12,6 +12,7 @@ import { Dialog, DialogTrigger, Heading } from 'react-aria-components/Dialog'
 import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
 import { useNeedsApproval } from '../../../hooks/useApproval'
+import { useQuoteBuilderOrderability } from '../../../hooks/useQuoteBuilderOrderability'
 import { useQuoteSubmit } from '../../../hooks/useQuoteSubmit'
 import { clearLocalDraft } from '../../../lib/quote-draft'
 import { toQuoteSubmissionPayload } from '../../../lib/quote-request-payload'
@@ -38,12 +39,14 @@ export function ReviewStep() {
 	const [submitting, setSubmitting] = useState(false)
 	const [result, setResult] = useState<SubmitResult | null>(null)
 	const [error, setError] = useState<string | null>(null)
-	const hasInvalidItems = items.some(
-		(item) => item.isUnmatched || !item.productId,
-	)
+	const {
+		isBlocked: isOrderabilityBlocked,
+		isValidationFailed,
+		unavailableItems,
+	} = useQuoteBuilderOrderability(items)
 
 	const handleSubmit = useCallback(async () => {
-		if (hasInvalidItems) return
+		if (isOrderabilityBlocked) return
 		setSubmitting(true)
 		setError(null)
 
@@ -84,7 +87,7 @@ export function ReviewStep() {
 		} finally {
 			setSubmitting(false)
 		}
-	}, [hasInvalidItems, needsApproval, submit, t])
+	}, [isOrderabilityBlocked, needsApproval, submit, t])
 
 	if (result) {
 		return (
@@ -184,12 +187,28 @@ export function ReviewStep() {
 					<p className="text-sm text-red-600 dark:text-red-400">{error}</p>
 				</div>
 			)}
+			{(unavailableItems.length > 0 || isValidationFailed) && (
+				<div className="rounded-lg bg-red-50 p-3 dark:bg-red-950/20">
+					<p className="text-sm text-red-600 dark:text-red-400">
+						{isValidationFailed
+							? t(
+									'orders.validationFailed',
+									'Could not confirm catalog availability. Try again.',
+								)
+							: t('orders.unavailableItems', {
+									items: unavailableItems.join(', '),
+								})}
+					</p>
+				</div>
+			)}
 
 			{/* Submit / Submit for Approval */}
 			<div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--color-border)]">
 				<DialogTrigger>
 					<Button
-						isDisabled={items.length === 0 || hasInvalidItems || isPending}
+						isDisabled={
+							items.length === 0 || isOrderabilityBlocked || isPending
+						}
 						onPress={() => setShowConfirm(true)}
 						className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
 					>
@@ -235,7 +254,7 @@ export function ReviewStep() {
 												setShowConfirm(false)
 												handleSubmit()
 											}}
-											isDisabled={hasInvalidItems || isPending}
+											isDisabled={isOrderabilityBlocked || isPending}
 											className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50"
 										>
 											{needsApproval

@@ -47,7 +47,7 @@ function toQuoteItemPayload(item: QuoteItem): QuoteItemPayload {
 	return payload
 }
 
-function toQuoteItemsPayload(items: QuoteItem[]): QuoteItemPayload[] {
+export function toQuoteItemsPayload(items: QuoteItem[]): QuoteItemPayload[] {
 	return items.map(toQuoteItemPayload)
 }
 

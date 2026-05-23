@@ -162,18 +162,13 @@ function ProductDetailPage() {
 	)
 	const categoryLabel = categoryLabelFor(product.category, categories, locale)
 	const availStatus = product.availability_status ?? 'out_of_stock'
-	const availDot =
-		availStatus === 'available'
-			? 'bg-[var(--color-success)]'
-			: availStatus === 'low_stock'
-				? 'bg-[var(--color-warning)]'
-				: 'bg-[var(--color-text-muted)]'
-	const availLabel =
-		availStatus === 'available'
-			? t('market.available')
-			: availStatus === 'low_stock'
-				? t('market.lowStock')
-				: t('market.outOfStock')
+	const isAvailable = availStatus !== 'out_of_stock'
+	const availDot = isAvailable
+		? 'bg-[var(--color-success)]'
+		: 'bg-[var(--color-text-muted)]'
+	const availLabel = isAvailable
+		? t('market.available')
+		: t('market.outOfStock')
 
 	return (
 		<>

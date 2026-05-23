@@ -26,7 +26,11 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getMarketProducts, type MarketProduct } from '../../lib/server/market'
 import { deleteOrder, getAllCustomerOrders } from '../../lib/server/orders'
-import { saveDraft, submitQuoteRequest } from '../../lib/server/quote-requests'
+import {
+	saveDraft,
+	submitQuoteRequest,
+	validateQuoteRequestItems,
+} from '../../lib/server/quote-requests'
 import { toast } from '../../lib/toast'
 import { unavailableItemNamesFromError } from '../../lib/unavailable-quote-items'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
@@ -341,17 +345,59 @@ export function ChatDraftsPanel({
 	const dirty = editor
 		? editorFingerprint(editor) !== editor.baseFingerprint
 		: false
+	const editorQuoteRequestItems = useMemo(
+		() => (editor ? toQuoteRequestItems(editor.items) : []),
+		[editor],
+	)
+	const editorQuoteRequestFingerprint = useMemo(
+		() => JSON.stringify(editorQuoteRequestItems),
+		[editorQuoteRequestItems],
+	)
+	const orderabilityQuery = useQuery({
+		queryKey: [
+			'chat-draft-orderability',
+			editor?.id ?? NEW_DRAFT_KEY,
+			editorQuoteRequestFingerprint,
+		],
+		queryFn: () =>
+			validateQuoteRequestItems({
+				data: { items: editorQuoteRequestItems },
+			}),
+		enabled: editorQuoteRequestItems.length > 0,
+		staleTime: 10_000,
+	})
+	const validationUnavailableItems =
+		orderabilityQuery.data?.unavailableItems ?? []
 	const invalidItems = editor ? invalidDraftItems(editor.items) : []
-	const hasInvalidItems = invalidItems.length > 0
-	const invalidItemsText = hasInvalidItems
-		? t('orders.unavailableItems', {
-				items: invalidItems
-					.map((item) => (isAr ? item.productNameAr : item.productName))
-					.join(', '),
-			})
-		: null
+	const hasUnavailableValidatedItems = validationUnavailableItems.length > 0
+	const isEditorValidationPending =
+		editorQuoteRequestItems.length > 0 && orderabilityQuery.isFetching
+	const isEditorValidationFailed =
+		editorQuoteRequestItems.length > 0 && orderabilityQuery.isError
+	const hasInvalidItems =
+		invalidItems.length > 0 ||
+		hasUnavailableValidatedItems ||
+		isEditorValidationFailed
+	const invalidItemsText = isEditorValidationFailed
+		? t(
+				'orders.validationFailed',
+				'Could not confirm catalog availability. Try again.',
+			)
+		: hasInvalidItems
+			? t('orders.unavailableItems', {
+					items:
+						validationUnavailableItems.length > 0
+							? validationUnavailableItems.join(', ')
+							: invalidItems
+									.map((item) => (isAr ? item.productNameAr : item.productName))
+									.join(', '),
+				})
+			: null
 	const canPersist = Boolean(
-		editor && editor.items.length > 0 && !hasInvalidItems,
+		editor &&
+			editor.items.length > 0 &&
+			!hasInvalidItems &&
+			!isEditorValidationPending,
 	)
 	const activeDraftTitle = editor
 		? editor.name.trim() || editor.reference || t('market.defaultDraftName')

@@ -31,6 +31,17 @@ type AuthedSupabase = Awaited<
 	ReturnType<typeof getAuthenticatedSupabase>
 >['supabase']
 
+export function isOrderableQuoteProduct(row: {
+	availability_status: string
+	is_active: boolean
+}): boolean {
+	return (
+		row.is_active &&
+		row.availability_status !== 'hidden' &&
+		row.availability_status !== 'out_of_stock'
+	)
+}
+
 export function toQuoteRequestItemRows(
 	quoteRequestId: string,
 	items: QuoteRequestItemInput[],
@@ -91,16 +102,7 @@ async function getOrderableProductIds(
 	if (error) throw new Error(error.message)
 
 	const rows = productOrderabilityRowSchema.array().parse(data ?? [])
-	return new Set(
-		rows
-			.filter(
-				(row) =>
-					row.is_active &&
-					row.availability_status !== 'hidden' &&
-					row.availability_status !== 'out_of_stock',
-			)
-			.map((row) => row.id),
-	)
+	return new Set(rows.filter(isOrderableQuoteProduct).map((row) => row.id))
 }
 
 export async function assertQuoteRequestItemsHaveOrderableProductLinks(

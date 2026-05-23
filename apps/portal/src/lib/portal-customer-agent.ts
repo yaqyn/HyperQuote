@@ -1,12 +1,11 @@
 import {
 	classifyWebsitePublicChatIntent,
 	retrieveWebsiteDocs,
-	type WebsitePublicChatRoute,
 } from '@hyperquote/docs/retrieval'
 
 const ARABIC_BLOCK = /[\u0600-\u06ff]/
 
-const ROUTE_ACTIONS = [
+const AGENT_TOOL_ACTIONS = [
 	'chat',
 	'public_docs',
 	'customer_profile',
@@ -22,38 +21,62 @@ const ROUTE_ACTIONS = [
 	'refuse',
 ] as const
 
-export type PortalCustomerRouteAction = (typeof ROUTE_ACTIONS)[number]
+export type PortalCustomerAgentAction = (typeof AGENT_TOOL_ACTIONS)[number]
 
-export interface PortalCustomerRoute {
-	action: PortalCustomerRouteAction
+export interface PortalCustomerToolRequest {
+	action: PortalCustomerAgentAction
 	cleanupMode?: 'delete_all' | 'merge' | 'remove_empty'
 	draftName?: string
 	draftNotes?: string
+	finalResponse?: string
 	reason?: string
 	searchQuery: string
 	targetReference?: string
 }
 
-export const PORTAL_CUSTOMER_ROUTER_PROMPT = `You are Lyon's routing layer for the signed-in HyperQuote customer portal.
-Return JSON only. Do not answer the user. Do not use markdown.
+export interface PortalCustomerCatalogSnapshotItem {
+	category: string
+	name: string
+	nameAr: string | null
+	priceRange: string
+	productId: string
+	status: 'Available' | 'Unavailable'
+	unit: string
+}
 
-Schema:
-{"action":"chat"|"public_docs"|"customer_profile"|"customer_orders"|"order_detail"|"delivery_tracking"|"product_search"|"create_draft_from_plan"|"duplicate_order_to_draft"|"update_draft_metadata"|"cleanup_drafts"|"delete_draft"|"refuse","search_query":"string","target_reference":"string","draft_name":"string","draft_notes":"string","cleanup_mode":"delete_all"|"merge"|"remove_empty","reason":"string"}
+export interface PortalCustomerCatalogSnapshot {
+	catalogComplete: boolean
+	products: PortalCustomerCatalogSnapshotItem[]
+	totalVisibleProducts: number
+}
 
-Use public_docs for public HyperQuote docs questions.
-Use customer_profile for the signed-in customer's company profile, addresses, or projects.
-Use customer_orders for lists/status summaries covering drafts, saved, submitted, confirmed, out-for-delivery, delivered, cancelled, or rejected records.
-Use order_detail for one specific quote request/order or for "latest order" detail.
-Use delivery_tracking for customer-visible driver, truck, ETA, route, or location questions for the customer's own delivery.
-Use product_search for published product/catalog/material search, price-range questions, and broad project planning prompts such as "tree house", "roof", "room", or "what materials do I need". Product planning must be grounded in catalog availability and should ask before adding items to a draft.
-Use create_draft_from_plan only when the customer explicitly asks you to create/make/prepare/add an editable draft, quote request, order draft, RFQ, cart, or catalog selection. Draft write tools must be grounded in active orderable catalog products; never invent draft lines.
-Use duplicate_order_to_draft only when the user asks to copy or repeat a past order/quote into a new draft.
-Use update_draft_metadata only for draft rename, notes, project, delivery date, or metadata changes.
-Use cleanup_drafts for merging drafts, removing empty drafts, or deleting all drafts after an explicit cleanup/delete-drafts request.
-Use delete_draft for deleting one draft.
-Use refuse for submit/place/confirm order requests, cross-customer requests, internal finance, supplier cost/margins, employee data, secrets, or driver-only operational data outside the customer's own delivery tracking.
+export function buildPortalCustomerAgentPrompt(
+	catalog: PortalCustomerCatalogSnapshot,
+): string {
+	return `You are Lyon, a natural customer-support and materials-planning agent inside the signed-in HyperQuote customer portal.
 
-Never route to a submit, confirm, accept, payment, cancellation, internal, supplier-cost, employee, or cross-customer write tool. Portal AI can immediately mutate draft quote requests only.`
+The server has already authenticated the customer. You may request exactly one safe internal tool, or ask for no tool when friendly chat is enough. Return JSON only; never answer outside JSON.
+
+Response schema:
+{"tool":"chat"|"public_docs"|"customer_profile"|"customer_orders"|"order_detail"|"delivery_tracking"|"product_search"|"create_draft_from_plan"|"duplicate_order_to_draft"|"update_draft_metadata"|"cleanup_drafts"|"delete_draft"|"refuse","search_query":"string","target_reference":"string","draft_name":"string","draft_notes":"string","cleanup_mode":"delete_all"|"merge"|"remove_empty","reason":"string","final_response":"string"}
+
+Tool rules:
+- chat: greetings, small talk, unclear requests, or when you should ask a short clarifying question. Put the natural response in final_response.
+- public_docs: public HyperQuote documentation questions.
+- customer_profile: the signed-in customer's company profile, addresses, or projects.
+- customer_orders: customer-owned draft/saved/submitted/confirmed/delivered/cancelled/rejected summaries.
+- order_detail: one specific quote request/order or latest order detail.
+- delivery_tracking: customer-visible driver, truck, ETA, route, or location for the customer's own delivery.
+- product_search: catalog/material search and project planning. Use the supplied catalog snapshot; ask before writing a project plan to a draft.
+- create_draft_from_plan: only explicit draft-create/catalog-selection requests. The server will add only real currently Available catalog product IDs.
+- duplicate_order_to_draft, update_draft_metadata, cleanup_drafts, delete_draft: draft-only, customer-scoped edits.
+- refuse: submit/place/confirm order requests, cross-customer data, internal finance, supplier costs/margins, employee data, secrets, or driver-only operational data outside the customer's own delivery tracking.
+
+Never request submit, confirm, accept, payment, cancellation, internal, supplier-cost, employee, or cross-customer writes. Do not invent products. If matching is uncertain, use chat and ask what material, size, grade, or quantity is missing.
+
+Visible catalog snapshot (${catalog.products.length}/${catalog.totalVisibleProducts}; complete: ${catalog.catalogComplete ? 'yes' : 'no'}):
+${JSON.stringify(catalog.products, null, 2)}`
+}
 
 export function detectPortalAiLocale(userMessage: string): 'ar' | 'en' {
 	return ARABIC_BLOCK.test(userMessage) ? 'ar' : 'en'
@@ -80,9 +103,9 @@ export function portalCustomerPolicyRefusal(
 	return null
 }
 
-export function fallbackPortalCustomerRoute(
+export function fallbackPortalCustomerToolRequest(
 	userMessage: string,
-): PortalCustomerRoute {
+): PortalCustomerToolRequest {
 	const refusal = portalCustomerPolicyRefusal(userMessage)
 	if (refusal) {
 		return { action: 'refuse', reason: refusal, searchQuery: '' }
@@ -175,24 +198,25 @@ export function fallbackPortalCustomerRoute(
 	return { action: 'chat', searchQuery: '' }
 }
 
-export function parsePortalCustomerRoute(
+export function parsePortalCustomerToolRequest(
 	rawResponse: string,
 	userMessage: string,
-): PortalCustomerRoute {
+): PortalCustomerToolRequest {
 	const jsonText = extractJsonObject(rawResponse)
-	if (!jsonText) return fallbackPortalCustomerRoute(userMessage)
+	if (!jsonText) return fallbackPortalCustomerToolRequest(userMessage)
 
 	try {
 		const parsed: unknown = JSON.parse(jsonText)
-		if (!isRecord(parsed) || typeof parsed.action !== 'string') {
-			return fallbackPortalCustomerRoute(userMessage)
+		if (!isRecord(parsed)) {
+			return fallbackPortalCustomerToolRequest(userMessage)
 		}
-		if (!isRouteAction(parsed.action)) {
-			return fallbackPortalCustomerRoute(userMessage)
+		const action = readAgentAction(parsed)
+		if (!action) {
+			return fallbackPortalCustomerToolRequest(userMessage)
 		}
 
-		const route: PortalCustomerRoute = {
-			action: parsed.action,
+		const request: PortalCustomerToolRequest = {
+			action,
 			searchQuery:
 				typeof parsed.search_query === 'string' && parsed.search_query.trim()
 					? parsed.search_query.trim()
@@ -202,69 +226,66 @@ export function parsePortalCustomerRoute(
 			typeof parsed.target_reference === 'string' &&
 			parsed.target_reference.trim()
 		) {
-			route.targetReference = parsed.target_reference.trim()
+			request.targetReference = parsed.target_reference.trim()
 		}
 		if (typeof parsed.draft_name === 'string' && parsed.draft_name.trim()) {
-			route.draftName = parsed.draft_name.trim().slice(0, 120)
+			request.draftName = parsed.draft_name.trim().slice(0, 120)
 		}
 		if (typeof parsed.draft_notes === 'string' && parsed.draft_notes.trim()) {
-			route.draftNotes = parsed.draft_notes.trim().slice(0, 600)
+			request.draftNotes = parsed.draft_notes.trim().slice(0, 600)
 		}
 		if (isCleanupMode(parsed.cleanup_mode)) {
-			route.cleanupMode = parsed.cleanup_mode
+			request.cleanupMode = parsed.cleanup_mode
 		}
 		if (typeof parsed.reason === 'string' && parsed.reason.trim()) {
-			route.reason = parsed.reason.trim()
+			request.reason = parsed.reason.trim()
+		}
+		if (
+			typeof parsed.final_response === 'string' &&
+			parsed.final_response.trim()
+		) {
+			request.finalResponse = parsed.final_response.trim().slice(0, 1200)
 		}
 
-		return enforcePortalCustomerRoute(route, userMessage)
+		return enforcePortalCustomerToolRequest(request, userMessage)
 	} catch {
-		return fallbackPortalCustomerRoute(userMessage)
+		return fallbackPortalCustomerToolRequest(userMessage)
 	}
 }
 
-export function parseWebsiteRouteAsPortalDocsRoute(
-	route: WebsitePublicChatRoute,
+export function enforcePortalCustomerToolRequest(
+	request: PortalCustomerToolRequest,
 	userMessage: string,
-): PortalCustomerRoute {
-	return route.action === 'retrieve_public_docs'
-		? { action: 'public_docs', searchQuery: route.searchQuery || userMessage }
-		: fallbackPortalCustomerRoute(userMessage)
-}
-
-export function enforcePortalCustomerRoute(
-	route: PortalCustomerRoute,
-	userMessage: string,
-): PortalCustomerRoute {
+): PortalCustomerToolRequest {
 	const refusal = portalCustomerPolicyRefusal(userMessage)
 	if (refusal) {
 		return { action: 'refuse', reason: refusal, searchQuery: '' }
 	}
-	if (route.action === 'refuse') {
+	if (request.action === 'refuse') {
 		return {
 			action: 'refuse',
 			reason:
-				route.reason ||
+				request.reason ||
 				portalCustomerPolicyRefusal(userMessage) ||
 				defaultRefusal(userMessage),
 			searchQuery: '',
 		}
 	}
-	if (route.action === 'public_docs') return route
+	if (request.action === 'public_docs') return request
 
-	const fallback = fallbackPortalCustomerRoute(userMessage)
+	const fallback = fallbackPortalCustomerToolRequest(userMessage)
 	if (fallback.action === 'public_docs') return fallback
 	if (
-		isDraftWriteAction(route.action) &&
+		isDraftWriteAction(request.action) &&
 		!isDraftWriteAction(fallback.action)
 	) {
 		return fallback
 	}
 
-	return route
+	return request
 }
 
-export function isDraftWriteAction(action: PortalCustomerRouteAction): boolean {
+export function isDraftWriteAction(action: PortalCustomerAgentAction): boolean {
 	return (
 		action === 'create_draft_from_plan' ||
 		action === 'duplicate_order_to_draft' ||
@@ -320,7 +341,9 @@ function isCleanupDraftRequest(lower: string, raw: string): boolean {
 	return (
 		(/\b(clean|cleanup|clean up|merge|dedupe|deduplicate)\b/.test(lower) &&
 			/\bdrafts?\b/.test(lower)) ||
-		/نضف|نظف|ادمج|امسح\s+كل\s+المسودات|المسودات/.test(raw)
+		/(?:(?:نضف|نظف|ادمج).{0,40}المسودات|(?:امسح|احذف).{0,20}كل.{0,20}المسودات)/.test(
+			raw,
+		)
 	)
 }
 
@@ -442,7 +465,7 @@ function isProjectPlanningRequest(lower: string, raw: string): boolean {
 function detectCleanupMode(
 	lower: string,
 	raw: string,
-): PortalCustomerRoute['cleanupMode'] {
+): PortalCustomerToolRequest['cleanupMode'] {
 	if (
 		/\b(delete|remove|discard|all|full)\b/.test(lower) ||
 		/كل|امسح|احذف/.test(raw)
@@ -475,13 +498,25 @@ function defaultRefusal(userMessage: string): string {
 		: 'I cannot do that from chat. I can help with drafts and your own customer account only.'
 }
 
-function isRouteAction(value: string): value is PortalCustomerRouteAction {
-	return ROUTE_ACTIONS.includes(value as PortalCustomerRouteAction)
+function isRouteAction(value: string): value is PortalCustomerAgentAction {
+	return AGENT_TOOL_ACTIONS.includes(value as PortalCustomerAgentAction)
+}
+
+function readAgentAction(
+	parsed: Record<string, unknown>,
+): PortalCustomerAgentAction | null {
+	const value =
+		typeof parsed.tool === 'string'
+			? parsed.tool
+			: typeof parsed.action === 'string'
+				? parsed.action
+				: ''
+	return isRouteAction(value) ? value : null
 }
 
 function isCleanupMode(
 	value: unknown,
-): value is PortalCustomerRoute['cleanupMode'] {
+): value is PortalCustomerToolRequest['cleanupMode'] {
 	return value === 'delete_all' || value === 'merge' || value === 'remove_empty'
 }
 

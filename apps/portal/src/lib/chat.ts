@@ -28,15 +28,16 @@ import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import {
+	buildPortalCustomerAgentPrompt,
 	detectPortalAiLocale,
-	enforcePortalCustomerRoute,
-	fallbackPortalCustomerRoute,
+	enforcePortalCustomerToolRequest,
+	fallbackPortalCustomerToolRequest,
 	isDraftWriteAction,
-	PORTAL_CUSTOMER_ROUTER_PROMPT,
-	type PortalCustomerRoute,
-	parsePortalCustomerRoute,
+	type PortalCustomerCatalogSnapshot,
+	type PortalCustomerToolRequest,
+	parsePortalCustomerToolRequest,
 	portalCustomerPolicyRefusal,
-} from './portal-ai-routing'
+} from './portal-customer-agent'
 import { getAuthenticatedPortalCustomer } from './server/_supabase'
 import {
 	type DeliveryInfo,
@@ -238,7 +239,7 @@ interface DraftWriteContext {
 }
 
 type PortalToolContext =
-	| { type: 'chat' }
+	| { message?: string; type: 'chat' }
 	| { type: 'refusal'; message: string }
 	| { type: 'public_docs'; docs: DocsRetrievalResult }
 	| {
@@ -268,7 +269,7 @@ interface PortalToolResult {
 	context: PortalToolContext
 	invalidatesOrders: boolean
 	readEntities: string[]
-	route: PortalCustomerRoute
+	route: PortalCustomerToolRequest
 	writeEntityId: string | null
 	writeEntityType: string | null
 }
@@ -301,8 +302,16 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 			return chunks as unknown as Array<{ [k: string]: {} }>
 		}
 
-		const route = await routePortalCustomerChat(modelMessages, userText)
-		const result = await executePortalCustomerRoute(
+		const catalog = await loadVisibleProductCatalog(
+			supabase,
+			PRODUCT_CATALOG_CONTEXT_LIMIT,
+		)
+		const route = await requestPortalCustomerTool(
+			modelMessages,
+			userText,
+			catalog,
+		)
+		const result = await executePortalCustomerToolRequest(
 			supabase,
 			customerId,
 			route,
@@ -322,34 +331,53 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 		return chunks as unknown as Array<{ [k: string]: {} }>
 	})
 
-async function routePortalCustomerChat(
+async function requestPortalCustomerTool(
 	messages: ChatMessageInput[],
 	userText: string,
-): Promise<PortalCustomerRoute> {
+	catalog: ProductCatalogResult,
+): Promise<PortalCustomerToolRequest> {
 	const confirmedDraft = routeDraftConfirmation(messages, userText)
 	if (confirmedDraft) return confirmedDraft
 
-	if (!isAIEnabled()) return fallbackPortalCustomerRoute(userText)
+	if (!isAIEnabled()) return fallbackPortalCustomerToolRequest(userText)
 
 	try {
 		const rawRoute = await completeChat(
 			recentRouteMessages(messages),
-			PORTAL_CUSTOMER_ROUTER_PROMPT,
+			buildPortalCustomerAgentPrompt(toAgentCatalogSnapshot(catalog)),
 			{ temperature: 0 },
 		)
-		return enforcePortalCustomerRoute(
-			parsePortalCustomerRoute(rawRoute, userText),
+		return enforcePortalCustomerToolRequest(
+			parsePortalCustomerToolRequest(rawRoute, userText),
 			userText,
 		)
 	} catch {
-		return fallbackPortalCustomerRoute(userText)
+		return fallbackPortalCustomerToolRequest(userText)
+	}
+}
+
+function toAgentCatalogSnapshot(
+	catalog: ProductCatalogResult,
+): PortalCustomerCatalogSnapshot {
+	return {
+		catalogComplete: catalog.catalogComplete,
+		products: catalog.products.map((product) => ({
+			category: product.category,
+			name: product.name,
+			nameAr: product.name_ar,
+			priceRange: formatPriceRange(product, 'en'),
+			productId: product.id,
+			status: isCustomerVisibleAvailable(product) ? 'Available' : 'Unavailable',
+			unit: product.unit_of_measure,
+		})),
+		totalVisibleProducts: catalog.totalVisibleProducts,
 	}
 }
 
 function routeDraftConfirmation(
 	messages: ChatMessageInput[],
 	userText: string,
-): PortalCustomerRoute | null {
+): PortalCustomerToolRequest | null {
 	if (!isAffirmativeDraftFollowUp(userText)) return null
 	const previousAssistant = [...messages]
 		.reverse()
@@ -417,10 +445,10 @@ function isHostileChatMessage(normalized: string, raw: string): boolean {
 	)
 }
 
-async function executePortalCustomerRoute(
+async function executePortalCustomerToolRequest(
 	supabase: AuthedSupabase,
 	customerId: string,
-	route: PortalCustomerRoute,
+	route: PortalCustomerToolRequest,
 	userText: string,
 ): Promise<PortalToolResult> {
 	const refusal =
@@ -547,7 +575,7 @@ async function executePortalCustomerRoute(
 		}
 		default:
 			return {
-				context: { type: 'chat' },
+				context: { message: route.finalResponse, type: 'chat' },
 				invalidatesOrders: false,
 				readEntities: ['portal_chat'],
 				route,
@@ -558,7 +586,7 @@ async function executePortalCustomerRoute(
 }
 
 function publicDocsToolResult(
-	route: PortalCustomerRoute,
+	route: PortalCustomerToolRequest,
 	userText: string,
 ): PortalToolResult {
 	const routeQuery = route.searchQuery.trim()
@@ -579,7 +607,7 @@ function publicDocsToolResult(
 }
 
 function draftWriteToolResult(
-	route: PortalCustomerRoute,
+	route: PortalCustomerToolRequest,
 	operation: string,
 	result: DraftWriteContext,
 ): PortalToolResult {
@@ -615,7 +643,8 @@ async function renderPortalCustomerResponse(
 	if (result.context.type === 'chat') {
 		const simpleAnswer = simpleCustomerChatAnswer(modelMessages)
 		return textOnlyChunks(
-			simpleAnswer ??
+			result.context.message ??
+				simpleAnswer ??
 				"I'm Lyon. Tell me what you are building, or what product, order, delivery, or draft you want help with.",
 			customEvents,
 		)
@@ -718,7 +747,9 @@ function fallbackToolAnswer(context: PortalToolContext): string {
 				? publicDocsExtractiveResponse(context.docs.chunks, context.docs.locale)
 				: publicDocsNoAnswerResponse(context.docs.locale)
 		case 'chat':
-			return "I'm Lyon. How can I help with HyperQuote today?"
+			return (
+				context.message ?? "I'm Lyon. How can I help with HyperQuote today?"
+			)
 	}
 }
 
@@ -960,7 +991,7 @@ async function loadCustomerOrders(
 async function loadOrderDetailContext(
 	supabase: AuthedSupabase,
 	customerId: string,
-	route: PortalCustomerRoute,
+	route: PortalCustomerToolRequest,
 ): Promise<{ documents: DocumentRow[]; order: CustomerOrderSummary | null }> {
 	const orders = await loadCustomerOrders(supabase, customerId)
 	const order =
@@ -984,7 +1015,7 @@ async function loadOrderDetailContext(
 async function loadDeliveryTrackingContext(
 	supabase: AuthedSupabase,
 	customerId: string,
-	route: PortalCustomerRoute,
+	route: PortalCustomerToolRequest,
 ): Promise<DeliveryTrackingContext | null> {
 	const orders = await loadCustomerOrders(supabase, customerId)
 	const scopedOrders = route.targetReference
@@ -1112,7 +1143,7 @@ async function findOrderableProductsForDraft(
 async function createDraftFromPlan(
 	supabase: AuthedSupabase,
 	customerId: string,
-	route: PortalCustomerRoute,
+	route: PortalCustomerToolRequest,
 	userText: string,
 ): Promise<DraftWriteContext> {
 	const draftPlanText = route.searchQuery
@@ -1223,7 +1254,7 @@ async function insertStrictCatalogDraftItems(
 async function duplicateOrderToDraft(
 	supabase: AuthedSupabase,
 	customerId: string,
-	route: PortalCustomerRoute,
+	route: PortalCustomerToolRequest,
 ): Promise<DraftWriteContext> {
 	const source = await findSourceQuoteRequest(
 		supabase,
@@ -1311,7 +1342,7 @@ async function duplicateOrderToDraft(
 async function updateDraftMetadata(
 	supabase: AuthedSupabase,
 	customerId: string,
-	route: PortalCustomerRoute,
+	route: PortalCustomerToolRequest,
 	userText: string,
 ): Promise<DraftWriteContext> {
 	const draft = await findEditableDraft(
@@ -1359,7 +1390,7 @@ async function updateDraftMetadata(
 async function cleanupDrafts(
 	supabase: AuthedSupabase,
 	customerId: string,
-	route: PortalCustomerRoute,
+	route: PortalCustomerToolRequest,
 ): Promise<DraftWriteContext> {
 	const drafts = await loadEditableDrafts(supabase, customerId)
 	if (drafts.length === 0)
@@ -1475,7 +1506,7 @@ async function cleanupDrafts(
 async function deleteDraft(
 	supabase: AuthedSupabase,
 	customerId: string,
-	route: PortalCustomerRoute,
+	route: PortalCustomerToolRequest,
 ): Promise<DraftWriteContext> {
 	const draft = await findEditableDraft(
 		supabase,

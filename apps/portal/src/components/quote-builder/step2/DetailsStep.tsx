@@ -30,6 +30,7 @@ import { Popover } from 'react-aria-components/Popover'
 import { TextArea } from 'react-aria-components/TextArea'
 import { TextField } from 'react-aria-components/TextField'
 import { useTranslation } from 'react-i18next'
+import { useQuoteBuilderOrderability } from '../../../hooks/useQuoteBuilderOrderability'
 import { isDateUnavailable } from '../../../lib/business-days'
 import { toQuoteDraftPayload } from '../../../lib/quote-request-payload'
 import { saveDraft } from '../../../lib/server/quote-requests'
@@ -78,12 +79,15 @@ export function DetailsStep() {
 		[setNotes],
 	)
 
-	const hasInvalidItems = items.some(
-		(item) => item.isUnmatched || !item.productId,
-	)
-	const canContinue = !!deliveryAddressId && !hasInvalidItems
+	const {
+		isBlocked: isOrderabilityBlocked,
+		isValidationFailed,
+		unavailableItems,
+	} = useQuoteBuilderOrderability(items)
+	const canContinue = !!deliveryAddressId && !isOrderabilityBlocked
 
 	const handleSaveDraft = useCallback(async () => {
+		if (isOrderabilityBlocked) return
 		setSavingDraft(true)
 		setDraftFeedback(null)
 		try {
@@ -100,7 +104,7 @@ export function DetailsStep() {
 		} finally {
 			setSavingDraft(false)
 		}
-	}, [])
+	}, [isOrderabilityBlocked])
 
 	return (
 		<div className="max-w-2xl mx-auto space-y-6 px-6 py-4">
@@ -262,9 +266,21 @@ export function DetailsStep() {
 								: t('quoteBuilder.draftSaved')}
 						</span>
 					)}
+					{(unavailableItems.length > 0 || isValidationFailed) && (
+						<span className="text-end text-[13px] text-[#B91C1C]">
+							{isValidationFailed
+								? t(
+										'orders.validationFailed',
+										'Could not confirm catalog availability. Try again.',
+									)
+								: t('orders.unavailableItems', {
+										items: unavailableItems.join(', '),
+									})}
+						</span>
+					)}
 					<Button
 						onPress={handleSaveDraft}
-						isDisabled={savingDraft || hasInvalidItems}
+						isDisabled={savingDraft || isOrderabilityBlocked}
 						className="h-10 px-4 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
 					>
 						{savingDraft

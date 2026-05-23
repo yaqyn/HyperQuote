@@ -230,7 +230,7 @@ function ProductSearchOption({
 					<span
 						className={[
 							'w-1.5 h-1.5 rounded-full shrink-0',
-							product.availabilityStatus === 'available'
+							product.availabilityStatus !== 'out_of_stock'
 								? 'bg-[var(--color-success)]'
 								: 'bg-[var(--color-error)]',
 						].join(' ')}

@@ -123,6 +123,7 @@ export function WebsiteHeader() {
 	)
 	const [unavailableCartItems, setUnavailableCartItems] = useState<string[]>([])
 	const [cartValidationPending, setCartValidationPending] = useState(false)
+	const [cartValidationFailed, setCartValidationFailed] = useState(false)
 	const unavailableCartItemNames = useMemo(
 		() => new Set(unavailableCartItems),
 		[unavailableCartItems],
@@ -203,18 +204,22 @@ export function WebsiteHeader() {
 		if (quoteRequestItems.length === 0) {
 			setUnavailableCartItems([])
 			setCartValidationPending(false)
+			setCartValidationFailed(false)
 			return () => {
 				active = false
 			}
 		}
 
 		setCartValidationPending(true)
+		setCartValidationFailed(false)
 		void validateWebsiteQuoteItems({ data: { items: quoteRequestItems } })
 			.then((result) => {
 				if (active) setUnavailableCartItems(result.unavailableItems)
 			})
 			.catch(() => {
-				if (active) setUnavailableCartItems([])
+				if (!active) return
+				setUnavailableCartItems([])
+				setCartValidationFailed(true)
 			})
 			.finally(() => {
 				if (active) setCartValidationPending(false)
@@ -628,6 +633,7 @@ export function WebsiteHeader() {
 
 											{/* Submit / Inline Auth */}
 											<CartSubmit
+												cartValidationFailed={cartValidationFailed}
 												cartValidationPending={cartValidationPending}
 												itemCount={items.length}
 												onDraftSaved={(reference) =>
@@ -834,6 +840,7 @@ function CartSuccessMessage({
 }
 
 function CartSubmit({
+	cartValidationFailed,
 	cartValidationPending,
 	itemCount,
 	onDraftSaved,
@@ -841,6 +848,7 @@ function CartSubmit({
 	quoteRequestItems,
 	unavailableCartItems,
 }: {
+	cartValidationFailed: boolean
 	cartValidationPending: boolean
 	itemCount: number
 	onDraftSaved: (reference: string) => void
@@ -885,9 +893,15 @@ function CartSubmit({
 	const isDraftSaved =
 		quoteRequestItems.length > 0 && savedDraftFingerprint === draftFingerprint
 	const hasUnavailableCartItems = unavailableCartItems.length > 0
+	const isCartValidationBlocked =
+		hasUnavailableCartItems || cartValidationPending || cartValidationFailed
 	const unavailableCartText = t('cart.unavailableItems', {
 		items: unavailableCartItems.join(', '),
 	})
+	const cartValidationFailedText = t(
+		'cart.validationFailed',
+		'Could not confirm catalog availability. Try again.',
+	)
 
 	useEffect(() => {
 		if (step === 'phone') phoneRef.current?.focus()
@@ -971,8 +985,7 @@ function CartSubmit({
 		async function handleSubmitQuote() {
 			if (
 				quoteRequestItems.length === 0 ||
-				hasUnavailableCartItems ||
-				cartValidationPending ||
+				isCartValidationBlocked ||
 				loadingAction
 			)
 				return
@@ -1024,8 +1037,7 @@ function CartSubmit({
 		function handleRequestSubmitQuote() {
 			if (
 				quoteRequestItems.length === 0 ||
-				hasUnavailableCartItems ||
-				cartValidationPending ||
+				isCartValidationBlocked ||
 				loadingAction
 			)
 				return
@@ -1035,8 +1047,7 @@ function CartSubmit({
 		async function handleConfirmSaveDraft() {
 			if (
 				quoteRequestItems.length === 0 ||
-				hasUnavailableCartItems ||
-				cartValidationPending ||
+				isCartValidationBlocked ||
 				loadingAction ||
 				isDraftSaved
 			)
@@ -1220,12 +1231,10 @@ function CartSubmit({
 								<motion.button
 									type="button"
 									onClick={handleSubmitQuote}
-									disabled={hasUnavailableCartItems || cartValidationPending}
+									disabled={isCartValidationBlocked}
 									className="flex h-9 items-center justify-center rounded-lg bg-[var(--color-primary)] text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:pointer-events-none disabled:opacity-50"
 									whileTap={
-										shouldReduceMotion ||
-										hasUnavailableCartItems ||
-										cartValidationPending
+										shouldReduceMotion || isCartValidationBlocked
 											? undefined
 											: { scale: 0.98 }
 									}
@@ -1270,15 +1279,13 @@ function CartSubmit({
 						disabled={
 							loadingAction !== null ||
 							quoteRequestItems.length === 0 ||
-							hasUnavailableCartItems ||
-							cartValidationPending
+							isCartValidationBlocked
 						}
 						className="flex h-10 min-w-0 items-center justify-center rounded-lg bg-[var(--color-primary)] px-3 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:pointer-events-none disabled:opacity-70"
 						whileTap={
 							shouldReduceMotion ||
 							loadingAction !== null ||
-							hasUnavailableCartItems ||
-							cartValidationPending
+							isCartValidationBlocked
 								? undefined
 								: { scale: 0.985 }
 						}
@@ -1314,8 +1321,7 @@ function CartSubmit({
 						disabled={
 							loadingAction !== null ||
 							quoteRequestItems.length === 0 ||
-							hasUnavailableCartItems ||
-							cartValidationPending ||
+							isCartValidationBlocked ||
 							isDraftSaved
 						}
 						title={isDraftSaved ? persistedDraftName : undefined}
@@ -1328,8 +1334,7 @@ function CartSubmit({
 						whileTap={
 							shouldReduceMotion ||
 							loadingAction !== null ||
-							hasUnavailableCartItems ||
-							cartValidationPending ||
+							isCartValidationBlocked ||
 							isDraftSaved
 								? undefined
 								: { scale: 0.94 }
@@ -1351,6 +1356,11 @@ function CartSubmit({
 				{hasUnavailableCartItems && (
 					<p className="mt-2 text-center text-[11px] text-[var(--color-error)]">
 						{unavailableCartText}
+					</p>
+				)}
+				{cartValidationFailed && (
+					<p className="mt-2 text-center text-[11px] text-[var(--color-error)]">
+						{cartValidationFailedText}
 					</p>
 				)}
 				<p className="text-[11px] text-[var(--color-text-subtle)] text-center mt-2">

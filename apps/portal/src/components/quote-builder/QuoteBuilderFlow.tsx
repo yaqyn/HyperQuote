@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { type ReactNode, useCallback, useState } from 'react'
 import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
+import { useQuoteBuilderOrderability } from '../../hooks/useQuoteBuilderOrderability'
 import { toQuoteDraftPayload } from '../../lib/quote-request-payload'
 import { saveDraft } from '../../lib/server/quote-requests'
 import { useQuoteBuilderStore } from '../../stores/quote-builder'
@@ -24,9 +25,11 @@ export function QuoteBuilderFlow() {
 	const step = useQuoteBuilderStore((s) => s.step)
 	const items = useQuoteBuilderStore((s) => s.items)
 	const setStep = useQuoteBuilderStore((s) => s.setStep)
-	const hasInvalidItems = items.some(
-		(item) => item.isUnmatched || !item.productId,
-	)
+	const {
+		isBlocked: isOrderabilityBlocked,
+		isValidationFailed,
+		unavailableItems,
+	} = useQuoteBuilderOrderability(items)
 	const [draftFeedback, setDraftFeedback] = useState<'saved' | 'error' | null>(
 		null,
 	)
@@ -35,6 +38,7 @@ export function QuoteBuilderFlow() {
 	const BackArrow = isRTL ? ArrowRight : ArrowLeft
 
 	const handleSaveDraft = useCallback(async () => {
+		if (isOrderabilityBlocked) return
 		const state = useQuoteBuilderStore.getState()
 		setDraftFeedback(null)
 		try {
@@ -49,15 +53,15 @@ export function QuoteBuilderFlow() {
 		} catch {
 			setDraftFeedback('error')
 		}
-	}, [])
+	}, [isOrderabilityBlocked])
 
 	const handleContinue = useCallback(() => {
-		if (step === 1 && items.length > 0 && !hasInvalidItems) {
+		if (step === 1 && items.length > 0 && !isOrderabilityBlocked) {
 			setStep(2)
 		} else if (step === 2) {
 			setStep(3)
 		}
-	}, [step, items.length, hasInvalidItems, setStep])
+	}, [step, items.length, isOrderabilityBlocked, setStep])
 
 	return (
 		<div className="flex flex-col h-full">
@@ -121,9 +125,21 @@ export function QuoteBuilderFlow() {
 									: t('quoteBuilder.draftSaved')}
 							</span>
 						)}
+						{(unavailableItems.length > 0 || isValidationFailed) && (
+							<span className="text-end text-[13px] text-[#B91C1C]">
+								{isValidationFailed
+									? t(
+											'orders.validationFailed',
+											'Could not confirm catalog availability. Try again.',
+										)
+									: t('orders.unavailableItems', {
+											items: unavailableItems.join(', '),
+										})}
+							</span>
+						)}
 						<Button
 							onPress={handleSaveDraft}
-							isDisabled={items.length === 0 || hasInvalidItems}
+							isDisabled={items.length === 0 || isOrderabilityBlocked}
 							className="h-10 px-4 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text)] hover:bg-[var(--color-surface)] transition-colors cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
 						>
 							{t('quoteBuilder.saveAsDraft')}
@@ -131,7 +147,7 @@ export function QuoteBuilderFlow() {
 
 						<Button
 							onPress={handleContinue}
-							isDisabled={items.length === 0 || hasInvalidItems}
+							isDisabled={items.length === 0 || isOrderabilityBlocked}
 							className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
 						>
 							{t('quoteBuilder.continue')}
