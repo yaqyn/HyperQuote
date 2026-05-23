@@ -94,6 +94,14 @@ export function ChatInput({ chat }: ChatInputProps) {
 	}, [canShowCommandMenu, commandNeedle])
 	const commandMenuOpen = commandSuggestions.length > 0
 
+	useEffect(() => {
+		setActiveCommandIndex((index) =>
+			commandSuggestions.length === 0
+				? 0
+				: Math.min(index, commandSuggestions.length - 1),
+		)
+	}, [commandSuggestions.length])
+
 	const handleSubmit = useCallback(() => {
 		if (!value.trim() || chat.isLoading) return
 		chat.sendMessage(value.trim())
@@ -444,6 +452,14 @@ function CommandMenu({
 	commands: readonly PortalChatCommand[]
 	onSelect: (command: PortalChatCommand) => void
 }) {
+	const commandRefs = useRef<Array<HTMLButtonElement | null>>([])
+
+	useEffect(() => {
+		commandRefs.current[activeIndex]?.scrollIntoView({
+			block: 'nearest',
+		})
+	}, [activeIndex])
+
 	return (
 		<motion.div
 			initial={{ opacity: 0, y: 8, scale: 0.98 }}
@@ -470,6 +486,9 @@ function CommandMenu({
 					return (
 						<button
 							key={command.name}
+							ref={(element) => {
+								commandRefs.current[index] = element
+							}}
 							type="button"
 							role="option"
 							aria-selected={active}
