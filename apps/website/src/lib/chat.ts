@@ -163,7 +163,7 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 					}
 				} else {
 					for await (const chunk of textOnlyStream(
-						'I can answer public HyperQuote questions from the docs. Ask about quotes, delivery, payments, the market, or Lyon.',
+						'Ask me about quotes, delivery, payments, the market, or Lyon.',
 					)) {
 						chunks.push(chunk)
 					}
@@ -259,8 +259,8 @@ function simpleWebsiteChatAnswer(messages: ChatMessageInput[]): string | null {
 	}
 	if (!isGreeting) return null
 	return isArabic
-		? 'أهلاً، أنا ليون. اسألني عن هايبركوت، الأسعار، السوق، الطلبات، التوصيل، أو المدفوعات.'
-		: "Hi, I'm Lyon. Ask me about HyperQuote, pricing, the market, orders, delivery, or payments."
+		? 'أهلاً، أنا ليون. اسألني عن العروض، التوصيل، الدفع، أو السوق.'
+		: "Hi, I'm Lyon. Ask me about quotes, delivery, payments, or the market."
 }
 
 function isHostileWebsiteChatMessage(normalized: string, raw: string): boolean {

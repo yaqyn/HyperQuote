@@ -636,8 +636,8 @@ function simplePortalTextAnswer(
 			: 'Hi, I can help with supplier portal stock, purchase orders, and pricing.'
 	}
 	return isArabic
-		? 'أهلاً، أنا ليون. قلّي بتبني إيه أو محتاج أي منتج/طلب/توصيل أراجعه معاك.'
-		: "Hi, I'm Lyon. Tell me what you are building or which product, order, delivery, or draft you want to check."
+		? 'أهلاً، أنا ليون. نبني، نراجع، ولا نعدّل؟'
+		: "Hi, I'm Lyon. What should we build, check, or edit?"
 }
 
 function isHostileChatMessage(normalized: string, raw: string): boolean {
@@ -1031,7 +1031,7 @@ async function renderPortalCustomerResponse(
 		const fallbackText =
 			result.context.message ??
 			simpleAnswer ??
-			"I'm Lyon. Tell me what you are building, or what product, order, delivery, or draft you want help with."
+			"I'm Lyon. What should we build, check, or edit?"
 		if (commandShouldUseRichOnly(result, customEvents)) {
 			return richOnlyChunks(customEvents)
 		}
@@ -1115,9 +1115,10 @@ function buildPortalToolAnswerPrompt(
 ): string {
 	return `${LYON_PORTAL}
 
-Use only this portal tool result. Answer naturally, briefly, and in the user's language.
-Do not expose raw IDs or internal fields. If something is missing, ask a short question.
-Use markdown tables for lists of records, products, addresses, projects, deliveries, activity, or line items.
+Use only this portal tool result. Answer in the user's language.
+Be concise: lead with the useful answer, then give at most one practical next step.
+Do not expose raw IDs or internal fields. If something is missing, ask one short question.
+Use markdown tables only when they make records or line items easier to scan.
 ${toolAnswerStyleInstructions(context)}
 
 Portal tool result:
@@ -1132,13 +1133,13 @@ function toolAnswerStyleInstructions(
 ): string {
 	switch (context.type) {
 		case 'profile':
-			return 'Profile: give a clean markdown snapshot with account, addresses, projects, and useful notes.'
+			return 'Profile: compact account snapshot with only useful notes.'
 		case 'orders':
 			return 'Orders: summarize only the supplied records. Use customer references, not internal scope/tool names.'
 		case 'order_detail':
-			return 'Order detail: explain status, items, dates, and a practical next step.'
+			return 'Order detail: status, items, dates, and one next step.'
 		case 'delivery_tracking':
-			return 'Delivery: explain the visible stage, ETA/driver/truck details when present, and the next step.'
+			return 'Delivery: current stage, ETA/driver/truck if present, and one next step.'
 		case 'delivery_list':
 			return 'Deliveries: summarize active customer-visible deliveries only.'
 		case 'products':
@@ -1146,11 +1147,11 @@ function toolAnswerStyleInstructions(
 		case 'addresses':
 			return 'Addresses: list saved delivery addresses and identify the default.'
 		case 'projects':
-			return 'Projects: list saved active projects and useful next steps.'
+			return 'Projects: list saved active projects and one useful next step.'
 		case 'account_health':
-			return 'Account health: summarize missing setup, stale drafts, and practical next steps.'
+			return 'Account health: missing setup, stale drafts, and one next step.'
 		case 'draft_validation':
-			return 'Draft validation: say whether the draft looks ready from supplied validation data. Do not submit it.'
+			return 'Draft validation: ready or blocked from supplied data. Do not submit it.'
 		case 'order_activity':
 			return 'Activity: summarize visible recent timeline events for this customer-owned record.'
 		case 'support_request':

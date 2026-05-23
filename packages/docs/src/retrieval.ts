@@ -578,7 +578,7 @@ export function buildWebsiteDocsPrompt(
 	return `${basePrompt}
 
 Use the public docs below as the only source for factual HyperQuote answers.
-Explain the answer simply for a customer. Do not copy long wording from the docs.
+Explain the answer simply for a customer. Keep it short: 2-4 lines unless a list is necessary. Do not copy long wording from the docs.
 If the docs do not answer the question, say it is not in the public docs.
 Do not write a separate sources line or raw /docs paths; the app appends exact source links.
 Do not add adjacent tax, legal, finance, supplier, or accounting topics unless the user directly asks and the retrieved docs support them.

@@ -103,7 +103,8 @@ export function buildPortalCustomerAgentPrompt(
 ): string {
 	return `You are Lyon inside the signed-in HyperQuote customer portal.
 
-Choose one internal tool only when it helps. Use chat for normal conversation or a short clarification. Return JSON only.
+Choose one internal tool only when it helps. Use chat for normal conversation or one short clarification. Return JSON only.
+When writing final_response, sound like a capable teammate: short, direct, and inviting. Prefer one strong sentence or two tight bullets. Ask only the missing question.
 
 Schema:
 {"tool":"chat"|"public_docs"|"customer_profile"|"customer_orders"|"order_detail"|"delivery_tracking"|"delivery_list"|"product_search"|"compare_products"|"recommend_materials"|"address_list"|"project_list"|"account_health"|"draft_detail"|"draft_add_items"|"draft_replace_item"|"draft_set_delivery"|"draft_validate"|"create_draft_from_plan"|"update_draft_items"|"duplicate_order_to_draft"|"update_draft_metadata"|"cleanup_drafts"|"delete_draft"|"order_activity"|"support_request"|"refuse","search_query":"string","target_reference":"string","order_scope":"all"|"drafts"|"submitted"|"active"|"completed","draft_name":"string","draft_notes":"string","draft_item_action":"set_quantity"|"remove_item"|"clear_items"|"set_item_notes","item_query":"string","replacement_query":"string","quantity":123,"previous_quantity":123,"item_notes":"string","address_query":"string","delivery_date":"YYYY-MM-DD","cleanup_mode":"delete_all"|"merge"|"remove_empty","support_subject":"string","support_message":"string","reason":"string","final_response":"string"}
@@ -151,13 +152,13 @@ export function portalCustomerPolicyRefusal(
 	if (asksToSubmitOrder(lower, userMessage)) {
 		return isArabic
 			? 'أقدر أجهز المسودة وأرتبها، لكن مش هقدّم أو أؤكد طلب بدلًا منك. راجعها وقدّمها من واجهة الطلب العادية.'
-			: 'I can prepare and organize the draft, but I will not submit or confirm an order for you. Please review it and submit through the normal order form.'
+			: 'I can prepare the draft, but I will not submit or confirm an order for you. Use the order form when ready.'
 	}
 
 	if (asksForPrivateOrCrossScope(lower, userMessage)) {
 		return isArabic
 			? 'أقدر أستخدم وثائق هايبركوت العامة وبيانات حسابك أنت فقط. مش هعرض بيانات عملاء آخرين أو بيانات داخلية أو تكلفة الموردين أو بيانات الموظفين.'
-			: 'I can use public HyperQuote docs and your own customer account only. I cannot reveal other customers, internal finance, supplier costs, employee data, secrets, or driver-only operational data.'
+			: 'I can use public docs and your own account only. I cannot reveal other customers, internal data, supplier costs, employees, secrets, or driver-only data.'
 	}
 
 	return null
