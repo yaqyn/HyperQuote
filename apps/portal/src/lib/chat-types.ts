@@ -112,16 +112,16 @@ export interface MaterialListData {
 
 export interface DeliveryTrackingData {
 	deliveryNumber: string
+	destinationPlace: string | null
 	driverName: string
 	driverPhone: string
+	driverPlace: string
 	estimatedArrival: string
 	lastUpdated: string
 	orderNumber: string
 	route: {
-		origin: string
-		destination: string
+		destination: string | null
 		distanceKm: number
-		driverLocation: { lat: number; lng: number } | null
 	}
 	stage: string
 	truckNumber: string

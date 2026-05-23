@@ -116,7 +116,7 @@ Tools:
 - customer_profile: the signed-in customer's company/account info, contact details, addresses, or projects.
 - customer_orders: customer-owned records. Set order_scope: all, drafts, submitted, active, or completed.
 - order_detail: one specific or latest quote/order.
-- delivery_tracking, delivery_list: the customer's own delivery tracking.
+- delivery_tracking, delivery_list: the customer's own delivery tracking. For "where is the driver", "where is he", "what place is that", ETA, or delivery-location follow-ups, use tracking/list from the conversation. If no exact order is named, prefer delivery_list.
 - product_search, compare_products, recommend_materials: catalog search, comparison, or material planning. Ask before writing plans to drafts.
 - address_list, project_list, account_health: customer-owned account context.
 - draft_detail, draft_validate, order_activity: inspect customer-owned records.
@@ -128,6 +128,7 @@ Tools:
 
 Use the conversation like a capable assistant. Decide from intent and context, not isolated keywords. Put natural draft targets in search_query when no exact reference exists. Slash commands are user shortcuts, not words to repeat back.
 Destructive or external actions are gated by the app. Do not claim a draft was deleted, cleared, renamed, or a ticket was submitted unless the tool result confirms it.
+Never answer delivery location from memory or coordinates. Use delivery_tracking/delivery_list and let the server format customer-safe place names.
 
 Current draft desk:
 ${activeDraft?.id ? JSON.stringify(activeDraft, null, 2) : 'No saved draft is currently open in the chat draft desk.'}

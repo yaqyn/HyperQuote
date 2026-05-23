@@ -638,5 +638,7 @@ describe('portal customer AI agent', () => {
 		expect(prompt).toContain('draft_add_items')
 		expect(prompt).toContain('support_request')
 		expect(prompt).toContain('Decide from intent and context')
+		expect(prompt).toContain('where is the driver')
+		expect(prompt).toContain('customer-safe place names')
 	})
 })

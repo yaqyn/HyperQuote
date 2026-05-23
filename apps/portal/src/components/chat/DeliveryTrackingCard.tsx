@@ -1,6 +1,7 @@
 import { MapPin, Phone, Truck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { DeliveryTrackingData } from '../../lib/chat-types'
+import { formatDeliveryTimestamp } from '../../lib/delivery-location-copy'
 import { toArabicIndic } from '../../lib/localized-digits'
 
 interface DeliveryTrackingCardProps {
@@ -10,8 +11,8 @@ interface DeliveryTrackingCardProps {
 export function DeliveryTrackingCard({ data }: DeliveryTrackingCardProps) {
 	const { i18n } = useTranslation('portal')
 	const isArabic = i18n.language === 'ar'
-	const distance = `${data.route.distanceKm.toFixed(1)} km`
-	const displayDistance = isArabic ? toArabicIndic(distance) : distance
+	const eta = formatDeliveryTimestamp(data.estimatedArrival)
+	const updated = formatDeliveryTimestamp(data.lastUpdated)
 
 	return (
 		<section className="mt-3 w-full max-w-[520px] border border-[var(--p-rule)] bg-[var(--p-surface-subtle)] px-3 py-3">
@@ -46,21 +47,16 @@ export function DeliveryTrackingCard({ data }: DeliveryTrackingCardProps) {
 				</div>
 				<div className="flex min-w-0 items-start gap-2 sm:col-span-2">
 					<MapPin size={14} className="mt-0.5 shrink-0" aria-hidden />
-					<span className="min-w-0 break-words">
-						{data.route.origin} → {data.route.destination} · {displayDistance}
-					</span>
+					<span className="min-w-0 break-words">{data.driverPlace}</span>
 				</div>
 			</div>
 			<div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t border-[var(--p-rule)] pt-2 voice-mono text-[11px] text-[var(--p-text-muted)]">
 				<span>
-					{isArabic ? 'الوصول' : 'ETA'}:{' '}
-					{isArabic
-						? toArabicIndic(data.estimatedArrival)
-						: data.estimatedArrival}
+					{isArabic ? 'الوصول' : 'ETA'}: {isArabic ? toArabicIndic(eta) : eta}
 				</span>
 				<span>
 					{isArabic ? 'آخر تحديث' : 'Updated'}:{' '}
-					{isArabic ? toArabicIndic(data.lastUpdated) : data.lastUpdated}
+					{isArabic ? toArabicIndic(updated) : updated}
 				</span>
 			</div>
 		</section>

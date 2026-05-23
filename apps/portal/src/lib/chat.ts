@@ -34,6 +34,11 @@ import type {
 	SupportOptionsData,
 } from './chat-types'
 import {
+	customerDeliveryDestinationPlace,
+	describeDriverLocationForCustomer,
+	formatDeliveryTimestamp,
+} from './delivery-location-copy'
+import {
 	draftProductIntentTerms,
 	isOpenEndedCatalogSelectionRequest,
 	productIntentTerms,
@@ -816,6 +821,23 @@ async function executePortalCustomerToolRequest(
 			}
 		}
 		case 'delivery_tracking': {
+			if (!route.commandName && !route.targetReference) {
+				const deliveries = await loadDeliveryListContext(supabase, customerId)
+				return {
+					context:
+						deliveries.length > 1
+							? { deliveries, type: 'delivery_list' }
+							: {
+									tracking: deliveries[0] ?? null,
+									type: 'delivery_tracking',
+								},
+					invalidatesOrders: false,
+					readEntities: ['customer_orders', 'customer_delivery_tracking'],
+					route,
+					writeEntityId: null,
+					writeEntityType: null,
+				}
+			}
 			const tracking = await loadDeliveryTrackingContext(
 				supabase,
 				customerId,
@@ -1425,6 +1447,12 @@ async function renderPortalCustomerResponse(
 	if (result.context.type === 'products') {
 		return textOnlyChunks(fallbackText, customEvents)
 	}
+	if (
+		result.context.type === 'delivery_tracking' ||
+		result.context.type === 'delivery_list'
+	) {
+		return textOnlyChunks(fallbackText, customEvents)
+	}
 	if (!isAIEnabled()) return textOnlyChunks(fallbackText, customEvents)
 
 	try {
@@ -1502,9 +1530,9 @@ function toolAnswerStyleInstructions(
 		case 'order_detail':
 			return 'Order detail: status, items, dates, and one next step.'
 		case 'delivery_tracking':
-			return 'Delivery: current stage, ETA/driver/truck if present, and one next step.'
+			return 'Delivery: use customer-safe place labels, never raw latitude or longitude.'
 		case 'delivery_list':
-			return 'Deliveries: summarize active customer-visible deliveries only.'
+			return 'Deliveries: summarize active customer-visible deliveries only, with place labels instead of coordinates.'
 		case 'products':
 			return 'Products: use real visible products and only Available/Unavailable status. Ask before drafting unless explicitly requested.'
 		case 'addresses':
@@ -1647,13 +1675,7 @@ function commandToolAnswer(
 			return fallbackText
 		case '/track':
 			if (result.context.type !== 'delivery_tracking') return fallbackText
-			return result.context.tracking
-				? [
-						'## Delivery Tracking',
-						`${result.context.tracking.order.reference} is ${result.context.tracking.delivery.currentStage.replace(/_/g, ' ')}.`,
-						'The tracking card below shows the customer-visible driver and route details.',
-					].join('\n')
-				: 'I do not see an active customer-visible delivery tracking record for your account.'
+			return deliveryTrackingFallbackAnswer(result.context.tracking)
 		case '/deliveries':
 			if (result.context.type !== 'delivery_list') return fallbackText
 			return deliveryListFallbackAnswer(result.context.deliveries)
@@ -1919,8 +1941,18 @@ function deliveryTrackingFallbackAnswer(
 	if (!tracking) {
 		return 'I do not see an active customer-visible delivery tracking record for your account.'
 	}
-	const { delivery, order } = tracking
-	return `${order.reference} is ${delivery.currentStage.replace(/_/g, ' ')}. Driver: ${delivery.driverName} (${delivery.driverPhone}). Truck ${delivery.truckNumber}, plate ${delivery.vehiclePlate}. ETA: ${delivery.estimatedArrival}. Last update: ${delivery.lastUpdated}.`
+	const { delivery } = tracking
+	const place = describeDriverLocationForCustomer(delivery)
+	const orderLabel = deliveryOrderLabel(tracking)
+	return [
+		'## Driver Location',
+		'',
+		`Driver for ${orderLabel} is ${place}.`,
+		'',
+		'| Order | Stage | Driver | Vehicle | ETA |',
+		'| --- | --- | --- | --- | --- |',
+		`| ${markdownTableCell(orderLabel)} | ${markdownTableCell(formatPlainStatus(delivery.currentStage))} | ${markdownTableCell(formatDeliveryDriver(delivery))} | ${markdownTableCell(formatDeliveryVehicle(delivery))} | ${markdownTableCell(formatDeliveryTimestamp(delivery.estimatedArrival))} |`,
+	].join('\n')
 }
 
 function deliveryListFallbackAnswer(
@@ -1930,17 +1962,35 @@ function deliveryListFallbackAnswer(
 		return '## Deliveries\n\nNo active customer-visible deliveries found.'
 	}
 	const rows = deliveries.slice(0, 6).map(({ delivery, order }) => {
-		return `| ${markdownTableCell(order.reference)} | ${markdownTableCell(delivery.deliveryNumber)} | ${markdownTableCell(formatPlainStatus(delivery.currentStage))} | ${markdownTableCell(delivery.driverName)} | ${markdownTableCell(delivery.estimatedArrival)} |`
+		return `| ${markdownTableCell(deliveryOrderLabel({ delivery, order }))} | ${markdownTableCell(formatPlainStatus(delivery.currentStage))} | ${markdownTableCell(formatDeliveryDriver(delivery))} | ${markdownTableCell(describeDriverLocationForCustomer(delivery))} | ${markdownTableCell(formatDeliveryTimestamp(delivery.estimatedArrival))} |`
 	})
 	return [
-		'## Deliveries',
+		'## Driver Locations',
 		'',
-		`Showing ${Math.min(deliveries.length, 6)} of ${deliveries.length} active delivery record${deliveries.length === 1 ? '' : 's'}.`,
+		`Showing ${Math.min(deliveries.length, 6)} of ${deliveries.length} active driver record${deliveries.length === 1 ? '' : 's'}.`,
 		'',
-		'| Order | Delivery | Stage | Driver | ETA |',
+		'| Order | Stage | Driver | Place | ETA |',
 		'| --- | --- | --- | --- | --- |',
 		...rows,
 	].join('\n')
+}
+
+function deliveryOrderLabel(context: DeliveryTrackingContext): string {
+	return context.delivery.orderNumber || context.order.reference
+}
+
+function formatDeliveryDriver(delivery: DeliveryInfo): string {
+	return (
+		[delivery.driverName, delivery.driverPhone].filter(Boolean).join(' · ') ||
+		'Assigned driver'
+	)
+}
+
+function formatDeliveryVehicle(delivery: DeliveryInfo): string {
+	return (
+		[delivery.truckNumber, delivery.vehiclePlate].filter(Boolean).join(' · ') ||
+		'Vehicle assigned'
+	)
 }
 
 function addressesFallbackAnswer(addresses: CustomerAddressRow[]): string {
@@ -2357,7 +2407,9 @@ async function loadDeliveryListContext(
 			supabase,
 			order.linkedOrderId,
 		)
-		if (delivery) deliveries.push({ delivery, order })
+		if (delivery && delivery.currentStage !== 'delivered') {
+			deliveries.push({ delivery, order })
+		}
 		if (deliveries.length >= 8) break
 	}
 	return deliveries
@@ -4210,6 +4262,7 @@ function statusCardEvent(order: CustomerOrderSummary): StreamChunk {
 
 function deliveryTrackingEvent(context: DeliveryTrackingContext): StreamChunk {
 	const { delivery } = context
+	const destinationPlace = customerDeliveryDestinationPlace(delivery)
 	return {
 		type: 'CUSTOM' as const,
 		timestamp: Date.now(),
@@ -4218,12 +4271,17 @@ function deliveryTrackingEvent(context: DeliveryTrackingContext): StreamChunk {
 			type: 'delivery_tracking',
 			data: {
 				deliveryNumber: delivery.deliveryNumber,
+				destinationPlace,
 				driverName: delivery.driverName,
 				driverPhone: delivery.driverPhone,
+				driverPlace: describeDriverLocationForCustomer(delivery),
 				estimatedArrival: delivery.estimatedArrival,
 				lastUpdated: delivery.lastUpdated,
 				orderNumber: delivery.orderNumber,
-				route: delivery.route,
+				route: {
+					destination: destinationPlace,
+					distanceKm: delivery.route.distanceKm,
+				},
 				stage: delivery.currentStage,
 				truckNumber: delivery.truckNumber,
 				vehiclePlate: delivery.vehiclePlate,
