@@ -11,7 +11,6 @@ import { CommandPalette } from './CommandPalette'
 import { DeliveryTrackingCard } from './DeliveryTrackingCard'
 import { DraftCleanupResult } from './DraftCleanupResult'
 import { MaterialList } from './MaterialList'
-import { ProductCard } from './ProductCard'
 import { StatusCard } from './StatusCard'
 
 interface RichMessageProps {
@@ -23,17 +22,6 @@ function RichMessage({ type, data }: RichMessageProps) {
 	let content: React.ReactNode = null
 
 	switch (type) {
-		case 'product_card':
-			content = (
-				<ProductCard
-					data={
-						data as RichContent extends { type: 'product_card'; data: infer D }
-							? D
-							: never
-					}
-				/>
-			)
-			break
 		case 'status_card':
 			content = (
 				<StatusCard

@@ -1755,13 +1755,6 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 		events.push(commandPaletteEvent())
 	}
 	switch (result.context.type) {
-		case 'products':
-			if (shouldAttachProductCards(result)) {
-				for (const product of result.context.products.slice(0, 3)) {
-					events.push(productCardEvent(product))
-				}
-			}
-			break
 		case 'orders':
 			for (const order of result.context.orders.slice(0, 8)) {
 				events.push(statusCardEvent(order))
@@ -1825,10 +1818,6 @@ function commandShouldUseRichOnly(
 ): boolean {
 	if (result.context.type === 'products') return false
 	return Boolean(result.route.commandName) && events.some(isPrimaryRichEvent)
-}
-
-function shouldAttachProductCards(result: PortalToolResult): boolean {
-	return !result.route.commandName
 }
 
 function isPrimaryRichEvent(event: StreamChunk): boolean {
@@ -3801,28 +3790,6 @@ function orderMatchesReference(
 	)
 }
 
-function productCardEvent(product: PortalAiProduct): StreamChunk {
-	return {
-		type: 'CUSTOM' as const,
-		timestamp: Date.now(),
-		name: 'rich_message',
-		value: {
-			type: 'product_card',
-			data: {
-				available: isCustomerVisibleAvailable(product),
-				id: product.id,
-				image: product.image_urls?.[0],
-				name: product.name,
-				nameAr: product.name_ar ?? product.name,
-				priceRange: formatPriceRange(product, 'en'),
-				priceRangeAr: formatPriceRange(product, 'ar'),
-				specs: specsForCard(product.specifications),
-				specsAr: specsForCard(product.specifications_ar),
-			},
-		},
-	}
-}
-
 function statusCardEvent(order: CustomerOrderSummary): StreamChunk {
 	const createdDate = order.date.slice(0, 10)
 	const delivered = order.status === 'delivered'
@@ -4369,17 +4336,6 @@ function unitLabel(product: PortalAiProduct, locale: 'ar' | 'en'): string {
 	return locale === 'ar' && product.unit_of_measure_ar
 		? product.unit_of_measure_ar
 		: product.unit_of_measure
-}
-
-function specsForCard(
-	value: Record<string, unknown> | null,
-): Record<string, string> {
-	if (!value) return {}
-	return Object.fromEntries(
-		Object.entries(value)
-			.slice(0, 4)
-			.map(([key, rawValue]) => [key, String(rawValue)]),
-	)
 }
 
 async function supplierPortalChunks(

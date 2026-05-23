@@ -8,18 +8,6 @@
 // Rich Content Types — transmitted via AG-UI CUSTOM events
 // ============================================================================
 
-export interface ProductCardData {
-	id: string
-	name: string
-	nameAr: string
-	image?: string
-	priceRange: string
-	priceRangeAr: string
-	specs: Record<string, string>
-	specsAr: Record<string, string>
-	available: boolean
-}
-
 export interface StatusCardData {
 	amount: number | null
 	entityType: 'order' | 'quote'
@@ -139,7 +127,6 @@ interface DisclaimerData {
 }
 
 export type RichContent =
-	| { type: 'product_card'; data: ProductCardData }
 	| { type: 'status_card'; data: StatusCardData }
 	| { type: 'action_button'; data: ActionButtonData }
 	| { type: 'command_palette'; data: CommandPaletteData }
