@@ -75,9 +75,19 @@ export function ActionButton({ data }: ActionButtonProps) {
 
 	const handlePress = () => {
 		if (data.command) {
+			const confirmMessage = isArabic
+				? (data.confirmMessageAr ?? data.confirmMessage)
+				: data.confirmMessage
+			if (
+				data.runCommand &&
+				confirmMessage &&
+				!window.confirm(confirmMessage)
+			) {
+				return
+			}
 			window.dispatchEvent(
 				new CustomEvent(PORTAL_CHAT_RUN_COMMAND_EVENT, {
-					detail: { command: data.command },
+					detail: { command: data.command, run: data.runCommand === true },
 				}),
 			)
 			return

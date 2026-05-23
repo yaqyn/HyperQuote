@@ -123,6 +123,14 @@ export const PORTAL_CHAT_COMMANDS = [
 	},
 	{
 		category: 'Drafts',
+		description: 'Remove one item line from an editable draft.',
+		inputMode: 'prefill',
+		name: '/remove-from-draft',
+		scope: 'server',
+		title: 'Remove draft item',
+	},
+	{
+		category: 'Drafts',
 		description: 'Rename one editable draft.',
 		inputMode: 'prefill',
 		name: '/rename-draft',
@@ -176,6 +184,22 @@ export const PORTAL_CHAT_COMMANDS = [
 		name: '/reorder',
 		scope: 'server',
 		title: 'Reorder',
+	},
+	{
+		category: 'Drafts',
+		description: 'Remove empty editable drafts after confirmation.',
+		inputMode: 'prefill',
+		name: '/clean-drafts',
+		scope: 'server',
+		title: 'Clean drafts',
+	},
+	{
+		category: 'Drafts',
+		description: 'Merge editable drafts into one draft after confirmation.',
+		inputMode: 'prefill',
+		name: '/merge-drafts',
+		scope: 'server',
+		title: 'Merge drafts',
 	},
 	{
 		category: 'Orders',

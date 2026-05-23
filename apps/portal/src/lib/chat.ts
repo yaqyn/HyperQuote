@@ -50,6 +50,7 @@ import {
 	type PortalCustomerCatalogSnapshot,
 	type PortalCustomerToolRequest,
 	parsePortalCustomerToolRequest,
+	portalCustomerActionNeedsConfirmation,
 	portalCustomerPolicyRefusal,
 	routePortalChatCommand,
 } from './portal-customer-agent'
@@ -321,6 +322,12 @@ interface SupportRequestContext {
 	ticket: SupportTicketRow | null
 }
 
+interface PendingActionContext {
+	actions: ActionButtonData[]
+	message: string
+	title: string
+}
+
 interface DraftWriteContext {
 	draftId?: string
 	editRoute?: string
@@ -372,6 +379,7 @@ type PortalToolContext =
 			events: ActivityEventRow[]
 			order: CustomerOrderSummary | null
 	  }
+	| ({ type: 'pending_action' } & PendingActionContext)
 	| ({ type: 'support_request' } & SupportRequestContext)
 	| { type: 'draft_write'; operation: string; result: DraftWriteContext }
 
@@ -663,6 +671,23 @@ async function executePortalCustomerToolRequest(
 			invalidatesOrders: false,
 			readEntities: ['portal_policy'],
 			route: { action: 'refuse', reason: refusal, searchQuery: '' },
+			writeEntityId: null,
+			writeEntityType: null,
+		}
+	}
+
+	const pendingAction = await pendingActionConfirmation(
+		supabase,
+		customerId,
+		route,
+		userText,
+	)
+	if (pendingAction) {
+		return {
+			context: { type: 'pending_action', ...pendingAction },
+			invalidatesOrders: false,
+			readEntities: confirmationReadEntities(route),
+			route,
 			writeEntityId: null,
 			writeEntityType: null,
 		}
@@ -1020,6 +1045,343 @@ function draftWriteChanged(result: DraftWriteContext): boolean {
 	)
 }
 
+async function pendingActionConfirmation(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerToolRequest,
+	userText: string,
+): Promise<PendingActionContext | null> {
+	if (!portalCustomerActionNeedsConfirmation(route, userText)) return null
+
+	switch (route.action) {
+		case 'support_request':
+			return pendingSupportTicketConfirmation(route, userText)
+		case 'delete_draft':
+			return pendingDeleteDraftConfirmation(
+				supabase,
+				customerId,
+				route,
+				userText,
+			)
+		case 'cleanup_drafts':
+			return pendingCleanupDraftsConfirmation(supabase, customerId, route)
+		case 'update_draft_metadata':
+			return pendingDraftMetadataConfirmation(
+				supabase,
+				customerId,
+				route,
+				userText,
+			)
+		case 'update_draft_items':
+			return pendingDraftItemConfirmation(supabase, customerId, route, userText)
+		case 'draft_replace_item':
+			return pendingDraftReplacementConfirmation(
+				supabase,
+				customerId,
+				route,
+				userText,
+			)
+		default:
+			return null
+	}
+}
+
+function confirmationReadEntities(route: PortalCustomerToolRequest): string[] {
+	if (route.action === 'support_request') return ['customer_profile']
+	if (
+		route.action === 'delete_draft' ||
+		route.action === 'cleanup_drafts' ||
+		route.action === 'update_draft_metadata' ||
+		route.action === 'update_draft_items' ||
+		route.action === 'draft_replace_item'
+	) {
+		return ['customer_quote_requests']
+	}
+	return ['portal_chat']
+}
+
+function pendingSupportTicketConfirmation(
+	route: PortalCustomerToolRequest,
+	userText: string,
+): PendingActionContext | null {
+	const message = (route.supportMessage || route.searchQuery || userText).trim()
+	if (!message || message === '/feedback') return null
+
+	return {
+		actions: [
+			confirmationButton({
+				command: `/feedback ${commandValue(message)} --confirm`,
+				icon: 'support',
+				label: 'Submit ticket',
+				labelAr: 'إرسال التذكرة',
+			}),
+			{
+				href: `${WEBSITE_URL}/docs`,
+				icon: 'book',
+				label: 'Open docs',
+				labelAr: 'افتح الوثائق',
+			},
+			{
+				icon: 'support',
+				label: 'Support panel',
+				labelAr: 'لوحة الدعم',
+				route: '/support',
+			},
+		],
+		message:
+			'I can send this as a support ticket, but only if you press the button.',
+		title: 'Confirm ticket',
+	}
+}
+
+async function pendingDeleteDraftConfirmation(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerToolRequest,
+	userText: string,
+): Promise<PendingActionContext | null> {
+	const draft = (
+		await resolveEditableDraft(
+			supabase,
+			customerId,
+			route.targetReference,
+			route.searchQuery || userText,
+		)
+	).draft
+	if (!draft) return null
+
+	return {
+		actions: [
+			confirmationButton({
+				command: `/delete-draft ${draft.request_number} --confirm`,
+				icon: 'draft',
+				label: 'Delete draft',
+				labelAr: 'احذف المسودة',
+			}),
+		],
+		message: `Ready to delete ${draft.request_number}. I will not delete it until you press the button.`,
+		title: 'Confirm delete',
+	}
+}
+
+async function pendingCleanupDraftsConfirmation(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerToolRequest,
+): Promise<PendingActionContext | null> {
+	const drafts = await loadEditableDrafts(supabase, customerId)
+	if (drafts.length === 0) return null
+
+	const mode = route.cleanupMode ?? 'remove_empty'
+	if (mode === 'merge') {
+		const sourceCount = drafts.filter(
+			(draft) => (draft.quote_request_items ?? []).length > 0,
+		).length
+		if (sourceCount <= 1) return null
+		return {
+			actions: [
+				confirmationButton({
+					command: '/merge-drafts --confirm',
+					icon: 'draft',
+					label: 'Merge drafts',
+					labelAr: 'ادمج المسودات',
+				}),
+			],
+			message: `Ready to merge ${sourceCount} editable drafts into one new draft, then remove the old draft records.`,
+			title: 'Confirm merge',
+		}
+	}
+
+	const targetCount =
+		mode === 'delete_all'
+			? drafts.length
+			: drafts.filter((draft) => (draft.quote_request_items ?? []).length === 0)
+					.length
+	if (targetCount === 0) return null
+
+	return {
+		actions: [
+			confirmationButton({
+				command:
+					mode === 'delete_all'
+						? '/clear-all-drafts --confirm'
+						: '/clean-drafts --confirm',
+				icon: 'draft',
+				label: mode === 'delete_all' ? 'Delete drafts' : 'Clean drafts',
+				labelAr: mode === 'delete_all' ? 'احذف المسودات' : 'نظّف المسودات',
+			}),
+		],
+		message:
+			mode === 'delete_all'
+				? `Ready to delete ${targetCount} editable draft${targetCount === 1 ? '' : 's'}. Submitted orders stay untouched.`
+				: `Ready to remove ${targetCount} empty editable draft${targetCount === 1 ? '' : 's'}.`,
+		title: mode === 'delete_all' ? 'Confirm delete all' : 'Confirm cleanup',
+	}
+}
+
+async function pendingDraftMetadataConfirmation(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerToolRequest,
+	userText: string,
+): Promise<PendingActionContext | null> {
+	const draftResolution = await resolveEditableDraft(
+		supabase,
+		customerId,
+		route.targetReference,
+		route.searchQuery || userText,
+	)
+	const draft = draftResolution.draft
+	if (!draft) return null
+
+	const locale = detectPortalAiLocale(userText)
+	const items = sortedQuoteRequestItems(draft).map(toDraftMaterialItem)
+	const inferredName = inferredDraftNameFromText(userText)
+	const nextName =
+		route.draftName !== undefined || inferredName
+			? normalizePortalDraftTitle(
+					route.draftName ?? inferredName ?? undefined,
+					items,
+					locale,
+				)
+			: undefined
+	const nextNotes =
+		route.draftNotes !== undefined
+			? normalizePortalDraftNotes(route.draftNotes, items, locale)
+			: undefined
+	if (!nextName && nextNotes === undefined) return null
+
+	const command = nextName
+		? `/rename-draft ${draft.request_number} ${commandValue(nextName)} --confirm`
+		: `/note-draft ${draft.request_number} ${commandValue(nextNotes ?? '')} --confirm`
+
+	return {
+		actions: [
+			confirmationButton({
+				command,
+				icon: 'draft',
+				label: nextName ? 'Rename draft' : 'Update note',
+				labelAr: nextName ? 'غيّر الاسم' : 'حدّث الملاحظة',
+			}),
+		],
+		message: nextName
+			? `Ready to rename ${draft.request_number} to "${nextName}".`
+			: `Ready to update the note on ${draft.request_number}.`,
+		title: nextName ? 'Confirm rename' : 'Confirm note',
+	}
+}
+
+async function pendingDraftItemConfirmation(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerToolRequest,
+	userText: string,
+): Promise<PendingActionContext | null> {
+	const inferred = inferDraftItemEdit(route.searchQuery || userText)
+	const action = route.draftItemAction ?? inferred?.draftItemAction
+	if (action !== 'clear_items' && action !== 'remove_item') return null
+
+	const draft = (
+		await resolveEditableDraft(
+			supabase,
+			customerId,
+			route.targetReference,
+			route.searchQuery || userText,
+		)
+	).draft
+	if (!draft) return null
+
+	if (action === 'clear_items') {
+		const itemCount = sortedQuoteRequestItems(draft).length
+		if (itemCount === 0) return null
+		return {
+			actions: [
+				confirmationButton({
+					command: `/clear-draft ${draft.request_number} --confirm`,
+					icon: 'draft',
+					label: 'Clear draft',
+					labelAr: 'افرغ المسودة',
+				}),
+			],
+			message: `Ready to clear ${itemCount} item line${itemCount === 1 ? '' : 's'} from ${draft.request_number}.`,
+			title: 'Confirm clear',
+		}
+	}
+
+	const items = sortedQuoteRequestItems(draft)
+	const target = findDraftItemTarget(
+		items,
+		route.itemQuery ?? inferred?.itemQuery,
+		route.previousQuantity ?? inferred?.previousQuantity,
+		route.searchQuery || userText,
+	)
+	if (!target.item || target.message) return null
+	const itemName = draftItemDisplayName(target.item)
+	return {
+		actions: [
+			confirmationButton({
+				command: `/remove-from-draft ${draft.request_number} ${commandValue(itemName)} --confirm`,
+				icon: 'draft',
+				label: 'Remove item',
+				labelAr: 'احذف البند',
+			}),
+		],
+		message: `Ready to remove ${itemName} from ${draft.request_number}.`,
+		title: 'Confirm item removal',
+	}
+}
+
+async function pendingDraftReplacementConfirmation(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerToolRequest,
+	userText: string,
+): Promise<PendingActionContext | null> {
+	if (!route.replacementQuery) return null
+	const draft = (
+		await resolveEditableDraft(
+			supabase,
+			customerId,
+			route.targetReference,
+			route.searchQuery || userText,
+		)
+	).draft
+	if (!draft) return null
+	const itemQuery = route.itemQuery ?? 'item'
+	return {
+		actions: [
+			confirmationButton({
+				command: `/replace-draft-item ${draft.request_number} ${commandValue(itemQuery)} with ${commandValue(route.replacementQuery)} --confirm`,
+				icon: 'draft',
+				label: 'Replace item',
+				labelAr: 'استبدل البند',
+			}),
+		],
+		message: `Ready to replace ${itemQuery} in ${draft.request_number} with ${route.replacementQuery}.`,
+		title: 'Confirm replacement',
+	}
+}
+
+function confirmationButton(
+	data: Omit<ActionButtonData, 'runCommand'>,
+): ActionButtonData {
+	return {
+		confirmMessage: `${data.label} now?`,
+		confirmMessageAr: `${data.labelAr} الآن؟`,
+		...data,
+		runCommand: true,
+	}
+}
+
+function commandValue(value: string): string {
+	const cleaned = value
+		.replace(/(?:^|\s)--confirm(?:\s|$)/gi, ' ')
+		.replace(/["“”\r\n]+/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+	return cleaned ? `"${cleaned}"` : '""'
+}
+
 async function renderPortalCustomerResponse(
 	modelMessages: ChatMessageInput[],
 	result: PortalToolResult,
@@ -1050,6 +1412,13 @@ async function renderPortalCustomerResponse(
 
 	if (result.context.type === 'refusal') {
 		return textOnlyChunks(result.context.message, customEvents)
+	}
+
+	if (result.context.type === 'pending_action') {
+		return textOnlyChunks(
+			pendingActionFallbackAnswer(result.context),
+			customEvents,
+		)
 	}
 
 	const fallbackText = fallbackToolAnswer(result.context)
@@ -1110,7 +1479,7 @@ function appendDocsSources(
 function buildPortalToolAnswerPrompt(
 	context: Exclude<
 		PortalToolContext,
-		{ type: 'chat' | 'public_docs' | 'refusal' }
+		{ type: 'chat' | 'pending_action' | 'public_docs' | 'refusal' }
 	>,
 ): string {
 	return `${LYON_PORTAL}
@@ -1128,7 +1497,7 @@ ${safeJson(context)}`
 function toolAnswerStyleInstructions(
 	context: Exclude<
 		PortalToolContext,
-		{ type: 'chat' | 'public_docs' | 'refusal' }
+		{ type: 'chat' | 'pending_action' | 'public_docs' | 'refusal' }
 	>,
 ): string {
 	switch (context.type) {
@@ -1185,6 +1554,8 @@ function fallbackToolAnswer(context: PortalToolContext): string {
 			return draftValidationFallbackAnswer(context.validation)
 		case 'order_activity':
 			return orderActivityFallbackAnswer(context.order, context.events)
+		case 'pending_action':
+			return pendingActionFallbackAnswer(context)
 		case 'support_request':
 			return supportRequestFallbackAnswer(context)
 		case 'draft_write':
@@ -1269,12 +1640,15 @@ function commandToolAnswer(
 			)
 		case '/delete-draft':
 		case '/clear-draft':
+		case '/remove-from-draft':
 		case '/rename-draft':
 		case '/note-draft':
 		case '/add-to-draft':
 		case '/replace-draft-item':
 		case '/set-draft-delivery':
 		case '/reorder':
+		case '/clean-drafts':
+		case '/merge-drafts':
 		case '/clear-all-drafts':
 			return fallbackText
 		case '/track':
@@ -1691,6 +2065,10 @@ function orderActivityFallbackAnswer(
 	].join('\n')
 }
 
+function pendingActionFallbackAnswer(context: PendingActionContext): string {
+	return [`## ${context.title}`, context.message].join('\n\n')
+}
+
 function supportRequestFallbackAnswer(context: SupportRequestContext): string {
 	if (!context.ticket) {
 		return `## Support Request\n\n${context.message ?? 'No support ticket was created.'}`
@@ -1797,6 +2175,11 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 			if (result.context.order)
 				events.push(statusCardEvent(result.context.order))
 			break
+		case 'pending_action':
+			for (const action of result.context.actions) {
+				events.push(actionButtonEvent(action))
+			}
+			break
 		case 'draft_write':
 			events.push(draftCleanupEvent(result.context.result))
 			if (result.context.result.draftId) {
@@ -1809,7 +2192,9 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 		default:
 			break
 	}
-	events.push(...toolActionEvents(result))
+	if (result.context.type !== 'pending_action') {
+		events.push(...toolActionEvents(result))
+	}
 	if (result.invalidatesOrders) events.push(customerOrdersInvalidationEvent())
 	return events
 }
@@ -3141,15 +3526,22 @@ async function updateDraftMetadata(
 	if (draftName !== draft.draft_name) update.draft_name = draftName
 	if (draftNotes !== undefined) update.notes = draftNotes
 
-	if (Object.keys(update).length > 0) {
-		const { error } = await supabase
-			.from('quote_requests')
-			.update(update)
-			.eq('id', draft.id)
-			.eq('customer_id', customerId)
-			.eq('status', 'draft')
-		if (error) throw new Error(error.message)
+	if (Object.keys(update).length === 0) {
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			reference: draft.request_number,
+			message: `Tell me the new name or note for ${draft.request_number}.`,
+		}
 	}
+
+	const { error } = await supabase
+		.from('quote_requests')
+		.update(update)
+		.eq('id', draft.id)
+		.eq('customer_id', customerId)
+		.eq('status', 'draft')
+	if (error) throw new Error(error.message)
 
 	await recordDraftSavedActivity(supabase, draft.id, {
 		operation: 'portal_ai_metadata_update',
@@ -4091,6 +4483,7 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 		case '/validate-draft':
 		case '/delete-draft':
 		case '/clear-draft':
+		case '/remove-from-draft':
 		case '/rename-draft':
 		case '/note-draft':
 		case '/add-to-draft':
@@ -4207,6 +4600,8 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 				}),
 			]
 		case '/clear-all-drafts':
+		case '/clean-drafts':
+		case '/merge-drafts':
 			return [
 				actionButtonEvent({
 					icon: 'orders',

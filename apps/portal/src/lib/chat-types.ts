@@ -34,6 +34,8 @@ export interface StatusCardData {
 
 export interface ActionButtonData {
 	command?: string
+	confirmMessage?: string
+	confirmMessageAr?: string
 	event?: 'open_cart' | 'open_draft_panel'
 	href?: string
 	icon?:
@@ -54,6 +56,7 @@ export interface ActionButtonData {
 	labelAr: string
 	route?: string
 	params?: Record<string, string>
+	runCommand?: boolean
 }
 
 export interface ActiveChatDraftContext {

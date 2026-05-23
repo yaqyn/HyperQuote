@@ -10,6 +10,7 @@ import {
 	fallbackPortalCustomerToolRequest,
 	inferDraftItemEdit,
 	parsePortalCustomerToolRequest,
+	portalCustomerActionNeedsConfirmation,
 	portalCustomerPolicyRefusal,
 	routePortalChatCommand,
 } from './portal-customer-agent'
@@ -132,6 +133,15 @@ describe('portal customer AI agent', () => {
 			targetReference: 'QR-2026-00003',
 		})
 		expect(
+			routePortalChatCommand('/remove-from-draft QR-2026-00003 wood'),
+		).toMatchObject({
+			action: 'update_draft_items',
+			commandName: '/remove-from-draft',
+			draftItemAction: 'remove_item',
+			itemQuery: 'wood',
+			targetReference: 'QR-2026-00003',
+		})
+		expect(
 			routePortalChatCommand('/rename-draft QR-2026-00003 "woody"'),
 		).toMatchObject({
 			action: 'update_draft_metadata',
@@ -229,6 +239,16 @@ describe('portal customer AI agent', () => {
 			cleanupMode: 'delete_all',
 			commandName: '/clear-all-drafts',
 		})
+		expect(routePortalChatCommand('/clean-drafts')).toMatchObject({
+			action: 'cleanup_drafts',
+			cleanupMode: 'remove_empty',
+			commandName: '/clean-drafts',
+		})
+		expect(routePortalChatCommand('/merge-drafts')).toMatchObject({
+			action: 'cleanup_drafts',
+			cleanupMode: 'merge',
+			commandName: '/merge-drafts',
+		})
 		expect(routePortalChatCommand('/support')).toMatchObject({
 			action: 'chat',
 			commandName: '/support',
@@ -249,6 +269,66 @@ describe('portal customer AI agent', () => {
 			commandName: '/docs-search',
 			searchQuery: 'warranty',
 		})
+	})
+
+	it('requires explicit button confirmation for risky writes', () => {
+		const deleteDraft = routePortalChatCommand('/delete-draft QR-2026-00003')
+		if (!deleteDraft) throw new Error('Expected delete draft route')
+		expect(portalCustomerActionNeedsConfirmation(deleteDraft, '')).toBe(true)
+
+		const confirmedDelete = routePortalChatCommand(
+			'/delete-draft QR-2026-00003 --confirm',
+		)
+		if (!confirmedDelete) throw new Error('Expected confirmed delete route')
+		expect(confirmedDelete).toMatchObject({
+			action: 'delete_draft',
+			confirmedAction: true,
+			searchQuery: 'QR-2026-00003',
+			targetReference: 'QR-2026-00003',
+		})
+		expect(portalCustomerActionNeedsConfirmation(confirmedDelete, '')).toBe(
+			false,
+		)
+
+		const feedback = routePortalChatCommand('/feedback slow checkout')
+		if (!feedback) throw new Error('Expected feedback route')
+		expect(portalCustomerActionNeedsConfirmation(feedback, '')).toBe(true)
+
+		const confirmedFeedback = routePortalChatCommand(
+			'/feedback "slow checkout" --confirm',
+		)
+		if (!confirmedFeedback) throw new Error('Expected confirmed feedback route')
+		expect(confirmedFeedback).toMatchObject({
+			action: 'support_request',
+			confirmedAction: true,
+			supportMessage: 'slow checkout',
+		})
+		expect(portalCustomerActionNeedsConfirmation(confirmedFeedback, '')).toBe(
+			false,
+		)
+
+		expect(
+			portalCustomerActionNeedsConfirmation(
+				{
+					action: 'update_draft_items',
+					draftItemAction: 'set_quantity',
+					quantity: 250,
+					searchQuery: 'set wood to 250',
+				},
+				'set wood to 250',
+			),
+		).toBe(false)
+		expect(
+			portalCustomerActionNeedsConfirmation(
+				{
+					action: 'update_draft_items',
+					draftItemAction: 'remove_item',
+					itemQuery: 'wood',
+					searchQuery: 'remove wood',
+				},
+				'remove wood',
+			),
+		).toBe(true)
 	})
 
 	it('routes draft line edits, removals, and clears', () => {
@@ -418,6 +498,20 @@ describe('portal customer AI agent', () => {
 			action: 'support_request',
 			supportMessage: 'The checkout page is slow today.',
 			supportSubject: 'Checkout performance',
+		})
+		expect(
+			parsePortalCustomerToolRequest(
+				JSON.stringify({
+					search_query: 'website docs',
+					support_message: 'The user cannot find website docs.',
+					support_subject: 'Docs help',
+					tool: 'support_request',
+				}),
+				'I cannot find the website docs',
+			),
+		).toMatchObject({
+			action: 'public_docs',
+			searchQuery: 'I cannot find the website docs',
 		})
 		expect(
 			parsePortalCustomerToolRequest('not json', 'find cement').action,

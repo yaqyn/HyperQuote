@@ -166,13 +166,17 @@ export function ChatInput({ chat }: ChatInputProps) {
 
 	useEffect(() => {
 		function handleCommandEvent(event: Event) {
-			const detail = (event as CustomEvent<{ command?: string }>).detail
+			const detail = (event as CustomEvent<{ command?: string; run?: boolean }>)
+				.detail
 			const commandText = detail?.command?.trim()
 			if (!commandText) return
 			const parsed = parsePortalChatCommand(commandText)
 			if (!parsed) return
 
-			if (portalChatCommandInputMode(parsed.name) === 'prefill') {
+			if (
+				portalChatCommandInputMode(parsed.name) === 'prefill' &&
+				detail.run !== true
+			) {
 				const nextValue = parsed.args ? commandText : `${parsed.name} `
 				setValue(nextValue)
 				setCommandMenuDismissed(false)

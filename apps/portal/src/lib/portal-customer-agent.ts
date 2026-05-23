@@ -46,6 +46,7 @@ export interface PortalCustomerToolRequest {
 	addressQuery?: string
 	cleanupMode?: 'delete_all' | 'merge' | 'remove_empty'
 	commandName?: PortalChatCommandName
+	confirmedAction?: boolean
 	deliveryDate?: string
 	draftItemAction?:
 		| 'set_quantity'
@@ -122,10 +123,11 @@ Tools:
 - create_draft_from_plan: explicit draft-create/catalog-selection only; server writes real Available product IDs. Include a natural draft_name and draft_notes.
 - update_draft_items: edit an editable draft line, quantity, note, or clear lines. Include refreshed draft_notes; include draft_name when the title should change.
 - draft_add_items, draft_replace_item, draft_set_delivery, duplicate_order_to_draft, update_draft_metadata, cleanup_drafts, delete_draft: customer-scoped draft-only edits.
-- support_request: explicit support/feedback ticket only. Use support_subject and support_message.
+- support_request: only when the user explicitly asks to create, send, or submit a support ticket or feedback message. If they need docs, contact links, FAQ, or help finding something, use public_docs or chat instead.
 - refuse: submit/confirm/place/cancel orders, payments, cross-customer data, internal finance, supplier costs/margins, employee data, secrets, or unrelated driver-only data.
 
 Use the conversation like a capable assistant. Decide from intent and context, not isolated keywords. Put natural draft targets in search_query when no exact reference exists. Slash commands are user shortcuts, not words to repeat back.
+Destructive or external actions are gated by the app. Do not claim a draft was deleted, cleared, renamed, or a ticket was submitted unless the tool result confirms it.
 
 Current draft desk:
 ${activeDraft?.id ? JSON.stringify(activeDraft, null, 2) : 'No saved draft is currently open in the chat draft desk.'}
@@ -184,7 +186,10 @@ export function routePortalChatCommand(
 	const command = parsePortalChatCommand(userMessage)
 	if (!command) return null
 
-	const searchQuery = command.args
+	const confirmation = splitCommandConfirmation(command.args)
+	const commandArgs = confirmation.args
+	const confirmedAction = confirmation.confirmed ? true : undefined
+	const searchQuery = commandArgs
 	switch (command.name) {
 		case '/help':
 			return {
@@ -233,7 +238,7 @@ export function routePortalChatCommand(
 			return {
 				action: 'customer_orders',
 				commandName: command.name,
-				orderScope: orderScopeFromCommandArgs(command.args) ?? 'all',
+				orderScope: orderScopeFromCommandArgs(commandArgs) ?? 'all',
 				searchQuery,
 			}
 		case '/drafts':
@@ -248,45 +253,61 @@ export function routePortalChatCommand(
 				action: 'draft_detail',
 				commandName: command.name,
 				searchQuery,
-				targetReference: extractTargetReference(command.args),
+				targetReference: extractTargetReference(commandArgs),
 			}
 		case '/edit-draft':
 			return {
 				action: 'draft_detail',
 				commandName: command.name,
 				searchQuery,
-				targetReference: extractTargetReference(command.args),
+				targetReference: extractTargetReference(commandArgs),
 			}
 		case '/delete-draft':
 			return {
 				action: 'delete_draft',
 				commandName: command.name,
+				confirmedAction,
 				searchQuery,
-				targetReference: extractTargetReference(command.args),
+				targetReference: extractTargetReference(commandArgs),
 			}
 		case '/clear-draft':
 			return {
 				action: 'update_draft_items',
 				commandName: command.name,
+				confirmedAction,
 				draftItemAction: 'clear_items',
 				searchQuery,
-				targetReference: extractTargetReference(command.args),
+				targetReference: extractTargetReference(commandArgs),
 			}
+		case '/remove-from-draft': {
+			const { rest, targetReference } = splitCommandTarget(commandArgs)
+			return {
+				action: 'update_draft_items',
+				commandName: command.name,
+				confirmedAction,
+				draftItemAction: 'remove_item',
+				itemQuery: cleanCommandText(rest),
+				searchQuery,
+				targetReference,
+			}
+		}
 		case '/rename-draft': {
-			const { rest, targetReference } = splitCommandTarget(command.args)
+			const { rest, targetReference } = splitCommandTarget(commandArgs)
 			return {
 				action: 'update_draft_metadata',
 				commandName: command.name,
+				confirmedAction,
 				draftName: cleanCommandText(rest),
 				searchQuery,
 				targetReference,
 			}
 		}
 		case '/note-draft': {
-			const { rest, targetReference } = splitCommandTarget(command.args)
+			const { rest, targetReference } = splitCommandTarget(commandArgs)
 			return {
 				action: 'update_draft_metadata',
 				commandName: command.name,
+				confirmedAction,
 				draftNotes: cleanCommandText(rest),
 				searchQuery,
 				targetReference,
@@ -297,10 +318,10 @@ export function routePortalChatCommand(
 				action: 'draft_validate',
 				commandName: command.name,
 				searchQuery,
-				targetReference: extractTargetReference(command.args),
+				targetReference: extractTargetReference(commandArgs),
 			}
 		case '/add-to-draft': {
-			const { rest, targetReference } = splitCommandTarget(command.args)
+			const { rest, targetReference } = splitCommandTarget(commandArgs)
 			return {
 				action: 'draft_add_items',
 				commandName: command.name,
@@ -310,11 +331,12 @@ export function routePortalChatCommand(
 			}
 		}
 		case '/replace-draft-item': {
-			const { rest, targetReference } = splitCommandTarget(command.args)
+			const { rest, targetReference } = splitCommandTarget(commandArgs)
 			const replacement = splitReplacementCommand(rest)
 			return {
 				action: 'draft_replace_item',
 				commandName: command.name,
+				confirmedAction,
 				itemQuery: replacement.itemQuery,
 				replacementQuery: replacement.replacementQuery,
 				searchQuery,
@@ -322,7 +344,7 @@ export function routePortalChatCommand(
 			}
 		}
 		case '/set-draft-delivery': {
-			const { rest, targetReference } = splitCommandTarget(command.args)
+			const { rest, targetReference } = splitCommandTarget(commandArgs)
 			const delivery = parseDeliveryCommand(rest)
 			return {
 				action: 'draft_set_delivery',
@@ -338,7 +360,7 @@ export function routePortalChatCommand(
 				action: 'duplicate_order_to_draft',
 				commandName: command.name,
 				searchQuery,
-				targetReference: extractTargetReference(command.args),
+				targetReference: extractTargetReference(commandArgs),
 			}
 		case '/latest-order':
 			return {
@@ -351,21 +373,21 @@ export function routePortalChatCommand(
 				action: 'order_detail',
 				commandName: command.name,
 				searchQuery,
-				targetReference: extractTargetReference(command.args),
+				targetReference: extractTargetReference(commandArgs),
 			}
 		case '/activity':
 			return {
 				action: 'order_activity',
 				commandName: command.name,
 				searchQuery,
-				targetReference: extractTargetReference(command.args),
+				targetReference: extractTargetReference(commandArgs),
 			}
 		case '/track':
 			return {
 				action: 'delivery_tracking',
 				commandName: command.name,
 				searchQuery,
-				targetReference: command.args || undefined,
+				targetReference: commandArgs || undefined,
 			}
 		case '/deliveries':
 			return {
@@ -402,6 +424,23 @@ export function routePortalChatCommand(
 				action: 'cleanup_drafts',
 				cleanupMode: 'delete_all',
 				commandName: command.name,
+				confirmedAction,
+				searchQuery,
+			}
+		case '/clean-drafts':
+			return {
+				action: 'cleanup_drafts',
+				cleanupMode: 'remove_empty',
+				commandName: command.name,
+				confirmedAction,
+				searchQuery,
+			}
+		case '/merge-drafts':
+			return {
+				action: 'cleanup_drafts',
+				cleanupMode: 'merge',
+				commandName: command.name,
+				confirmedAction,
 				searchQuery,
 			}
 		case '/support':
@@ -417,12 +456,13 @@ export function routePortalChatCommand(
 				searchQuery: '',
 			}
 		case '/feedback':
-			return command.args
+			return commandArgs
 				? {
 						action: 'support_request',
 						commandName: command.name,
+						confirmedAction,
 						searchQuery,
-						supportMessage: command.args,
+						supportMessage: cleanCommandText(commandArgs) ?? commandArgs,
 						supportSubject: 'Portal feedback',
 					}
 				: {
@@ -431,11 +471,11 @@ export function routePortalChatCommand(
 						searchQuery: '',
 					}
 		case '/docs':
-			return command.args
+			return commandArgs
 				? {
 						action: 'public_docs',
 						commandName: command.name,
-						searchQuery: command.args,
+						searchQuery: commandArgs,
 					}
 				: {
 						action: 'chat',
@@ -443,11 +483,11 @@ export function routePortalChatCommand(
 						searchQuery: '',
 					}
 		case '/docs-search':
-			return command.args
+			return commandArgs
 				? {
 						action: 'public_docs',
 						commandName: command.name,
-						searchQuery: command.args,
+						searchQuery: commandArgs,
 					}
 				: {
 						action: 'chat',
@@ -470,6 +510,17 @@ function orderScopeFromCommandArgs(
 ): PortalCustomerOrderScope | null {
 	const scope = args.trim().split(/\s+/)[0]?.toLowerCase()
 	return isPortalCustomerOrderScope(scope) ? scope : null
+}
+
+function splitCommandConfirmation(args: string): {
+	args: string
+	confirmed: boolean
+} {
+	const confirmed = /(?:^|\s)--confirm(?:\s|$)/i.test(args)
+	return {
+		args: args.replace(/(?:^|\s)--confirm(?:\s|$)/gi, ' ').trim(),
+		confirmed,
+	}
 }
 
 function splitCommandTarget(args: string): {
@@ -639,6 +690,15 @@ export function enforcePortalCustomerToolRequest(
 			searchQuery: '',
 		}
 	}
+	if (
+		request.action === 'support_request' &&
+		!isExplicitSupportTicketRequest(userMessage, request)
+	) {
+		return {
+			action: 'public_docs',
+			searchQuery: userMessage.trim() || 'support docs contact faq',
+		}
+	}
 
 	return request
 }
@@ -656,6 +716,35 @@ export function isDraftWriteAction(action: PortalCustomerAgentAction): boolean {
 		action === 'delete_draft' ||
 		action === 'support_request'
 	)
+}
+
+export function portalCustomerActionNeedsConfirmation(
+	request: PortalCustomerToolRequest,
+	userMessage: string,
+): boolean {
+	if (request.confirmedAction) return false
+	switch (request.action) {
+		case 'support_request': {
+			const message = (
+				request.supportMessage ||
+				request.searchQuery ||
+				userMessage
+			).trim()
+			return Boolean(message && message !== '/feedback')
+		}
+		case 'delete_draft':
+		case 'cleanup_drafts':
+		case 'update_draft_metadata':
+		case 'draft_replace_item':
+			return true
+		case 'update_draft_items': {
+			const inferred = inferDraftItemEdit(request.searchQuery || userMessage)
+			const action = request.draftItemAction ?? inferred?.draftItemAction
+			return action === 'clear_items' || action === 'remove_item'
+		}
+		default:
+			return false
+	}
 }
 
 export function extractTargetReference(
@@ -702,6 +791,28 @@ function asksForPrivateOrCrossScope(lower: string, raw: string): boolean {
 		/عميل\s+(تاني|تانى|اخر|آخر)|كل\s+العملاء|بيانات\s+داخلية|تكلفة\s+المورد|هامش|موظف|موظفين|سر|توكن|مفتاح/.test(
 			raw,
 		)
+	)
+}
+
+function isExplicitSupportTicketRequest(
+	userMessage: string,
+	request: PortalCustomerToolRequest,
+): boolean {
+	if (request.commandName === '/feedback') return true
+	const normalized = normalizeForAgentMatch(userMessage)
+	return (
+		/\b(create|open|submit|send|file|raise|log)\b.*\b(support\s+request|support\s+ticket|ticket|feedback)\b/.test(
+			normalized,
+		) ||
+		/\b(support\s+request|support\s+ticket|ticket|feedback)\b.*\b(create|open|submit|send|file|raise|log)\b/.test(
+			normalized,
+		) ||
+		/\b(support\s+request|support\s+ticket|ticket|feedback)\s*[:-]/.test(
+			normalized,
+		) ||
+		/\breport\s+(an?\s+)?(issue|bug|problem)\b/.test(normalized) ||
+		(/تذكرة|تذكره|بلاغ|فيدباك/.test(userMessage) &&
+			/افتح|ابعت|ارسل|اعمل|سجل|قدّم|قدم/.test(userMessage))
 	)
 }
 
