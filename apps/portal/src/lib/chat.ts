@@ -72,6 +72,9 @@ type ChatMessageInput = { role: 'user' | 'assistant'; content: string }
 type AuthedSupabase = Awaited<
 	ReturnType<typeof getAuthenticatedPortalCustomer>
 >['supabase']
+type QuoteRequestItemInput = Parameters<
+	typeof insertQuoteRequestItems
+>[2][number]
 
 interface PortalAiProduct {
 	availability_status: string
@@ -976,41 +979,25 @@ async function createDraftFromPlan(
 	if (error || !draft)
 		throw new Error(error?.message ?? 'Failed to create draft')
 
-	try {
-		await insertQuoteRequestItems(
-			supabase,
-			draft.id,
-			items.map((item, index) => ({
-				customerDescription: item.name,
-				isUnmatched: false,
-				matchConfidence: 0.85,
-				notes: item.notes ?? 'Added by Portal AI for customer review',
-				productId: item.productId,
-				quantity: item.qty,
-				sortOrder: index,
-				unitOfMeasure: item.unit,
-				unitOfMeasureAr: item.unitAr,
-			})),
-			{ requireOrderableProductLinks: true },
-		)
-	} catch (error) {
-		let cleanedDraft = true
-		try {
-			await deleteDraftIds(supabase, customerId, [draft.id])
-		} catch {
-			cleanedDraft = false
-		}
-		if (
-			cleanedDraft &&
-			error instanceof Error &&
-			error.message === QUOTE_REQUEST_ITEM_PRODUCT_NOT_ORDERABLE
-		) {
-			return {
-				message:
-					'The catalog changed before I could save those products, so I did not create a draft. Search the catalog again and I can draft from the current available products.',
-			}
-		}
-		throw error
+	const insertFailure = await insertStrictCatalogDraftItems(
+		supabase,
+		customerId,
+		draft.id,
+		items.map((item, index) => ({
+			customerDescription: item.name,
+			isUnmatched: false,
+			matchConfidence: 0.85,
+			notes: item.notes ?? 'Added by Portal AI for customer review',
+			productId: item.productId,
+			quantity: item.qty,
+			sortOrder: index,
+			unitOfMeasure: item.unit,
+			unitOfMeasureAr: item.unitAr,
+		})),
+		'The catalog changed before I could save those products, so I did not create a draft. Search the catalog again and I can draft from the current available products.',
+	)
+	if (insertFailure) {
+		return { message: insertFailure }
 	}
 
 	await recordDraftSavedActivity(supabase, draft.id, {
@@ -1024,6 +1011,36 @@ async function createDraftFromPlan(
 		items,
 		reference: draft.request_number,
 		message: `I created draft ${draft.request_number} with ${items.length} material line${items.length === 1 ? '' : 's'}. Review it in Orders before submitting; nothing was submitted.`,
+	}
+}
+
+async function insertStrictCatalogDraftItems(
+	supabase: AuthedSupabase,
+	customerId: string,
+	draftId: string,
+	items: QuoteRequestItemInput[],
+	productNotOrderableMessage: string,
+): Promise<string | null> {
+	try {
+		await insertQuoteRequestItems(supabase, draftId, items, {
+			requireOrderableProductLinks: true,
+		})
+		return null
+	} catch (error) {
+		let cleanedDraft = true
+		try {
+			await deleteDraftIds(supabase, customerId, [draftId])
+		} catch {
+			cleanedDraft = false
+		}
+		if (
+			cleanedDraft &&
+			error instanceof Error &&
+			error.message === QUOTE_REQUEST_ITEM_PRODUCT_NOT_ORDERABLE
+		) {
+			return productNotOrderableMessage
+		}
+		throw error
 	}
 }
 
@@ -1052,6 +1069,13 @@ async function duplicateOrderToDraft(
 				'I found the source record, but it has no material lines to copy into a draft.',
 		}
 	}
+	const items = sourceItems.map(toDraftMaterialItem)
+	if (items.some((item) => !item.productId)) {
+		return {
+			message:
+				'I found the source record, but it contains text-only or unmatched material lines. I did not create a new draft because Portal AI drafts must use real orderable catalog products.',
+		}
+	}
 
 	const { data: draft, error } = await supabase
 		.from('quote_requests')
@@ -1074,13 +1098,13 @@ async function duplicateOrderToDraft(
 	if (error || !draft)
 		throw new Error(error?.message ?? 'Failed to duplicate draft')
 
-	const items = sourceItems.map(toDraftMaterialItem)
-	await insertQuoteRequestItems(
+	const insertFailure = await insertStrictCatalogDraftItems(
 		supabase,
+		customerId,
 		draft.id,
 		items.map((item, index) => ({
 			customerDescription: item.name,
-			isUnmatched: item.productId === undefined,
+			isUnmatched: false,
 			matchConfidence: sourceItems[index]?.match_confidence ?? undefined,
 			notes: item.notes,
 			productId: item.productId,
@@ -1089,7 +1113,10 @@ async function duplicateOrderToDraft(
 			unitOfMeasure: item.unit,
 			unitOfMeasureAr: item.unitAr,
 		})),
+		'I found the source record, but one or more products is no longer orderable. I did not create a new draft.',
 	)
+	if (insertFailure) return { message: insertFailure }
+
 	await recordDraftSavedActivity(supabase, draft.id, {
 		item_count: items.length,
 		operation: 'portal_ai_duplicate',
@@ -1177,6 +1204,13 @@ async function cleanupDrafts(
 		const items = sourceDrafts.flatMap((draft) =>
 			(draft.quote_request_items ?? []).map(toDraftMaterialItem),
 		)
+		if (items.some((item) => !item.productId)) {
+			return {
+				kept: drafts.map((draft) => draft.request_number),
+				message:
+					'I did not merge the drafts because at least one material line is text-only or unmatched. Portal AI merge drafts must keep real orderable catalog product links.',
+			}
+		}
 		const { data: mergedDraft, error } = await supabase
 			.from('quote_requests')
 			.insert({
@@ -1192,12 +1226,13 @@ async function cleanupDrafts(
 		if (error || !mergedDraft) {
 			throw new Error(error?.message ?? 'Failed to merge drafts')
 		}
-		await insertQuoteRequestItems(
+		const insertFailure = await insertStrictCatalogDraftItems(
 			supabase,
+			customerId,
 			mergedDraft.id,
 			items.map((item, index) => ({
 				customerDescription: item.name,
-				isUnmatched: item.productId === undefined,
+				isUnmatched: false,
 				notes: item.notes,
 				productId: item.productId,
 				quantity: item.qty,
@@ -1205,7 +1240,14 @@ async function cleanupDrafts(
 				unitOfMeasure: item.unit,
 				unitOfMeasureAr: item.unitAr,
 			})),
+			'I did not merge the drafts because at least one product is no longer orderable. The original drafts were left unchanged.',
 		)
+		if (insertFailure) {
+			return {
+				kept: drafts.map((draft) => draft.request_number),
+				message: insertFailure,
+			}
+		}
 		await deleteDraftIds(
 			supabase,
 			customerId,
