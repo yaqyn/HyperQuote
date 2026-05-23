@@ -1,7 +1,10 @@
 import { useNavigate } from '@tanstack/react-router'
 import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
-import type { MaterialListData } from '../../lib/chat-types'
+import {
+	type MaterialListData,
+	PORTAL_CHAT_OPEN_DRAFT_EVENT,
+} from '../../lib/chat-types'
 import { toArabicIndic } from '../../lib/localized-digits'
 
 interface MaterialListProps {
@@ -14,21 +17,38 @@ export function MaterialList({ data }: MaterialListProps) {
 	const isArabic = i18n.language === 'ar'
 	const title = isArabic ? 'مسودة المواد' : 'Draft materials'
 	const openLabel = isArabic ? 'افتح المسودة' : 'Open draft'
+	const editLabel = isArabic ? 'تعديل في الشات' : 'Edit in chat'
+
+	function editInChat() {
+		window.dispatchEvent(
+			new CustomEvent(PORTAL_CHAT_OPEN_DRAFT_EVENT, {
+				detail: { draftId: data.draftId },
+			}),
+		)
+	}
 
 	return (
 		<div className="mt-2 max-w-full border border-[var(--p-rule)] bg-[var(--p-surface-subtle)] px-3 py-3">
-			<div className="flex items-center justify-between gap-3">
+			<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
 				<p className="voice-mono text-[11px] uppercase text-[var(--p-text-muted)]">
 					{title}
 					{data.reference ? ` · ${data.reference}` : ''}
 				</p>
 				{data.editRoute ? (
-					<Button
-						onPress={() => navigate({ to: data.editRoute })}
-						className="min-h-8 shrink-0 rounded-md border border-[var(--color-primary)] px-2 text-[12px] font-semibold text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)]/5"
-					>
-						{openLabel}
-					</Button>
+					<div className="flex flex-wrap gap-2">
+						<Button
+							onPress={() => navigate({ to: data.editRoute })}
+							className="min-h-8 shrink-0 rounded-md border border-[var(--color-primary)] px-2 text-[12px] font-semibold text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)]/5"
+						>
+							{openLabel}
+						</Button>
+						<Button
+							onPress={editInChat}
+							className="min-h-8 shrink-0 rounded-md border border-[var(--p-border)] px-2 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+						>
+							{editLabel}
+						</Button>
+					</div>
 				) : null}
 			</div>
 			<ul className="mt-2 flex flex-col gap-1.5">

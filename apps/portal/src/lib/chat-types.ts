@@ -29,6 +29,7 @@ export interface StatusCardData {
 		name: string
 		nameAr?: string
 		notes?: string
+		orderable?: boolean
 		productId?: string
 		qty: number
 		unit: string

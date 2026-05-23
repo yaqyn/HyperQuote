@@ -28,6 +28,12 @@ import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { ActionButtonData } from './chat-types'
+import {
+	draftProductIntentTerms,
+	isOpenEndedCatalogSelectionRequest,
+	productIntentTerms,
+	productSearchTerm,
+} from './portal-catalog-intent'
 import { PORTAL_CHAT_COMMANDS } from './portal-chat-commands'
 import {
 	buildPortalCustomerAgentPrompt,
@@ -157,18 +163,17 @@ interface QuoteRequestItemRow {
 	sort_order: number
 	unit_of_measure: string
 	unit_of_measure_ar: string
-	products:
-		| Pick<
-				PortalAiProduct,
-				'category' | 'id' | 'image_urls' | 'name' | 'name_ar'
-		  >
-		| Array<
-				Pick<
-					PortalAiProduct,
-					'category' | 'id' | 'image_urls' | 'name' | 'name_ar'
-				>
-		  >
-		| null
+	products: QuoteRequestItemProduct | QuoteRequestItemProduct[] | null
+}
+
+interface QuoteRequestItemProduct {
+	availability_status: string
+	category: string
+	id: string
+	image_urls: string[] | null
+	is_active: boolean
+	name: string
+	name_ar: string | null
 }
 
 interface LinkedOrderRow {
@@ -225,6 +230,7 @@ interface DraftMaterialItem {
 	name: string
 	nameAr: string
 	notes?: string
+	orderable?: boolean
 	productId?: string
 	qty: number
 	unit: string
@@ -904,19 +910,20 @@ function profileCommandAnswer(
 	const profile = context.profile
 	const status = `${formatPlainStatus(profile.status)} (${formatPlainStatus(profile.tier)} tier)`
 	const creditLimit = formatCurrency(profile.credit_limit)
+	const notes = profileAccountNotes(context)
 	return [
 		'## Customer Profile',
 		'',
 		'| Field | Details |',
 		'| --- | --- |',
-		`| Company | ${profile.company_name} |`,
-		`| Primary contact | ${profile.contact_name} |`,
-		`| Phone | ${profile.phone} |`,
-		`| Email | ${profile.email || 'Not saved'} |`,
-		`| Account status | ${status} |`,
-		`| Credit limit | ${creditLimit} |`,
-		`| Payment history | ${formatPlainStatus(profile.payment_history)} |`,
-		`| Trade license | ${formatPlainStatus(profile.trade_license_status ?? 'not uploaded')} |`,
+		`| Company | ${markdownTableCell(profile.company_name)} |`,
+		`| Primary contact | ${markdownTableCell(profile.contact_name)} |`,
+		`| Phone | ${markdownTableCell(profile.phone)} |`,
+		`| Email | ${markdownTableCell(profile.email || 'Not saved')} |`,
+		`| Account status | ${markdownTableCell(status)} |`,
+		`| Credit limit | ${markdownTableCell(creditLimit)} |`,
+		`| Payment history | ${markdownTableCell(formatPlainStatus(profile.payment_history))} |`,
+		`| Trade license | ${markdownTableCell(formatPlainStatus(profile.trade_license_status ?? 'not uploaded'))} |`,
 		'',
 		'### Delivery Addresses',
 		defaultAddress
@@ -930,12 +937,40 @@ function profileCommandAnswer(
 		...(projects.length > 0
 			? projects.map((project) => `- ${project.name}`)
 			: ['- No active projects are saved.']),
+		'',
+		'### Account Notes',
+		...notes.map((note) => `- ${note}`),
 	].join('\n')
+}
+
+function profileAccountNotes(
+	context: Extract<PortalToolContext, { type: 'profile' }>,
+): string[] {
+	const notes: string[] = []
+	if ((context.profile.trade_license_status ?? 'not_uploaded') !== 'verified') {
+		notes.push('Trade license is not verified yet.')
+	}
+	if (context.profile.credit_limit <= 0) {
+		notes.push('Credit limit is not set.')
+	}
+	if (!context.addresses.some((address) => address.is_default)) {
+		notes.push('No default delivery address is saved.')
+	}
+	if (context.projects.length === 0) {
+		notes.push('No active projects are saved.')
+	}
+	return notes.length > 0
+		? notes
+		: ['Account basics look complete from the customer portal data.']
 }
 
 function formatAddress(address: CustomerAddressRow): string {
 	const label = address.label ? `${address.label}: ` : ''
 	return `${label}${address.street}, ${address.city}, ${address.governorate}`
+}
+
+function markdownTableCell(value: string): string {
+	return value.replace(/\|/g, '\\|').replace(/\n/g, ' ')
 }
 
 function formatCurrency(value: number): string {
@@ -1156,6 +1191,8 @@ async function loadCustomerOrders(
 					name,
 					name_ar,
 					category,
+					is_active,
+					availability_status,
 					image_urls
 				)
 			),
@@ -1272,9 +1309,10 @@ async function loadVisibleProductCatalog(
 async function findOrderableProductsForDraft(
 	supabase: AuthedSupabase,
 	userText: string,
+	searchText?: string,
 ): Promise<PortalAiProduct[]> {
 	const openEndedSelection = isOpenEndedCatalogSelectionRequest(userText)
-	const intentTerms = productIntentTerms(userText)
+	const intentTerms = draftProductIntentTerms(userText)
 	if (intentTerms.length > 0 || openEndedSelection) {
 		const builder = supabase
 			.from('products')
@@ -1303,7 +1341,9 @@ async function findOrderableProductsForDraft(
 		)
 	}
 
-	const query = openEndedSelection ? null : productSearchTerm(userText)
+	const query = openEndedSelection
+		? null
+		: productSearchTerm(searchText?.trim() || userText)
 	const limit = openEndedSelection ? OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE : 8
 	let builder = supabase
 		.from('products')
@@ -1341,7 +1381,11 @@ async function createDraftFromPlan(
 	const draftPlanText = route.searchQuery
 		? `${userText} ${route.searchQuery}`
 		: userText
-	const products = await findOrderableProductsForDraft(supabase, draftPlanText)
+	const products = await findOrderableProductsForDraft(
+		supabase,
+		draftPlanText,
+		route.searchQuery,
+	)
 	const items = buildDraftItemsFromPlan(draftPlanText, products)
 	if (items.length === 0) {
 		const visibleMatches = await findPublishedProducts(
@@ -2222,6 +2266,8 @@ async function loadQuoteRequestRows(
 					name,
 					name_ar,
 					category,
+					is_active,
+					availability_status,
 					image_urls
 				)
 			),
@@ -2316,11 +2362,25 @@ function toDraftMaterialItem(item: QuoteRequestItemRow): DraftMaterialItem {
 		name,
 		nameAr: item.product_name_ar || product?.name_ar || name,
 		notes: item.notes ?? undefined,
+		orderable:
+			Boolean(item.product_id) &&
+			!item.is_unmatched &&
+			isOrderableQuoteRequestProduct(product),
 		productId: item.product_id ?? undefined,
 		qty: item.quantity,
 		unit: item.unit_of_measure,
 		unitAr: item.unit_of_measure_ar || item.unit_of_measure,
 	}
+}
+
+function isOrderableQuoteRequestProduct(
+	product: QuoteRequestItemProduct | null,
+): boolean {
+	return Boolean(
+		product?.is_active &&
+			product.availability_status !== 'hidden' &&
+			product.availability_status !== 'out_of_stock',
+	)
 }
 
 function buildDraftItemsFromPlan(
@@ -2992,197 +3052,6 @@ function publicProductSearchFilter(search: string): string | null {
 	].join(',')
 }
 
-function productSearchTerm(userText: string): string {
-	if (isOpenEndedCatalogSelectionRequest(userText)) return ''
-	const normalized = normalizeForMatch(userText)
-	const knownTerms = [
-		['cement', 'cement'],
-		['اسمنت', 'cement'],
-		['أسمنت', 'cement'],
-		['rebar', 'steel'],
-		['steel', 'steel'],
-		['metal', 'steel'],
-		['metals', 'steel'],
-		['حديد', 'steel'],
-		['معدن', 'steel'],
-		['معادن', 'steel'],
-		['concrete', 'concrete'],
-		['sand', 'sand'],
-		['رمل', 'sand'],
-		['brick', 'brick'],
-		['طوب', 'brick'],
-		['tile', 'tile'],
-		['سيراميك', 'tile'],
-		['wood', 'wood'],
-		['timber', 'wood'],
-		['lumber', 'wood'],
-		['خشب', 'wood'],
-	] as const
-	for (const [needle, replacement] of knownTerms) {
-		if (normalized.includes(normalizeForMatch(needle))) return replacement
-	}
-	return userText.slice(0, 120)
-}
-
-function productIntentTerms(userText: string): string[] {
-	const normalized = normalizeForMatch(userText)
-	const terms = new Set(productPlanningTerms(userText))
-	const addTerms = (values: string[]) => {
-		for (const value of values) {
-			const normalizedValue = normalizeForMatch(value)
-			if (normalizedValue) terms.add(normalizedValue)
-		}
-	}
-	const synonymGroups = [
-		['wood', 'timber', 'lumber', 'plywood', 'board', 'خشب'],
-		['steel', 'rebar', 'metal', 'metals', 'حديد', 'معدن', 'معادن'],
-		['cement', 'opc', 'src', 'اسمنت', 'أسمنت'],
-		['concrete', 'خرسانة'],
-		['sand', 'aggregate', 'gravel', 'رمل', 'زلط'],
-		['brick', 'block', 'bricks', 'طوب'],
-		['tile', 'tiles', 'ceramic', 'سيراميك'],
-		['paint', 'coating', 'sealant', 'دهان', 'بويات'],
-	]
-	for (const group of synonymGroups) {
-		if (group.some((term) => normalized.includes(normalizeForMatch(term)))) {
-			addTerms(group)
-		}
-	}
-	const query = productSearchTerm(userText)
-	if (query) addTerms(query.split(/\s+/))
-	addTerms(
-		normalized
-			.split(' ')
-			.filter(
-				(token) => token.length > 2 && !PRODUCT_INTENT_STOP_WORDS.has(token),
-			)
-			.slice(0, 24),
-	)
-	return Array.from(terms)
-}
-
-const PRODUCT_INTENT_STOP_WORDS = new Set([
-	'about',
-	'add',
-	'available',
-	'catalog',
-	'catalogue',
-	'create',
-	'draft',
-	'for',
-	'from',
-	'items',
-	'make',
-	'material',
-	'materials',
-	'need',
-	'order',
-	'plan',
-	'please',
-	'product',
-	'products',
-	'quote',
-	'real',
-	'review',
-	'search',
-	'the',
-	'this',
-	'want',
-	'with',
-	'عايز',
-	'عايزه',
-	'محتاج',
-	'مواد',
-	'منتج',
-	'منتجات',
-	'متاح',
-	'مسودة',
-])
-
-function productPlanningTerms(userText: string): string[] {
-	const normalized = normalizeForMatch(userText)
-	const terms = new Set<string>()
-	const addTerms = (values: string[]) => {
-		for (const value of values) terms.add(normalizeForMatch(value))
-	}
-
-	if (/\b(tree\s*house|treehouse|wood|timber|lumber)\b/.test(normalized)) {
-		addTerms([
-			'wood',
-			'timber',
-			'lumber',
-			'plywood',
-			'board',
-			'roof',
-			'paint',
-			'sealant',
-			'screw',
-			'nail',
-			'bracket',
-			'ladder',
-			'خشب',
-			'دهان',
-			'مسامير',
-		])
-	}
-	if (/\b(roof|shed|house|room|villa|warehouse)\b/.test(normalized)) {
-		addTerms([
-			'cement',
-			'concrete',
-			'steel',
-			'rebar',
-			'brick',
-			'block',
-			'tile',
-			'insulation',
-			'roof',
-			'paint',
-			'اسمنت',
-			'خرسانة',
-			'حديد',
-			'طوب',
-		])
-	}
-	if (
-		/\b(floor|wall|foundation|deck|platform|stairs?|ladder)\b/.test(normalized)
-	) {
-		addTerms([
-			'cement',
-			'concrete',
-			'steel',
-			'rebar',
-			'aggregate',
-			'sand',
-			'tile',
-			'wood',
-			'اسمنت',
-			'رمل',
-			'حديد',
-		])
-	}
-	if (
-		/بيت|غرفة|اوضة|سقف|حائط|حيطة|جدار|ارضية|أرضية|سلم|منصة|فيلا|مخزن|خشب/.test(
-			userText,
-		)
-	) {
-		addTerms([
-			'خشب',
-			'اسمنت',
-			'حديد',
-			'طوب',
-			'خرسانة',
-			'رمل',
-			'دهان',
-			'wood',
-			'cement',
-			'steel',
-			'brick',
-		])
-	}
-
-	return Array.from(terms).filter(Boolean)
-}
-
 function rankProductsForPlanning(
 	products: PortalAiProduct[],
 	terms: string[],
@@ -3237,33 +3106,6 @@ function productAvailabilityRank(product: PortalAiProduct): number {
 	if (isCustomerVisibleAvailable(product)) return 0
 	if (product.availability_status === 'out_of_stock') return 2
 	return 3
-}
-
-function isOpenEndedCatalogSelectionRequest(userText: string): boolean {
-	const normalized = normalizeForMatch(userText)
-	const broadChoice =
-		/\b(random|any|surprise|sample|something|whatever)\b/.test(normalized) ||
-		/عشوائي|اي حاجه|اي حاجة/.test(userText)
-	const catalogChoice =
-		/\b(pick|choose|select|recommend|suggest|available|catalog|catalogue)\b/.test(
-			normalized,
-		) || /اختار|رشح|متاح|كتالوج/.test(userText)
-	return (
-		broadChoice ||
-		(catalogChoice && !hasSpecificCatalogMaterialTerm(normalized, userText))
-	)
-}
-
-function hasSpecificCatalogMaterialTerm(
-	normalizedText: string,
-	rawText: string,
-): boolean {
-	return (
-		/\b(cement|rebar|steel|metals?|concrete|sand|aggregate|bricks?|paints?|tiles?)\b/.test(
-			normalizedText,
-		) ||
-		/اسمنت|أسمنت|حديد|معدن|معادن|خرسانة|رمل|طوب|بويات|سيراميك/.test(rawText)
-	)
 }
 
 function deterministicProductSample(

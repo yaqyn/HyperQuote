@@ -56,7 +56,9 @@ export function StatusCard({ data }: StatusCardProps) {
 	const isDraft = data.type === 'draft' || data.status === 'draft'
 	const recordId = isDraft ? quoteRequestId : data.entityId
 	const canSubmitDraft =
-		isDraft && items.length > 0 && items.every((item) => item.productId)
+		isDraft &&
+		items.length > 0 &&
+		items.every((item) => item.productId && item.orderable !== false)
 	const visibleItems = items.slice(0, 5)
 	const hiddenItemCount = Math.max(0, items.length - visibleItems.length)
 	const amountLabel =
@@ -173,6 +175,7 @@ export function StatusCard({ data }: StatusCardProps) {
 							const quantity = isArabic
 								? toArabicIndic(String(item.qty))
 								: String(item.qty)
+							const unavailable = isDraft && item.orderable === false
 							return (
 								<li
 									key={`${quoteRequestId}:${item.productId ?? item.name}:${item.qty}:${item.unit}:${item.notes ?? ''}`}
@@ -180,6 +183,11 @@ export function StatusCard({ data }: StatusCardProps) {
 								>
 									<span className="min-w-0 break-words font-medium">
 										{name}
+										{unavailable ? (
+											<span className="ms-2 text-[11px] font-semibold text-[var(--p-error)]">
+												{t('orders.unavailable', 'Unavailable')}
+											</span>
+										) : null}
 									</span>
 									<span className="voice-mono shrink-0 text-[12px] text-[var(--p-text-muted)]">
 										{quantity} {unit}
