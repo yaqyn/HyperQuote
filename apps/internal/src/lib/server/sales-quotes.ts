@@ -12,6 +12,10 @@ import {
 import { getInternalSupabaseClient } from './_supabase'
 import { verifyEmployeeCredential } from './employee-credentials'
 
+type InternalSupabaseClient = Awaited<
+	ReturnType<typeof getInternalSupabaseClient>
+>['client']
+
 // Re-exported so every sales UI that already imports from here keeps working
 // while the canonical definitions live in inventory.ts.
 export { requestInventoryPriceUpdate } from './inventory'
@@ -47,6 +51,7 @@ const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 const SALES_APPROVER_ROLES = new Set(['admin', 'ceo', 'sales'])
+const SALES_QUOTE_ADDRESS_LABEL = 'Sales quote site'
 
 function isUuid(value: string): boolean {
 	return UUID_RE.test(value)
@@ -204,15 +209,22 @@ interface SupabaseQuoteBuilderCustomerRow {
 }
 
 interface SupabaseQuoteBuilderAddressRow {
+	id?: string
+	label?: string | null
 	street: string
 	area: string | null
 	city: string
 	governorate: string
 	landmark: string | null
+	is_default?: boolean | null
+	latitude?: number | string | null
+	longitude?: number | string | null
 }
 
 interface SupabaseQuoteBuilderRequestRow {
 	id: string
+	customer_id: string | null
+	delivery_address_id: string | null
 	status: string
 	delivery_date: string | null
 	notes: string | null
@@ -251,6 +263,8 @@ interface SupabaseSavedQuoteNotes {
 	notes?: string
 	deliveryAddress?: string | null
 	deliveryCity?: string | null
+	deliveryLatitude?: number | null
+	deliveryLongitude?: number | null
 	deliveryDate?: string | null
 	deliveryWindow?: string | null
 	paymentTerms?: string | null
@@ -361,6 +375,8 @@ function parseSavedQuoteNotes(value: string | null): SupabaseSavedQuoteNotes {
 			notes: metadata.specialInstructions,
 			deliveryAddress: metadata.deliveryAddress,
 			deliveryCity: metadata.deliveryCity,
+			deliveryLatitude: metadata.deliveryLatitude,
+			deliveryLongitude: metadata.deliveryLongitude,
 			deliveryDate: metadata.deliveryDate,
 			deliveryWindow: metadata.deliveryWindow,
 			paymentTerms: metadata.paymentTerms,
@@ -380,10 +396,13 @@ function parseSavedQuoteMetadataObject(
 		const next = parsed[key]
 		return typeof next === 'string' ? next : null
 	}
+	const numberOrNull = (key: string) => nullableCoordinate(parsed[key])
 	return {
 		specialInstructions: stringOrNull('specialInstructions') ?? undefined,
 		deliveryAddress: stringOrNull('deliveryAddress'),
 		deliveryCity: stringOrNull('deliveryCity'),
+		deliveryLatitude: numberOrNull('deliveryLatitude'),
+		deliveryLongitude: numberOrNull('deliveryLongitude'),
 		deliveryDate: stringOrNull('deliveryDate'),
 		deliveryWindow: stringOrNull('deliveryWindow'),
 		paymentTerms: stringOrNull('paymentTerms'),
@@ -402,10 +421,13 @@ function parseSavedQuoteMetadata(
 			const next = parsed[key]
 			return typeof next === 'string' ? next : null
 		}
+		const numberOrNull = (key: string) => nullableCoordinate(parsed[key])
 		return {
 			specialInstructions: stringOrNull('specialInstructions') ?? undefined,
 			deliveryAddress: stringOrNull('deliveryAddress'),
 			deliveryCity: stringOrNull('deliveryCity'),
+			deliveryLatitude: numberOrNull('deliveryLatitude'),
+			deliveryLongitude: numberOrNull('deliveryLongitude'),
 			deliveryDate: stringOrNull('deliveryDate'),
 			deliveryWindow: stringOrNull('deliveryWindow'),
 			paymentTerms: stringOrNull('paymentTerms'),
@@ -430,6 +452,152 @@ function formatSupabaseAddress(
 	]
 		.filter((part): part is string => Boolean(part?.trim()))
 		.join(', ')
+}
+
+function nullableCoordinate(value: unknown): number | null {
+	if (value === null || value === undefined || value === '') return null
+	const numeric = typeof value === 'number' ? value : Number(value)
+	return Number.isFinite(numeric) ? numeric : null
+}
+
+function normalizeLatitude(value: unknown): number | null {
+	const numeric = nullableCoordinate(value)
+	return numeric !== null && numeric >= -90 && numeric <= 90 ? numeric : null
+}
+
+function normalizeLongitude(value: unknown): number | null {
+	const numeric = nullableCoordinate(value)
+	return numeric !== null && numeric >= -180 && numeric <= 180 ? numeric : null
+}
+
+function cleanDeliveryAddressText(
+	value: string | null | undefined,
+): string | null {
+	const trimmed = value?.replace(/\s+/g, ' ').trim()
+	return trimmed && trimmed.length >= 4 ? trimmed : null
+}
+
+function cleanOptionalText(value: string | null | undefined): string | null {
+	const trimmed = value?.replace(/\s+/g, ' ').trim()
+	return trimmed ? trimmed : null
+}
+
+function parseSalesDeliveryAddress(
+	value: string,
+	cityOverride: string | null | undefined,
+): Pick<
+	SupabaseQuoteBuilderAddressRow,
+	'area' | 'city' | 'governorate' | 'landmark' | 'street'
+> {
+	const parts = value
+		.split(',')
+		.map((part) => part.trim())
+		.filter(Boolean)
+	const locationParts = parts.filter((part) => {
+		const normalized = part.toLowerCase()
+		return normalized !== 'egypt' && normalized !== 'مصر'
+	})
+	const streetParts = locationParts.slice(
+		0,
+		Math.max(1, Math.min(2, locationParts.length - 2)),
+	)
+	const street = cleanOptionalText(streetParts.join(', ')) ?? value
+	const inferredCity =
+		locationParts.length >= 3 ? locationParts.at(-2) : locationParts.at(-1)
+	const city =
+		cleanOptionalText(cityOverride) ??
+		cleanOptionalText(inferredCity) ??
+		'Unspecified'
+	const governorate =
+		cleanOptionalText(locationParts.at(-1)) ?? cleanOptionalText(city) ?? city
+	const area =
+		locationParts.length > 3 ? cleanOptionalText(locationParts.at(-3)) : null
+	const landmark =
+		locationParts.length > 4
+			? cleanOptionalText(locationParts.slice(2, -3).join(', '))
+			: null
+
+	return {
+		street,
+		area,
+		city,
+		governorate,
+		landmark,
+	}
+}
+
+interface QuoteDeliveryAddressTarget {
+	customer_id: string | null
+	delivery_address_id: string | null
+	id: string
+}
+
+interface DeliveryAddressSelection {
+	address: string | null | undefined
+	city: string | null | undefined
+	latitude: number | null | undefined
+	longitude: number | null | undefined
+}
+
+async function persistQuoteDeliveryAddress(
+	client: InternalSupabaseClient,
+	quoteRequest: QuoteDeliveryAddressTarget,
+	selection: DeliveryAddressSelection,
+): Promise<string | null> {
+	const addressText = cleanDeliveryAddressText(selection.address)
+	if (!quoteRequest.customer_id || !addressText) {
+		return quoteRequest.delivery_address_id
+	}
+
+	const addressFields = parseSalesDeliveryAddress(addressText, selection.city)
+	const latitude = normalizeLatitude(selection.latitude)
+	const longitude = normalizeLongitude(selection.longitude)
+	const addressPatch = {
+		...addressFields,
+		latitude,
+		longitude,
+	}
+
+	const linkedAddressId = quoteRequest.delivery_address_id
+	if (linkedAddressId) {
+		const { data: linkedAddress, error: linkedAddressError } = await client
+			.from('customer_addresses')
+			.select('id, label, customer_id')
+			.eq('id', linkedAddressId)
+			.eq('customer_id', quoteRequest.customer_id)
+			.maybeSingle()
+		if (linkedAddressError) throw new Error(linkedAddressError.message)
+
+		if (linkedAddress?.label === SALES_QUOTE_ADDRESS_LABEL) {
+			const { error: updateAddressError } = await client
+				.from('customer_addresses')
+				.update(addressPatch)
+				.eq('id', linkedAddress.id)
+				.eq('customer_id', quoteRequest.customer_id)
+			if (updateAddressError) throw new Error(updateAddressError.message)
+			return linkedAddress.id
+		}
+	}
+
+	const { data: insertedAddress, error: insertAddressError } = await client
+		.from('customer_addresses')
+		.insert({
+			...addressPatch,
+			customer_id: quoteRequest.customer_id,
+			is_default: false,
+			label: SALES_QUOTE_ADDRESS_LABEL,
+		})
+		.select('id')
+		.single()
+	if (insertAddressError) throw new Error(insertAddressError.message)
+
+	const { error: requestUpdateError } = await client
+		.from('quote_requests')
+		.update({ delivery_address_id: insertedAddress.id })
+		.eq('id', quoteRequest.id)
+	if (requestUpdateError) throw new Error(requestUpdateError.message)
+
+	return insertedAddress.id
 }
 
 function buildSupabaseSuggestedProductFromSavedItem(
@@ -559,6 +727,8 @@ async function buildSupabaseQuoteBuilderData(
 		.from('quote_requests')
 		.select(`
 			id,
+			customer_id,
+			delivery_address_id,
 			status,
 			delivery_date,
 			notes,
@@ -570,11 +740,16 @@ async function buildSupabaseQuoteBuilderData(
 				email
 			),
 			customer_addresses (
+				id,
+				label,
 				street,
 				area,
 				city,
 				governorate,
-				landmark
+				landmark,
+				is_default,
+				latitude,
+				longitude
 			),
 			quote_request_items (
 				id,
@@ -661,6 +836,11 @@ async function buildSupabaseQuoteBuilderData(
 		},
 		deliveryAddress: savedNotes.deliveryAddress ?? deliveryAddress,
 		deliveryCity: savedNotes.deliveryCity ?? address?.city ?? '',
+		deliveryAddressOverride: Boolean(savedNotes.deliveryAddress),
+		deliveryLatitude:
+			savedNotes.deliveryLatitude ?? normalizeLatitude(address?.latitude),
+		deliveryLongitude:
+			savedNotes.deliveryLongitude ?? normalizeLongitude(address?.longitude),
 		deliveryDate: savedNotes.deliveryDate ?? request.delivery_date ?? '',
 		deliveryWindow: savedNotes.deliveryWindow ?? '',
 		specialInstructions: savedNotes.notes ?? request.notes ?? '',
@@ -707,12 +887,16 @@ async function buildSupabaseManualCustomerQuoteData(
 			phone,
 			email,
 			customer_addresses (
+				id,
+				label,
 				street,
 				area,
 				city,
 				governorate,
 				landmark,
-				is_default
+				is_default,
+				latitude,
+				longitude
 			)
 		`)
 		.eq('id', customerId)
@@ -745,6 +929,9 @@ async function buildSupabaseManualCustomerQuoteData(
 		},
 		deliveryAddress,
 		deliveryCity: address?.city ?? '',
+		deliveryAddressOverride: false,
+		deliveryLatitude: normalizeLatitude(address?.latitude),
+		deliveryLongitude: normalizeLongitude(address?.longitude),
 		deliveryDate: '',
 		deliveryWindow: '',
 		specialInstructions: '',
@@ -792,6 +979,9 @@ async function buildEmptyManualQuoteData(
 		},
 		deliveryAddress: '',
 		deliveryCity: '',
+		deliveryAddressOverride: false,
+		deliveryLatitude: null,
+		deliveryLongitude: null,
 		deliveryDate: '',
 		deliveryWindow: '',
 		specialInstructions: '',
@@ -855,7 +1045,10 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
 			// from the source RFQ / customer. Null = leave the DB row alone,
 			// empty string = explicit clear.
 			deliveryAddress: z.string().nullable().optional(),
+			deliveryAddressOverride: z.boolean().optional(),
 			deliveryCity: z.string().nullable().optional(),
+			deliveryLatitude: z.number().min(-90).max(90).nullable().optional(),
+			deliveryLongitude: z.number().min(-180).max(180).nullable().optional(),
 			deliveryDate: z.string().nullable().optional(),
 			deliveryWindow: z.string().nullable().optional(),
 			specialInstructions: z.string().nullable().optional(),
@@ -869,18 +1062,38 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
 		const savedQuoteVersion = decodeSupabaseQuoteVersionId(data.quoteId)
 		const supabaseQuoteRequestId =
 			savedQuoteVersion?.quoteRequestId ?? data.rfqId
+		const deliveryAddressOverride = data.deliveryAddressOverride === true
+		const draftDeliveryAddress = deliveryAddressOverride
+			? (data.deliveryAddress ?? null)
+			: null
+		const draftDeliveryLatitude = deliveryAddressOverride
+			? (data.deliveryLatitude ?? null)
+			: null
+		const draftDeliveryLongitude = deliveryAddressOverride
+			? (data.deliveryLongitude ?? null)
+			: null
 		if (isUuid(supabaseQuoteRequestId)) {
 			const { data: quoteRequest, error: requestError } = await auth.client
 				.from('quote_requests')
-				.select('id')
+				.select('id, customer_id, delivery_address_id')
 				.eq('id', supabaseQuoteRequestId)
 				.maybeSingle()
 			if (requestError) throw new Error(requestError.message)
 			if (quoteRequest) {
+				if (deliveryAddressOverride) {
+					await persistQuoteDeliveryAddress(auth.client, quoteRequest, {
+						address: draftDeliveryAddress,
+						city: data.deliveryCity,
+						latitude: draftDeliveryLatitude,
+						longitude: draftDeliveryLongitude,
+					})
+				}
 				const draftNotes = JSON.stringify({
 					quoteVersionId: savedQuoteVersion?.quoteVersionId ?? null,
-					deliveryAddress: data.deliveryAddress ?? null,
+					deliveryAddress: draftDeliveryAddress,
 					deliveryCity: data.deliveryCity ?? null,
+					deliveryLatitude: draftDeliveryLatitude,
+					deliveryLongitude: draftDeliveryLongitude,
 					deliveryDate: data.deliveryDate ?? null,
 					deliveryWindow: data.deliveryWindow ?? null,
 					specialInstructions: data.specialInstructions ?? null,
@@ -951,9 +1164,20 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
 			if (manualError) throw new Error(manualError.message)
 			if (!createdRequest?.id) throw new Error('manual_order_not_returned')
 
+			if (deliveryAddressOverride) {
+				await persistQuoteDeliveryAddress(auth.client, createdRequest, {
+					address: draftDeliveryAddress,
+					city: data.deliveryCity,
+					latitude: draftDeliveryLatitude,
+					longitude: draftDeliveryLongitude,
+				})
+			}
+
 			const draftNotes = JSON.stringify({
-				deliveryAddress: data.deliveryAddress ?? null,
+				deliveryAddress: draftDeliveryAddress,
 				deliveryCity: data.deliveryCity ?? null,
+				deliveryLatitude: draftDeliveryLatitude,
+				deliveryLongitude: draftDeliveryLongitude,
 				deliveryDate: data.deliveryDate ?? null,
 				deliveryWindow: data.deliveryWindow ?? null,
 				specialInstructions: data.specialInstructions ?? null,

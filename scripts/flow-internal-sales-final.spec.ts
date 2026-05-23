@@ -765,6 +765,7 @@ test('manual sales add order attaches existing customers, creates provisional cu
 	}
 
 	const existingOrder = await expectManualSalesOrder(service, {
+		address: `Flow existing delivery ${existingRunId}, New Cairo, Cairo`,
 		customerId: existingCustomer.id,
 		employeeId: salesEmployeeId,
 		notes: existingNotes,
@@ -809,6 +810,7 @@ test('manual sales add order attaches existing customers, creates provisional cu
 	expect(provisionalCustomer.created_by_employee_id).toBe(salesEmployeeId)
 
 	const provisionalOrder = await expectManualSalesOrder(service, {
+		address: `Flow provisional delivery ${newRunId}, Nasr City, Cairo`,
 		customerId: provisionalCustomer.id,
 		employeeId: salesEmployeeId,
 		notes: newNotes,
@@ -1597,6 +1599,7 @@ async function expectConfirmedOrder(
 async function expectManualSalesOrder(
 	service: ReturnType<typeof createLocalServiceClient>,
 	expected: {
+		address: string
 		customerId: string
 		employeeId: string
 		notes: string
@@ -1621,7 +1624,7 @@ async function expectManualSalesOrder(
 	const { data: quoteRequestData, error: quoteRequestError } = await service
 		.from('quote_requests')
 		.select(
-			'id, request_number, customer_id, status, notes, assigned_employee_id, assigned_at, submitted_at',
+			'id, request_number, customer_id, delivery_address_id, status, notes, assigned_employee_id, assigned_at, submitted_at',
 		)
 		.eq('notes', expected.notes)
 		.single()
@@ -1634,6 +1637,7 @@ async function expectManualSalesOrder(
 		assigned_at: string | null
 		assigned_employee_id: string | null
 		customer_id: string
+		delivery_address_id: string | null
 		id: string
 		notes: string | null
 		request_number: string
@@ -1646,6 +1650,32 @@ async function expectManualSalesOrder(
 	expect(quoteRequest.assigned_employee_id).toBe(expected.employeeId)
 	expect(isIsoTimestamp(quoteRequest.assigned_at)).toBe(true)
 	expect(isIsoTimestamp(quoteRequest.submitted_at)).toBe(true)
+	if (!quoteRequest.delivery_address_id) {
+		throw new Error('Manual quote request delivery address missing')
+	}
+
+	const { data: deliveryAddress, error: deliveryAddressError } = await service
+		.from('customer_addresses')
+		.select('street, area, city, governorate, label, is_default')
+		.eq('id', quoteRequest.delivery_address_id)
+		.eq('customer_id', expected.customerId)
+		.single()
+	if (deliveryAddressError || !deliveryAddress) {
+		throw new Error(
+			deliveryAddressError?.message ?? 'Manual delivery address missing',
+		)
+	}
+	const persistedAddress = [
+		deliveryAddress.street,
+		deliveryAddress.area,
+		deliveryAddress.city,
+		deliveryAddress.governorate,
+	]
+		.filter(Boolean)
+		.join(', ')
+	expect(persistedAddress).toContain(expected.address.split(',')[0])
+	expect(deliveryAddress.label).toBe('Sales quote site')
+	expect(deliveryAddress.is_default).toBe(false)
 
 	const { data: items, error: itemError } = await service
 		.from('quote_request_items')
@@ -1685,6 +1715,9 @@ async function expectManualSalesOrder(
 	expect(String(quoteNotes.specialInstructions)).toBe(expected.notes)
 	expect(isIsoDate(String(quoteNotes.deliveryDate))).toBe(true)
 	expect(String(quoteNotes.deliveryAddress)).toContain('Flow')
+	expect(String(quoteNotes.deliveryAddress)).toContain(
+		expected.address.split(',')[0],
+	)
 	const quoteItems = Array.isArray(quoteNotes.items) ? quoteNotes.items : []
 	expect(quoteItems).toHaveLength(1)
 	const quoteItem = expectRecord(quoteItems[0], 'manual quote version item')

@@ -90,6 +90,11 @@ interface QuoteBuilderViewProps {
 	onSave?: () => void
 }
 
+interface DeliveryCoordinates {
+	latitude: number
+	longitude: number
+}
+
 interface InventoryPriceUpdateContact {
 	available: boolean
 	name: string
@@ -3001,6 +3006,11 @@ export function QuoteBuilderView({
 	const [deliveryAddress, setDeliveryAddress] = useState(
 		initialDeliveryAddress ?? '',
 	)
+	const [deliveryCoordinates, setDeliveryCoordinates] =
+		useState<DeliveryCoordinates | null>(null)
+	const [deliveryAddressOverride, setDeliveryAddressOverride] = useState(
+		Boolean(initialDeliveryAddress?.trim()),
+	)
 	const deliverySectionRef = useRef<HTMLDivElement | null>(null)
 	const approvalSectionRef = useRef<HTMLDivElement | null>(null)
 	const deliveryAttentionTimerRef = useRef<ReturnType<
@@ -3244,6 +3254,21 @@ export function QuoteBuilderView({
 	)
 	const [validationErrors, setValidationErrors] = useState<string[]>([])
 
+	const handleManualDeliveryAddressChange = useCallback((address: string) => {
+		setDeliveryAddress(address)
+		setDeliveryCoordinates(null)
+		setDeliveryAddressOverride(true)
+	}, [])
+
+	const handleMappedDeliveryAddressChange = useCallback(
+		(address: string, coordinates?: DeliveryCoordinates | null) => {
+			setDeliveryAddress(address)
+			if (coordinates !== undefined) setDeliveryCoordinates(coordinates)
+			setDeliveryAddressOverride(true)
+		},
+		[],
+	)
+
 	const goToStep = (step: number) => {
 		setValidationErrors([])
 		setCurrentStep(step)
@@ -3388,6 +3413,15 @@ export function QuoteBuilderView({
 				if (!isNewCustomer && data.deliveryAddress) {
 					setDeliveryAddress(data.deliveryAddress)
 				}
+				setDeliveryAddressOverride(Boolean(data.deliveryAddressOverride))
+				if (data.deliveryLatitude != null && data.deliveryLongitude != null) {
+					setDeliveryCoordinates({
+						latitude: data.deliveryLatitude,
+						longitude: data.deliveryLongitude,
+					})
+				} else {
+					setDeliveryCoordinates(null)
+				}
 				// Rehydrate any saved delivery/terms overrides from the draft row
 				// so the rep picks up where they left off without retyping.
 				const draftDefaults = methods.getValues()
@@ -3495,7 +3529,16 @@ export function QuoteBuilderView({
 						marginPercent: item.marginPercent,
 						sellPrice: item.sellPrice,
 					})),
-					deliveryAddress: deliveryAddress || null,
+					deliveryAddress: deliveryAddressOverride
+						? deliveryAddress || null
+						: null,
+					deliveryAddressOverride,
+					deliveryLatitude: deliveryAddressOverride
+						? (deliveryCoordinates?.latitude ?? null)
+						: null,
+					deliveryLongitude: deliveryAddressOverride
+						? (deliveryCoordinates?.longitude ?? null)
+						: null,
 					deliveryDate: values.deliveryDate || null,
 					deliveryWindow: values.deliveryWindow || null,
 					specialInstructions: values.specialInstructions || null,
@@ -3512,7 +3555,15 @@ export function QuoteBuilderView({
 			console.error('Save failed:', err)
 			return null
 		}
-	}, [methods, quoteId, rfqId, persistedCustomerId, deliveryAddress])
+	}, [
+		methods,
+		quoteId,
+		rfqId,
+		persistedCustomerId,
+		deliveryAddress,
+		deliveryAddressOverride,
+		deliveryCoordinates,
+	])
 
 	// Auto-save every 30 seconds — upserts draft via rfqId
 	const handleAutoSave = useCallback(async () => {
@@ -3539,7 +3590,16 @@ export function QuoteBuilderView({
 					// Override fields — sent as-is when the user has edited them.
 					// Null means "no explicit value yet", which the server treats as
 					// a fallback to the RFQ's field at render time.
-					deliveryAddress: deliveryAddress || null,
+					deliveryAddress: deliveryAddressOverride
+						? deliveryAddress || null
+						: null,
+					deliveryAddressOverride,
+					deliveryLatitude: deliveryAddressOverride
+						? (deliveryCoordinates?.latitude ?? null)
+						: null,
+					deliveryLongitude: deliveryAddressOverride
+						? (deliveryCoordinates?.longitude ?? null)
+						: null,
 					deliveryDate: values.deliveryDate || null,
 					deliveryWindow: values.deliveryWindow || null,
 					specialInstructions: values.specialInstructions || null,
@@ -3564,6 +3624,8 @@ export function QuoteBuilderView({
 		rfqId,
 		persistedCustomerId,
 		deliveryAddress,
+		deliveryAddressOverride,
+		deliveryCoordinates,
 		queryClient,
 	])
 
@@ -4203,7 +4265,7 @@ export function QuoteBuilderView({
 										<div className="mt-4 border-t-2 border-[var(--color-border)]">
 											<DeliveryTerms
 												deliveryAddress={deliveryAddress}
-												onAddressChange={setDeliveryAddress}
+												onAddressChange={handleManualDeliveryAddressChange}
 												highlightDate={isDeliveryDateAttentionVisible}
 												datePickerOpenSignal={deliveryDatePickerOpenSignal}
 												onAddressPress={() => {
@@ -4678,7 +4740,7 @@ export function QuoteBuilderView({
 						>
 							<DeliveryMap
 								address={deliveryAddress}
-								onAddressChange={setDeliveryAddress}
+								onAddressChange={handleMappedDeliveryAddressChange}
 								onDeliveryConfirmed={() => setMapOpen(false)}
 							/>
 						</Suspense>

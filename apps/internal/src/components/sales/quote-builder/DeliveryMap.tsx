@@ -86,7 +86,10 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
 
 interface DeliveryMapProps {
 	address: string
-	onAddressChange: (address: string) => void
+	onAddressChange: (
+		address: string,
+		coordinates?: { latitude: number; longitude: number } | null,
+	) => void
 	onDeliveryConfirmed?: () => void
 }
 
@@ -180,7 +183,10 @@ export function DeliveryMap({
 		setMarkerPos(clickedPoint)
 		setSearchInput(reverseResult)
 		setSearchError(null)
-		onAddressChange(reverseResult)
+		onAddressChange(reverseResult, {
+			latitude: clickedPoint.lat,
+			longitude: clickedPoint.lng,
+		})
 		setClickedPoint(null)
 		setReverseResult(null)
 		onDeliveryConfirmed?.()
@@ -229,7 +235,10 @@ export function DeliveryMap({
 			const nextAddress = coords
 				? await reverseGeocode(coords.lat, coords.lng)
 				: q
-			onAddressChange(nextAddress)
+			onAddressChange(
+				nextAddress,
+				coords ? { latitude: coords.lat, longitude: coords.lng } : null,
+			)
 			setIsReversing(false)
 			onDeliveryConfirmed?.()
 		},
