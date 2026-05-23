@@ -57,6 +57,15 @@ describe('portal AI customer routing', () => {
 				.action,
 		).toBe('create_draft_from_plan')
 		expect(
+			fallbackPortalCustomerRoute('make me a mixed catalog order').action,
+		).toBe('create_draft_from_plan')
+		expect(fallbackPortalCustomerRoute('make me a random order').action).toBe(
+			'create_draft_from_plan',
+		)
+		expect(fallbackPortalCustomerRoute('show metal options').action).toBe(
+			'product_search',
+		)
+		expect(
 			fallbackPortalCustomerRoute('3ayez draft quote for cement and rebar')
 				.action,
 		).toBe('create_draft_from_plan')
@@ -126,6 +135,12 @@ describe('portal AI customer routing', () => {
 				'hello',
 			).action,
 		).toBe('chat')
+		expect(
+			parsePortalCustomerRoute(
+				'{"action":"create_draft_from_plan","search_query":"mixed catalog"}',
+				'make me a random order',
+			).action,
+		).toBe('create_draft_from_plan')
 		expect(parsePortalCustomerRoute('not json', 'find cement').action).toBe(
 			'product_search',
 		)

@@ -42,12 +42,17 @@ import {
 	type DeliveryInfo,
 	getCustomerDeliveryTracking,
 } from './server/deliveries'
-import { insertQuoteRequestItems } from './server/quote-request-items'
+import {
+	insertQuoteRequestItems,
+	QUOTE_REQUEST_ITEM_PRODUCT_NOT_ORDERABLE,
+} from './server/quote-request-items'
 
 const MAX_CHAT_MESSAGES = 30
 const MAX_CHAT_MESSAGE_CHARACTERS = 4000
 const MODEL_CHAT_MESSAGES = 10
 const MODEL_CHAT_MESSAGE_CHARACTERS = 2000
+const OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE = 24
+const OPEN_ENDED_DRAFT_ITEM_COUNT = 3
 
 const portalChatInput = z.object({
 	messages: z
@@ -481,7 +486,7 @@ function draftWriteToolResult(
 ): PortalToolResult {
 	return {
 		context: { type: 'draft_write', operation, result },
-		invalidatesOrders: true,
+		invalidatesOrders: draftWriteChanged(result),
 		readEntities: [
 			'customer_quote_requests',
 			'customer_orders',
@@ -491,6 +496,15 @@ function draftWriteToolResult(
 		writeEntityId: result.draftId ?? null,
 		writeEntityType: result.draftId ? 'quote_request' : null,
 	}
+}
+
+function draftWriteChanged(result: DraftWriteContext): boolean {
+	return Boolean(
+		result.draftId ||
+			result.deleted?.length ||
+			result.merged?.length ||
+			result.renamed?.length,
+	)
 }
 
 async function renderPortalCustomerResponse(
@@ -882,18 +896,67 @@ async function findPublishedProducts(
 	return (data ?? []) as PortalAiProduct[]
 }
 
+async function findOrderableProductsForDraft(
+	supabase: AuthedSupabase,
+	userText: string,
+): Promise<PortalAiProduct[]> {
+	const openEndedSelection = isOpenEndedCatalogSelectionRequest(userText)
+	const query = openEndedSelection ? null : productSearchTerm(userText)
+	const limit = openEndedSelection ? OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE : 8
+	let builder = supabase
+		.from('products')
+		.select(
+			'id, sku, slug, name, name_ar, category, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar',
+		)
+		.eq('is_active', true)
+		.neq('availability_status', 'hidden')
+		.neq('availability_status', 'out_of_stock')
+		.order('name', { ascending: true })
+		.limit(limit)
+	if (query) {
+		const filter = publicProductSearchFilter(query)
+		if (filter) builder = builder.or(filter)
+	}
+
+	const { data, error } = await builder
+	if (error) throw new Error(error.message)
+	const products = (data ?? []) as PortalAiProduct[]
+	return openEndedSelection
+		? deterministicProductSample(
+				products,
+				userText,
+				OPEN_ENDED_DRAFT_ITEM_COUNT,
+			)
+		: products
+}
+
 async function createDraftFromPlan(
 	supabase: AuthedSupabase,
 	customerId: string,
 	route: PortalCustomerRoute,
 	userText: string,
 ): Promise<DraftWriteContext> {
-	const products = await findPublishedProducts(
-		supabase,
-		route.searchQuery || userText,
-		5,
-	)
-	const items = buildDraftItemsFromPlan(userText, products)
+	const draftPlanText = route.searchQuery
+		? `${userText} ${route.searchQuery}`
+		: userText
+	const products = await findOrderableProductsForDraft(supabase, draftPlanText)
+	const items = buildDraftItemsFromPlan(draftPlanText, products)
+	if (items.length === 0) {
+		const visibleMatches = await findPublishedProducts(
+			supabase,
+			draftPlanText,
+			5,
+		)
+		return {
+			message:
+				visibleMatches.length > 0
+					? `I found catalog matches, but none are orderable right now: ${visibleMatches.map((product) => `${product.name} (${product.availability_status.replace(/_/g, ' ')})`).join(', ')}. I did not create a draft.`
+					: 'I could not find an available catalog product to add. I did not create a draft.',
+		}
+	}
+	if (items.some((item) => !item.productId)) {
+		throw new Error('Portal AI draft creation requires real catalog products')
+	}
 	const draftName =
 		route.draftName ??
 		defaultDraftName(userText, detectPortalAiLocale(userText))
@@ -913,21 +976,42 @@ async function createDraftFromPlan(
 	if (error || !draft)
 		throw new Error(error?.message ?? 'Failed to create draft')
 
-	await insertQuoteRequestItems(
-		supabase,
-		draft.id,
-		items.map((item, index) => ({
-			customerDescription: item.name,
-			isUnmatched: item.productId === undefined,
-			matchConfidence: item.productId ? 0.85 : undefined,
-			notes: item.notes ?? 'Added by Portal AI for customer review',
-			productId: item.productId,
-			quantity: item.qty,
-			sortOrder: index,
-			unitOfMeasure: item.unit,
-			unitOfMeasureAr: item.unitAr,
-		})),
-	)
+	try {
+		await insertQuoteRequestItems(
+			supabase,
+			draft.id,
+			items.map((item, index) => ({
+				customerDescription: item.name,
+				isUnmatched: false,
+				matchConfidence: 0.85,
+				notes: item.notes ?? 'Added by Portal AI for customer review',
+				productId: item.productId,
+				quantity: item.qty,
+				sortOrder: index,
+				unitOfMeasure: item.unit,
+				unitOfMeasureAr: item.unitAr,
+			})),
+			{ requireOrderableProductLinks: true },
+		)
+	} catch (error) {
+		let cleanedDraft = true
+		try {
+			await deleteDraftIds(supabase, customerId, [draft.id])
+		} catch {
+			cleanedDraft = false
+		}
+		if (
+			cleanedDraft &&
+			error instanceof Error &&
+			error.message === QUOTE_REQUEST_ITEM_PRODUCT_NOT_ORDERABLE
+		) {
+			return {
+				message:
+					'The catalog changed before I could save those products, so I did not create a draft. Search the catalog again and I can draft from the current available products.',
+			}
+		}
+		throw error
+	}
 
 	await recordDraftSavedActivity(supabase, draft.id, {
 		item_count: items.length,
@@ -1390,6 +1474,18 @@ function buildDraftItemsFromPlan(
 	products: PortalAiProduct[],
 ): DraftMaterialItem[] {
 	const quantity = parseRequestedQuantity(userText) ?? 1
+	if (products.length === 0) return []
+	if (isOpenEndedCatalogSelectionRequest(userText)) {
+		return products.slice(0, OPEN_ENDED_DRAFT_ITEM_COUNT).map((product) => ({
+			name: product.name,
+			nameAr: product.name_ar ?? product.name,
+			notes: 'Selected from available catalog products by Portal AI',
+			productId: product.id,
+			qty: quantity,
+			unit: product.unit_of_measure,
+			unitAr: product.unit_of_measure_ar,
+		}))
+	}
 	const normalizedText = normalizeForMatch(userText)
 	const matches = products.filter((product) => {
 		const tokens = [
@@ -1405,7 +1501,7 @@ function buildDraftItemsFromPlan(
 	})
 	const selected =
 		matches.length > 0 ? matches.slice(0, 4) : products.slice(0, 1)
-	const matchedItems = selected.map((product) => ({
+	return selected.map((product) => ({
 		name: product.name,
 		nameAr: product.name_ar ?? product.name,
 		notes: 'Matched from published catalog by Portal AI for customer review',
@@ -1414,20 +1510,6 @@ function buildDraftItemsFromPlan(
 		unit: product.unit_of_measure,
 		unitAr: product.unit_of_measure_ar,
 	}))
-
-	if (matchedItems.length > 0) return matchedItems
-
-	return [
-		{
-			name: materialDescriptionFromText(userText),
-			nameAr: materialDescriptionFromText(userText),
-			notes:
-				'Unmatched estimated material from Portal AI plan. Please review before submitting.',
-			qty: quantity,
-			unit: 'unit',
-			unitAr: 'وحدة',
-		},
-	]
 }
 
 function findOrderByReference(
@@ -1728,6 +1810,7 @@ function publicProductSearchFilter(search: string): string | null {
 }
 
 function productSearchTerm(userText: string): string {
+	if (isOpenEndedCatalogSelectionRequest(userText)) return ''
 	const normalized = normalizeForMatch(userText)
 	const knownTerms = [
 		['cement', 'cement'],
@@ -1735,7 +1818,11 @@ function productSearchTerm(userText: string): string {
 		['أسمنت', 'cement'],
 		['rebar', 'steel'],
 		['steel', 'steel'],
+		['metal', 'steel'],
+		['metals', 'steel'],
 		['حديد', 'steel'],
+		['معدن', 'steel'],
+		['معادن', 'steel'],
 		['concrete', 'concrete'],
 		['sand', 'sand'],
 		['رمل', 'sand'],
@@ -1748,6 +1835,56 @@ function productSearchTerm(userText: string): string {
 		if (normalized.includes(normalizeForMatch(needle))) return replacement
 	}
 	return userText.slice(0, 120)
+}
+
+function isOpenEndedCatalogSelectionRequest(userText: string): boolean {
+	const normalized = normalizeForMatch(userText)
+	const broadChoice =
+		/\b(random|any|surprise|sample|something|whatever)\b/.test(normalized) ||
+		/عشوائي|اي حاجه|اي حاجة/.test(userText)
+	const catalogChoice =
+		/\b(pick|choose|select|recommend|suggest|available|catalog|catalogue)\b/.test(
+			normalized,
+		) || /اختار|رشح|متاح|كتالوج/.test(userText)
+	return (
+		broadChoice ||
+		(catalogChoice && !hasSpecificCatalogMaterialTerm(normalized, userText))
+	)
+}
+
+function hasSpecificCatalogMaterialTerm(
+	normalizedText: string,
+	rawText: string,
+): boolean {
+	return (
+		/\b(cement|rebar|steel|metals?|concrete|sand|aggregate|bricks?|paints?|tiles?)\b/.test(
+			normalizedText,
+		) ||
+		/اسمنت|أسمنت|حديد|معدن|معادن|خرسانة|رمل|طوب|بويات|سيراميك/.test(rawText)
+	)
+}
+
+function deterministicProductSample(
+	products: PortalAiProduct[],
+	seedText: string,
+	count: number,
+): PortalAiProduct[] {
+	return products
+		.slice()
+		.sort((left, right) => {
+			return (
+				hashText(`${seedText}:${left.id}`) - hashText(`${seedText}:${right.id}`)
+			)
+		})
+		.slice(0, count)
+}
+
+function hashText(value: string): number {
+	let hash = 0
+	for (let index = 0; index < value.length; index += 1) {
+		hash = (hash * 31 + value.charCodeAt(index)) >>> 0
+	}
+	return hash
 }
 
 function parseRequestedQuantity(userText: string): number | null {
@@ -1770,6 +1907,11 @@ function materialDescriptionFromText(userText: string): string {
 }
 
 function defaultDraftName(userText: string, locale: 'ar' | 'en'): string {
+	if (isOpenEndedCatalogSelectionRequest(userText)) {
+		return locale === 'ar'
+			? 'مسودة اختيار من الكتالوج'
+			: 'Catalog selection draft'
+	}
 	if (locale === 'ar') return 'مسودة من ليون'
 	const firstMaterial = materialDescriptionFromText(userText)
 		.split(/[,.]/)[0]

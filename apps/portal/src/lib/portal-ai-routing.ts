@@ -46,7 +46,7 @@ Use customer_orders for lists/status summaries covering drafts, saved, submitted
 Use order_detail for one specific quote request/order or for "latest order" detail.
 Use delivery_tracking for customer-visible driver, truck, ETA, route, or location questions for the customer's own delivery.
 Use product_search for published product/catalog/material search or price-range questions.
-Use create_draft_from_plan only for creating a draft quote request or material plan. Unmatched materials are allowed for customer review.
+Use create_draft_from_plan when the customer asks you to prepare an editable quote/order/material draft from the catalog, including open-ended planning requests. Draft write tools must be grounded in active catalog products; uncertain materials should be discussed instead of invented as draft lines.
 Use duplicate_order_to_draft only when the user asks to copy or repeat a past order/quote into a new draft.
 Use update_draft_metadata only for draft rename, notes, project, delivery date, or metadata changes.
 Use cleanup_drafts for merging drafts, removing empty drafts, or deleting all drafts after an explicit cleanup/delete-drafts request.
@@ -342,16 +342,24 @@ function isDraftMetadataRequest(lower: string, raw: string): boolean {
 }
 
 function isDraftCreationRequest(lower: string, raw: string): boolean {
-	return (
-		(/\b(create|make|start|build|prepare|draft|quote request|material list|plan)\b/.test(
-			lower,
-		) &&
-			/\b(draft|quote|rfq|request|materials?|cement|rebar|steel|concrete|sand|aggregate|brick|paint|tiles?)\b/.test(
-				lower,
-			)) ||
-		/مسودة|عرض\s+سعر|طلب\s+عرض|مواد|اسمنت|أسمنت|حديد|خرسانة|رمل|طوب|بويات|سيراميك/.test(
+	const arabicDraftAction =
+		/مسودة|عرض\s+سعر|طلب\s+عرض|اعمل|جهز|حضّر|حضر|انشئ|اختار|رشح/.test(raw)
+	const arabicCatalogTarget =
+		/مواد|منتجات|كتالوج|اسمنت|أسمنت|حديد|معدن|معادن|خرسانة|رمل|طوب|بويات|سيراميك/.test(
 			raw,
 		)
+	return (
+		(/\b(create|make|start|build|prepare|generate|draft|quote request|material list|plan)\b/.test(
+			lower,
+		) &&
+			/\b(draft|quote|rfq|request|order|materials?|products?|catalog|catalogue|cement|rebar|steel|metals?|concrete|sand|aggregate|brick|paint|tiles?)\b/.test(
+				lower,
+			)) ||
+		(/\b(need|want|add|choose|pick|select|recommend|suggest)\b/.test(lower) &&
+			/\b(materials?|products?|cement|rebar|steel|metals?|concrete|sand|aggregate|brick|paint|tiles?)\b/.test(
+				lower,
+			)) ||
+		(arabicDraftAction && arabicCatalogTarget)
 	)
 }
 
@@ -396,14 +404,16 @@ function isProductSearchRequest(lower: string, raw: string): boolean {
 		return false
 	}
 	return (
-		/\b(product|products|catalog|catalogue|market|material|materials|cement|rebar|steel|concrete|sand|aggregate|brick|paint|tiles?)\b/.test(
+		/\b(product|products|catalog|catalogue|market|material|materials|cement|rebar|steel|metals?|concrete|sand|aggregate|brick|paint|tiles?)\b/.test(
 			lower,
 		) ||
 		(/\b(price|prices)\b/.test(lower) &&
-			/\b(cement|rebar|steel|concrete|sand|aggregate|brick|paint|tiles?)\b/.test(
+			/\b(cement|rebar|steel|metals?|concrete|sand|aggregate|brick|paint|tiles?)\b/.test(
 				lower,
 			)) ||
-		/منتج|منتجات|كتالوج|السوق|مواد|اسمنت|أسمنت|حديد|خرسانة|رمل|طوب/.test(raw)
+		/منتج|منتجات|كتالوج|السوق|مواد|اسمنت|أسمنت|حديد|معدن|معادن|خرسانة|رمل|طوب/.test(
+			raw,
+		)
 	)
 }
 

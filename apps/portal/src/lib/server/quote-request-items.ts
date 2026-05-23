@@ -14,6 +14,13 @@ export const quoteRequestItemInputSchema = z.object({
 })
 
 type QuoteRequestItemInput = z.infer<typeof quoteRequestItemInputSchema>
+interface InsertQuoteRequestItemsOptions {
+	requireOrderableProductLinks?: boolean
+}
+
+export const QUOTE_REQUEST_ITEM_PRODUCT_NOT_ORDERABLE =
+	'quote_request_items_product_not_orderable'
+
 const productOrderabilityRowSchema = z.object({
 	availability_status: z.string(),
 	id: z.string().uuid(),
@@ -48,6 +55,19 @@ export function toQuoteRequestItemRows(
 			is_unmatched: isUnmatched,
 		}
 	})
+}
+
+export function assertAllProductLinksOrderable(
+	items: QuoteRequestItemInput[],
+	orderableProductIds: ReadonlySet<string>,
+) {
+	const hasMissingOrStaleProduct = items.some(
+		(item) =>
+			item.productId === undefined || !orderableProductIds.has(item.productId),
+	)
+	if (hasMissingOrStaleProduct) {
+		throw new Error(QUOTE_REQUEST_ITEM_PRODUCT_NOT_ORDERABLE)
+	}
 }
 
 async function getOrderableProductIds(
@@ -87,9 +107,13 @@ export async function insertQuoteRequestItems(
 	supabase: AuthedSupabase,
 	quoteRequestId: string,
 	items: QuoteRequestItemInput[],
+	options: InsertQuoteRequestItemsOptions = {},
 ) {
 	if (items.length === 0) return
 	const orderableProductIds = await getOrderableProductIds(supabase, items)
+	if (options.requireOrderableProductLinks) {
+		assertAllProductLinksOrderable(items, orderableProductIds)
+	}
 
 	const { error } = await supabase
 		.from('quote_request_items')
