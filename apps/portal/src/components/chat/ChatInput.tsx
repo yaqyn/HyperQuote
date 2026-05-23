@@ -1,13 +1,21 @@
-import { ArrowUp, Mic, Square } from 'lucide-react'
+import { ArrowUp, Command, Mic, Square } from 'lucide-react'
 import { AnimatePresence, cubicBezier, motion } from 'motion/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { usePortalChat } from '../../hooks/usePortalChat'
+import { PORTAL_CHAT_COMMANDS } from '../../lib/portal-chat-commands'
 
 const SMOOTH_EASE = cubicBezier(0.22, 1, 0.36, 1)
 
 const MAX_LINES = 5
 const LINE_HEIGHT = 20
+
+function autoResizeChatTextarea(ta: HTMLTextAreaElement) {
+	ta.style.height = 'auto'
+	const maxHeight = LINE_HEIGHT * MAX_LINES + 8
+	ta.style.height = `${Math.min(ta.scrollHeight, maxHeight)}px`
+	ta.style.overflowY = ta.scrollHeight > maxHeight ? 'auto' : 'hidden'
+}
 
 // Minimal Web Speech API shape — the spec isn't in lib.dom across all TS
 // targets, so we narrow just what we use.
@@ -36,11 +44,15 @@ interface ChatInputProps {
 	chat: ReturnType<typeof usePortalChat>
 }
 
+type PortalChatCommand = (typeof PORTAL_CHAT_COMMANDS)[number]
+
 export function ChatInput({ chat }: ChatInputProps) {
 	const { t, i18n } = useTranslation('portal')
 	const isAr = i18n.language === 'ar'
 	const [value, setValue] = useState('')
 	const [listening, setListening] = useState(false)
+	const [commandMenuDismissed, setCommandMenuDismissed] = useState(false)
+	const [activeCommandIndex, setActiveCommandIndex] = useState(0)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 	const analyserRef = useRef<AnalyserNode | null>(null)
 	const streamRef = useRef<MediaStream | null>(null)
@@ -51,13 +63,31 @@ export function ChatInput({ chat }: ChatInputProps) {
 	const [transcript, setTranscript] = useState('')
 	const transcriptRef = useRef('')
 	const accumulatedRef = useRef('')
-
-	function autoResize(ta: HTMLTextAreaElement) {
-		ta.style.height = 'auto'
-		const maxHeight = LINE_HEIGHT * MAX_LINES + 8
-		ta.style.height = `${Math.min(ta.scrollHeight, maxHeight)}px`
-		ta.style.overflowY = ta.scrollHeight > maxHeight ? 'auto' : 'hidden'
-	}
+	const trimmedLeadingValue = value.trimStart()
+	const commandToken = trimmedLeadingValue.split(/\s+/)[0] ?? ''
+	const commandNeedle = commandToken.startsWith('/')
+		? commandToken.slice(1).toLowerCase()
+		: ''
+	const canShowCommandMenu =
+		trimmedLeadingValue.startsWith('/') &&
+		!/\s/.test(trimmedLeadingValue) &&
+		!commandMenuDismissed
+	const commandSuggestions = useMemo(() => {
+		if (!canShowCommandMenu) return []
+		if (!commandNeedle) return PORTAL_CHAT_COMMANDS
+		return PORTAL_CHAT_COMMANDS.filter((command) => {
+			const haystack = [
+				command.name,
+				command.title,
+				command.description,
+				command.scope,
+			]
+				.join(' ')
+				.toLowerCase()
+			return haystack.includes(commandNeedle)
+		})
+	}, [canShowCommandMenu, commandNeedle])
+	const commandMenuOpen = commandSuggestions.length > 0
 
 	const handleSubmit = useCallback(() => {
 		if (!value.trim() || chat.isLoading) return
@@ -73,14 +103,68 @@ export function ChatInput({ chat }: ChatInputProps) {
 		})
 	}, [value, chat])
 
+	const selectCommand = useCallback((command: PortalChatCommand) => {
+		const nextValue =
+			command.name === '/products' ? `${command.name} ` : command.name
+		setValue(nextValue)
+		setCommandMenuDismissed(false)
+		requestAnimationFrame(() => {
+			if (!textareaRef.current) return
+			textareaRef.current.focus()
+			autoResizeChatTextarea(textareaRef.current)
+		})
+	}, [])
+
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+			if (commandMenuOpen) {
+				if (e.key === 'ArrowDown') {
+					e.preventDefault()
+					setActiveCommandIndex((index) =>
+						Math.min(index + 1, commandSuggestions.length - 1),
+					)
+					return
+				}
+				if (e.key === 'ArrowUp') {
+					e.preventDefault()
+					setActiveCommandIndex((index) => Math.max(index - 1, 0))
+					return
+				}
+				if (e.key === 'Enter' && !e.shiftKey) {
+					e.preventDefault()
+					const command = commandSuggestions[activeCommandIndex]
+					if (command?.name === trimmedLeadingValue) {
+						handleSubmit()
+					} else if (command) {
+						selectCommand(command)
+					}
+					return
+				}
+				if (e.key === 'Tab') {
+					e.preventDefault()
+					const command = commandSuggestions[activeCommandIndex]
+					if (command) selectCommand(command)
+					return
+				}
+				if (e.key === 'Escape') {
+					e.preventDefault()
+					setCommandMenuDismissed(true)
+					return
+				}
+			}
 			if (e.key === 'Enter' && !e.shiftKey) {
 				e.preventDefault()
 				handleSubmit()
 			}
 		},
-		[handleSubmit],
+		[
+			activeCommandIndex,
+			commandMenuOpen,
+			commandSuggestions,
+			handleSubmit,
+			selectCommand,
+			trimmedLeadingValue,
+		],
 	)
 
 	// Mic — start/stop listening with audio analyser
@@ -235,7 +319,9 @@ export function ChatInput({ chat }: ChatInputProps) {
 							value={value}
 							onChange={(e) => {
 								setValue(e.target.value)
-								autoResize(e.target)
+								setCommandMenuDismissed(false)
+								setActiveCommandIndex(0)
+								autoResizeChatTextarea(e.target)
 							}}
 							onKeyDown={handleKeyDown}
 							rows={1}
@@ -251,6 +337,15 @@ export function ChatInput({ chat }: ChatInputProps) {
 								overflowY: 'hidden',
 							}}
 						/>
+						<AnimatePresence>
+							{commandMenuOpen && (
+								<CommandMenu
+									activeIndex={activeCommandIndex}
+									commands={commandSuggestions}
+									onSelect={selectCommand}
+								/>
+							)}
+						</AnimatePresence>
 
 						<div className="flex shrink-0 items-center gap-1 pb-0.5">
 							<button
@@ -287,6 +382,71 @@ export function ChatInput({ chat }: ChatInputProps) {
 				</div>
 			</div>
 		</>
+	)
+}
+
+function CommandMenu({
+	activeIndex,
+	commands,
+	onSelect,
+}: {
+	activeIndex: number
+	commands: readonly PortalChatCommand[]
+	onSelect: (command: PortalChatCommand) => void
+}) {
+	return (
+		<motion.div
+			initial={{ opacity: 0, y: 8, scale: 0.98 }}
+			animate={{ opacity: 1, y: 0, scale: 1 }}
+			exit={{ opacity: 0, y: 6, scale: 0.98 }}
+			transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+			className="absolute inset-x-0 bottom-full z-30 mb-3 overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] shadow-2xl"
+			role="listbox"
+			aria-label="Chat commands"
+		>
+			<div className="flex items-center gap-2 border-b border-[var(--p-rule)] px-3 py-2">
+				<Command
+					size={14}
+					strokeWidth={1.8}
+					className="text-[var(--p-text-muted)]"
+				/>
+				<span className="voice-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-text-muted)]">
+					Commands
+				</span>
+			</div>
+			<div className="max-h-[280px] overflow-y-auto p-1.5">
+				{commands.map((command, index) => {
+					const active = index === activeIndex
+					return (
+						<button
+							key={command.name}
+							type="button"
+							role="option"
+							aria-selected={active}
+							onMouseDown={(event) => {
+								event.preventDefault()
+								onSelect(command)
+							}}
+							className={`grid w-full grid-cols-[minmax(92px,auto)_minmax(0,1fr)] gap-3 rounded-lg px-2.5 py-2 text-start transition-colors ${
+								active ? 'bg-[var(--p-hover)]' : 'hover:bg-[var(--p-hover)]'
+							}`}
+						>
+							<span className="voice-mono pt-0.5 text-[12px] font-semibold text-[var(--p-text)]">
+								{command.name}
+							</span>
+							<span className="min-w-0">
+								<span className="block truncate text-[13px] font-semibold text-[var(--p-text)]">
+									{command.title}
+								</span>
+								<span className="mt-0.5 block text-[12px] leading-4 text-[var(--p-text-muted)]">
+									{command.description}
+								</span>
+							</span>
+						</button>
+					)
+				})}
+			</div>
+		</motion.div>
 	)
 }
 

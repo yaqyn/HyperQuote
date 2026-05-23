@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
 	isLocalPortalChatCommand,
+	PORTAL_CHAT_COMMANDS,
 	parsePortalChatCommand,
 } from './portal-chat-commands'
 import {
@@ -37,6 +38,11 @@ describe('portal customer AI agent', () => {
 			args: 'cement',
 			name: '/products',
 		})
+		expect(parsePortalChatCommand('/drafts')?.name).toBe('/drafts')
+		expect(PORTAL_CHAT_COMMANDS.every((command) => command.title)).toBe(true)
+		expect(PORTAL_CHAT_COMMANDS.every((command) => command.description)).toBe(
+			true,
+		)
 		expect(isLocalPortalChatCommand('/clear')).toBe(true)
 		expect(routePortalChatCommand('/products')).toMatchObject({
 			action: 'product_search',

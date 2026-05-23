@@ -3,42 +3,50 @@ export const PORTAL_CHAT_COMMANDS = [
 		description: 'Start a clean chat page without contacting the server.',
 		name: '/clear',
 		scope: 'local',
+		title: 'Clear chat',
 	},
 	{
-		description: 'List visible catalog products with optional search terms.',
+		description: 'List visible catalog products, with optional search terms.',
 		name: '/products',
 		scope: 'server',
+		title: 'Products',
 	},
 	{
 		description: 'List customer-owned quote requests and orders.',
 		name: '/orders',
 		scope: 'server',
+		title: 'Orders',
 	},
 	{
 		description: 'List editable customer-owned drafts.',
 		name: '/drafts',
 		scope: 'server',
+		title: 'Drafts',
 	},
 	{
 		description: 'Show the latest customer-owned quote request or order.',
 		name: '/latest-order',
 		scope: 'server',
+		title: 'Latest order',
 	},
 	{
 		description: 'Start a clean chat page without contacting the server.',
 		name: '/new',
 		scope: 'local',
+		title: 'New chat',
 	},
 	{
 		description: 'Delete all editable customer-owned drafts.',
 		name: '/clear-all-drafts',
 		scope: 'server',
+		title: 'Clear all drafts',
 	},
 	{
 		description:
 			'Show the signed-in customer profile, addresses, and projects.',
 		name: '/profile',
 		scope: 'server',
+		title: 'Profile',
 	},
 ] as const
 
