@@ -73,7 +73,7 @@ Tool rules:
 - order_detail: one specific quote request/order or latest order detail.
 - delivery_tracking: customer-visible driver, truck, ETA, route, or location for the customer's own delivery.
 - product_search: catalog/material search and project planning. Use the supplied catalog snapshot; ask before writing a project plan to a draft.
-- create_draft_from_plan: only explicit draft-create/catalog-selection requests. The server will add only real currently Available catalog product IDs.
+- create_draft_from_plan: only explicit draft-create/catalog-selection requests. The server will add only real currently Available catalog product IDs. Include draft_notes when useful: a concise customer-facing project/material note, not a transcript label.
 - duplicate_order_to_draft, update_draft_metadata, cleanup_drafts, delete_draft: draft-only, customer-scoped edits.
 - refuse: submit/place/confirm order requests, cross-customer data, internal finance, supplier costs/margins, employee data, secrets, or driver-only operational data outside the customer's own delivery tracking.
 

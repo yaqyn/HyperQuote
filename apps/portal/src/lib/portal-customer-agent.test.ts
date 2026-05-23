@@ -258,6 +258,24 @@ describe('portal customer AI agent', () => {
 		).toBe('chat')
 	})
 
+	it('accepts concise customer-facing draft notes from draft-write routes', () => {
+		const route = parsePortalCustomerToolRequest(
+			JSON.stringify({
+				draft_notes:
+					'Tree-house material starter draft. Review dimensions before submitting.',
+				search_query: 'tree-house materials',
+				tool: 'create_draft_from_plan',
+			}),
+			'PLEASE MAKE THE DRAFT NOW',
+		)
+
+		expect(route).toMatchObject({
+			action: 'create_draft_from_plan',
+			draftNotes:
+				'Tree-house material starter draft. Review dimensions before submitting.',
+		})
+	})
+
 	it('supplies binary customer catalog status in the agent prompt', () => {
 		const prompt = buildPortalCustomerAgentPrompt({
 			catalogComplete: true,

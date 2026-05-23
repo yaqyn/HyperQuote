@@ -21,12 +21,26 @@ export interface ProductCardData {
 }
 
 export interface StatusCardData {
+	amount: number | null
 	entityType: 'order' | 'quote'
 	entityId: string
 	displayNumber: string
+	items: {
+		name: string
+		nameAr?: string
+		notes?: string
+		productId?: string
+		qty: number
+		unit: string
+		unitAr?: string
+	}[]
+	linkedOrderId?: string | null
+	quoteRequestId: string
+	requestReference: string
 	status: string
 	statusColor: 'green' | 'yellow' | 'red'
 	timeline: { label: string; date: string; done: boolean }[]
+	type: 'draft' | 'submitted' | 'confirmed'
 }
 
 export interface ActionButtonData {
@@ -88,6 +102,8 @@ export type RichContent =
 	| { type: 'delivery_tracking'; data: DeliveryTrackingData }
 	| { type: 'draft_cleanup_result'; data: DraftCleanupResultData }
 	| { type: 'disclaimer'; data: DisclaimerData }
+
+export const PORTAL_CHAT_OPEN_DRAFT_EVENT = 'portal:chat-open-draft'
 
 // ============================================================================
 // Chat Message Types

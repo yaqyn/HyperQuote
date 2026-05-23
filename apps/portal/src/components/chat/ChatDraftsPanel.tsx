@@ -24,6 +24,7 @@ import {
 } from 'motion/react'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { PORTAL_CHAT_OPEN_DRAFT_EVENT } from '../../lib/chat-types'
 import { getMarketProducts, type MarketProduct } from '../../lib/server/market'
 import { deleteOrder, getAllCustomerOrders } from '../../lib/server/orders'
 import {
@@ -285,6 +286,7 @@ export function ChatDraftsPanel({
 	const [editor, setEditor] = useState<DraftEditorState | null>(null)
 	const [productMenuOpen, setProductMenuOpen] = useState(false)
 	const [productSearch, setProductSearch] = useState('')
+	const [requestedDraftId, setRequestedDraftId] = useState<string | null>(null)
 	const [submittedReference, setSubmittedReference] = useState<string | null>(
 		null,
 	)
@@ -412,6 +414,37 @@ export function ChatDraftsPanel({
 		setActiveDraftKey(firstDraft.id)
 		setEditor(createEditorFromOrder(firstDraft))
 	}, [activeDraftKey, savedDrafts])
+
+	useEffect(() => {
+		function handleOpenDraft(event: Event) {
+			const draftId = (event as CustomEvent<{ draftId?: string }>).detail
+				?.draftId
+			if (!draftId) return
+			setRequestedDraftId(draftId)
+		}
+
+		window.addEventListener(PORTAL_CHAT_OPEN_DRAFT_EVENT, handleOpenDraft)
+		return () => {
+			window.removeEventListener(PORTAL_CHAT_OPEN_DRAFT_EVENT, handleOpenDraft)
+		}
+	}, [])
+
+	useEffect(() => {
+		if (!requestedDraftId) return
+		const draft = savedDrafts.find(
+			(candidate) => candidate.id === requestedDraftId,
+		)
+		if (!draft) return
+		setActiveDraftKey(draft.id)
+		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
+		setConfirmDeleteId(null)
+		setDraftMenuOpen(false)
+		setEditor(createEditorFromOrder(draft))
+		setProductSearch('')
+		setSubmitError(null)
+		setRequestedDraftId(null)
+	}, [requestedDraftId, savedDrafts])
 
 	useEffect(() => {
 		if (!actionsMenuOpen && !draftMenuOpen && !productMenuOpen) return

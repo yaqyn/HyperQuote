@@ -836,7 +836,7 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 			}
 			break
 		case 'orders':
-			for (const order of result.context.orders.slice(0, 3)) {
+			for (const order of result.context.orders.slice(0, 8)) {
 				events.push(statusCardEvent(order))
 			}
 			break
@@ -1149,6 +1149,9 @@ async function createDraftFromPlan(
 	const draftName =
 		route.draftName ??
 		defaultDraftName(userText, detectPortalAiLocale(userText))
+	const draftNotes =
+		route.draftNotes ??
+		draftNotesFromPlan(draftPlanText, items, detectPortalAiLocale(userText))
 
 	const { data: draft, error } = await supabase
 		.from('quote_requests')
@@ -1156,7 +1159,7 @@ async function createDraftFromPlan(
 			attachment_urls: [],
 			customer_id: customerId,
 			draft_name: draftName,
-			notes: `Portal AI draft from chat: ${userText.slice(0, 180)}`,
+			notes: draftNotes,
 			status: 'draft',
 			urgency: 'standard',
 		})
@@ -1707,7 +1710,7 @@ function buildDraftItemsFromPlan(
 		return products.slice(0, OPEN_ENDED_DRAFT_ITEM_COUNT).map((product) => ({
 			name: product.name,
 			nameAr: product.name_ar ?? product.name,
-			notes: 'Selected from available catalog products by Portal AI',
+			notes: 'Selected from available catalog products for review',
 			productId: product.id,
 			qty: quantity,
 			unit: product.unit_of_measure,
@@ -1732,7 +1735,7 @@ function buildDraftItemsFromPlan(
 	return selected.map((product) => ({
 		name: product.name,
 		nameAr: product.name_ar ?? product.name,
-		notes: 'Matched from published catalog by Portal AI for customer review',
+		notes: 'Catalog match for customer review',
 		productId: product.id,
 		qty: quantity,
 		unit: product.unit_of_measure,
@@ -1793,9 +1796,11 @@ function statusCardEvent(order: CustomerOrderSummary): StreamChunk {
 	const delivered = order.status === 'delivered'
 	const active = [
 		'submitted',
+		'assigned',
 		'confirmed',
 		'order_confirmed',
 		'being_prepared',
+		'warehouse_loading',
 		'out_for_delivery',
 	].includes(order.status)
 	return {
@@ -1805,9 +1810,14 @@ function statusCardEvent(order: CustomerOrderSummary): StreamChunk {
 		value: {
 			type: 'status_card',
 			data: {
+				amount: order.amount,
 				displayNumber: order.reference,
 				entityId: order.linkedOrderId ?? order.id,
 				entityType: order.linkedOrderId ? 'order' : 'quote',
+				items: order.items,
+				linkedOrderId: order.linkedOrderId,
+				quoteRequestId: order.id,
+				requestReference: order.requestReference,
 				status: order.status.replace(/_/g, ' '),
 				statusColor: delivered ? 'green' : active ? 'yellow' : 'red',
 				timeline: [
@@ -1823,6 +1833,7 @@ function statusCardEvent(order: CustomerOrderSummary): StreamChunk {
 						label: 'Delivered',
 					},
 				],
+				type: order.type,
 			},
 		},
 	}
@@ -2393,6 +2404,37 @@ function defaultDraftName(userText: string, locale: 'ar' | 'en'): string {
 	return firstMaterial
 		? `Draft: ${firstMaterial.slice(0, 80)}`
 		: 'Portal AI draft'
+}
+
+function draftNotesFromPlan(
+	userText: string,
+	items: DraftMaterialItem[],
+	locale: 'ar' | 'en',
+): string {
+	const itemSummary =
+		items
+			.slice(0, 4)
+			.map((item) => {
+				const name = locale === 'ar' ? item.nameAr : item.name
+				const unit = locale === 'ar' ? item.unitAr : item.unit
+				return `${item.qty} ${unit} ${name}`
+			})
+			.join(', ') || 'selected catalog materials'
+	const moreItems =
+		items.length > 4 ? `, plus ${items.length - 4} more item(s)` : ''
+	const normalized = normalizeForMatch(userText)
+	const project =
+		/\btree\s*house|treehouse\b/.test(normalized) || /بيت\s+شجر/.test(userText)
+			? locale === 'ar'
+				? 'مشروع بيت الشجر'
+				: 'the tree-house project'
+			: locale === 'ar'
+				? 'المشروع'
+				: 'the project'
+	if (locale === 'ar') {
+		return `اختار ليون ${itemSummary}${moreItems} من الكتالوج المتاح لـ${project}. راجع المقاسات والكميات قبل الإرسال.`
+	}
+	return `Lyon selected ${itemSummary}${moreItems} from the available catalog for ${project}. Review dimensions and quantities before submitting.`
 }
 
 function inferredDraftNameFromText(userText: string): string | null {

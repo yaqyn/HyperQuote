@@ -1,8 +1,9 @@
 import { ArrowLeft, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePortalChat } from '../../hooks/usePortalChat'
+import { PORTAL_CHAT_OPEN_DRAFT_EVENT } from '../../lib/chat-types'
 import { PortalTitleRow } from '../shell/PortalTitleRow'
 import { ChatDraftsPanel } from './ChatDraftsPanel'
 import { ChatInput } from './ChatInput'
@@ -26,6 +27,17 @@ export function ChatView({ locale }: ChatViewProps) {
 
 	const isArabic = locale === 'ar'
 	const newPageLabel = t('chat.newPage', 'New page')
+
+	useEffect(() => {
+		function handleOpenDraft() {
+			setDraftPanelOpen(true)
+		}
+
+		window.addEventListener(PORTAL_CHAT_OPEN_DRAFT_EVENT, handleOpenDraft)
+		return () => {
+			window.removeEventListener(PORTAL_CHAT_OPEN_DRAFT_EVENT, handleOpenDraft)
+		}
+	}, [])
 
 	return (
 		<div className="office-paper relative grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
