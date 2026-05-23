@@ -80,5 +80,6 @@ describe('delivery location copy', () => {
 			'2026-05-23 20:23 UTC',
 		)
 		expect(formatDeliveryTimestamp('pending')).toBe('pending')
+		expect(formatDeliveryTimestamp(null)).toBe('Unavailable')
 	})
 })

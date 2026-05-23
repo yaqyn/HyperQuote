@@ -1,4 +1,5 @@
 import {
+	getQuoteCartFingerprint,
 	type QuoteCartItem,
 	type RemoteQuoteCartSnapshot,
 	sanitizeQuoteCartSnapshot,
@@ -115,7 +116,24 @@ async function loadCustomerQuoteCart(
 		...snapshot,
 		source: 'portal',
 	})
-	return { ...snapshot, ...orderableSnapshot }
+	const sanitizedSnapshot = { ...snapshot, ...orderableSnapshot }
+	if (cartSnapshotChanged(snapshot, sanitizedSnapshot)) {
+		const { data: purgedData, error: purgeError } = await supabase
+			.from('customer_quote_carts')
+			.update({
+				global_note: sanitizedSnapshot.globalNote,
+				items: sanitizedSnapshot.items,
+				source: 'portal',
+				version: snapshot.version + 1,
+			})
+			.eq('customer_id', customerId)
+			.select('items, global_note, updated_at, version')
+			.single()
+		if (purgeError || !purgedData)
+			throw purgeError ?? new Error('Cart purge failed')
+		return cartRowToSnapshot(purgedData as CartRow)
+	}
+	return sanitizedSnapshot
 }
 
 async function saveCustomerQuoteCart(
@@ -207,4 +225,14 @@ function cartRowToSnapshot(row: CartRow): RemoteQuoteCartSnapshot {
 		updatedAt: row.updated_at,
 		version: row.version ?? 1,
 	}
+}
+
+function cartSnapshotChanged(
+	before: Pick<RemoteQuoteCartSnapshot, 'globalNote' | 'items'>,
+	after: Pick<RemoteQuoteCartSnapshot, 'globalNote' | 'items'>,
+): boolean {
+	return (
+		getQuoteCartFingerprint(before.items, before.globalNote) !==
+		getQuoteCartFingerprint(after.items, after.globalNote)
+	)
 }

@@ -28,6 +28,11 @@ import {
 	parsePortalChatCommand,
 	portalChatCommandPaletteGroups,
 } from '../lib/portal-chat-commands'
+import {
+	assistantMessageIdFromChunks,
+	extractPortalRichContent,
+	portalChatErrorChunks,
+} from '../lib/portal-chat-stream'
 import { useChatStore } from '../stores/chat'
 import { useDraftQuoteStore } from '../stores/draft-quote'
 import { usePortalStore } from '../stores/portal'
@@ -84,24 +89,6 @@ async function* arrayToAsyncIterable(
 	}
 }
 
-/**
- * Extract rich content from CUSTOM events in stream chunks.
- */
-function extractRichContent(chunks: StreamChunk[]): RichContent[] {
-	const rich: RichContent[] = []
-	for (const chunk of chunks) {
-		if (chunk.type === 'CUSTOM' && chunk.name === 'rich_message') {
-			// value is typed `unknown` on CustomEvent — treat it as RichContent
-			// if truthy (producers of this channel emit only RichContent objects).
-			const value = chunk.value as RichContent | undefined
-			if (value) {
-				rich.push(value)
-			}
-		}
-	}
-	return rich
-}
-
 function shouldInvalidateCustomerOrders(chunks: StreamChunk[]): boolean {
 	return chunks.some(
 		(chunk) =>
@@ -129,6 +116,27 @@ function textMessage(role: 'assistant' | 'user', content: string): UIMessage {
 		parts: [{ type: 'text', content }],
 		createdAt: new Date(),
 	}
+}
+
+function setRichContentForMessage(
+	map: Map<string, RichContent[]>,
+	messageId: string,
+	richContent: RichContent[],
+) {
+	if (richContent.length === 0) return
+	map.set(messageId, richContent)
+}
+
+function richContentMapFromStoredMessages(
+	messages: ChatMessage[],
+): Map<string, RichContent[]> {
+	const map = new Map<string, RichContent[]>()
+	for (const message of messages) {
+		if (message.richContent?.length) {
+			map.set(message.id, message.richContent)
+		}
+	}
+	return map
 }
 
 function uiMessageFromStoredMessage(message: ChatMessage): UIMessage {
@@ -292,7 +300,10 @@ export function usePortalChat({
 	const activeDraftRef = useRef<ActiveChatDraftContext | null>(activeDraft)
 	const loadedRoleRef = useRef<'customer' | 'supplier' | null>(null)
 	const lastPersistedChatFingerprintRef = useRef('')
-	const richContentRef = useRef<RichContent[]>([])
+	const richContentByMessageIdRef = useRef<Map<string, RichContent[]>>(
+		new Map(),
+	)
+	const pendingRichContentRef = useRef<RichContent[]>([])
 	const lastChunksRef = useRef<StreamChunk[]>([])
 
 	// SSR hydration safety — rehydrate Zustand store on mount
@@ -338,7 +349,18 @@ export function usePortalChat({
 				const chunks = raw as unknown as StreamChunk[]
 
 				lastChunksRef.current = chunks
-				richContentRef.current = extractRichContent(chunks)
+				const richContent = extractPortalRichContent(chunks)
+				const assistantMessageId = assistantMessageIdFromChunks(chunks)
+				if (assistantMessageId) {
+					setRichContentForMessage(
+						richContentByMessageIdRef.current,
+						assistantMessageId,
+						richContent,
+					)
+					pendingRichContentRef.current = []
+				} else {
+					pendingRichContentRef.current = richContent
+				}
 				if (shouldInvalidateCustomerOrders(chunks)) {
 					queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
 				}
@@ -354,35 +376,7 @@ export function usePortalChat({
 				yield* arrayToAsyncIterable(chunks)
 			} catch (err) {
 				logPortalError('portal.chat.stream_error', err)
-				// Yield a minimal error response so the UI doesn't hang
-				yield {
-					type: 'RUN_STARTED' as const,
-					timestamp: Date.now(),
-					runId: crypto.randomUUID(),
-				}
-				yield {
-					type: 'TEXT_MESSAGE_START' as const,
-					timestamp: Date.now(),
-					messageId: crypto.randomUUID(),
-					role: 'assistant' as const,
-				}
-				yield {
-					type: 'TEXT_MESSAGE_CONTENT' as const,
-					timestamp: Date.now(),
-					messageId: crypto.randomUUID(),
-					delta: 'Something went wrong. Please try again.',
-				}
-				yield {
-					type: 'TEXT_MESSAGE_END' as const,
-					timestamp: Date.now(),
-					messageId: crypto.randomUUID(),
-				}
-				yield {
-					type: 'RUN_FINISHED' as const,
-					timestamp: Date.now(),
-					runId: crypto.randomUUID(),
-					finishReason: 'stop' as const,
-				}
+				yield* arrayToAsyncIterable(portalChatErrorChunks())
 			}
 		}),
 		onError: (err) => {
@@ -405,10 +399,9 @@ export function usePortalChat({
 		const storedMessages = storedMessagesForRole(activeRole)
 		const storedFingerprint = storedMessagesFingerprint(storedMessages)
 		const currentFingerprint = uiMessagesFingerprint(chatMessagesRef.current)
-		richContentRef.current =
-			storedMessages.at(-1)?.role === 'assistant'
-				? (storedMessages.at(-1)?.richContent ?? [])
-				: []
+		richContentByMessageIdRef.current =
+			richContentMapFromStoredMessages(storedMessages)
+		pendingRichContentRef.current = []
 		loadedRoleRef.current = activeRole
 		if (storedFingerprint === currentFingerprint) {
 			lastPersistedChatFingerprintRef.current = storedFingerprint
@@ -440,49 +433,45 @@ export function usePortalChat({
 				break
 			}
 		}
-		const mapped: ChatMessage[] = chat.messages.map(
-			(msg: UIMessage, idx: number) => ({
-				id: msg.id,
-				role: msg.role as 'user' | 'assistant',
-				content: extractContent(msg),
-				richContent:
-					idx === lastAssistantIdx && richContentRef.current.length > 0
-						? richContentRef.current
-						: existingById.get(msg.id)?.richContent,
-				timestamp: msg.createdAt?.getTime() ?? Date.now(),
-			}),
-		)
-		setMessages(activeRole, mapped)
-	}, [activeRole, chat.messages, isChatStoreHydrated, setMessages])
-
-	// Map UIMessage to simplified ChatMessage for consumers
-	// Rich content only attaches to the last assistant message.
-	// Manual findLastIndex — target is ES2022, findLastIndex is ES2023.
-	let lastAssistantIdx = -1
-	for (let i = chat.messages.length - 1; i >= 0; i--) {
-		if (chat.messages[i].role === 'assistant') {
-			lastAssistantIdx = i
-			break
+		if (
+			lastAssistantIdx >= 0 &&
+			pendingRichContentRef.current.length > 0 &&
+			chat.messages[lastAssistantIdx]
+		) {
+			setRichContentForMessage(
+				richContentByMessageIdRef.current,
+				chat.messages[lastAssistantIdx].id,
+				pendingRichContentRef.current,
+			)
+			pendingRichContentRef.current = []
 		}
-	}
-	const messages: ChatMessage[] = chat.messages.map(
-		(msg: UIMessage, idx: number) => ({
+		const mapped: ChatMessage[] = chat.messages.map((msg: UIMessage) => ({
 			id: msg.id,
 			role: msg.role as 'user' | 'assistant',
 			content: extractContent(msg),
 			richContent:
-				idx === lastAssistantIdx && richContentRef.current.length > 0
-					? richContentRef.current
-					: undefined,
+				richContentByMessageIdRef.current.get(msg.id) ??
+				existingById.get(msg.id)?.richContent,
 			timestamp: msg.createdAt?.getTime() ?? Date.now(),
-		}),
-	)
+		}))
+		setMessages(activeRole, mapped)
+	}, [activeRole, chat.messages, isChatStoreHydrated, setMessages])
+
+	// Map UIMessage to simplified ChatMessage for consumers
+	const messages: ChatMessage[] = chat.messages.map((msg: UIMessage) => ({
+		id: msg.id,
+		role: msg.role as 'user' | 'assistant',
+		content: extractContent(msg),
+		richContent: richContentByMessageIdRef.current.get(msg.id),
+		timestamp: msg.createdAt?.getTime() ?? Date.now(),
+	}))
 
 	const clear = useCallback(() => {
 		chat.stop()
 		chat.clear()
 		setIsResponsePending(false)
-		richContentRef.current = []
+		richContentByMessageIdRef.current = new Map()
+		pendingRichContentRef.current = []
 		lastChunksRef.current = []
 		lastPersistedChatFingerprintRef.current = ''
 		clearStoreActive(activeRole)
@@ -499,11 +488,17 @@ export function usePortalChat({
 			if (command && isLocalPortalChatCommand(command.name)) {
 				if (command.name === '/help') {
 					const response = localHelpResponse()
-					richContentRef.current = response.richContent
+					const userMessage = textMessage('user', message)
+					const assistantMessage = textMessage('assistant', response.text)
+					setRichContentForMessage(
+						richContentByMessageIdRef.current,
+						assistantMessage.id,
+						response.richContent,
+					)
 					chat.setMessages([
 						...chatMessagesRef.current,
-						textMessage('user', message),
-						textMessage('assistant', response.text),
+						userMessage,
+						assistantMessage,
 					])
 					return
 				}
@@ -514,11 +509,17 @@ export function usePortalChat({
 					const response = localCartResponse({
 						opened: command.name === '/open-cart',
 					})
-					richContentRef.current = response.richContent
+					const userMessage = textMessage('user', message)
+					const assistantMessage = textMessage('assistant', response.text)
+					setRichContentForMessage(
+						richContentByMessageIdRef.current,
+						assistantMessage.id,
+						response.richContent,
+					)
 					chat.setMessages([
 						...chatMessagesRef.current,
-						textMessage('user', message),
-						textMessage('assistant', response.text),
+						userMessage,
+						assistantMessage,
 					])
 					return
 				}
@@ -534,6 +535,13 @@ export function usePortalChat({
 	)
 
 	const isLoading = chat.isLoading || isResponsePending
+	let latestAssistantRichContent: RichContent[] = []
+	for (let i = messages.length - 1; i >= 0; i--) {
+		const message = messages[i]
+		if (message?.role !== 'assistant') continue
+		latestAssistantRichContent = message.richContent ?? []
+		break
+	}
 
 	return {
 		messages,
@@ -543,6 +551,6 @@ export function usePortalChat({
 		stop,
 		clear,
 		error: chat.error,
-		richContent: richContentRef.current,
+		richContent: latestAssistantRichContent,
 	}
 }

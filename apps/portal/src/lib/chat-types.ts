@@ -116,7 +116,7 @@ export interface DeliveryTrackingData {
 	driverName: string
 	driverPhone: string
 	driverPlace: string
-	estimatedArrival: string
+	estimatedArrival: string | null
 	lastUpdated: string
 	orderNumber: string
 	route: {

@@ -62,7 +62,7 @@ export interface DeliveryInfo {
 	vehiclePlate: string
 	orderStatus: string
 	currentStage: DeliveryStage
-	estimatedArrival: string
+	estimatedArrival: string | null
 	lastUpdated: string
 	hasActivePOD: boolean
 	dispatchContacts: DeliveryContact[]
@@ -190,7 +190,7 @@ const deliveryInfoSchema = z.object({
 	driverName: z.string(),
 	driverPhone: z.string(),
 	driverPlace: z.string().nullable().optional(),
-	estimatedArrival: z.string(),
+	estimatedArrival: z.string().nullable(),
 	hasActivePOD: z.boolean(),
 	id: z.string(),
 	lastUpdated: z.string(),

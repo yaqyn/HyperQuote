@@ -55,7 +55,10 @@ export function describeDriverLocationForCustomer(
 	return 'live ping active; place name is still resolving'
 }
 
-export function formatDeliveryTimestamp(value: string): string {
+export function formatDeliveryTimestamp(
+	value: string | null | undefined,
+): string {
+	if (!value) return 'Unavailable'
 	const date = new Date(value)
 	if (Number.isNaN(date.getTime())) return value
 	return `${date.toISOString().slice(0, 16).replace('T', ' ')} UTC`

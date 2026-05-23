@@ -520,7 +520,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 					const { data: sourceDraft, error: sourceDraftError } =
 						await auth.client
 							.from('quote_requests')
-							.select('id')
+							.select('id, request_number')
 							.eq('id', input.draftId)
 							.eq('customer_id', auth.customerId)
 							.eq('status', 'draft')
@@ -530,38 +530,39 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 						throw sourceDraftError ?? new Error('Quote draft was not found')
 					}
 
-					const { data: submittedDraft, error: submittedDraftError } =
-						await auth.client
-							.from('quote_requests')
-							.insert({
-								customer_id: auth.customerId,
-								status: 'draft',
-								urgency: 'standard',
-								draft_name: null,
-								notes: normalizeNotes(input.notes),
-								attachment_urls: [],
-								idempotency_key: input.idempotencyKey,
-								approval_required: false,
-							})
-							.select('id, request_number')
-							.single()
-
-					if (submittedDraftError || !submittedDraft) {
-						throw (
-							submittedDraftError ?? new Error('Quote request insert failed')
-						)
+					const draftSubmitUpdate = {
+						approval_required: false,
+						idempotency_key: input.idempotencyKey,
+						...(input.notes === undefined
+							? {}
+							: { notes: normalizeNotes(input.notes) }),
 					}
+					const { error: updateDraftError } = await auth.client
+						.from('quote_requests')
+						.update(draftSubmitUpdate)
+						.eq('id', sourceDraft.id)
+						.eq('customer_id', auth.customerId)
+						.eq('status', 'draft')
+
+					if (updateDraftError) throw updateDraftError
+
+					const { error: deleteItemsError } = await auth.client
+						.from('quote_request_items')
+						.delete()
+						.eq('quote_request_id', sourceDraft.id)
+
+					if (deleteItemsError) throw deleteItemsError
 
 					await insertQuoteRequestItems(
 						auth.client,
-						submittedDraft.id,
+						sourceDraft.id,
 						input.items,
 					)
 
 					const { error: submitError } = await auth.client.rpc(
 						'customer_submit_saved_quote_request',
 						{
-							p_quote_request_id: submittedDraft.id,
+							p_quote_request_id: sourceDraft.id,
 							p_source: 'website',
 						},
 					)
@@ -572,8 +573,8 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 
 					return {
 						success: true,
-						requestId: submittedDraft.id,
-						reference: submittedDraft.request_number,
+						requestId: sourceDraft.id,
+						reference: sourceDraft.request_number,
 					}
 				}
 

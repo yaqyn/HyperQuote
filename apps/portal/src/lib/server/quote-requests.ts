@@ -46,6 +46,7 @@ interface QuoteRequestUpdate {
 	delivery_address_id?: string | null
 	delivery_date?: string | null
 	draft_name?: string | null
+	idempotency_key?: string
 	notes?: string | null
 	project_id?: string | null
 }
@@ -201,9 +202,7 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 			if (input.draftId && !input.approvalRequired) {
 				const { data: draft, error: draftError } = await supabase
 					.from('quote_requests')
-					.select(
-						'id, request_number, urgency, project_id, delivery_address_id, delivery_date, notes, attachment_urls',
-					)
+					.select('id, request_number')
 					.eq('id', input.draftId)
 					.eq('customer_id', customerId)
 					.eq('status', 'draft')
@@ -214,39 +213,33 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 					throw new Error('Draft was not found or is no longer editable')
 				}
 
-				const { data: qr, error: qrError } = await supabase
-					.from('quote_requests')
-					.insert({
-						customer_id: customerId,
-						status: 'draft',
-						urgency: draft.urgency ?? 'standard',
-						project_id: input.projectId ?? draft.project_id,
-						delivery_address_id:
-							input.deliveryAddressId ?? draft.delivery_address_id,
-						delivery_date: input.deliveryDate ?? draft.delivery_date,
-						draft_name: null,
-						notes:
-							input.notes === undefined
-								? draft.notes
-								: normalizeNotes(input.notes),
-						attachment_urls:
-							input.attachmentUrls ?? draft.attachment_urls ?? [],
-						idempotency_key: input.idempotencyKey,
-						approval_required: false,
-					})
-					.select('id, request_number')
-					.single()
-
-				if (qrError || !qr) {
-					throw new Error(qrError?.message ?? 'Failed to create quote request')
+				const draftUpdate: QuoteRequestUpdate = {
+					...buildDraftMetadataUpdate(input),
+					approval_required: false,
+					idempotency_key: input.idempotencyKey,
 				}
+				const { error: updateError } = await supabase
+					.from('quote_requests')
+					.update(draftUpdate)
+					.eq('id', input.draftId)
+					.eq('customer_id', customerId)
+					.eq('status', 'draft')
 
-				await insertQuoteRequestItems(supabase, qr.id, input.items)
+				if (updateError) throw new Error(updateError.message)
+
+				const { error: deleteItemsError } = await supabase
+					.from('quote_request_items')
+					.delete()
+					.eq('quote_request_id', input.draftId)
+
+				if (deleteItemsError) throw new Error(deleteItemsError.message)
+
+				await insertQuoteRequestItems(supabase, input.draftId, input.items)
 
 				const { error: submitError } = await supabase.rpc(
 					'customer_submit_saved_quote_request',
 					{
-						p_quote_request_id: qr.id,
+						p_quote_request_id: input.draftId,
 						p_source: 'portal',
 					},
 				)
@@ -254,8 +247,8 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 				if (submitError) throw new Error(submitError.message)
 
 				return {
-					requestId: qr.id,
-					reference: qr.request_number,
+					requestId: draft.id,
+					reference: draft.request_number,
 				}
 			}
 

@@ -869,10 +869,13 @@ function getTimelineStepLabelKey(key: string): ParseKeys<'portal'> | null {
 	return null
 }
 
-function formatEta(estimatedArrival: string, locale: string) {
+function formatEta(estimatedArrival: string | null, locale: string) {
+	const unavailable = locale.startsWith('ar') ? 'غير متاح' : 'ETA unavailable'
+	if (!estimatedArrival) return unavailable
 	const diffMinutes = Math.round(
 		(new Date(estimatedArrival).getTime() - Date.now()) / 60_000,
 	)
+	if (!Number.isFinite(diffMinutes)) return unavailable
 	const safeMinutes = Math.max(0, diffMinutes)
 	const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
 

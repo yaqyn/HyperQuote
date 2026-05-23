@@ -63,7 +63,7 @@ export interface OrderDeliveryTracking {
 	driverPhone: string
 	driverPlace: string | null
 	currentStage: OrderDeliveryStage
-	estimatedArrival: string
+	estimatedArrival: string | null
 	lastUpdated: string
 	route: {
 		origin: string
