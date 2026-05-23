@@ -13,6 +13,7 @@
 import type { StreamChunk } from '@tanstack/ai'
 import type { UIMessage } from '@tanstack/ai-react'
 import { stream, useChat } from '@tanstack/ai-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef } from 'react'
 import { portalChatFn } from '../lib/chat'
 import type { ChatMessage, RichContent } from '../lib/chat-types'
@@ -90,12 +91,20 @@ function extractRichContent(chunks: StreamChunk[]): RichContent[] {
 	return rich
 }
 
+function shouldInvalidateCustomerOrders(chunks: StreamChunk[]): boolean {
+	return chunks.some(
+		(chunk) =>
+			chunk.type === 'CUSTOM' && chunk.name === 'portal_cache_invalidation',
+	)
+}
+
 // ============================================================================
 // Hook
 // ============================================================================
 
 export function usePortalChat() {
 	const activeRole = usePortalStore((s) => s.activeRole)
+	const queryClient = useQueryClient()
 	const setMessages = useChatStore((s) => s.setMessages)
 	const _addMessage = useChatStore((s) => s.addMessage)
 	const richContentRef = useRef<RichContent[]>([])
@@ -128,6 +137,9 @@ export function usePortalChat() {
 
 				lastChunksRef.current = chunks
 				richContentRef.current = extractRichContent(chunks)
+				if (shouldInvalidateCustomerOrders(chunks)) {
+					queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
+				}
 
 				yield* arrayToAsyncIterable(chunks)
 			} catch (err) {

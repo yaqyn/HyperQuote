@@ -1,0 +1,18 @@
+{
+	"name": "@hyperquote/docs",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./content": "./src/content/docs/index.ts",
+		"./registry": "./src/registry.ts",
+		"./retrieval": "./src/retrieval.ts"
+	},
+	"scripts": {
+		"test": "bun test src/retrieval.test.ts"
+	},
+	"dependencies": {
+		"@hyperquote/i18n": "workspace:*"
+	}
+}

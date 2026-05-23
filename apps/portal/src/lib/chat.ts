@@ -1,459 +1,1709 @@
 /**
  * Portal AI chat server function.
  *
- * Two answer paths:
- *   1. Groq — when GROQ_API_KEY is configured and USE_AI is not disabled.
- *   2. Deterministic account/catalog summaries built from Supabase context.
+ * Customer mode is a scoped agent loop:
+ *   1. route the user message to an allowlisted tool intent,
+ *   2. execute only customer-owned reads or draft-only writes,
+ *   3. write a friendly final answer from the supplied tool context.
  *
- * Rich content (product / status / action cards) is keyword-matched on the
- * last user message and appended after the assistant's text — the LLM does
- * not emit tool calls yet, so the deterministic card rules still apply.
+ * Supplier mode is intentionally left read-style and keyword-based for V1.
  */
 
-import { isAIEnabled, LYON_PORTAL, streamChat } from '@hyperquote/ai'
+import {
+	completeChat,
+	isAIEnabled,
+	LYON_PORTAL,
+	streamChat,
+} from '@hyperquote/ai'
+import {
+	buildPublicDocsContext,
+	buildWebsiteDocsPrompt,
+	type DocsRetrievalResult,
+	publicDocsExtractiveResponse,
+	publicDocsNoAnswerResponse,
+	publicDocsSourceLinks,
+	retrieveWebsiteDocs,
+} from '@hyperquote/docs/retrieval'
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
+import {
+	detectPortalAiLocale,
+	enforcePortalCustomerRoute,
+	fallbackPortalCustomerRoute,
+	isDraftWriteAction,
+	PORTAL_CUSTOMER_ROUTER_PROMPT,
+	type PortalCustomerRoute,
+	parsePortalCustomerRoute,
+	portalCustomerPolicyRefusal,
+} from './portal-ai-routing'
 import { getAuthenticatedPortalCustomer } from './server/_supabase'
+import {
+	type DeliveryInfo,
+	getCustomerDeliveryTracking,
+} from './server/deliveries'
 import { insertQuoteRequestItems } from './server/quote-request-items'
 
-// ============================================================================
-// Input Schema
-// ============================================================================
+const MAX_CHAT_MESSAGES = 30
+const MAX_CHAT_MESSAGE_CHARACTERS = 4000
+const MODEL_CHAT_MESSAGES = 10
+const MODEL_CHAT_MESSAGE_CHARACTERS = 2000
 
 const portalChatInput = z.object({
-	messages: z.array(
-		z.object({
-			role: z.enum(['user', 'assistant']),
-			content: z.string(),
-		}),
-	),
+	messages: z
+		.array(
+			z.object({
+				role: z.enum(['user', 'assistant']),
+				content: z.string().max(MAX_CHAT_MESSAGE_CHARACTERS),
+			}),
+		)
+		.min(1)
+		.max(MAX_CHAT_MESSAGES),
 	role: z.enum(['customer', 'supplier']),
 	conversationId: z.string().nullable(),
 })
 
+type ChatMessageInput = { role: 'user' | 'assistant'; content: string }
+type AuthedSupabase = Awaited<
+	ReturnType<typeof getAuthenticatedPortalCustomer>
+>['supabase']
+
 interface PortalAiProduct {
+	availability_status: string
+	category: string
+	description: string | null
+	description_ar: string | null
 	id: string
+	image_urls: string[] | null
 	name: string
 	name_ar: string | null
-	slug: string
-	category: string
-	unit_of_measure: string
-	unit_of_measure_ar: string
-	price_range_min: number | null
 	price_range_max: number | null
+	price_range_min: number | null
+	sku: string
+	slug: string
 	specifications: Record<string, unknown> | null
 	specifications_ar: Record<string, unknown> | null
-	image_urls: string[] | null
-	availability_status: string
+	subcategory: string | null
+	subcategory_ar: string | null
+	unit_of_measure: string
+	unit_of_measure_ar: string
 }
 
-interface PortalAiOrder {
+interface CustomerProfileRow {
+	company_name: string
+	contact_name: string
+	credit_limit: number
+	email: string | null
 	id: string
-	order_number: string
+	payment_history: string
+	phone: string
 	status: string
+	tier: string
+	trade_license_status: string | null
+}
+
+interface CustomerAddressRow {
+	city: string
+	governorate: string
+	id: string
+	is_default: boolean
+	label: string | null
+	street: string
+}
+
+interface CustomerProjectRow {
+	created_at: string
+	description: string | null
+	id: string
+	name: string
+}
+
+interface QuoteRequestItemRow {
+	customer_description: string
+	id: string
+	is_unmatched: boolean
+	match_confidence: number | null
+	notes: string | null
+	product_id: string | null
+	product_name_ar: string
+	quantity: number
+	sort_order: number
+	unit_of_measure: string
+	unit_of_measure_ar: string
+	products:
+		| Pick<
+				PortalAiProduct,
+				'category' | 'id' | 'image_urls' | 'name' | 'name_ar'
+		  >
+		| Array<
+				Pick<
+					PortalAiProduct,
+					'category' | 'id' | 'image_urls' | 'name' | 'name_ar'
+				>
+		  >
+		| null
+}
+
+interface LinkedOrderRow {
 	created_at: string
 	delivered_at: string | null
+	id: string
+	order_number: string
+	quote_request_id: string | null
+	status: string
 	total_amount: number | null
 }
 
-interface PortalAiDraft {
+interface QuoteRequestRow {
+	attachment_urls: string[] | null
+	created_at: string
+	delivery_address_id: string | null
+	delivery_date: string | null
+	draft_name: string | null
 	id: string
+	notes: string | null
+	orders: LinkedOrderRow | LinkedOrderRow[] | null
+	project_id: string | null
+	quote_request_items: QuoteRequestItemRow[] | null
+	request_number: string
+	status: string
+	submitted_at: string | null
+	urgency: string
+}
+
+interface DocumentRow {
+	created_at: string
+	download_url: string | null
+	id: string
+	title: string
+	type: string
+}
+
+interface CustomerOrderSummary {
+	amount: number | null
+	date: string
+	description: string
+	id: string
+	itemCount: number
+	items: DraftMaterialItem[]
+	linkedOrderId: string | null
+	name: string | null
 	reference: string
-	editRoute: string
-	items: Array<{
-		name: string
-		nameAr: string
-		qty: number
-		unit: string
-		unitAr: string
-	}>
+	requestReference: string
+	status: string
+	type: 'draft' | 'submitted' | 'confirmed'
 }
 
-interface PortalAiContext {
-	customerId: string
-	draft: PortalAiDraft | null
-	latestOrder: PortalAiOrder | null
-	product: PortalAiProduct | null
+interface DraftMaterialItem {
+	name: string
+	nameAr: string
+	notes?: string
+	productId?: string
+	qty: number
+	unit: string
+	unitAr: string
 }
 
-// ============================================================================
-// Deterministic scoped responses — differentiated by customer vs supplier role
-// ============================================================================
+interface DeliveryTrackingContext {
+	delivery: DeliveryInfo
+	order: CustomerOrderSummary
+}
 
-const CUSTOMER_RESPONSES: Record<string, string> = {
-	default:
-		"I'm HyperQuote's assistant. I can help you find building materials, get quotes, and track orders. What are you looking for today?",
-	cement:
-		'We carry a full range of cement products including Portland CEM I 42.5N, CEM II, and specialty cements. Here are some options:',
-	rebar:
-		'We have high-quality steel rebar available in various grades. Here is a popular option:',
-	quote:
-		"I'd be happy to help you start a quote request! You can add items to your material list below:",
-	order: 'Let me check the status of your most recent order:',
-	track: 'Let me look up your latest delivery status:',
-	price:
-		"Prices depend on quantity, delivery location, and current market conditions. Request a quote and we'll source pricing from multiple suppliers for you.",
-	help: 'Here are some things I can help you with:',
+interface DraftWriteContext {
+	draftId?: string
+	editRoute?: string
+	items?: DraftMaterialItem[]
+	kept?: string[]
+	merged?: string[]
+	reference?: string
+	renamed?: Array<{ from: string; to: string }>
+	deleted?: string[]
+	message: string
+}
+
+type PortalToolContext =
+	| { type: 'chat' }
+	| { type: 'refusal'; message: string }
+	| { type: 'public_docs'; docs: DocsRetrievalResult }
+	| {
+			type: 'profile'
+			addresses: CustomerAddressRow[]
+			profile: CustomerProfileRow
+			projects: CustomerProjectRow[]
+	  }
+	| { type: 'orders'; orders: CustomerOrderSummary[] }
+	| {
+			type: 'order_detail'
+			documents: DocumentRow[]
+			order: CustomerOrderSummary | null
+	  }
+	| { type: 'delivery_tracking'; tracking: DeliveryTrackingContext | null }
+	| { type: 'products'; products: PortalAiProduct[] }
+	| { type: 'draft_write'; operation: string; result: DraftWriteContext }
+
+interface PortalToolResult {
+	context: PortalToolContext
+	invalidatesOrders: boolean
+	readEntities: string[]
+	route: PortalCustomerRoute
+	writeEntityId: string | null
+	writeEntityType: string | null
 }
 
 const SUPPLIER_RESPONSES: Record<string, string> = {
 	default:
 		'Welcome to the Supplier Portal. I can help you manage stock, check PO status, and update pricing. What do you need?',
 	cement:
-		'Here is the current stock status for cement products in your catalog:',
-	rebar: 'Here is the current stock status for rebar products:',
-	order: 'Let me pull up the latest purchase order status:',
-	track: 'Checking the status of your recent purchase orders:',
+		'Here is the current stock status for cement products in your catalog.',
+	rebar: 'Here is the current stock status for rebar products.',
+	order: 'Let me pull up the latest purchase order status.',
+	track: 'Checking the status of your recent purchase orders.',
 	price:
 		'You can update your pricing through the catalog management window. Would you like me to open it?',
-	help: 'Here are the key actions available to you:',
-	stock: 'Let me check your current stock levels:',
+	help: 'Here are the key actions available to you.',
+	stock: 'Let me check your current stock levels.',
 }
-
-function getResponse(
-	userMessage: string,
-	role: 'customer' | 'supplier',
-	context?: PortalAiContext,
-): string {
-	const lower = userMessage.toLowerCase()
-	const responses =
-		role === 'customer' ? CUSTOMER_RESPONSES : SUPPLIER_RESPONSES
-
-	const refusal = portalPolicyRefusal(userMessage)
-	if (refusal) return refusal
-
-	if (hasDraftIntent(userMessage)) {
-		if (context?.draft) {
-			return `I created draft ${context.draft.reference} with the material list below. Review it in Orders before submitting; nothing was submitted.`
-		}
-		if (context?.product) {
-			return 'I found a published product, but I could not create a review draft. Please try again from Market or Orders.'
-		}
-		return 'I can create a review draft after we pick a published product. Ask for cement, rebar, or another catalog material.'
-	}
-	if (hasEstimateIntent(userMessage) && context?.product) {
-		return `For a first estimate, start with ${context.product.name} as the base material, then adjust quantity in the draft before submitting.`
-	}
-	if (
-		lower.includes('cement') ||
-		lower.includes('\u0627\u0633\u0645\u0646\u062a')
-	)
-		return context?.product
-			? `I found ${context.product.name} in the published catalog. Review the product card below, then add it from Market or Orders when you are ready.`
-			: 'I could not find a matching published product in the catalog.'
-	if (lower.includes('rebar') || lower.includes('\u062d\u062f\u064a\u062f'))
-		return context?.product
-			? `I found ${context.product.name} in the published catalog. Review the product card below, then add it from Market or Orders when you are ready.`
-			: 'I could not find a matching published product in the catalog.'
-	if (lower.includes('/quote') || lower.includes('quote'))
-		return 'I can draft a material list for review, but I will not submit anything. Use the normal order form to confirm and submit.'
-	if (
-		lower.includes('order') ||
-		lower.includes('\u0637\u0644\u0628') ||
-		lower.includes('track') ||
-		lower.includes('/track')
-	)
-		return context?.latestOrder
-			? `Your latest visible order is ${context.latestOrder.order_number}, currently ${context.latestOrder.status.replace(/_/g, ' ')}.`
-			: 'I do not see a submitted order in your customer account yet.'
-	if (lower.includes('/price') || lower.includes('price'))
-		return responses.price ?? responses.default
-	if (lower.includes('/help') || lower.includes('help'))
-		return responses.help ?? responses.default
-	if (
-		lower.includes('stock') ||
-		lower.includes('\u0645\u062e\u0632\u0648\u0646')
-	)
-		return responses.stock ?? responses.default
-	return responses.default
-}
-
-// ============================================================================
-// Rich message generators — CUSTOM events based on keyword detection
-// ============================================================================
-
-function getRichEvents(
-	userMessage: string,
-	role: 'customer' | 'supplier',
-	context?: PortalAiContext,
-): StreamChunk[] {
-	const lower = userMessage.toLowerCase()
-	const events: StreamChunk[] = []
-
-	if (
-		lower.includes('cement') ||
-		lower.includes('\u0627\u0633\u0645\u0646\u062a')
-	) {
-		const product = context?.product
-		if (product) events.push(productCardEvent(product))
-	}
-
-	if (lower.includes('rebar') || lower.includes('\u062d\u062f\u064a\u062f')) {
-		const product = context?.product
-		if (product) events.push(productCardEvent(product))
-	}
-
-	if (context?.draft) {
-		events.push({
-			type: 'CUSTOM' as const,
-			timestamp: Date.now(),
-			name: 'rich_message',
-			value: {
-				type: 'material_list',
-				data: {
-					draftId: context.draft.id,
-					editRoute: context.draft.editRoute,
-					items: context.draft.items,
-					reference: context.draft.reference,
-				},
-			},
-		})
-	}
-
-	if (
-		lower.includes('order') ||
-		lower.includes('\u0637\u0644\u0628') ||
-		lower.includes('track') ||
-		lower.includes('/track')
-	) {
-		const latestOrder = context?.latestOrder
-		if (latestOrder) events.push(statusCardEvent(latestOrder))
-	}
-
-	if (lower.includes('/quote') && !context?.draft) {
-		events.push({
-			type: 'CUSTOM' as const,
-			timestamp: Date.now(),
-			name: 'rich_message',
-			value: {
-				type: 'material_list',
-				data: {
-					items: [],
-				},
-			},
-		})
-	}
-
-	if (lower.includes('/help')) {
-		const customerActions = [
-			{
-				label: 'Browse Market',
-				labelAr: '\u062a\u0635\u0641\u062d \u0627\u0644\u0633\u0648\u0642',
-				route: '/portal/market',
-			},
-			{
-				label: 'View Orders',
-				labelAr:
-					'\u0639\u0631\u0636 \u0627\u0644\u0637\u0644\u0628\u0627\u062a',
-				route: '/portal/orders',
-			},
-			{
-				label: 'Get Support',
-				labelAr:
-					'\u0627\u0644\u062d\u0635\u0648\u0644 \u0639\u0644\u0649 \u0627\u0644\u062f\u0639\u0645',
-				route: '/portal/support',
-			},
-		]
-		const supplierActions = [
-			{
-				label: 'Manage Catalog',
-				labelAr:
-					'\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u0643\u062a\u0627\u0644\u0648\u062c',
-				route: '/portal/catalog',
-			},
-			{
-				label: 'View Purchase Orders',
-				labelAr:
-					'\u0639\u0631\u0636 \u0623\u0648\u0627\u0645\u0631 \u0627\u0644\u0634\u0631\u0627\u0621',
-				route: '/portal/purchase-orders',
-			},
-			{
-				label: 'Update Stock',
-				labelAr:
-					'\u062a\u062d\u062f\u064a\u062b \u0627\u0644\u0645\u062e\u0632\u0648\u0646',
-				route: '/portal/stock',
-			},
-		]
-		const actions = role === 'customer' ? customerActions : supplierActions
-		for (const action of actions) {
-			events.push({
-				type: 'CUSTOM' as const,
-				timestamp: Date.now(),
-				name: 'rich_message',
-				value: {
-					type: 'action_button',
-					data: action,
-				},
-			})
-		}
-	}
-
-	return events
-}
-
-// ============================================================================
-// Supabase-scoped AG-UI stream generator
-// ============================================================================
-
-async function* scopedPortalStream(
-	userMessage: string,
-	role: 'customer' | 'supplier',
-	context?: PortalAiContext,
-): AsyncGenerator<StreamChunk> {
-	const runId = crypto.randomUUID()
-	const messageId = crypto.randomUUID()
-
-	// RUN_STARTED
-	yield {
-		type: 'RUN_STARTED' as const,
-		timestamp: Date.now(),
-		runId,
-	}
-
-	// TEXT_MESSAGE_START
-	yield {
-		type: 'TEXT_MESSAGE_START' as const,
-		timestamp: Date.now(),
-		messageId,
-		role: 'assistant' as const,
-	}
-
-	// TEXT_MESSAGE_CONTENT -- token-by-token streaming
-	const response = getResponse(userMessage, role, context)
-	const words = response.split(' ')
-	for (const word of words) {
-		yield {
-			type: 'TEXT_MESSAGE_CONTENT' as const,
-			timestamp: Date.now(),
-			messageId,
-			delta: `${word} `,
-		}
-		await new Promise((r) => setTimeout(r, 50 + Math.random() * 50))
-	}
-
-	// TEXT_MESSAGE_END
-	yield {
-		type: 'TEXT_MESSAGE_END' as const,
-		timestamp: Date.now(),
-		messageId,
-	}
-
-	// CUSTOM events for rich messages (after text completes)
-	const richEvents = getRichEvents(userMessage, role, context)
-	for (const event of richEvents) {
-		yield event
-	}
-
-	// RUN_FINISHED
-	yield {
-		type: 'RUN_FINISHED' as const,
-		timestamp: Date.now(),
-		runId,
-		finishReason: 'stop' as const,
-	}
-}
-
-// ============================================================================
-// portalChatFn — Server function returning AG-UI StreamChunk[].
-// The ReadableStream variant drops chunks through TanStack Start's RPC; the
-// array pattern serializes cleanly. Once that upstream bug is fixed we can
-// switch back for true token-at-a-time streaming.
-// ============================================================================
 
 export const portalChatFn = createServerFn({ method: 'POST' })
 	.inputValidator(portalChatInput)
 	.handler(async ({ data: input }) => {
 		const lastMessage = input.messages[input.messages.length - 1]
 		const userText = lastMessage?.content ?? ''
+		const modelMessages = modelChatMessages(input.messages)
 		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
-		const context = await loadPortalAiContext(supabase, customerId, userText)
-		if (!portalPolicyRefusal(userText) && hasDraftIntent(userText)) {
-			context.draft = await createPortalAiDraft(
-				supabase,
-				customerId,
-				userText,
-				context.product,
-			)
-		}
-		const chunks: StreamChunk[] = []
-		const refusal = portalPolicyRefusal(userText)
 
-		if (refusal) {
-			for await (const chunk of textOnlyStream(refusal)) {
-				chunks.push(chunk)
-			}
-		} else if (usesScopedPortalContext(userText)) {
-			for await (const chunk of scopedPortalStream(
-				userText,
-				input.role,
-				context,
-			)) {
-				chunks.push(chunk)
-			}
-		} else if (isAIEnabled()) {
-			// Hold RUN_FINISHED until rich events have been appended.
-			let finishChunk: StreamChunk | null = null
-			for await (const chunk of streamChat(input.messages, LYON_PORTAL)) {
-				if (chunk.type === 'RUN_FINISHED') {
-					finishChunk = chunk
-					continue
-				}
-				chunks.push(chunk)
-			}
-			for (const event of getRichEvents(userText, input.role, context)) {
-				chunks.push(event)
-			}
-			if (finishChunk) chunks.push(finishChunk)
-		} else {
-			for await (const chunk of textOnlyStream(
-				'Portal AI is not configured.',
-			)) {
-				chunks.push(chunk)
-			}
+		if (input.role === 'supplier') {
+			const chunks = await supplierPortalChunks(userText, modelMessages)
+			// biome-ignore lint/complexity/noBannedTypes: TanStack server-fn serialization accepts this historical chunk boundary type.
+			return chunks as unknown as Array<{ [k: string]: {} }>
 		}
 
-		await recordPortalAiAudit(supabase, userText, chunks, context)
+		const route = await routePortalCustomerChat(modelMessages, userText)
+		const result = await executePortalCustomerRoute(
+			supabase,
+			customerId,
+			route,
+			userText,
+		)
+		const chunks = await renderPortalCustomerResponse(modelMessages, result)
 
-		// biome-ignore lint/complexity/noBannedTypes: TanStack server-fn type contract uses `{}` explicitly.
+		await recordPortalAiAudit(
+			supabase,
+			customerId,
+			userText,
+			chunks,
+			result,
+		).catch(() => undefined)
+
+		// biome-ignore lint/complexity/noBannedTypes: TanStack server-fn serialization accepts this historical chunk boundary type.
 		return chunks as unknown as Array<{ [k: string]: {} }>
 	})
 
-async function loadPortalAiContext(
-	supabase: Awaited<
-		ReturnType<typeof getAuthenticatedPortalCustomer>
-	>['supabase'],
-	customerId: string,
+async function routePortalCustomerChat(
+	messages: ChatMessageInput[],
 	userText: string,
-): Promise<PortalAiContext> {
-	const [product, latestOrder] = await Promise.all([
-		findPublishedProduct(supabase, userText),
-		findLatestCustomerOrder(supabase),
-	])
-	return { customerId, draft: null, latestOrder, product }
+): Promise<PortalCustomerRoute> {
+	if (!isAIEnabled()) return fallbackPortalCustomerRoute(userText)
+
+	try {
+		const rawRoute = await completeChat(
+			recentRouteMessages(messages),
+			PORTAL_CUSTOMER_ROUTER_PROMPT,
+			{ temperature: 0 },
+		)
+		return enforcePortalCustomerRoute(
+			parsePortalCustomerRoute(rawRoute, userText),
+			userText,
+		)
+	} catch {
+		return fallbackPortalCustomerRoute(userText)
+	}
 }
 
-async function findPublishedProduct(
-	supabase: Awaited<
-		ReturnType<typeof getAuthenticatedPortalCustomer>
-	>['supabase'],
+async function executePortalCustomerRoute(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerRoute,
 	userText: string,
-): Promise<PortalAiProduct | null> {
-	const term = productSearchTerm(userText)
-	if (!term) return null
-	const searchFilter = publicProductSearchFilter(term)
-	let query = supabase
+): Promise<PortalToolResult> {
+	const refusal =
+		route.action === 'refuse'
+			? (route.reason ?? portalCustomerPolicyRefusal(userText))
+			: portalCustomerPolicyRefusal(userText)
+	if (refusal) {
+		return {
+			context: { type: 'refusal', message: refusal },
+			invalidatesOrders: false,
+			readEntities: ['portal_policy'],
+			route: { action: 'refuse', reason: refusal, searchQuery: '' },
+			writeEntityId: null,
+			writeEntityType: null,
+		}
+	}
+
+	switch (route.action) {
+		case 'public_docs':
+			return publicDocsToolResult(route, userText)
+		case 'customer_profile': {
+			const context = await loadCustomerProfileContext(supabase, customerId)
+			return {
+				context: { type: 'profile', ...context },
+				invalidatesOrders: false,
+				readEntities: ['customer_profile', 'customer_addresses', 'projects'],
+				route,
+				writeEntityId: null,
+				writeEntityType: null,
+			}
+		}
+		case 'customer_orders': {
+			const orders = await loadCustomerOrders(supabase, customerId)
+			return {
+				context: { type: 'orders', orders },
+				invalidatesOrders: false,
+				readEntities: ['customer_quote_requests', 'customer_orders'],
+				route,
+				writeEntityId: null,
+				writeEntityType: null,
+			}
+		}
+		case 'order_detail': {
+			const detail = await loadOrderDetailContext(supabase, customerId, route)
+			return {
+				context: { type: 'order_detail', ...detail },
+				invalidatesOrders: false,
+				readEntities: [
+					'customer_quote_requests',
+					'customer_orders',
+					'customer_documents',
+				],
+				route,
+				writeEntityId: null,
+				writeEntityType: null,
+			}
+		}
+		case 'delivery_tracking': {
+			const tracking = await loadDeliveryTrackingContext(
+				supabase,
+				customerId,
+				route,
+			)
+			return {
+				context: { type: 'delivery_tracking', tracking },
+				invalidatesOrders: false,
+				readEntities: ['customer_orders', 'customer_delivery_tracking'],
+				route,
+				writeEntityId: null,
+				writeEntityType: null,
+			}
+		}
+		case 'product_search': {
+			const products = await findPublishedProducts(
+				supabase,
+				route.searchQuery || userText,
+				5,
+			)
+			return {
+				context: { type: 'products', products },
+				invalidatesOrders: false,
+				readEntities: ['published_products'],
+				route,
+				writeEntityId: null,
+				writeEntityType: null,
+			}
+		}
+		case 'create_draft_from_plan': {
+			const result = await createDraftFromPlan(
+				supabase,
+				customerId,
+				route,
+				userText,
+			)
+			return draftWriteToolResult(route, 'create_draft_from_plan', result)
+		}
+		case 'duplicate_order_to_draft': {
+			const result = await duplicateOrderToDraft(supabase, customerId, route)
+			return draftWriteToolResult(route, 'duplicate_order_to_draft', result)
+		}
+		case 'update_draft_metadata': {
+			const result = await updateDraftMetadata(
+				supabase,
+				customerId,
+				route,
+				userText,
+			)
+			return draftWriteToolResult(route, 'update_draft_metadata', result)
+		}
+		case 'cleanup_drafts': {
+			const result = await cleanupDrafts(supabase, customerId, route)
+			return draftWriteToolResult(route, 'cleanup_drafts', result)
+		}
+		case 'delete_draft': {
+			const result = await deleteDraft(supabase, customerId, route)
+			return draftWriteToolResult(route, 'delete_draft', result)
+		}
+		default:
+			return {
+				context: { type: 'chat' },
+				invalidatesOrders: false,
+				readEntities: ['portal_chat'],
+				route,
+				writeEntityId: null,
+				writeEntityType: null,
+			}
+	}
+}
+
+function publicDocsToolResult(
+	route: PortalCustomerRoute,
+	userText: string,
+): PortalToolResult {
+	const routeQuery = route.searchQuery.trim()
+	const searchQuery = routeQuery ? `${userText} ${routeQuery}` : userText
+	let docs = retrieveWebsiteDocs(searchQuery)
+	if (!docs.hasHighConfidence && routeQuery) {
+		const fallbackDocs = retrieveWebsiteDocs(userText)
+		if (fallbackDocs.hasHighConfidence) docs = fallbackDocs
+	}
+	return {
+		context: { type: 'public_docs', docs },
+		invalidatesOrders: false,
+		readEntities: ['public_docs'],
+		route,
+		writeEntityId: null,
+		writeEntityType: null,
+	}
+}
+
+function draftWriteToolResult(
+	route: PortalCustomerRoute,
+	operation: string,
+	result: DraftWriteContext,
+): PortalToolResult {
+	return {
+		context: { type: 'draft_write', operation, result },
+		invalidatesOrders: true,
+		readEntities: [
+			'customer_quote_requests',
+			'customer_orders',
+			'published_products',
+		],
+		route,
+		writeEntityId: result.draftId ?? null,
+		writeEntityType: result.draftId ? 'quote_request' : null,
+	}
+}
+
+async function renderPortalCustomerResponse(
+	modelMessages: ChatMessageInput[],
+	result: PortalToolResult,
+): Promise<StreamChunk[]> {
+	const customEvents = richEventsForToolResult(result)
+
+	if (result.context.type === 'chat') {
+		if (isAIEnabled()) {
+			return streamWithCustomEvents(modelMessages, LYON_PORTAL, customEvents)
+		}
+		return textOnlyChunks(
+			"I'm Lyon. I can help with HyperQuote docs, your profile, orders, deliveries, published products, and editable quote-request drafts.",
+			customEvents,
+		)
+	}
+
+	if (result.context.type === 'public_docs') {
+		const text = await publicDocsAnswer(modelMessages, result.context.docs)
+		return textOnlyChunks(text, customEvents)
+	}
+
+	if (result.context.type === 'refusal') {
+		return textOnlyChunks(result.context.message, customEvents)
+	}
+
+	const fallbackText = fallbackToolAnswer(result.context)
+	if (!isAIEnabled()) return textOnlyChunks(fallbackText, customEvents)
+
+	try {
+		const answer = await completeChat(
+			modelMessages,
+			buildPortalToolAnswerPrompt(result.context),
+			{ temperature: 0.2 },
+		)
+		return textOnlyChunks(answer.trim() || fallbackText, customEvents)
+	} catch {
+		return textOnlyChunks(fallbackText, customEvents)
+	}
+}
+
+async function publicDocsAnswer(
+	modelMessages: ChatMessageInput[],
+	docs: DocsRetrievalResult,
+): Promise<string> {
+	if (!docs.hasHighConfidence) return publicDocsNoAnswerResponse(docs.locale)
+	if (!isAIEnabled()) {
+		return publicDocsExtractiveResponse(docs.chunks, docs.locale)
+	}
+
+	const sources = publicDocsSourceLinks(docs.chunks, docs.locale)
+	try {
+		const answer = await completeChat(
+			modelMessages,
+			buildWebsiteDocsPrompt(LYON_PORTAL, buildPublicDocsContext(docs.chunks)),
+			{ temperature: 0.2 },
+		)
+		return appendDocsSources(answer, sources, docs.locale)
+	} catch {
+		return publicDocsExtractiveResponse(docs.chunks, docs.locale)
+	}
+}
+
+function appendDocsSources(
+	answer: string,
+	sources: string,
+	locale: 'ar' | 'en',
+): string {
+	if (!sources || /\]\(\/docs\//.test(answer)) return answer
+	return `${answer.trim()}\n\n${locale === 'ar' ? 'المصادر' : 'Sources'}: ${sources}`
+}
+
+function buildPortalToolAnswerPrompt(
+	context: Exclude<
+		PortalToolContext,
+		{ type: 'chat' | 'public_docs' | 'refusal' }
+	>,
+): string {
+	return `${LYON_PORTAL}
+
+Answer from the supplied Portal tool result only.
+Be natural and concise. Match the user's language from the conversation.
+Do not expose IDs unless they are customer-facing references.
+For draft writes, say the draft is still a draft and the customer must review/submit manually in the normal UI.
+For missing data, say what is missing instead of guessing.
+
+Portal tool result:
+${safeJson(context)}`
+}
+
+function fallbackToolAnswer(context: PortalToolContext): string {
+	switch (context.type) {
+		case 'profile':
+			return profileFallbackAnswer(context)
+		case 'orders':
+			return ordersFallbackAnswer(context.orders)
+		case 'order_detail':
+			return orderDetailFallbackAnswer(context.order, context.documents)
+		case 'delivery_tracking':
+			return deliveryTrackingFallbackAnswer(context.tracking)
+		case 'products':
+			return productFallbackAnswer(context.products)
+		case 'draft_write':
+			return context.result.message
+		case 'refusal':
+			return context.message
+		case 'public_docs':
+			return context.docs.hasHighConfidence
+				? publicDocsExtractiveResponse(context.docs.chunks, context.docs.locale)
+				: publicDocsNoAnswerResponse(context.docs.locale)
+		case 'chat':
+			return "I'm Lyon. How can I help with HyperQuote today?"
+	}
+}
+
+function profileFallbackAnswer(
+	context: Extract<PortalToolContext, { type: 'profile' }>,
+): string {
+	const defaultAddress = context.addresses.find((address) => address.is_default)
+	const projects = context.projects.slice(0, 3).map((project) => project.name)
+	return [
+		`Your customer profile is ${context.profile.company_name}.`,
+		`Primary contact: ${context.profile.contact_name} (${context.profile.phone}).`,
+		defaultAddress
+			? `Default address: ${defaultAddress.street}, ${defaultAddress.city}, ${defaultAddress.governorate}.`
+			: 'No default address is saved.',
+		projects.length > 0
+			? `Active projects: ${projects.join(', ')}.`
+			: 'No active projects are saved.',
+	].join(' ')
+}
+
+function ordersFallbackAnswer(orders: CustomerOrderSummary[]): string {
+	if (orders.length === 0) {
+		return 'I do not see any quote requests or orders in your customer account yet.'
+	}
+	const counts = orders.reduce<Record<string, number>>((summary, order) => {
+		summary[order.status] = (summary[order.status] ?? 0) + 1
+		return summary
+	}, {})
+	const countText = Object.entries(counts)
+		.map(([status, count]) => `${count} ${status.replace(/_/g, ' ')}`)
+		.join(', ')
+	const latest = orders.slice(0, 4).map((order) => {
+		return `${order.reference} is ${order.status.replace(/_/g, ' ')}`
+	})
+	return `I found ${orders.length} visible quote requests/orders: ${countText}. Latest: ${latest.join('; ')}.`
+}
+
+function orderDetailFallbackAnswer(
+	order: CustomerOrderSummary | null,
+	documents: DocumentRow[],
+): string {
+	if (!order)
+		return 'I could not find that order or quote request in your customer account.'
+	const docsText =
+		documents.length > 0
+			? ` Visible documents: ${documents.map((document) => document.title).join(', ')}.`
+			: ''
+	return `${order.reference} is ${order.status.replace(/_/g, ' ')} with ${order.itemCount} item${order.itemCount === 1 ? '' : 's'}.${order.amount === null ? '' : ` Amount: EGP ${order.amount}.`}${docsText}`
+}
+
+function deliveryTrackingFallbackAnswer(
+	tracking: DeliveryTrackingContext | null,
+): string {
+	if (!tracking) {
+		return 'I do not see an active customer-visible delivery tracking record for your account.'
+	}
+	const { delivery, order } = tracking
+	return `${order.reference} is ${delivery.currentStage.replace(/_/g, ' ')}. Driver: ${delivery.driverName} (${delivery.driverPhone}). Truck ${delivery.truckNumber}, plate ${delivery.vehiclePlate}. ETA: ${delivery.estimatedArrival}. Last update: ${delivery.lastUpdated}.`
+}
+
+function productFallbackAnswer(products: PortalAiProduct[]): string {
+	if (products.length === 0) {
+		return 'I could not find a matching published product in the catalog.'
+	}
+	const topProducts = products.slice(0, 3).map((product) => {
+		return `${product.name}${product.name_ar ? ` / ${product.name_ar}` : ''} (${formatPriceRange(product, 'en')})`
+	})
+	return `I found these published catalog matches: ${topProducts.join('; ')}.`
+}
+
+function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
+	const events: StreamChunk[] = []
+	switch (result.context.type) {
+		case 'products':
+			for (const product of result.context.products.slice(0, 3)) {
+				events.push(productCardEvent(product))
+			}
+			break
+		case 'orders':
+			for (const order of result.context.orders.slice(0, 3)) {
+				events.push(statusCardEvent(order))
+			}
+			break
+		case 'order_detail':
+			if (result.context.order)
+				events.push(statusCardEvent(result.context.order))
+			break
+		case 'delivery_tracking':
+			if (result.context.tracking) {
+				events.push(statusCardEvent(result.context.tracking.order))
+				events.push(deliveryTrackingEvent(result.context.tracking))
+			}
+			break
+		case 'draft_write':
+			events.push(draftCleanupEvent(result.context.result))
+			if (result.context.result.items) {
+				events.push(materialListEvent(result.context.result))
+			}
+			break
+		default:
+			break
+	}
+	if (result.invalidatesOrders) events.push(customerOrdersInvalidationEvent())
+	return events
+}
+
+async function loadCustomerProfileContext(
+	supabase: AuthedSupabase,
+	customerId: string,
+) {
+	const [
+		{ data: profile, error: profileError },
+		{ data: addresses, error: addressError },
+		{ data: projects, error: projectError },
+	] = await Promise.all([
+		supabase
+			.from('customers')
+			.select(
+				'id, company_name, contact_name, phone, email, status, tier, credit_limit, payment_history, trade_license_status',
+			)
+			.eq('id', customerId)
+			.single(),
+		supabase
+			.from('customer_addresses')
+			.select('id, label, street, city, governorate, is_default')
+			.eq('customer_id', customerId)
+			.order('is_default', { ascending: false })
+			.order('created_at', { ascending: false }),
+		supabase
+			.from('projects')
+			.select('id, name, description, created_at')
+			.eq('customer_id', customerId)
+			.eq('archived', false)
+			.order('created_at', { ascending: false }),
+	])
+
+	if (profileError || !profile) {
+		throw new Error(profileError?.message ?? 'Customer profile not found')
+	}
+	if (addressError) throw new Error(addressError.message)
+	if (projectError) throw new Error(projectError.message)
+
+	return {
+		addresses: (addresses ?? []) as CustomerAddressRow[],
+		profile: profile as CustomerProfileRow,
+		projects: (projects ?? []) as CustomerProjectRow[],
+	}
+}
+
+async function loadCustomerOrders(
+	supabase: AuthedSupabase,
+	customerId: string,
+): Promise<CustomerOrderSummary[]> {
+	const { data, error } = await supabase
+		.from('quote_requests')
+		.select(
+			`
+			id,
+			request_number,
+			status,
+			created_at,
+			submitted_at,
+			draft_name,
+			notes,
+			urgency,
+			project_id,
+			delivery_address_id,
+			delivery_date,
+			attachment_urls,
+			quote_request_items (
+				id,
+				product_id,
+				customer_description,
+				product_name_ar,
+				quantity,
+				unit_of_measure,
+				unit_of_measure_ar,
+				notes,
+				match_confidence,
+				sort_order,
+				is_unmatched,
+				products (
+					id,
+					name,
+					name_ar,
+					category,
+					image_urls
+				)
+			),
+			orders (
+				id,
+				order_number,
+				status,
+				total_amount,
+				created_at,
+				delivered_at,
+				quote_request_id
+			)
+		`,
+		)
+		.eq('customer_id', customerId)
+		.order('created_at', { ascending: false })
+		.limit(80)
+
+	if (error) throw new Error(error.message)
+	return ((data ?? []) as unknown as QuoteRequestRow[]).map(
+		toCustomerOrderSummary,
+	)
+}
+
+async function loadOrderDetailContext(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerRoute,
+): Promise<{ documents: DocumentRow[]; order: CustomerOrderSummary | null }> {
+	const orders = await loadCustomerOrders(supabase, customerId)
+	const order =
+		findOrderByReference(orders, route.targetReference) ?? orders[0] ?? null
+	if (!order) return { documents: [], order: null }
+	const { data: documents, error } = await supabase
+		.from('documents')
+		.select('id, type, title, download_url, created_at')
+		.eq('customer_id', customerId)
+		.eq('related_order_ref', order.reference)
+		.order('created_at', { ascending: false })
+	if (error) throw new Error(error.message)
+	return {
+		documents: ((documents ?? []) as DocumentRow[]).filter(
+			(document) => document.download_url,
+		),
+		order,
+	}
+}
+
+async function loadDeliveryTrackingContext(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerRoute,
+): Promise<DeliveryTrackingContext | null> {
+	const orders = await loadCustomerOrders(supabase, customerId)
+	const scopedOrders = route.targetReference
+		? orders.filter((order) =>
+				orderMatchesReference(order, route.targetReference),
+			)
+		: orders
+	for (const order of scopedOrders) {
+		if (!order.linkedOrderId) continue
+		const delivery = await getCustomerDeliveryTracking(
+			supabase,
+			order.linkedOrderId,
+		)
+		if (delivery) return { delivery, order }
+	}
+	return null
+}
+
+async function findPublishedProducts(
+	supabase: AuthedSupabase,
+	userText: string,
+	limit: number,
+): Promise<PortalAiProduct[]> {
+	const query = productSearchTerm(userText)
+	const filter = query ? publicProductSearchFilter(query) : null
+	let builder = supabase
 		.from('products')
 		.select(
-			'id, name, name_ar, slug, category, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, specifications, specifications_ar, image_urls, availability_status',
+			'id, sku, slug, name, name_ar, category, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar',
 		)
 		.eq('is_active', true)
 		.neq('availability_status', 'hidden')
-	if (searchFilter) query = query.or(searchFilter)
-	const { data, error } = await query.limit(1)
+		.limit(limit)
+	if (filter) builder = builder.or(filter)
+
+	const { data, error } = await builder
 	if (error) throw new Error(error.message)
-	const [product] = (data ?? []) as PortalAiProduct[]
-	return product ?? null
+	return (data ?? []) as PortalAiProduct[]
+}
+
+async function createDraftFromPlan(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerRoute,
+	userText: string,
+): Promise<DraftWriteContext> {
+	const products = await findPublishedProducts(
+		supabase,
+		route.searchQuery || userText,
+		5,
+	)
+	const items = buildDraftItemsFromPlan(userText, products)
+	const draftName =
+		route.draftName ??
+		defaultDraftName(userText, detectPortalAiLocale(userText))
+
+	const { data: draft, error } = await supabase
+		.from('quote_requests')
+		.insert({
+			attachment_urls: [],
+			customer_id: customerId,
+			draft_name: draftName,
+			notes: `Portal AI draft from chat: ${userText.slice(0, 180)}`,
+			status: 'draft',
+			urgency: 'standard',
+		})
+		.select('id, request_number')
+		.single()
+	if (error || !draft)
+		throw new Error(error?.message ?? 'Failed to create draft')
+
+	await insertQuoteRequestItems(
+		supabase,
+		draft.id,
+		items.map((item, index) => ({
+			customerDescription: item.name,
+			isUnmatched: item.productId === undefined,
+			matchConfidence: item.productId ? 0.85 : undefined,
+			notes: item.notes ?? 'Added by Portal AI for customer review',
+			productId: item.productId,
+			quantity: item.qty,
+			sortOrder: index,
+			unitOfMeasure: item.unit,
+			unitOfMeasureAr: item.unitAr,
+		})),
+	)
+
+	await recordDraftSavedActivity(supabase, draft.id, {
+		item_count: items.length,
+		operation: 'portal_ai_create',
+	})
+
+	return {
+		draftId: draft.id,
+		editRoute: `/orders/edit/${draft.id}`,
+		items,
+		reference: draft.request_number,
+		message: `I created draft ${draft.request_number} with ${items.length} material line${items.length === 1 ? '' : 's'}. Review it in Orders before submitting; nothing was submitted.`,
+	}
+}
+
+async function duplicateOrderToDraft(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerRoute,
+): Promise<DraftWriteContext> {
+	const source = await findSourceQuoteRequest(
+		supabase,
+		customerId,
+		route.targetReference,
+	)
+	if (!source) {
+		return {
+			message:
+				'I could not find a matching past order or quote request in your customer account.',
+		}
+	}
+	const sourceItems = (source.quote_request_items ?? [])
+		.slice()
+		.sort((a, b) => a.sort_order - b.sort_order)
+	if (sourceItems.length === 0) {
+		return {
+			message:
+				'I found the source record, but it has no material lines to copy into a draft.',
+		}
+	}
+
+	const { data: draft, error } = await supabase
+		.from('quote_requests')
+		.insert({
+			attachment_urls: source.attachment_urls ?? [],
+			customer_id: customerId,
+			delivery_address_id: source.delivery_address_id,
+			delivery_date: source.delivery_date,
+			draft_name:
+				route.draftName ??
+				source.draft_name ??
+				`Copy of ${source.request_number}`,
+			notes: source.notes,
+			project_id: source.project_id,
+			status: 'draft',
+			urgency: source.urgency,
+		})
+		.select('id, request_number')
+		.single()
+	if (error || !draft)
+		throw new Error(error?.message ?? 'Failed to duplicate draft')
+
+	const items = sourceItems.map(toDraftMaterialItem)
+	await insertQuoteRequestItems(
+		supabase,
+		draft.id,
+		items.map((item, index) => ({
+			customerDescription: item.name,
+			isUnmatched: item.productId === undefined,
+			matchConfidence: sourceItems[index]?.match_confidence ?? undefined,
+			notes: item.notes,
+			productId: item.productId,
+			quantity: item.qty,
+			sortOrder: index,
+			unitOfMeasure: item.unit,
+			unitOfMeasureAr: item.unitAr,
+		})),
+	)
+	await recordDraftSavedActivity(supabase, draft.id, {
+		item_count: items.length,
+		operation: 'portal_ai_duplicate',
+		source_quote_request_id: source.id,
+	})
+
+	return {
+		draftId: draft.id,
+		editRoute: `/orders/edit/${draft.id}`,
+		items,
+		reference: draft.request_number,
+		message: `I copied ${source.request_number} into new draft ${draft.request_number}. Review it before submitting; the original record was not changed.`,
+	}
+}
+
+async function updateDraftMetadata(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerRoute,
+	userText: string,
+): Promise<DraftWriteContext> {
+	const draft = await findEditableDraft(
+		supabase,
+		customerId,
+		route.targetReference,
+	)
+	if (!draft)
+		return {
+			message: 'I could not find an editable draft in your customer account.',
+		}
+	const draftName =
+		route.draftName ?? inferredDraftNameFromText(userText) ?? draft.draft_name
+	const draftNotes = route.draftNotes
+	const update: Record<string, string | null> = {}
+	if (draftName !== draft.draft_name) update.draft_name = draftName
+	if (draftNotes !== undefined) update.notes = draftNotes
+
+	if (Object.keys(update).length > 0) {
+		const { error } = await supabase
+			.from('quote_requests')
+			.update(update)
+			.eq('id', draft.id)
+			.eq('customer_id', customerId)
+			.eq('status', 'draft')
+		if (error) throw new Error(error.message)
+	}
+
+	await recordDraftSavedActivity(supabase, draft.id, {
+		operation: 'portal_ai_metadata_update',
+	})
+
+	return {
+		draftId: draft.id,
+		editRoute: `/orders/edit/${draft.id}`,
+		reference: draft.request_number,
+		renamed:
+			draftName && draftName !== draft.draft_name
+				? [{ from: draft.draft_name ?? draft.request_number, to: draftName }]
+				: [],
+		message: `I updated draft ${draft.request_number}. It is still only a draft; review it before submitting.`,
+	}
+}
+
+async function cleanupDrafts(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerRoute,
+): Promise<DraftWriteContext> {
+	const drafts = await loadEditableDrafts(supabase, customerId)
+	if (drafts.length === 0)
+		return { message: 'You do not have any editable drafts to clean up.' }
+
+	const mode = route.cleanupMode ?? 'remove_empty'
+	if (mode === 'merge') {
+		const sourceDrafts = drafts.filter(
+			(draft) => (draft.quote_request_items ?? []).length > 0,
+		)
+		if (sourceDrafts.length <= 1) {
+			return {
+				kept: drafts.map((draft) => draft.request_number),
+				message:
+					'There is only one non-empty editable draft, so I did not merge anything.',
+			}
+		}
+		const items = sourceDrafts.flatMap((draft) =>
+			(draft.quote_request_items ?? []).map(toDraftMaterialItem),
+		)
+		const { data: mergedDraft, error } = await supabase
+			.from('quote_requests')
+			.insert({
+				attachment_urls: [],
+				customer_id: customerId,
+				draft_name: route.draftName ?? 'Merged Portal AI draft',
+				notes: 'Merged by Portal AI from editable drafts.',
+				status: 'draft',
+				urgency: 'standard',
+			})
+			.select('id, request_number')
+			.single()
+		if (error || !mergedDraft) {
+			throw new Error(error?.message ?? 'Failed to merge drafts')
+		}
+		await insertQuoteRequestItems(
+			supabase,
+			mergedDraft.id,
+			items.map((item, index) => ({
+				customerDescription: item.name,
+				isUnmatched: item.productId === undefined,
+				notes: item.notes,
+				productId: item.productId,
+				quantity: item.qty,
+				sortOrder: index,
+				unitOfMeasure: item.unit,
+				unitOfMeasureAr: item.unitAr,
+			})),
+		)
+		await deleteDraftIds(
+			supabase,
+			customerId,
+			sourceDrafts.map((draft) => draft.id),
+		)
+		await recordDraftSavedActivity(supabase, mergedDraft.id, {
+			item_count: items.length,
+			operation: 'portal_ai_merge',
+			source_count: sourceDrafts.length,
+		})
+		return {
+			deleted: sourceDrafts.map((draft) => draft.request_number),
+			draftId: mergedDraft.id,
+			editRoute: `/orders/edit/${mergedDraft.id}`,
+			items,
+			merged: sourceDrafts.map((draft) => draft.request_number),
+			reference: mergedDraft.request_number,
+			message: `I merged ${sourceDrafts.length} editable drafts into ${mergedDraft.request_number} and removed only the old draft records.`,
+		}
+	}
+
+	const draftsToDelete =
+		mode === 'delete_all'
+			? drafts
+			: drafts.filter((draft) => (draft.quote_request_items ?? []).length === 0)
+	if (draftsToDelete.length > 0) {
+		await deleteDraftIds(
+			supabase,
+			customerId,
+			draftsToDelete.map((draft) => draft.id),
+		)
+	}
+	const kept = drafts
+		.filter(
+			(draft) => !draftsToDelete.some((deleted) => deleted.id === draft.id),
+		)
+		.map((draft) => draft.request_number)
+
+	return {
+		deleted: draftsToDelete.map((draft) => draft.request_number),
+		kept,
+		message:
+			draftsToDelete.length > 0
+				? `I removed ${draftsToDelete.length} editable draft${draftsToDelete.length === 1 ? '' : 's'} and did not touch submitted or confirmed records.`
+				: 'I did not find any empty editable drafts to remove.',
+	}
+}
+
+async function deleteDraft(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerRoute,
+): Promise<DraftWriteContext> {
+	const draft = await findEditableDraft(
+		supabase,
+		customerId,
+		route.targetReference,
+	)
+	if (!draft)
+		return { message: 'I could not find an editable draft to delete.' }
+	await deleteDraftIds(supabase, customerId, [draft.id])
+	return {
+		deleted: [draft.request_number],
+		message: `I deleted draft ${draft.request_number}. Submitted and confirmed records were not touched.`,
+	}
+}
+
+async function findSourceQuoteRequest(
+	supabase: AuthedSupabase,
+	customerId: string,
+	targetReference?: string,
+): Promise<QuoteRequestRow | null> {
+	const draftsAndOrders = await loadQuoteRequestRows(supabase, customerId, 80)
+	if (targetReference) {
+		const match = draftsAndOrders.find((row) => {
+			const order = firstRelation(row.orders)
+			return (
+				referenceEquals(row.request_number, targetReference) ||
+				referenceEquals(row.id, targetReference) ||
+				(order
+					? referenceEquals(order.order_number, targetReference) ||
+						referenceEquals(order.id, targetReference)
+					: false)
+			)
+		})
+		if (match) return match
+	}
+	return (
+		draftsAndOrders.find((row) => row.status !== 'draft') ??
+		draftsAndOrders[0] ??
+		null
+	)
+}
+
+async function findEditableDraft(
+	supabase: AuthedSupabase,
+	customerId: string,
+	targetReference?: string,
+): Promise<QuoteRequestRow | null> {
+	const drafts = await loadEditableDrafts(supabase, customerId)
+	if (targetReference) {
+		return (
+			drafts.find((draft) => {
+				return (
+					referenceEquals(draft.request_number, targetReference) ||
+					referenceEquals(draft.id, targetReference) ||
+					(draft.draft_name
+						? referenceEquals(draft.draft_name, targetReference)
+						: false)
+				)
+			}) ?? null
+		)
+	}
+	return drafts[0] ?? null
+}
+
+async function loadEditableDrafts(
+	supabase: AuthedSupabase,
+	customerId: string,
+): Promise<QuoteRequestRow[]> {
+	const rows = await loadQuoteRequestRows(supabase, customerId, 80)
+	return rows.filter((row) => row.status === 'draft')
+}
+
+async function loadQuoteRequestRows(
+	supabase: AuthedSupabase,
+	customerId: string,
+	limit: number,
+): Promise<QuoteRequestRow[]> {
+	const { data, error } = await supabase
+		.from('quote_requests')
+		.select(
+			`
+			id,
+			request_number,
+			status,
+			created_at,
+			submitted_at,
+			draft_name,
+			notes,
+			urgency,
+			project_id,
+			delivery_address_id,
+			delivery_date,
+			attachment_urls,
+			quote_request_items (
+				id,
+				product_id,
+				customer_description,
+				product_name_ar,
+				quantity,
+				unit_of_measure,
+				unit_of_measure_ar,
+				notes,
+				match_confidence,
+				sort_order,
+				is_unmatched,
+				products (
+					id,
+					name,
+					name_ar,
+					category,
+					image_urls
+				)
+			),
+			orders (
+				id,
+				order_number,
+				status,
+				total_amount,
+				created_at,
+				delivered_at,
+				quote_request_id
+			)
+		`,
+		)
+		.eq('customer_id', customerId)
+		.order('created_at', { ascending: false })
+		.limit(limit)
+	if (error) throw new Error(error.message)
+	return (data ?? []) as unknown as QuoteRequestRow[]
+}
+
+async function deleteDraftIds(
+	supabase: AuthedSupabase,
+	customerId: string,
+	draftIds: string[],
+) {
+	if (draftIds.length === 0) return
+	const { error } = await supabase
+		.from('quote_requests')
+		.delete()
+		.eq('customer_id', customerId)
+		.eq('status', 'draft')
+		.in('id', draftIds)
+	if (error) throw new Error(error.message)
+}
+
+async function recordDraftSavedActivity(
+	supabase: AuthedSupabase,
+	quoteRequestId: string,
+	context: Record<string, unknown>,
+) {
+	const { error } = await supabase.rpc(
+		'customer_record_quote_request_draft_saved',
+		{
+			p_context: context,
+			p_quote_request_id: quoteRequestId,
+			p_source: 'portal',
+		},
+	)
+	if (error) throw new Error(error.message)
+}
+
+function toCustomerOrderSummary(row: QuoteRequestRow): CustomerOrderSummary {
+	const order = firstRelation(row.orders)
+	const items = (row.quote_request_items ?? [])
+		.slice()
+		.sort((a, b) => a.sort_order - b.sort_order)
+		.map(toDraftMaterialItem)
+	const status = order?.status ?? row.status
+	const reference = order?.order_number ?? row.request_number
+	const description =
+		items
+			.slice(0, 3)
+			.map((item) => item.name)
+			.join(', ') ||
+		row.notes ||
+		reference
+	return {
+		amount: order?.total_amount ?? null,
+		date: row.submitted_at ?? order?.created_at ?? row.created_at,
+		description,
+		id: row.id,
+		itemCount: items.length,
+		items,
+		linkedOrderId: order?.id ?? null,
+		name: row.draft_name,
+		reference,
+		requestReference: row.request_number,
+		status,
+		type: order
+			? 'confirmed'
+			: row.status === 'draft' || row.status === 'saved'
+				? 'draft'
+				: 'submitted',
+	}
+}
+
+function toDraftMaterialItem(item: QuoteRequestItemRow): DraftMaterialItem {
+	const product = firstRelation(item.products)
+	const name = item.customer_description || product?.name || item.id
+	return {
+		name,
+		nameAr: item.product_name_ar || product?.name_ar || name,
+		notes: item.notes ?? undefined,
+		productId: item.product_id ?? undefined,
+		qty: item.quantity,
+		unit: item.unit_of_measure,
+		unitAr: item.unit_of_measure_ar || item.unit_of_measure,
+	}
+}
+
+function buildDraftItemsFromPlan(
+	userText: string,
+	products: PortalAiProduct[],
+): DraftMaterialItem[] {
+	const quantity = parseRequestedQuantity(userText) ?? 1
+	const normalizedText = normalizeForMatch(userText)
+	const matches = products.filter((product) => {
+		const tokens = [
+			product.name,
+			product.name_ar ?? '',
+			product.category,
+			product.subcategory ?? '',
+			product.sku,
+		]
+			.flatMap((value) => normalizeForMatch(value).split(' '))
+			.filter((token) => token.length > 2)
+		return tokens.some((token) => normalizedText.includes(token))
+	})
+	const selected =
+		matches.length > 0 ? matches.slice(0, 4) : products.slice(0, 1)
+	const matchedItems = selected.map((product) => ({
+		name: product.name,
+		nameAr: product.name_ar ?? product.name,
+		notes: 'Matched from published catalog by Portal AI for customer review',
+		productId: product.id,
+		qty: quantity,
+		unit: product.unit_of_measure,
+		unitAr: product.unit_of_measure_ar,
+	}))
+
+	if (matchedItems.length > 0) return matchedItems
+
+	return [
+		{
+			name: materialDescriptionFromText(userText),
+			nameAr: materialDescriptionFromText(userText),
+			notes:
+				'Unmatched estimated material from Portal AI plan. Please review before submitting.',
+			qty: quantity,
+			unit: 'unit',
+			unitAr: 'وحدة',
+		},
+	]
+}
+
+function findOrderByReference(
+	orders: CustomerOrderSummary[],
+	targetReference?: string,
+): CustomerOrderSummary | null {
+	if (!targetReference) return orders[0] ?? null
+	return (
+		orders.find((order) => orderMatchesReference(order, targetReference)) ??
+		null
+	)
+}
+
+function orderMatchesReference(
+	order: CustomerOrderSummary,
+	targetReference?: string,
+): boolean {
+	if (!targetReference) return false
+	return (
+		referenceEquals(order.id, targetReference) ||
+		referenceEquals(order.reference, targetReference) ||
+		referenceEquals(order.requestReference, targetReference) ||
+		(order.linkedOrderId
+			? referenceEquals(order.linkedOrderId, targetReference)
+			: false)
+	)
+}
+
+function productCardEvent(product: PortalAiProduct): StreamChunk {
+	return {
+		type: 'CUSTOM' as const,
+		timestamp: Date.now(),
+		name: 'rich_message',
+		value: {
+			type: 'product_card',
+			data: {
+				available: product.availability_status === 'available',
+				id: product.id,
+				image: product.image_urls?.[0],
+				name: product.name,
+				nameAr: product.name_ar ?? product.name,
+				priceRange: formatPriceRange(product, 'en'),
+				priceRangeAr: formatPriceRange(product, 'ar'),
+				specs: specsForCard(product.specifications),
+				specsAr: specsForCard(product.specifications_ar),
+			},
+		},
+	}
+}
+
+function statusCardEvent(order: CustomerOrderSummary): StreamChunk {
+	const createdDate = order.date.slice(0, 10)
+	const delivered = order.status === 'delivered'
+	const active = [
+		'submitted',
+		'confirmed',
+		'order_confirmed',
+		'being_prepared',
+		'out_for_delivery',
+	].includes(order.status)
+	return {
+		type: 'CUSTOM' as const,
+		timestamp: Date.now(),
+		name: 'rich_message',
+		value: {
+			type: 'status_card',
+			data: {
+				displayNumber: order.reference,
+				entityId: order.linkedOrderId ?? order.id,
+				entityType: order.linkedOrderId ? 'order' : 'quote',
+				status: order.status.replace(/_/g, ' '),
+				statusColor: delivered ? 'green' : active ? 'yellow' : 'red',
+				timeline: [
+					{ date: createdDate, done: true, label: 'Created' },
+					{
+						date: createdDate,
+						done: order.status !== 'draft',
+						label: 'Submitted',
+					},
+					{
+						date: delivered ? createdDate : 'Pending',
+						done: delivered,
+						label: 'Delivered',
+					},
+				],
+			},
+		},
+	}
+}
+
+function deliveryTrackingEvent(context: DeliveryTrackingContext): StreamChunk {
+	const { delivery } = context
+	return {
+		type: 'CUSTOM' as const,
+		timestamp: Date.now(),
+		name: 'rich_message',
+		value: {
+			type: 'delivery_tracking',
+			data: {
+				deliveryNumber: delivery.deliveryNumber,
+				driverName: delivery.driverName,
+				driverPhone: delivery.driverPhone,
+				estimatedArrival: delivery.estimatedArrival,
+				lastUpdated: delivery.lastUpdated,
+				orderNumber: delivery.orderNumber,
+				route: delivery.route,
+				stage: delivery.currentStage,
+				truckNumber: delivery.truckNumber,
+				vehiclePlate: delivery.vehiclePlate,
+			},
+		},
+	}
+}
+
+function materialListEvent(result: DraftWriteContext): StreamChunk {
+	return {
+		type: 'CUSTOM' as const,
+		timestamp: Date.now(),
+		name: 'rich_message',
+		value: {
+			type: 'material_list',
+			data: {
+				draftId: result.draftId,
+				editRoute: result.editRoute,
+				items: result.items ?? [],
+				reference: result.reference,
+			},
+		},
+	}
+}
+
+function draftCleanupEvent(result: DraftWriteContext): StreamChunk {
+	return {
+		type: 'CUSTOM' as const,
+		timestamp: Date.now(),
+		name: 'rich_message',
+		value: {
+			type: 'draft_cleanup_result',
+			data: {
+				deleted: result.deleted ?? [],
+				kept: result.kept ?? [],
+				merged: result.merged ?? [],
+				reference: result.reference,
+				renamed: result.renamed ?? [],
+			},
+		},
+	}
+}
+
+function customerOrdersInvalidationEvent(): StreamChunk {
+	return {
+		type: 'CUSTOM' as const,
+		timestamp: Date.now(),
+		name: 'portal_cache_invalidation',
+		value: { queryKeys: [['customer-orders-all']] },
+	}
+}
+
+function formatPriceRange(
+	product: PortalAiProduct,
+	locale: 'ar' | 'en',
+): string {
+	const min = product.price_range_min
+	const max = product.price_range_max
+	const unit =
+		locale === 'ar' && product.unit_of_measure_ar
+			? product.unit_of_measure_ar
+			: product.unit_of_measure
+	if (min == null && max == null) {
+		return locale === 'ar' ? 'السعر عند الطلب' : 'Request quote'
+	}
+	if (min != null && max != null) return `EGP ${min} - ${max}/${unit}`
+	return `EGP ${min ?? max}/${unit}`
+}
+
+function specsForCard(
+	value: Record<string, unknown> | null,
+): Record<string, string> {
+	if (!value) return {}
+	return Object.fromEntries(
+		Object.entries(value)
+			.slice(0, 4)
+			.map(([key, rawValue]) => [key, String(rawValue)]),
+	)
+}
+
+async function supplierPortalChunks(
+	userText: string,
+	modelMessages: ChatMessageInput[],
+): Promise<StreamChunk[]> {
+	if (isAIEnabled())
+		return streamWithCustomEvents(modelMessages, LYON_PORTAL, [])
+	const lower = userText.toLowerCase()
+	const key = lower.includes('cement')
+		? 'cement'
+		: lower.includes('rebar') || lower.includes('steel')
+			? 'rebar'
+			: lower.includes('order') || lower.includes('po')
+				? 'order'
+				: lower.includes('track')
+					? 'track'
+					: lower.includes('price')
+						? 'price'
+						: lower.includes('stock')
+							? 'stock'
+							: lower.includes('help')
+								? 'help'
+								: 'default'
+	return textOnlyChunks(
+		SUPPLIER_RESPONSES[key] ?? SUPPLIER_RESPONSES.default,
+		[],
+	)
+}
+
+async function streamWithCustomEvents(
+	messages: ChatMessageInput[],
+	systemPrompt: string,
+	customEvents: StreamChunk[],
+): Promise<StreamChunk[]> {
+	const chunks: StreamChunk[] = []
+	let finishChunk: StreamChunk | null = null
+	for await (const chunk of streamChat(messages, systemPrompt)) {
+		if (chunk.type === 'RUN_FINISHED') {
+			finishChunk = chunk
+			continue
+		}
+		chunks.push(chunk)
+	}
+	chunks.push(...customEvents)
+	if (finishChunk) chunks.push(finishChunk)
+	return chunks
+}
+
+function textOnlyChunks(
+	text: string,
+	customEvents: StreamChunk[],
+): StreamChunk[] {
+	const runId = crypto.randomUUID()
+	const messageId = crypto.randomUUID()
+	return [
+		{ type: 'RUN_STARTED' as const, timestamp: Date.now(), runId },
+		{
+			type: 'TEXT_MESSAGE_START' as const,
+			timestamp: Date.now(),
+			messageId,
+			role: 'assistant' as const,
+		},
+		{
+			type: 'TEXT_MESSAGE_CONTENT' as const,
+			timestamp: Date.now(),
+			messageId,
+			delta: text,
+		},
+		{ type: 'TEXT_MESSAGE_END' as const, timestamp: Date.now(), messageId },
+		...customEvents,
+		{
+			type: 'RUN_FINISHED' as const,
+			timestamp: Date.now(),
+			runId,
+			finishReason: 'stop' as const,
+		},
+	]
+}
+
+function recentRouteMessages(messages: ChatMessageInput[]): ChatMessageInput[] {
+	return messages.slice(-6).map((message) => ({
+		role: message.role,
+		content: message.content.slice(0, 1200),
+	}))
+}
+
+function modelChatMessages(messages: ChatMessageInput[]): ChatMessageInput[] {
+	return messages.slice(-MODEL_CHAT_MESSAGES).map((message) => ({
+		role: message.role,
+		content: message.content.slice(0, MODEL_CHAT_MESSAGE_CHARACTERS),
+	}))
 }
 
 function publicProductSearchFilter(search: string): string | null {
@@ -477,131 +1727,27 @@ function publicProductSearchFilter(search: string): string | null {
 	].join(',')
 }
 
-async function findLatestCustomerOrder(
-	supabase: Awaited<
-		ReturnType<typeof getAuthenticatedPortalCustomer>
-	>['supabase'],
-): Promise<PortalAiOrder | null> {
-	const { data, error } = await supabase
-		.from('orders')
-		.select('id, order_number, status, created_at, delivered_at, total_amount')
-		.order('created_at', { ascending: false })
-		.limit(1)
-	if (error) throw new Error(error.message)
-	const [order] = (data ?? []) as PortalAiOrder[]
-	return order ?? null
-}
-
-function productSearchTerm(userText: string): string | null {
-	const lower = userText.toLowerCase()
-	if (
-		lower.includes('cement') ||
-		lower.includes('\u0627\u0633\u0645\u0646\u062a')
-	) {
-		return 'cement'
+function productSearchTerm(userText: string): string {
+	const normalized = normalizeForMatch(userText)
+	const knownTerms = [
+		['cement', 'cement'],
+		['اسمنت', 'cement'],
+		['أسمنت', 'cement'],
+		['rebar', 'steel'],
+		['steel', 'steel'],
+		['حديد', 'steel'],
+		['concrete', 'concrete'],
+		['sand', 'sand'],
+		['رمل', 'sand'],
+		['brick', 'brick'],
+		['طوب', 'brick'],
+		['tile', 'tile'],
+		['سيراميك', 'tile'],
+	] as const
+	for (const [needle, replacement] of knownTerms) {
+		if (normalized.includes(normalizeForMatch(needle))) return replacement
 	}
-	if (
-		lower.includes('rebar') ||
-		lower.includes('steel') ||
-		lower.includes('\u062d\u062f\u064a\u062f')
-	) {
-		return 'steel'
-	}
-	return null
-}
-
-function hasDraftIntent(userText: string): boolean {
-	const lower = userText.toLowerCase()
-	return (
-		lower.includes('/quote') ||
-		lower.includes('draft') ||
-		lower.includes('add to cart') ||
-		lower.includes('add it to my cart') ||
-		lower.includes('save as draft')
-	)
-}
-
-function hasEstimateIntent(userText: string): boolean {
-	const lower = userText.toLowerCase()
-	return (
-		lower.includes('estimate') ||
-		lower.includes('quantity') ||
-		lower.includes('mix') ||
-		lower.includes('project') ||
-		lower.includes('sqm') ||
-		lower.includes('m2') ||
-		lower.includes('square')
-	)
-}
-
-async function createPortalAiDraft(
-	supabase: Awaited<
-		ReturnType<typeof getAuthenticatedPortalCustomer>
-	>['supabase'],
-	customerId: string,
-	userText: string,
-	product: PortalAiProduct | null,
-): Promise<PortalAiDraft | null> {
-	if (!product) return null
-	const quantity = parseRequestedQuantity(userText) ?? 1
-	const { data: draft, error } = await supabase
-		.from('quote_requests')
-		.insert({
-			attachment_urls: [],
-			customer_id: customerId,
-			notes: `Portal AI draft from chat: ${userText.slice(0, 180)}`,
-			status: 'draft',
-			urgency: 'standard',
-		})
-		.select('id, request_number')
-		.single()
-	if (error || !draft) {
-		throw new Error(error?.message ?? 'Failed to create Portal AI draft')
-	}
-
-	await insertQuoteRequestItems(supabase, draft.id, [
-		{
-			customerDescription: product.name,
-			isUnmatched: false,
-			matchConfidence: 1,
-			notes: 'Added by Portal AI for customer review',
-			productId: product.id,
-			quantity,
-			sortOrder: 0,
-			unitOfMeasure: product.unit_of_measure,
-			unitOfMeasureAr: product.unit_of_measure_ar,
-		},
-	])
-
-	const { error: activityError } = await supabase.rpc(
-		'customer_record_quote_request_draft_saved',
-		{
-			p_context: {
-				item_count: 1,
-				operation: 'portal_ai_create',
-				product_id: product.id,
-				quantity,
-			},
-			p_quote_request_id: draft.id,
-			p_source: 'portal',
-		},
-	)
-	if (activityError) throw new Error(activityError.message)
-
-	return {
-		editRoute: `/orders/edit/${draft.id}`,
-		id: draft.id,
-		items: [
-			{
-				name: product.name,
-				nameAr: product.name_ar ?? product.name,
-				qty: quantity,
-				unit: product.unit_of_measure,
-				unitAr: product.unit_of_measure_ar,
-			},
-		],
-		reference: draft.request_number,
-	}
+	return userText.slice(0, 120)
 }
 
 function parseRequestedQuantity(userText: string): number | null {
@@ -612,185 +1758,89 @@ function parseRequestedQuantity(userText: string): number | null {
 	return Math.min(value, 1_000_000)
 }
 
-function portalPolicyRefusal(userText: string): string | null {
-	const lower = userText.toLowerCase()
-	if (
-		lower.includes('other customer') ||
-		lower.includes('another customer') ||
-		lower.includes('all customers') ||
-		lower.includes('private profile') ||
-		lower.includes('supplier cost') ||
-		lower.includes('finance internal') ||
-		lower.includes('employee salary')
-	) {
-		return 'I can only use your customer account, published catalog, docs, and your active draft context. I cannot access or reveal another customer or internal private data.'
-	}
-	if (
-		lower.includes('submit') &&
-		(lower.includes('order') || lower.includes('quote'))
-	) {
-		return 'I can help draft the request, but I will not submit it. Please review and confirm through the normal order form.'
-	}
-	return null
+function materialDescriptionFromText(userText: string): string {
+	const cleaned = userText
+		.replace(
+			/\b(create|make|start|build|prepare|draft|quote|request|rfq|for|me|please)\b/gi,
+			' ',
+		)
+		.replace(/\s+/g, ' ')
+		.trim()
+	return cleaned.slice(0, 120) || 'Estimated material'
 }
 
-function usesScopedPortalContext(userText: string): boolean {
-	const lower = userText.toLowerCase()
-	return (
-		productSearchTerm(userText) !== null ||
-		lower.includes('/quote') ||
-		lower.includes('quote') ||
-		lower.includes('draft') ||
-		lower.includes('order') ||
-		lower.includes('\u0637\u0644\u0628') ||
-		lower.includes('track') ||
-		lower.includes('/track') ||
-		lower.includes('/price') ||
-		lower.includes('price') ||
-		lower.includes('/help') ||
-		lower.includes('help') ||
-		lower.includes('stock') ||
-		lower.includes('\u0645\u062e\u0632\u0648\u0646')
-	)
+function defaultDraftName(userText: string, locale: 'ar' | 'en'): string {
+	if (locale === 'ar') return 'مسودة من ليون'
+	const firstMaterial = materialDescriptionFromText(userText)
+		.split(/[,.]/)[0]
+		?.trim()
+	return firstMaterial
+		? `Draft: ${firstMaterial.slice(0, 80)}`
+		: 'Portal AI draft'
 }
 
-function productCardEvent(product: PortalAiProduct): StreamChunk {
-	return {
-		type: 'CUSTOM' as const,
-		timestamp: Date.now(),
-		name: 'rich_message',
-		value: {
-			type: 'product_card',
-			data: {
-				id: product.id,
-				name: product.name,
-				nameAr: product.name_ar ?? product.name,
-				image: product.image_urls?.[0],
-				priceRange: formatPriceRange(product, 'en'),
-				priceRangeAr: formatPriceRange(product, 'ar'),
-				specs: specsForCard(product.specifications),
-				specsAr: specsForCard(product.specifications_ar),
-				available: product.availability_status === 'available',
-			},
-		},
-	}
+function inferredDraftNameFromText(userText: string): string | null {
+	const quoted = userText.match(/["“”']([^"“”']{1,120})["“”']/)?.[1]
+	if (quoted) return quoted.trim()
+	const match = userText.match(/\b(?:to|as)\s+([A-Za-z0-9 _./-]{2,120})$/i)?.[1]
+	return match?.trim() ?? null
 }
 
-function statusCardEvent(order: PortalAiOrder): StreamChunk {
-	const createdDate = order.created_at.slice(0, 10)
-	const deliveredDate = order.delivered_at?.slice(0, 10) ?? ''
-	const delivered = order.status === 'delivered'
-	return {
-		type: 'CUSTOM' as const,
-		timestamp: Date.now(),
-		name: 'rich_message',
-		value: {
-			type: 'status_card',
-			data: {
-				entityType: 'order',
-				entityId: order.id,
-				displayNumber: order.order_number,
-				status: order.status.replace(/_/g, ' '),
-				statusColor: delivered ? 'green' : 'yellow',
-				timeline: [
-					{ label: 'Created', date: createdDate, done: true },
-					{ label: 'In progress', date: createdDate, done: !delivered },
-					{
-						label: 'Delivered',
-						date: deliveredDate || 'Pending',
-						done: delivered,
-					},
-				],
-			},
-		},
-	}
+function normalizeForMatch(value: string): string {
+	return value
+		.toLowerCase()
+		.normalize('NFKD')
+		.replace(/[إأآٱ]/g, 'ا')
+		.replace(/ى/g, 'ي')
+		.replace(/ة/g, 'ه')
+		.replace(/[^\p{L}\p{N}\s]+/gu, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
 }
 
-function formatPriceRange(
-	product: PortalAiProduct,
-	locale: 'ar' | 'en',
-): string {
-	const min = product.price_range_min
-	const max = product.price_range_max
-	const unit =
-		locale === 'ar' && product.unit_of_measure_ar
-			? product.unit_of_measure_ar
-			: product.unit_of_measure
-	if (min == null && max == null)
-		return locale === 'ar' ? 'السعر عند الطلب' : 'Request quote'
-	if (min != null && max != null) return `EGP ${min} - ${max}/${unit}`
-	return `EGP ${min ?? max}/${unit}`
+function referenceEquals(left: string, right: string): boolean {
+	return normalizeReference(left) === normalizeReference(right)
 }
 
-function specsForCard(
-	value: Record<string, unknown> | null,
-): Record<string, string> {
-	if (!value) return {}
-	return Object.fromEntries(
-		Object.entries(value)
-			.slice(0, 4)
-			.map(([key, rawValue]) => [key, String(rawValue)]),
-	)
+function normalizeReference(value: string): string {
+	return value.toUpperCase().replace(/[^A-Z0-9]/g, '')
 }
 
-async function* textOnlyStream(text: string): AsyncGenerator<StreamChunk> {
-	const runId = crypto.randomUUID()
-	const messageId = crypto.randomUUID()
-	yield { type: 'RUN_STARTED' as const, timestamp: Date.now(), runId }
-	yield {
-		type: 'TEXT_MESSAGE_START' as const,
-		timestamp: Date.now(),
-		messageId,
-		role: 'assistant' as const,
-	}
-	yield {
-		type: 'TEXT_MESSAGE_CONTENT' as const,
-		timestamp: Date.now(),
-		messageId,
-		delta: text,
-	}
-	yield { type: 'TEXT_MESSAGE_END' as const, timestamp: Date.now(), messageId }
-	yield {
-		type: 'RUN_FINISHED' as const,
-		timestamp: Date.now(),
-		runId,
-		finishReason: 'stop' as const,
-	}
+function firstRelation<T>(value: T | T[] | null | undefined): T | null {
+	if (Array.isArray(value)) return value[0] ?? null
+	return value ?? null
+}
+
+function safeJson(value: unknown): string {
+	return JSON.stringify(value, null, 2).slice(0, 14_000)
 }
 
 async function recordPortalAiAudit(
-	supabase: Awaited<
-		ReturnType<typeof getAuthenticatedPortalCustomer>
-	>['supabase'],
+	supabase: AuthedSupabase,
+	customerId: string,
 	userText: string,
 	chunks: StreamChunk[],
-	context: PortalAiContext,
+	result: PortalToolResult,
 ) {
-	const text = chunks
+	const response = chunks
 		.filter((chunk) => chunk.type === 'TEXT_MESSAGE_CONTENT')
 		.map((chunk) => chunk.delta)
 		.join('')
 	const { error } = await supabase.rpc('record_ai_tool_call', {
 		p_agent_scope: 'portal',
-		p_approved_by_user: context.draft !== null,
+		p_approved_by_user: isDraftWriteAction(result.route.action),
 		p_input_summary: {
+			customer_id: customerId,
 			prompt: userText.slice(0, 240),
-			customer_id: context.customerId,
+			route: result.route.action,
 		},
 		p_output_summary: {
-			response: text.slice(0, 240),
-			product_id: context.product?.id ?? null,
-			order_id: context.latestOrder?.id ?? null,
+			response: response.slice(0, 240),
 		},
-		p_read_entities: [
-			'customer_docs',
-			'published_products',
-			'customer_orders',
-			'customer_drafts',
-		],
-		p_tool_name: 'portal_customer_chat',
-		p_write_entity_id: context.draft?.id ?? null,
-		p_write_entity_type: context.draft ? 'quote_request' : null,
+		p_read_entities: result.readEntities,
+		p_tool_name: `portal_customer_${result.route.action}`,
+		p_write_entity_id: result.writeEntityId,
+		p_write_entity_type: result.writeEntityType,
 	})
 	if (error) throw new Error(error.message)
 }

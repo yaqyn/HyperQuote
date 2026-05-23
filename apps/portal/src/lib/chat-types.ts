@@ -49,6 +49,32 @@ export interface MaterialListData {
 	}[]
 }
 
+export interface DeliveryTrackingData {
+	deliveryNumber: string
+	driverName: string
+	driverPhone: string
+	estimatedArrival: string
+	lastUpdated: string
+	orderNumber: string
+	route: {
+		origin: string
+		destination: string
+		distanceKm: number
+		driverLocation: { lat: number; lng: number } | null
+	}
+	stage: string
+	truckNumber: string
+	vehiclePlate: string
+}
+
+export interface DraftCleanupResultData {
+	deleted: string[]
+	kept: string[]
+	merged: string[]
+	reference?: string
+	renamed: Array<{ from: string; to: string }>
+}
+
 interface DisclaimerData {
 	textEn: string
 	textAr: string
@@ -59,6 +85,8 @@ export type RichContent =
 	| { type: 'status_card'; data: StatusCardData }
 	| { type: 'action_button'; data: ActionButtonData }
 	| { type: 'material_list'; data: MaterialListData }
+	| { type: 'delivery_tracking'; data: DeliveryTrackingData }
+	| { type: 'draft_cleanup_result'; data: DraftCleanupResultData }
 	| { type: 'disclaimer'; data: DisclaimerData }
 
 // ============================================================================

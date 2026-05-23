@@ -116,6 +116,7 @@
       "dependencies": {
         "@hyperquote/ai": "workspace:*",
         "@hyperquote/auth": "workspace:*",
+        "@hyperquote/docs": "workspace:*",
         "@hyperquote/forms": "workspace:*",
         "@hyperquote/i18n": "workspace:*",
         "@hyperquote/quote-cart": "workspace:*",
@@ -170,6 +171,7 @@
       "dependencies": {
         "@hyperquote/ai": "workspace:*",
         "@hyperquote/auth": "workspace:*",
+        "@hyperquote/docs": "workspace:*",
         "@hyperquote/forms": "workspace:*",
         "@hyperquote/i18n": "workspace:*",
         "@hyperquote/quote-cart": "workspace:*",
@@ -227,6 +229,13 @@
       "peerDependencies": {
         "@tanstack/react-router": "^1.170.4",
         "@tanstack/react-start": "^1.168.6",
+      },
+    },
+    "packages/docs": {
+      "name": "@hyperquote/docs",
+      "version": "0.0.0",
+      "dependencies": {
+        "@hyperquote/i18n": "workspace:*",
       },
     },
     "packages/forms": {
@@ -658,6 +667,8 @@
     "@hyperquote/ai": ["@hyperquote/ai@workspace:packages/ai"],
 
     "@hyperquote/auth": ["@hyperquote/auth@workspace:packages/auth"],
+
+    "@hyperquote/docs": ["@hyperquote/docs@workspace:packages/docs"],
 
     "@hyperquote/driver": ["@hyperquote/driver@workspace:apps/driver"],
 

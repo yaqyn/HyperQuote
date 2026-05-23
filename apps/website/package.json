@@ -8,7 +8,7 @@
 		"build": "vite build",
 		"routes:generate": "tsr generate",
 		"typecheck": "bun run routes:generate && tsc --noEmit",
-		"test": "bun test src/lib/docs-retrieval.test.ts",
+		"test": "bun run --cwd ../../packages/docs test",
 		"preview": "vite preview",
 		"deploy": "vite build && rm -f dist/server/.dev.vars && wrangler deploy --config dist/server/wrangler.json",
 		"cf-typegen": "wrangler types"
@@ -16,6 +16,7 @@
 	"dependencies": {
 		"@hyperquote/ai": "workspace:*",
 		"@hyperquote/auth": "workspace:*",
+		"@hyperquote/docs": "workspace:*",
 		"@hyperquote/forms": "workspace:*",
 		"@hyperquote/i18n": "workspace:*",
 		"@hyperquote/quote-cart": "workspace:*",

@@ -7,6 +7,8 @@
 import { motion } from 'motion/react'
 import type { RichContent } from '../../lib/chat-types'
 import { ActionButton } from './ActionButton'
+import { DeliveryTrackingCard } from './DeliveryTrackingCard'
+import { DraftCleanupResult } from './DraftCleanupResult'
 import { MaterialList } from './MaterialList'
 import { ProductCard } from './ProductCard'
 import { StatusCard } from './StatusCard'
@@ -58,6 +60,34 @@ function RichMessage({ type, data }: RichMessageProps) {
 				<MaterialList
 					data={
 						data as RichContent extends { type: 'material_list'; data: infer D }
+							? D
+							: never
+					}
+				/>
+			)
+			break
+		case 'delivery_tracking':
+			content = (
+				<DeliveryTrackingCard
+					data={
+						data as RichContent extends {
+							type: 'delivery_tracking'
+							data: infer D
+						}
+							? D
+							: never
+					}
+				/>
+			)
+			break
+		case 'draft_cleanup_result':
+			content = (
+				<DraftCleanupResult
+					data={
+						data as RichContent extends {
+							type: 'draft_cleanup_result'
+							data: infer D
+						}
 							? D
 							: never
 					}

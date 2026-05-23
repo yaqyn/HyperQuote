@@ -10,7 +10,7 @@ import {
 	publicDocsSourceLinks,
 	retrieveWebsiteDocs,
 	WEBSITE_CHAT_ROUTER_PROMPT,
-} from './docs-retrieval'
+} from './retrieval'
 
 describe('website docs retrieval', () => {
 	it('finds the English HyperQuote overview', () => {
