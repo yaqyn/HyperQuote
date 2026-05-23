@@ -95,22 +95,13 @@ export function ChatView({ locale }: ChatViewProps) {
 					/>
 				)}
 
-				<motion.div
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					transition={{
-						duration: 0.5,
-						delay: hasMessages ? 0.2 : 1.6,
-						ease: 'easeOut',
-					}}
-					className="relative z-[2] shrink-0"
-				>
+				<div className="relative z-[2] shrink-0">
 					<div className="px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:px-8 sm:pb-7 sm:pt-5 lg:px-12">
 						<div className="mx-auto w-full max-w-[820px]">
 							<ChatInput chat={chat} />
 						</div>
 					</div>
-				</motion.div>
+				</div>
 			</div>
 			<aside className="relative z-[2] hidden min-h-0 border-s border-[var(--p-border)] lg:flex">
 				<ChatDraftsPanel
