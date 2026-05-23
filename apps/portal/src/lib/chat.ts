@@ -49,6 +49,11 @@ import {
 	routePortalChatCommand,
 } from './portal-customer-agent'
 import {
+	isLegacyGeneratedDraftTitle,
+	normalizePortalDraftNotes,
+	normalizePortalDraftTitle,
+} from './portal-draft-copy'
+import {
 	type EditableDraftDescriptor,
 	editableDraftDescriptorFromText,
 	editableDraftDescriptorLabel,
@@ -1373,6 +1378,7 @@ async function createDraftFromPlan(
 	route: PortalCustomerToolRequest,
 	userText: string,
 ): Promise<DraftWriteContext> {
+	const locale = detectPortalAiLocale(userText)
 	const draftPlanText = route.searchQuery
 		? `${userText} ${route.searchQuery}`
 		: userText
@@ -1398,12 +1404,8 @@ async function createDraftFromPlan(
 	if (items.some((item) => !item.productId)) {
 		throw new Error('Portal AI draft creation requires real catalog products')
 	}
-	const draftName =
-		route.draftName ??
-		defaultDraftName(userText, detectPortalAiLocale(userText))
-	const draftNotes =
-		route.draftNotes ??
-		draftNotesFromPlan(draftPlanText, items, detectPortalAiLocale(userText))
+	const draftName = normalizePortalDraftTitle(route.draftName, items, locale)
+	const draftNotes = normalizePortalDraftNotes(route.draftNotes, items, locale)
 
 	const { data: draft, error } = await supabase
 		.from('quote_requests')
@@ -1428,7 +1430,7 @@ async function createDraftFromPlan(
 			customerDescription: item.name,
 			isUnmatched: false,
 			matchConfidence: 0.85,
-			notes: item.notes ?? 'Added by Portal AI for customer review',
+			notes: item.notes,
 			productId: item.productId,
 			quantity: item.qty,
 			sortOrder: index,
@@ -1490,6 +1492,7 @@ async function duplicateOrderToDraft(
 	customerId: string,
 	route: PortalCustomerToolRequest,
 ): Promise<DraftWriteContext> {
+	const locale = detectPortalAiLocale(route.searchQuery)
 	const source = await findSourceQuoteRequest(
 		supabase,
 		customerId,
@@ -1525,11 +1528,18 @@ async function duplicateOrderToDraft(
 			customer_id: customerId,
 			delivery_address_id: source.delivery_address_id,
 			delivery_date: source.delivery_date,
-			draft_name:
+			draft_name: normalizePortalDraftTitle(
 				route.draftName ??
-				source.draft_name ??
-				`Copy of ${source.request_number}`,
-			notes: source.notes,
+					source.draft_name ??
+					`Copy of ${source.request_number}`,
+				items,
+				locale,
+			),
+			notes: normalizePortalDraftNotes(
+				route.draftNotes ?? source.notes ?? undefined,
+				items,
+				locale,
+			),
 			project_id: source.project_id,
 			status: 'draft',
 			urgency: source.urgency,
@@ -1569,7 +1579,7 @@ async function duplicateOrderToDraft(
 		editRoute: `/orders/edit/${draft.id}`,
 		items,
 		reference: draft.request_number,
-		message: `I copied ${source.request_number} into new draft ${draft.request_number}. Review it before submitting; the original record was not changed.`,
+		message: `I copied ${source.request_number} into ${draft.request_number}.`,
 	}
 }
 
@@ -1579,6 +1589,7 @@ async function updateDraftItems(
 	route: PortalCustomerToolRequest,
 	userText: string,
 ): Promise<DraftWriteContext> {
+	const locale = detectPortalAiLocale(userText)
 	const draftResolution = await resolveEditableDraft(
 		supabase,
 		customerId,
@@ -1616,6 +1627,14 @@ async function updateDraftItems(
 				.eq('quote_request_id', draft.id)
 			if (error) throw new Error(error.message)
 		}
+		await refreshDraftCopyAfterItemEdit(
+			supabase,
+			customerId,
+			draft,
+			[],
+			route,
+			locale,
+		)
 		await recordDraftSavedActivity(supabase, draft.id, {
 			item_count: 0,
 			operation: 'portal_ai_clear_items',
@@ -1676,6 +1695,14 @@ async function updateDraftItems(
 		const remainingItems = currentItems
 			.filter((candidate) => candidate.id !== item.id)
 			.map(toDraftMaterialItem)
+		await refreshDraftCopyAfterItemEdit(
+			supabase,
+			customerId,
+			draft,
+			remainingItems,
+			route,
+			locale,
+		)
 		await recordDraftSavedActivity(supabase, draft.id, {
 			item_count: remainingItems.length,
 			operation: 'portal_ai_remove_item',
@@ -1725,6 +1752,15 @@ async function updateDraftItems(
 		const updatedItems = currentItems.map((candidate) =>
 			candidate.id === item.id ? { ...candidate, quantity } : candidate,
 		)
+		const materialItems = updatedItems.map(toDraftMaterialItem)
+		await refreshDraftCopyAfterItemEdit(
+			supabase,
+			customerId,
+			draft,
+			materialItems,
+			route,
+			locale,
+		)
 		await recordDraftSavedActivity(supabase, draft.id, {
 			from_quantity: item.quantity,
 			operation: 'portal_ai_quantity_update',
@@ -1734,7 +1770,7 @@ async function updateDraftItems(
 		return {
 			draftId: draft.id,
 			editRoute: `/orders/edit/${draft.id}`,
-			items: updatedItems.map(toDraftMaterialItem),
+			items: materialItems,
 			reference: draft.request_number,
 			message: `I changed ${draftItemDisplayName(item)} in ${draft.request_number} from ${item.quantity} to ${quantity} ${item.unit_of_measure}.`,
 		}
@@ -1760,6 +1796,15 @@ async function updateDraftItems(
 	const updatedItems = currentItems.map((candidate) =>
 		candidate.id === item.id ? { ...candidate, notes: itemNotes } : candidate,
 	)
+	const materialItems = updatedItems.map(toDraftMaterialItem)
+	await refreshDraftCopyAfterItemEdit(
+		supabase,
+		customerId,
+		draft,
+		materialItems,
+		route,
+		locale,
+	)
 	await recordDraftSavedActivity(supabase, draft.id, {
 		operation: 'portal_ai_item_note_update',
 		quote_request_item_id: item.id,
@@ -1767,10 +1812,41 @@ async function updateDraftItems(
 	return {
 		draftId: draft.id,
 		editRoute: `/orders/edit/${draft.id}`,
-		items: updatedItems.map(toDraftMaterialItem),
+		items: materialItems,
 		reference: draft.request_number,
 		message: `I updated the note on ${draftItemDisplayName(item)} in ${draft.request_number}.`,
 	}
+}
+
+async function refreshDraftCopyAfterItemEdit(
+	supabase: AuthedSupabase,
+	customerId: string,
+	draft: QuoteRequestRow,
+	items: DraftMaterialItem[],
+	route: PortalCustomerToolRequest,
+	locale: 'ar' | 'en',
+) {
+	const update: Record<string, string> = {
+		notes: normalizePortalDraftNotes(route.draftNotes, items, locale),
+	}
+	if (
+		route.draftName !== undefined ||
+		isLegacyGeneratedDraftTitle(draft.draft_name)
+	) {
+		update.draft_name = normalizePortalDraftTitle(
+			route.draftName,
+			items,
+			locale,
+		)
+	}
+
+	const { error } = await supabase
+		.from('quote_requests')
+		.update(update)
+		.eq('id', draft.id)
+		.eq('customer_id', customerId)
+		.eq('status', 'draft')
+	if (error) throw new Error(error.message)
 }
 
 async function updateDraftMetadata(
@@ -1792,9 +1868,21 @@ async function updateDraftMetadata(
 				draftResolution.message ??
 				'I could not find an editable draft in your customer account.',
 		}
+	const locale = detectPortalAiLocale(userText)
+	const currentItems = sortedQuoteRequestItems(draft).map(toDraftMaterialItem)
+	const inferredDraftName = inferredDraftNameFromText(userText)
 	const draftName =
-		route.draftName ?? inferredDraftNameFromText(userText) ?? draft.draft_name
-	const draftNotes = route.draftNotes
+		route.draftName !== undefined || inferredDraftName
+			? normalizePortalDraftTitle(
+					route.draftName ?? inferredDraftName ?? undefined,
+					currentItems,
+					locale,
+				)
+			: draft.draft_name
+	const draftNotes =
+		route.draftNotes !== undefined
+			? normalizePortalDraftNotes(route.draftNotes, currentItems, locale)
+			: undefined
 	const update: Record<string, string | null> = {}
 	if (draftName !== draft.draft_name) update.draft_name = draftName
 	if (draftNotes !== undefined) update.notes = draftNotes
@@ -1856,13 +1944,14 @@ async function cleanupDrafts(
 					'I did not merge the drafts because at least one material line is text-only or unmatched. Portal AI merge drafts must keep real orderable catalog product links.',
 			}
 		}
+		const locale = detectPortalAiLocale(route.searchQuery)
 		const { data: mergedDraft, error } = await supabase
 			.from('quote_requests')
 			.insert({
 				attachment_urls: [],
 				customer_id: customerId,
-				draft_name: route.draftName ?? 'Merged Portal AI draft',
-				notes: 'Merged by Portal AI from editable drafts.',
+				draft_name: normalizePortalDraftTitle(route.draftName, items, locale),
+				notes: normalizePortalDraftNotes(route.draftNotes, items, locale),
 				status: 'draft',
 				urgency: 'standard',
 			})
@@ -2388,7 +2477,6 @@ function buildDraftItemsFromPlan(
 		return products.slice(0, OPEN_ENDED_DRAFT_ITEM_COUNT).map((product) => ({
 			name: product.name,
 			nameAr: product.name_ar ?? product.name,
-			notes: 'Selected from available catalog products for review',
 			productId: product.id,
 			qty: quantity,
 			unit: product.unit_of_measure,
@@ -2413,7 +2501,6 @@ function buildDraftItemsFromPlan(
 	return selected.map((product) => ({
 		name: product.name,
 		nameAr: product.name_ar ?? product.name,
-		notes: 'Catalog match for customer review',
 		productId: product.id,
 		qty: quantity,
 		unit: product.unit_of_measure,
@@ -3132,63 +3219,6 @@ function parseRequestedQuantity(userText: string): number | null {
 	const value = Number.parseFloat(match[1])
 	if (!Number.isFinite(value) || value <= 0) return null
 	return Math.min(value, 1_000_000)
-}
-
-function materialDescriptionFromText(userText: string): string {
-	const cleaned = userText
-		.replace(
-			/\b(create|make|start|build|prepare|draft|quote|request|rfq|for|me|please)\b/gi,
-			' ',
-		)
-		.replace(/\s+/g, ' ')
-		.trim()
-	return cleaned.slice(0, 120) || 'Estimated material'
-}
-
-function defaultDraftName(userText: string, locale: 'ar' | 'en'): string {
-	if (isOpenEndedCatalogSelectionRequest(userText)) {
-		return locale === 'ar'
-			? 'مسودة اختيار من الكتالوج'
-			: 'Catalog selection draft'
-	}
-	if (locale === 'ar') return 'مسودة من ليون'
-	const firstMaterial = materialDescriptionFromText(userText)
-		.split(/[,.]/)[0]
-		?.trim()
-	return firstMaterial
-		? `Draft: ${firstMaterial.slice(0, 80)}`
-		: 'Portal AI draft'
-}
-
-function draftNotesFromPlan(
-	userText: string,
-	items: DraftMaterialItem[],
-	locale: 'ar' | 'en',
-): string {
-	const itemSummary =
-		items
-			.slice(0, 4)
-			.map((item) => {
-				const name = locale === 'ar' ? item.nameAr : item.name
-				const unit = locale === 'ar' ? item.unitAr : item.unit
-				return `${item.qty} ${unit} ${name}`
-			})
-			.join(', ') || 'selected catalog materials'
-	const moreItems =
-		items.length > 4 ? `, plus ${items.length - 4} more item(s)` : ''
-	const normalized = normalizeForMatch(userText)
-	const project =
-		/\btree\s*house|treehouse\b/.test(normalized) || /بيت\s+شجر/.test(userText)
-			? locale === 'ar'
-				? 'مشروع بيت الشجر'
-				: 'the tree-house project'
-			: locale === 'ar'
-				? 'المشروع'
-				: 'the project'
-	if (locale === 'ar') {
-		return `اختار ليون ${itemSummary}${moreItems} من الكتالوج المتاح لـ${project}. راجع المقاسات والكميات قبل الإرسال.`
-	}
-	return `Lyon selected ${itemSummary}${moreItems} from the available catalog for ${project}. Review dimensions and quantities before submitting.`
 }
 
 function inferredDraftNameFromText(userText: string): string | null {

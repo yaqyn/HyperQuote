@@ -241,6 +241,8 @@ describe('portal customer AI agent', () => {
 		expect(
 			parsePortalCustomerToolRequest(
 				JSON.stringify({
+					draft_name: 'Wood restock',
+					draft_notes: 'Wood materials at the updated quantity.',
 					draft_item_action: 'set_quantity',
 					item_query: 'Wood',
 					quantity: 340,
@@ -252,6 +254,8 @@ describe('portal customer AI agent', () => {
 		).toMatchObject({
 			action: 'update_draft_items',
 			draftItemAction: 'set_quantity',
+			draftName: 'Wood restock',
+			draftNotes: 'Wood materials at the updated quantity.',
 			itemQuery: 'Wood',
 			quantity: 340,
 		})
@@ -260,8 +264,7 @@ describe('portal customer AI agent', () => {
 	it('accepts concise customer-facing draft notes from draft-write routes', () => {
 		const route = parsePortalCustomerToolRequest(
 			JSON.stringify({
-				draft_notes:
-					'Tree-house material starter draft. Review dimensions before submitting.',
+				draft_notes: 'Wood materials for the tree-house frame.',
 				search_query: 'tree-house materials',
 				tool: 'create_draft_from_plan',
 			}),
@@ -270,8 +273,7 @@ describe('portal customer AI agent', () => {
 
 		expect(route).toMatchObject({
 			action: 'create_draft_from_plan',
-			draftNotes:
-				'Tree-house material starter draft. Review dimensions before submitting.',
+			draftNotes: 'Wood materials for the tree-house frame.',
 		})
 	})
 
