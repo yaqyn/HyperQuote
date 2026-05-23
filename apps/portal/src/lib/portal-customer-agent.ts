@@ -69,7 +69,7 @@ export interface PortalCustomerToolRequest {
 	targetReference?: string
 }
 
-export interface PortalCustomerCatalogSnapshotItem {
+interface PortalCustomerCatalogSnapshotItem {
 	category: string
 	name: string
 	nameAr: string | null
@@ -748,9 +748,7 @@ export function portalCustomerActionNeedsConfirmation(
 	}
 }
 
-export function extractTargetReference(
-	userMessage: string,
-): string | undefined {
+function extractTargetReference(userMessage: string): string | undefined {
 	const uuid = userMessage.match(
 		/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i,
 	)?.[0]

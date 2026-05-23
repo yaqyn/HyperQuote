@@ -66,7 +66,7 @@ interface PublicCategoryRow {
 	image_url: string | null
 }
 
-export interface PublicCategory {
+interface PublicCategory {
 	slug: string
 	name: string
 	name_ar: string

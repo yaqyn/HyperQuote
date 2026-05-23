@@ -1,4 +1,4 @@
-export const PORTAL_CUSTOMER_ORDER_SCOPES = [
+const PORTAL_CUSTOMER_ORDER_SCOPES = [
 	'all',
 	'drafts',
 	'submitted',

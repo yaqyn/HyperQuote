@@ -1,11 +1,7 @@
 import { redirect } from '@tanstack/react-router'
-import { getRequest, getResponse } from '@tanstack/react-start/server'
-import {
-	appendSetCookieHeaders,
-	createSupabaseServerClient,
-	getSupabaseServerUser,
-} from './server'
-import type { AuthGuardOptions, AuthPool, AuthSession } from './types'
+import { getRequest } from '@tanstack/react-start/server'
+import { getServerSession } from './session'
+import type { AuthGuardOptions, AuthSession } from './types'
 
 /**
  * Route guard for TanStack Start beforeLoad.
@@ -20,60 +16,16 @@ import type { AuthGuardOptions, AuthPool, AuthSession } from './types'
 export async function authGuard(opts: AuthGuardOptions): Promise<AuthSession> {
 	const request = getRequest()
 	const loginPath = opts.loginPath ?? '/login'
-	const { client, responseCookies, responseHeaders } =
-		createSupabaseServerClient({
-			request,
-			supabaseUrl: opts.supabaseUrl,
-			supabaseAnonKey: opts.supabaseAnonKey,
-			cookieDomain: opts.cookieDomain,
-			cookieName: opts.cookieName,
-		})
-
-	const {
-		data: { user },
-		error: userError,
-	} = await getSupabaseServerUser({
-		client,
-		cookieDomain: opts.cookieDomain,
-		cookieName: opts.cookieName,
-		request,
-		responseHeaders: getResponse().headers,
-	})
-
-	if (userError || !user) {
+	const authSession = await getServerSession(opts)
+	if (!authSession) {
 		throw redirectToLogin(loginPath, request)
 	}
 
-	const {
-		data: { session },
-	} = await client.auth.getSession()
-
-	if (!session) {
-		throw redirectToLogin(loginPath, request)
-	}
-	appendSetCookieHeaders(
-		getResponse().headers,
-		responseCookies.values(),
-		responseHeaders.entries(),
-	)
-
-	// Extract claims set by custom access token hook (Phase 2 migration 004)
-	const metadata = user.app_metadata ?? {}
-	const pool = resolveAuthPool(metadata.pool)
-	const roles = (metadata.roles as string[]) ?? []
-	const tenantId = (metadata.tenant_id as string) ?? null
-
-	if (opts.requiredPool && pool !== opts.requiredPool) {
+	if (opts.requiredPool && authSession.pool !== opts.requiredPool) {
 		throw redirectToLogin(loginPath, request)
 	}
 
-	return {
-		session: { ...session, user },
-		user,
-		pool,
-		roles,
-		tenantId,
-	}
+	return authSession
 }
 
 function redirectToLogin(loginPath: string, request: Request) {
@@ -88,11 +40,4 @@ function redirectToLogin(loginPath: string, request: Request) {
 		to: loginPath,
 		search: { redirect: redirectPath },
 	})
-}
-
-function resolveAuthPool(value: unknown): AuthPool {
-	if (value === 'internal' || value === 'external' || value === 'driver') {
-		return value
-	}
-	return 'external'
 }

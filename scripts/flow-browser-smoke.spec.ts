@@ -1080,17 +1080,10 @@ async function confirmDraftSave(page: Page, draftName?: string) {
 		if (draftName !== undefined) await draftNameInput.fill(draftName)
 		await saveButton.click()
 	}
-	await expect(
-		page.getByRole('button', {
-			name: draftName
-				? new RegExp(`^${escapeRegExp(draftName)}$`)
-				: /^(Draft \d|مسودة )/i,
-		}),
-	).toBeDisabled({ timeout: 15_000 })
-}
-
-function escapeRegExp(value: string): string {
-	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+	const savedDraftButton = draftName
+		? page.getByRole('button', { exact: true, name: draftName })
+		: page.getByRole('button', { name: /^(Draft \d|مسودة )/i })
+	await expect(savedDraftButton).toBeDisabled({ timeout: 15_000 })
 }
 
 function slugPart(value: string): string {

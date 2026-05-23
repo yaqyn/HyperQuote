@@ -7,6 +7,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getAuthenticatedSupabase } from './_supabase'
+import { publicProductSearchFilter } from './product-search-filter'
 
 // ============================================================================
 // Public columns whitelist -- NEVER expose cost fields to clients
@@ -139,23 +140,6 @@ async function getCategoriesBySlug(
 			},
 		]),
 	)
-}
-
-function publicProductSearchFilter(search: string): string | null {
-	const term = search
-		.replace(/[,%*()]/g, ' ')
-		.replace(/\s+/g, ' ')
-		.trim()
-	if (!term) return null
-	const pattern = `*${term}*`
-	return [
-		`name.ilike.${pattern}`,
-		`name_ar.ilike.${pattern}`,
-		`sku.ilike.${pattern}`,
-		`category.ilike.${pattern}`,
-		`subcategory.ilike.${pattern}`,
-		`subcategory_ar.ilike.${pattern}`,
-	].join(',')
 }
 
 // ============================================================================

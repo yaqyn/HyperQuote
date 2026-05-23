@@ -57,7 +57,7 @@ export function draftProductIntentTerms(userText: string): string[] {
 	return Array.from(terms)
 }
 
-export function productPlanningTerms(userText: string): string[] {
+function productPlanningTerms(userText: string): string[] {
 	const normalized = normalizeCatalogIntentText(userText)
 	const terms = new Set<string>()
 

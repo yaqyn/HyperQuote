@@ -40,6 +40,11 @@ const validateQuoteRequestItemsInput = z.object({
 	items: z.array(quoteRequestItemInputSchema),
 })
 
+type PortalCustomerSupabase = Awaited<
+	ReturnType<typeof getAuthenticatedPortalCustomer>
+>['supabase']
+type QuoteRequestItemInput = z.infer<typeof quoteRequestItemInputSchema>
+
 interface QuoteRequestUpdate {
 	approval_required?: boolean
 	attachment_urls?: string[]
@@ -96,10 +101,8 @@ function buildDraftMetadataUpdate(input: {
 }
 
 async function assertQuoteRequestItemsOrderable(
-	supabase: Awaited<
-		ReturnType<typeof getAuthenticatedPortalCustomer>
-	>['supabase'],
-	items: z.infer<typeof quoteRequestItemInputSchema>[],
+	supabase: PortalCustomerSupabase,
+	items: QuoteRequestItemInput[],
 ) {
 	const textOnlyItems = items.flatMap((item) =>
 		item.productId ? [] : [item.customerDescription],
@@ -144,6 +147,63 @@ async function assertQuoteRequestItemsOrderable(
 	if (unavailableItems.length > 0) {
 		throw new Error(serializeUnavailableItemsError(unavailableItems))
 	}
+}
+
+async function loadEditableDraft(
+	supabase: PortalCustomerSupabase,
+	input: { customerId: string; draftId: string },
+): Promise<{ id: string; request_number: string }> {
+	const { data: draft, error } = await supabase
+		.from('quote_requests')
+		.select('id, request_number')
+		.eq('id', input.draftId)
+		.eq('customer_id', input.customerId)
+		.eq('status', 'draft')
+		.maybeSingle()
+
+	if (error) throw new Error(error.message)
+	if (!draft) throw new Error('Draft was not found or is no longer editable')
+	return draft
+}
+
+async function updateDraftWithItems(
+	supabase: PortalCustomerSupabase,
+	input: {
+		customerId: string
+		draftId: string
+		items: QuoteRequestItemInput[]
+		update: QuoteRequestUpdate
+	},
+) {
+	const { error: updateError } = await supabase
+		.from('quote_requests')
+		.update(input.update)
+		.eq('id', input.draftId)
+		.eq('customer_id', input.customerId)
+		.eq('status', 'draft')
+
+	if (updateError) throw new Error(updateError.message)
+
+	const { error: deleteItemsError } = await supabase
+		.from('quote_request_items')
+		.delete()
+		.eq('quote_request_id', input.draftId)
+
+	if (deleteItemsError) throw new Error(deleteItemsError.message)
+
+	await insertQuoteRequestItems(supabase, input.draftId, input.items)
+}
+
+async function submitCustomerDraft(
+	supabase: PortalCustomerSupabase,
+	draftId: string,
+) {
+	const { error } = await supabase.rpc('customer_submit_saved_quote_request', {
+		p_quote_request_id: draftId,
+		p_source: 'portal',
+	})
+
+	if (error) throw new Error(error.message)
 }
 
 export const validateQuoteRequestItems = createServerFn({ method: 'POST' })
@@ -200,51 +260,21 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 			}
 
 			if (input.draftId && !input.approvalRequired) {
-				const { data: draft, error: draftError } = await supabase
-					.from('quote_requests')
-					.select('id, request_number')
-					.eq('id', input.draftId)
-					.eq('customer_id', customerId)
-					.eq('status', 'draft')
-					.maybeSingle()
-
-				if (draftError) throw new Error(draftError.message)
-				if (!draft) {
-					throw new Error('Draft was not found or is no longer editable')
-				}
-
-				const draftUpdate: QuoteRequestUpdate = {
-					...buildDraftMetadataUpdate(input),
-					approval_required: false,
-					idempotency_key: input.idempotencyKey,
-				}
-				const { error: updateError } = await supabase
-					.from('quote_requests')
-					.update(draftUpdate)
-					.eq('id', input.draftId)
-					.eq('customer_id', customerId)
-					.eq('status', 'draft')
-
-				if (updateError) throw new Error(updateError.message)
-
-				const { error: deleteItemsError } = await supabase
-					.from('quote_request_items')
-					.delete()
-					.eq('quote_request_id', input.draftId)
-
-				if (deleteItemsError) throw new Error(deleteItemsError.message)
-
-				await insertQuoteRequestItems(supabase, input.draftId, input.items)
-
-				const { error: submitError } = await supabase.rpc(
-					'customer_submit_saved_quote_request',
-					{
-						p_quote_request_id: input.draftId,
-						p_source: 'portal',
+				const draft = await loadEditableDraft(supabase, {
+					customerId,
+					draftId: input.draftId,
+				})
+				await updateDraftWithItems(supabase, {
+					customerId,
+					draftId: input.draftId,
+					items: input.items,
+					update: {
+						...buildDraftMetadataUpdate(input),
+						approval_required: false,
+						idempotency_key: input.idempotencyKey,
 					},
-				)
-
-				if (submitError) throw new Error(submitError.message)
+				})
+				await submitCustomerDraft(supabase, input.draftId)
 
 				return {
 					requestId: draft.id,
@@ -253,40 +283,19 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 			}
 
 			if (input.draftId) {
-				const { data: draft, error: draftError } = await supabase
-					.from('quote_requests')
-					.select('id, request_number')
-					.eq('id', input.draftId)
-					.eq('customer_id', customerId)
-					.eq('status', 'draft')
-					.maybeSingle()
-
-				if (draftError) throw new Error(draftError.message)
-				if (!draft) {
-					throw new Error('Draft was not found or is no longer editable')
-				}
-
-				const draftUpdate: QuoteRequestUpdate = {
-					...buildDraftMetadataUpdate(input),
-					approval_required: true,
-				}
-				const { error: updateError } = await supabase
-					.from('quote_requests')
-					.update(draftUpdate)
-					.eq('id', input.draftId)
-					.eq('customer_id', customerId)
-					.eq('status', 'draft')
-
-				if (updateError) throw new Error(updateError.message)
-
-				const { error: deleteItemsError } = await supabase
-					.from('quote_request_items')
-					.delete()
-					.eq('quote_request_id', input.draftId)
-
-				if (deleteItemsError) throw new Error(deleteItemsError.message)
-
-				await insertQuoteRequestItems(supabase, input.draftId, input.items)
+				const draft = await loadEditableDraft(supabase, {
+					customerId,
+					draftId: input.draftId,
+				})
+				await updateDraftWithItems(supabase, {
+					customerId,
+					draftId: input.draftId,
+					items: input.items,
+					update: {
+						...buildDraftMetadataUpdate(input),
+						approval_required: true,
+					},
+				})
 
 				await supabase.from('approvals').insert({
 					approval_type: 'quote_discount',

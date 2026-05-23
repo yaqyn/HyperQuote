@@ -237,10 +237,18 @@ function localizedDisplayName(key: string, locale: DocsLocale): string {
 function resourceText(resource: unknown, key: string): string | null {
 	let current = resource
 	for (const part of key.split('.')) {
-		if (!isRecord(current) || !(part in current)) return null
-		current = current[part]
+		if (!isSafeResourceKey(part) || !isRecord(current)) return null
+		const descriptor = Object.getOwnPropertyDescriptor(current, part)
+		if (!descriptor) return null
+		current = descriptor.value
 	}
 	return typeof current === 'string' ? current : null
+}
+
+function isSafeResourceKey(value: string): boolean {
+	return (
+		value !== '__proto__' && value !== 'prototype' && value !== 'constructor'
+	)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

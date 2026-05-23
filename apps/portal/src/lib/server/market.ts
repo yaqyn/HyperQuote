@@ -4,6 +4,10 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getAuthenticatedSupabase } from './_supabase'
+import {
+	DEFAULT_PUBLIC_PRODUCT_SEARCH_FIELDS,
+	publicProductSearchFilter,
+} from './product-search-filter'
 
 interface ProductSpec {
 	label: string
@@ -60,6 +64,14 @@ const getMarketProductsInput = z.object({
 	limit: z.number().int().min(1).max(50).default(20),
 })
 
+const MARKET_PRODUCT_SEARCH_FIELDS = [
+	...DEFAULT_PUBLIC_PRODUCT_SEARCH_FIELDS,
+	'brand',
+	'manufacturer',
+	'description',
+	'description_ar',
+] as const
+
 function specEntries(value: unknown): Array<{ label: string; value: string }> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) return []
 
@@ -92,27 +104,6 @@ function specsFrom(enValue: unknown, arValue: unknown): ProductSpec[] {
 	})
 }
 
-function publicProductSearchFilter(search: string): string | null {
-	const term = search
-		.replace(/[,%*()]/g, ' ')
-		.replace(/\s+/g, ' ')
-		.trim()
-	if (!term) return null
-	const pattern = `*${term}*`
-	return [
-		`name.ilike.${pattern}`,
-		`name_ar.ilike.${pattern}`,
-		`sku.ilike.${pattern}`,
-		`category.ilike.${pattern}`,
-		`subcategory.ilike.${pattern}`,
-		`subcategory_ar.ilike.${pattern}`,
-		`brand.ilike.${pattern}`,
-		`manufacturer.ilike.${pattern}`,
-		`description.ilike.${pattern}`,
-		`description_ar.ilike.${pattern}`,
-	].join(',')
-}
-
 function firstImageUrl(imageUrls: string[] | null | undefined): string {
 	return imageUrls?.find((url) => typeof url === 'string' && url.trim()) ?? ''
 }
@@ -135,7 +126,10 @@ export const getMarketProducts = createServerFn({ method: 'POST' })
 			.neq('availability_status', 'hidden')
 
 		if (input.search) {
-			const searchFilter = publicProductSearchFilter(input.search)
+			const searchFilter = publicProductSearchFilter(
+				input.search,
+				MARKET_PRODUCT_SEARCH_FIELDS,
+			)
 			if (searchFilter) query = query.or(searchFilter)
 		}
 

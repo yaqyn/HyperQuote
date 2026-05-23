@@ -334,12 +334,10 @@ export const PORTAL_CHAT_COMMANDS = [
 
 export type PortalChatCommandName =
 	(typeof PORTAL_CHAT_COMMANDS)[number]['name']
-export type PortalChatCommandCategory =
+type PortalChatCommandCategory =
 	(typeof PORTAL_CHAT_COMMANDS)[number]['category']
 export type PortalChatCommandInputMode =
 	(typeof PORTAL_CHAT_COMMANDS)[number]['inputMode']
-export type PortalChatCommandScope =
-	(typeof PORTAL_CHAT_COMMANDS)[number]['scope']
 
 export interface PortalChatCommandInvocation {
 	args: string

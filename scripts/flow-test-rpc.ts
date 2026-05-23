@@ -48,10 +48,3 @@ export function createActorFlowClient<TClient extends SupabaseClient>(
 		},
 	}) as TClient
 }
-
-export function hardenedBoundaryMessage(message?: string) {
-	return (
-		message?.toLowerCase().includes('permission denied for schema public') ??
-		false
-	)
-}
