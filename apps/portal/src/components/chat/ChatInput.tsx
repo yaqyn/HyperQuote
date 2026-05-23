@@ -9,7 +9,27 @@ const SMOOTH_EASE = cubicBezier(0.22, 1, 0.36, 1)
 
 const MAX_LINES = 5
 const LINE_HEIGHT = 20
-const COMMANDS_WITH_ARGUMENTS = new Set(['/docs', '/products', '/track'])
+const COMMANDS_WITH_ARGUMENTS = new Set([
+	'/activity',
+	'/add-to-draft',
+	'/compare-products',
+	'/delete-draft',
+	'/docs',
+	'/docs-search',
+	'/draft',
+	'/edit-draft',
+	'/feedback',
+	'/note-draft',
+	'/products',
+	'/recommend-materials',
+	'/rename-draft',
+	'/reorder',
+	'/replace-draft-item',
+	'/set-draft-delivery',
+	'/status',
+	'/track',
+	'/validate-draft',
+])
 
 function autoResizeChatTextarea(ta: HTMLTextAreaElement) {
 	ta.style.height = 'auto'
@@ -429,11 +449,11 @@ function CommandMenu({
 								event.preventDefault()
 								onSelect(command)
 							}}
-							className={`grid w-full grid-cols-[minmax(92px,auto)_minmax(0,1fr)] gap-3 rounded-lg px-2.5 py-2 text-start transition-colors ${
+							className={`grid w-full grid-cols-1 gap-1 rounded-lg px-2.5 py-2 text-start transition-colors sm:grid-cols-[minmax(9rem,auto)_minmax(0,1fr)] sm:gap-3 ${
 								active ? 'bg-[var(--p-hover)]' : 'hover:bg-[var(--p-hover)]'
 							}`}
 						>
-							<span className="voice-mono pt-0.5 text-[12px] font-semibold text-[var(--p-text)]">
+							<span className="voice-mono break-all pt-0.5 text-[12px] font-semibold text-[var(--p-text)]">
 								{command.name}
 							</span>
 							<span className="min-w-0">

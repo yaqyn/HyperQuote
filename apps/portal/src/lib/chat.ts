@@ -221,6 +221,22 @@ interface DocumentRow {
 	type: string
 }
 
+interface ActivityEventRow {
+	action: string
+	created_at: string
+	details: Record<string, unknown> | null
+	entity_type: string
+	id: string
+}
+
+interface SupportTicketRow {
+	created_at: string
+	id: string
+	reference: string
+	status: string
+	subject: string
+}
+
 interface CustomerOrderSummary {
 	amount: number | null
 	date: string
@@ -250,6 +266,27 @@ interface DraftMaterialItem {
 interface DeliveryTrackingContext {
 	delivery: DeliveryInfo
 	order: CustomerOrderSummary
+}
+
+interface DraftValidationContext {
+	draft: CustomerOrderSummary | null
+	issues: string[]
+	unavailableItems: DraftMaterialItem[]
+}
+
+interface AccountHealthContext {
+	addresses: CustomerAddressRow[]
+	draftCount: number
+	issues: string[]
+	orders: CustomerOrderSummary[]
+	profile: CustomerProfileRow
+	projects: CustomerProjectRow[]
+	staleDrafts: CustomerOrderSummary[]
+}
+
+interface SupportRequestContext {
+	message?: string
+	ticket: SupportTicketRow | null
 }
 
 interface DraftWriteContext {
@@ -285,6 +322,7 @@ type PortalToolContext =
 			order: CustomerOrderSummary | null
 	  }
 	| { type: 'delivery_tracking'; tracking: DeliveryTrackingContext | null }
+	| { type: 'delivery_list'; deliveries: DeliveryTrackingContext[] }
 	| {
 			catalogComplete: boolean
 			locale: 'ar' | 'en'
@@ -293,6 +331,16 @@ type PortalToolContext =
 			totalVisibleProducts: number
 			type: 'products'
 	  }
+	| { type: 'addresses'; addresses: CustomerAddressRow[] }
+	| { type: 'projects'; projects: CustomerProjectRow[] }
+	| { type: 'account_health'; health: AccountHealthContext }
+	| { type: 'draft_validation'; validation: DraftValidationContext }
+	| {
+			type: 'order_activity'
+			events: ActivityEventRow[]
+			order: CustomerOrderSummary | null
+	  }
+	| ({ type: 'support_request' } & SupportRequestContext)
 	| { type: 'draft_write'; operation: string; result: DraftWriteContext }
 
 interface PortalToolResult {
@@ -481,6 +529,45 @@ async function executePortalCustomerToolRequest(
 				writeEntityType: null,
 			}
 		}
+		case 'address_list': {
+			const context = await loadCustomerProfileContext(supabase, customerId)
+			return {
+				context: { addresses: context.addresses, type: 'addresses' },
+				invalidatesOrders: false,
+				readEntities: ['customer_addresses'],
+				route,
+				writeEntityId: null,
+				writeEntityType: null,
+			}
+		}
+		case 'project_list': {
+			const context = await loadCustomerProfileContext(supabase, customerId)
+			return {
+				context: { projects: context.projects, type: 'projects' },
+				invalidatesOrders: false,
+				readEntities: ['projects'],
+				route,
+				writeEntityId: null,
+				writeEntityType: null,
+			}
+		}
+		case 'account_health': {
+			const health = await loadAccountHealthContext(supabase, customerId)
+			return {
+				context: { health, type: 'account_health' },
+				invalidatesOrders: false,
+				readEntities: [
+					'customer_profile',
+					'customer_addresses',
+					'projects',
+					'customer_quote_requests',
+					'customer_orders',
+				],
+				route,
+				writeEntityId: null,
+				writeEntityType: null,
+			}
+		}
 		case 'customer_orders': {
 			const orderScope = route.orderScope ?? 'all'
 			const allOrders = await loadCustomerOrders(supabase, customerId)
@@ -496,6 +583,26 @@ async function executePortalCustomerToolRequest(
 				writeEntityType: null,
 			}
 		}
+		case 'draft_detail': {
+			const detail = await loadDraftDetailContext(
+				supabase,
+				customerId,
+				route,
+				userText,
+			)
+			return {
+				context: {
+					documents: [],
+					order: detail.order,
+					type: 'order_detail',
+				},
+				invalidatesOrders: false,
+				readEntities: ['customer_quote_requests'],
+				route,
+				writeEntityId: null,
+				writeEntityType: null,
+			}
+		}
 		case 'order_detail': {
 			const detail = await loadOrderDetailContext(supabase, customerId, route)
 			return {
@@ -505,6 +612,25 @@ async function executePortalCustomerToolRequest(
 					'customer_quote_requests',
 					'customer_orders',
 					'customer_documents',
+				],
+				route,
+				writeEntityId: null,
+				writeEntityType: null,
+			}
+		}
+		case 'order_activity': {
+			const context = await loadOrderActivityContext(
+				supabase,
+				customerId,
+				route,
+			)
+			return {
+				context: { type: 'order_activity', ...context },
+				invalidatesOrders: false,
+				readEntities: [
+					'customer_quote_requests',
+					'customer_orders',
+					'activity_events',
 				],
 				route,
 				writeEntityId: null,
@@ -526,7 +652,41 @@ async function executePortalCustomerToolRequest(
 				writeEntityType: null,
 			}
 		}
+		case 'delivery_list': {
+			const deliveries = await loadDeliveryListContext(supabase, customerId)
+			return {
+				context: { deliveries, type: 'delivery_list' },
+				invalidatesOrders: false,
+				readEntities: ['customer_orders', 'customer_delivery_tracking'],
+				route,
+				writeEntityId: null,
+				writeEntityType: null,
+			}
+		}
 		case 'product_search': {
+			const catalog = await findPublishedProducts(
+				supabase,
+				route.searchQuery || userText,
+				PRODUCT_CATALOG_RESULT_COUNT,
+			)
+			return {
+				context: {
+					catalogComplete: catalog.catalogComplete,
+					locale: detectPortalAiLocale(userText),
+					products: catalog.products,
+					query: route.searchQuery || userText,
+					totalVisibleProducts: catalog.totalVisibleProducts,
+					type: 'products',
+				},
+				invalidatesOrders: false,
+				readEntities: ['published_products'],
+				route,
+				writeEntityId: null,
+				writeEntityType: null,
+			}
+		}
+		case 'compare_products':
+		case 'recommend_materials': {
 			const catalog = await findPublishedProducts(
 				supabase,
 				route.searchQuery || userText,
@@ -557,6 +717,49 @@ async function executePortalCustomerToolRequest(
 			)
 			return draftWriteToolResult(route, 'create_draft_from_plan', result)
 		}
+		case 'draft_add_items': {
+			const result = await addItemsToDraft(
+				supabase,
+				customerId,
+				route,
+				userText,
+			)
+			return draftWriteToolResult(route, 'draft_add_items', result)
+		}
+		case 'draft_replace_item': {
+			const result = await replaceDraftItem(
+				supabase,
+				customerId,
+				route,
+				userText,
+			)
+			return draftWriteToolResult(route, 'draft_replace_item', result)
+		}
+		case 'draft_set_delivery': {
+			const result = await setDraftDelivery(
+				supabase,
+				customerId,
+				route,
+				userText,
+			)
+			return draftWriteToolResult(route, 'draft_set_delivery', result)
+		}
+		case 'draft_validate': {
+			const validation = await validateDraftContext(
+				supabase,
+				customerId,
+				route,
+				userText,
+			)
+			return {
+				context: { type: 'draft_validation', validation },
+				invalidatesOrders: false,
+				readEntities: ['customer_quote_requests', 'published_products'],
+				route,
+				writeEntityId: null,
+				writeEntityType: null,
+			}
+		}
 		case 'update_draft_items': {
 			const result = await updateDraftItems(
 				supabase,
@@ -586,6 +789,22 @@ async function executePortalCustomerToolRequest(
 		case 'delete_draft': {
 			const result = await deleteDraft(supabase, customerId, route)
 			return draftWriteToolResult(route, 'delete_draft', result)
+		}
+		case 'support_request': {
+			const support = await createSupportRequest(
+				supabase,
+				customerId,
+				route,
+				userText,
+			)
+			return {
+				context: { type: 'support_request', ...support },
+				invalidatesOrders: false,
+				readEntities: ['customer_profile'],
+				route,
+				writeEntityId: support.ticket?.id ?? null,
+				writeEntityType: support.ticket ? 'support_ticket' : null,
+			}
 		}
 		default:
 			return {
@@ -760,8 +979,22 @@ function toolAnswerStyleInstructions(
 			return 'Order detail: explain status, items, dates, and a practical next step.'
 		case 'delivery_tracking':
 			return 'Delivery: explain the visible stage, ETA/driver/truck details when present, and the next step.'
+		case 'delivery_list':
+			return 'Deliveries: summarize active customer-visible deliveries only.'
 		case 'products':
 			return 'Products: use real visible products and only Available/Unavailable status. Ask before drafting unless explicitly requested.'
+		case 'addresses':
+			return 'Addresses: list saved delivery addresses and identify the default.'
+		case 'projects':
+			return 'Projects: list saved active projects and useful next steps.'
+		case 'account_health':
+			return 'Account health: summarize missing setup, stale drafts, and practical next steps.'
+		case 'draft_validation':
+			return 'Draft validation: say whether the draft looks ready from supplied validation data. Do not submit it.'
+		case 'order_activity':
+			return 'Activity: summarize visible recent timeline events for this customer-owned record.'
+		case 'support_request':
+			return 'Support: confirm the ticket reference if one was created, otherwise explain what is missing.'
 		case 'draft_write':
 			return 'Draft write: say only what changed. No draft/submission disclaimers, review instructions, or edit links.'
 	}
@@ -777,8 +1010,22 @@ function fallbackToolAnswer(context: PortalToolContext): string {
 			return orderDetailFallbackAnswer(context.order, context.documents)
 		case 'delivery_tracking':
 			return deliveryTrackingFallbackAnswer(context.tracking)
+		case 'delivery_list':
+			return deliveryListFallbackAnswer(context.deliveries)
 		case 'products':
 			return productFallbackAnswer(context)
+		case 'addresses':
+			return addressesFallbackAnswer(context.addresses)
+		case 'projects':
+			return projectsFallbackAnswer(context.projects)
+		case 'account_health':
+			return accountHealthFallbackAnswer(context.health)
+		case 'draft_validation':
+			return draftValidationFallbackAnswer(context.validation)
+		case 'order_activity':
+			return orderActivityFallbackAnswer(context.order, context.events)
+		case 'support_request':
+			return supportRequestFallbackAnswer(context)
 		case 'draft_write':
 			return context.result.message
 		case 'refusal':
@@ -804,12 +1051,18 @@ function commandToolAnswer(
 		case '/help':
 			return helpCommandAnswer()
 		case '/products':
+		case '/compare-products':
+		case '/recommend-materials':
 			if (result.context.type !== 'products') return fallbackText
 			if (result.context.products.length === 0) {
 				return 'No matching visible products found.'
 			}
 			return [
-				'## Catalog',
+				commandName === '/compare-products'
+					? '## Product Comparison'
+					: commandName === '/recommend-materials'
+						? '## Material Recommendations'
+						: '## Catalog',
 				`Showing ${result.context.products.length} of ${result.context.totalVisibleProducts} visible product${result.context.totalVisibleProducts === 1 ? '' : 's'}.`,
 				'Use the cards below for the best matches, or open Market for the full catalog.',
 			].join('\n')
@@ -821,7 +1074,12 @@ function commandToolAnswer(
 		case '/new-draft':
 			return [
 				'## New Draft',
-				'Start a draft quote from the quote drawer. Drafts stay editable until you review and submit them yourself.',
+				'Start a fresh quote drawer or move into the chat draft desk.',
+			].join('\n')
+		case '/cart':
+			return [
+				'## Cart',
+				'Your live quote drawer is stored in this browser. Use the cart button below to open it.',
 			].join('\n')
 		case '/orders':
 			if (result.context.type !== 'orders') return fallbackText
@@ -839,17 +1097,45 @@ function commandToolAnswer(
 				: [
 						'## Draft Desk',
 						`Showing ${result.context.orders.length} editable draft${result.context.orders.length === 1 ? '' : 's'}.`,
-						'Each draft card can open the record, move it into the chat draft editor, or submit after your confirmation.',
+						'Each draft card can open the record or move it into the chat draft editor.',
 					].join('\n')
+		case '/draft':
+		case '/edit-draft':
+		case '/status':
 		case '/latest-order':
 			if (result.context.type !== 'order_detail') return fallbackText
 			return result.context.order
 				? [
-						'## Latest Record',
+						commandName === '/edit-draft'
+							? '## Edit Draft'
+							: commandName === '/draft'
+								? '## Draft Detail'
+								: commandName === '/status'
+									? '## Status'
+									: '## Latest Record',
 						`${result.context.order.reference} is ${result.context.order.status.replace(/_/g, ' ')}.`,
 						'Use the card below to open the record.',
 					].join('\n')
 				: 'No quote request or order found.'
+		case '/validate-draft':
+			if (result.context.type !== 'draft_validation') return fallbackText
+			return draftValidationFallbackAnswer(result.context.validation)
+		case '/activity':
+			if (result.context.type !== 'order_activity') return fallbackText
+			return orderActivityFallbackAnswer(
+				result.context.order,
+				result.context.events,
+			)
+		case '/delete-draft':
+		case '/clear-draft':
+		case '/rename-draft':
+		case '/note-draft':
+		case '/add-to-draft':
+		case '/replace-draft-item':
+		case '/set-draft-delivery':
+		case '/reorder':
+		case '/clear-all-drafts':
+			return fallbackText
 		case '/track':
 			if (result.context.type !== 'delivery_tracking') return fallbackText
 			return result.context.tracking
@@ -859,22 +1145,44 @@ function commandToolAnswer(
 						'The tracking card below shows the customer-visible driver and route details.',
 					].join('\n')
 				: 'I do not see an active customer-visible delivery tracking record for your account.'
+		case '/deliveries':
+			if (result.context.type !== 'delivery_list') return fallbackText
+			return deliveryListFallbackAnswer(result.context.deliveries)
 		case '/profile':
 			return result.context.type === 'profile'
 				? profileCommandAnswer(result.context)
 				: fallbackText
+		case '/addresses':
+			return result.context.type === 'addresses'
+				? addressesFallbackAnswer(result.context.addresses)
+				: fallbackText
+		case '/projects':
+			return result.context.type === 'projects'
+				? projectsFallbackAnswer(result.context.projects)
+				: fallbackText
+		case '/account-health':
+			return result.context.type === 'account_health'
+				? accountHealthFallbackAnswer(result.context.health)
+				: fallbackText
 		case '/support':
+		case '/contact':
 			return [
-				'## Support',
+				commandName === '/contact' ? '## Contact' : '## Support',
 				'Choose the best support path below. You can contact the team, open the support panel, or jump into public docs.',
 			].join('\n')
+		case '/feedback':
+			return result.context.type === 'support_request'
+				? supportRequestFallbackAnswer(result.context)
+				: [
+						'## Feedback',
+						'Send a short message after `/feedback`, or use the support button below.',
+					].join('\n')
 		case '/docs':
+		case '/docs-search':
 			return [
 				'## Docs',
 				'Open the public docs, FAQ, or ask a docs question after `/docs`.',
 			].join('\n')
-		case '/clear-all-drafts':
-			return fallbackText
 		case '/clear':
 		case '/new':
 			return 'Started a fresh chat.'
@@ -1036,6 +1344,100 @@ function deliveryTrackingFallbackAnswer(
 	return `${order.reference} is ${delivery.currentStage.replace(/_/g, ' ')}. Driver: ${delivery.driverName} (${delivery.driverPhone}). Truck ${delivery.truckNumber}, plate ${delivery.vehiclePlate}. ETA: ${delivery.estimatedArrival}. Last update: ${delivery.lastUpdated}.`
 }
 
+function deliveryListFallbackAnswer(
+	deliveries: DeliveryTrackingContext[],
+): string {
+	if (deliveries.length === 0) {
+		return 'I do not see any active customer-visible deliveries right now.'
+	}
+	const rows = deliveries.slice(0, 6).map(({ delivery, order }) => {
+		return `- ${order.reference}: ${delivery.currentStage.replace(/_/g, ' ')}. ETA ${delivery.estimatedArrival}.`
+	})
+	return [
+		`I found ${deliveries.length} active delivery record${deliveries.length === 1 ? '' : 's'}:`,
+		...rows,
+	].join('\n')
+}
+
+function addressesFallbackAnswer(addresses: CustomerAddressRow[]): string {
+	if (addresses.length === 0) return 'No saved delivery addresses found.'
+	const rows = addresses.map((address) => {
+		const defaultText = address.is_default ? 'Default: ' : ''
+		return `- ${defaultText}${formatAddress(address)}`
+	})
+	return ['## Delivery Addresses', ...rows].join('\n')
+}
+
+function projectsFallbackAnswer(projects: CustomerProjectRow[]): string {
+	if (projects.length === 0) return 'No active projects are saved.'
+	return [
+		'## Projects',
+		...projects
+			.slice(0, 8)
+			.map(
+				(project) =>
+					`- ${project.name}${project.description ? `: ${project.description}` : ''}`,
+			),
+	].join('\n')
+}
+
+function accountHealthFallbackAnswer(health: AccountHealthContext): string {
+	const lines = [
+		'## Account Health',
+		`- Editable drafts: ${health.draftCount}`,
+		`- Saved addresses: ${health.addresses.length}`,
+		`- Active projects: ${health.projects.length}`,
+	]
+	if (health.staleDrafts.length > 0) {
+		lines.push(
+			`- Stale drafts: ${health.staleDrafts.map((draft) => draft.requestReference).join(', ')}`,
+		)
+	}
+	lines.push('### Notes')
+	lines.push(
+		...(health.issues.length > 0
+			? health.issues.map((issue) => `- ${issue}`)
+			: ['- Account basics look clear from the portal data.']),
+	)
+	return lines.join('\n')
+}
+
+function draftValidationFallbackAnswer(
+	validation: DraftValidationContext,
+): string {
+	if (!validation.draft) return validation.issues.join(' ')
+	if (validation.issues.length === 0) {
+		return `${validation.draft.requestReference} has ${validation.draft.itemCount} available material line${validation.draft.itemCount === 1 ? '' : 's'} and no validation issues from the current catalog data.`
+	}
+	return [
+		`${validation.draft.requestReference} needs attention:`,
+		...validation.issues.map((issue) => `- ${issue}`),
+	].join('\n')
+}
+
+function orderActivityFallbackAnswer(
+	order: CustomerOrderSummary | null,
+	events: ActivityEventRow[],
+): string {
+	if (!order) return 'I could not find that customer-owned record.'
+	if (events.length === 0) {
+		return `I do not see recent activity events for ${order.reference}.`
+	}
+	return [
+		`Recent activity for ${order.reference}:`,
+		...events.slice(0, 8).map((event) => {
+			return `- ${event.created_at.slice(0, 10)}: ${formatPlainStatus(event.action)}`
+		}),
+	].join('\n')
+}
+
+function supportRequestFallbackAnswer(context: SupportRequestContext): string {
+	if (!context.ticket) {
+		return context.message ?? 'I did not create a support ticket.'
+	}
+	return `Support ticket ${context.ticket.reference} was created for "${context.ticket.subject}". Status: ${context.ticket.status.replace(/_/g, ' ')}.`
+}
+
 function productFallbackAnswer(
 	context: Extract<PortalToolContext, { type: 'products' }>,
 ): string {
@@ -1096,6 +1498,21 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 				events.push(statusCardEvent(result.context.tracking.order))
 				events.push(deliveryTrackingEvent(result.context.tracking))
 			}
+			break
+		case 'delivery_list':
+			for (const tracking of result.context.deliveries.slice(0, 4)) {
+				events.push(statusCardEvent(tracking.order))
+				events.push(deliveryTrackingEvent(tracking))
+			}
+			break
+		case 'draft_validation':
+			if (result.context.validation.draft) {
+				events.push(statusCardEvent(result.context.validation.draft))
+			}
+			break
+		case 'order_activity':
+			if (result.context.order)
+				events.push(statusCardEvent(result.context.order))
 			break
 		case 'draft_write':
 			events.push(draftCleanupEvent(result.context.result))
@@ -1261,6 +1678,125 @@ async function loadDeliveryTrackingContext(
 		if (delivery) return { delivery, order }
 	}
 	return null
+}
+
+async function loadDeliveryListContext(
+	supabase: AuthedSupabase,
+	customerId: string,
+): Promise<DeliveryTrackingContext[]> {
+	const orders = await loadCustomerOrders(supabase, customerId)
+	const deliveries: DeliveryTrackingContext[] = []
+	for (const order of orders) {
+		if (!order.linkedOrderId) continue
+		const delivery = await getCustomerDeliveryTracking(
+			supabase,
+			order.linkedOrderId,
+		)
+		if (delivery) deliveries.push({ delivery, order })
+		if (deliveries.length >= 8) break
+	}
+	return deliveries
+}
+
+async function loadDraftDetailContext(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerToolRequest,
+	userText: string,
+): Promise<{ order: CustomerOrderSummary | null }> {
+	const draftResolution = await resolveEditableDraft(
+		supabase,
+		customerId,
+		route.targetReference,
+		route.searchQuery || userText,
+	)
+	return {
+		order: draftResolution.draft
+			? toCustomerOrderSummary(draftResolution.draft)
+			: null,
+	}
+}
+
+async function loadOrderActivityContext(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerToolRequest,
+): Promise<{ events: ActivityEventRow[]; order: CustomerOrderSummary | null }> {
+	const { order } = await loadOrderDetailContext(supabase, customerId, route)
+	if (!order) return { events: [], order: null }
+	const entityIds = [order.id, order.linkedOrderId].filter(
+		(value): value is string => Boolean(value),
+	)
+	if (entityIds.length === 0) return { events: [], order }
+	const { data, error } = await supabase
+		.from('activity_events')
+		.select('id, entity_type, action, details, created_at')
+		.in('entity_id', entityIds)
+		.order('created_at', { ascending: false })
+		.limit(12)
+	if (error) throw new Error(error.message)
+	return {
+		events: (data ?? []) as unknown as ActivityEventRow[],
+		order,
+	}
+}
+
+async function loadAccountHealthContext(
+	supabase: AuthedSupabase,
+	customerId: string,
+): Promise<AccountHealthContext> {
+	const [profileContext, orders] = await Promise.all([
+		loadCustomerProfileContext(supabase, customerId),
+		loadCustomerOrders(supabase, customerId),
+	])
+	const drafts = orders.filter((order) => order.type === 'draft')
+	const staleDrafts = drafts.filter((order) => isOlderThanDays(order.date, 7))
+	const issues = accountHealthIssues(profileContext, drafts, staleDrafts)
+	return {
+		addresses: profileContext.addresses,
+		draftCount: drafts.length,
+		issues,
+		orders,
+		profile: profileContext.profile,
+		projects: profileContext.projects,
+		staleDrafts,
+	}
+}
+
+function accountHealthIssues(
+	context: {
+		addresses: CustomerAddressRow[]
+		profile: CustomerProfileRow
+		projects: CustomerProjectRow[]
+	},
+	drafts: CustomerOrderSummary[],
+	staleDrafts: CustomerOrderSummary[],
+): string[] {
+	const issues: string[] = []
+	if ((context.profile.trade_license_status ?? 'not_uploaded') !== 'verified') {
+		issues.push('Trade license is not verified.')
+	}
+	if (context.profile.credit_limit <= 0) issues.push('Credit limit is not set.')
+	if (!context.addresses.some((address) => address.is_default)) {
+		issues.push('Default delivery address is missing.')
+	}
+	if (context.projects.length === 0)
+		issues.push('No active projects are saved.')
+	if (staleDrafts.length > 0) {
+		issues.push(
+			`${staleDrafts.length} editable draft${staleDrafts.length === 1 ? '' : 's'} is older than 7 days.`,
+		)
+	}
+	if (drafts.some((draft) => draft.items.some((item) => !item.orderable))) {
+		issues.push('At least one editable draft has unavailable material lines.')
+	}
+	return issues
+}
+
+function isOlderThanDays(value: string, days: number): boolean {
+	const timestamp = Date.parse(value)
+	if (!Number.isFinite(timestamp)) return false
+	return Date.now() - timestamp > days * 24 * 60 * 60 * 1000
 }
 
 async function findPublishedProducts(
@@ -1581,6 +2117,420 @@ async function duplicateOrderToDraft(
 		reference: draft.request_number,
 		message: `I copied ${source.request_number} into ${draft.request_number}.`,
 	}
+}
+
+async function addItemsToDraft(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerToolRequest,
+	userText: string,
+): Promise<DraftWriteContext> {
+	const locale = detectPortalAiLocale(userText)
+	const draftResolution = await resolveEditableDraft(
+		supabase,
+		customerId,
+		route.targetReference,
+		route.searchQuery || userText,
+	)
+	const draft = draftResolution.draft
+	if (!draft) {
+		return {
+			message:
+				draftResolution.message ??
+				'I could not find an editable draft to add items to.',
+		}
+	}
+	const searchText = route.itemQuery || route.searchQuery || userText
+	const products = await findOrderableProductsForDraft(
+		supabase,
+		searchText,
+		searchText,
+	)
+	const items = buildDraftItemsFromPlan(searchText, products)
+	if (items.length === 0 || items.some((item) => !item.productId)) {
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: sortedQuoteRequestItems(draft).map(toDraftMaterialItem),
+			reference: draft.request_number,
+			message: 'I could not find a currently available catalog product to add.',
+		}
+	}
+
+	const currentItems = sortedQuoteRequestItems(draft)
+	const draftItemInputs = items.map((item, index) => ({
+		customerDescription: item.name,
+		isUnmatched: false,
+		matchConfidence: 0.85,
+		notes: item.notes,
+		productId: item.productId,
+		quantity: item.qty,
+		sortOrder: currentItems.length + index,
+		unitOfMeasure: item.unit,
+		unitOfMeasureAr: item.unitAr,
+	}))
+	try {
+		await assertQuoteRequestItemsHaveOrderableProductLinks(
+			supabase,
+			draftItemInputs,
+		)
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			error.message === QUOTE_REQUEST_ITEM_PRODUCT_NOT_ORDERABLE
+		) {
+			return {
+				draftId: draft.id,
+				editRoute: `/orders/edit/${draft.id}`,
+				items: currentItems.map(toDraftMaterialItem),
+				reference: draft.request_number,
+				message:
+					'The catalog changed before I could add those products. I left the draft unchanged.',
+			}
+		}
+		throw error
+	}
+	await insertQuoteRequestItems(supabase, draft.id, draftItemInputs, {
+		requireOrderableProductLinks: true,
+	})
+
+	const materialItems = [...currentItems.map(toDraftMaterialItem), ...items]
+	await refreshDraftCopyAfterItemEdit(
+		supabase,
+		customerId,
+		draft,
+		materialItems,
+		route,
+		locale,
+	)
+	await recordDraftSavedActivity(supabase, draft.id, {
+		item_count: materialItems.length,
+		operation: 'portal_ai_add_items',
+	})
+	return {
+		draftId: draft.id,
+		editRoute: `/orders/edit/${draft.id}`,
+		items: materialItems,
+		reference: draft.request_number,
+		message: `I added ${items.length} material line${items.length === 1 ? '' : 's'} to ${draft.request_number}.`,
+	}
+}
+
+async function replaceDraftItem(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerToolRequest,
+	userText: string,
+): Promise<DraftWriteContext> {
+	const locale = detectPortalAiLocale(userText)
+	const draftResolution = await resolveEditableDraft(
+		supabase,
+		customerId,
+		route.targetReference,
+		route.searchQuery || userText,
+	)
+	const draft = draftResolution.draft
+	if (!draft) {
+		return {
+			message:
+				draftResolution.message ??
+				'I could not find an editable draft to update.',
+		}
+	}
+	const currentItems = sortedQuoteRequestItems(draft)
+	if (currentItems.length === 0) {
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: [],
+			reference: draft.request_number,
+			message: 'That draft has no material lines to replace.',
+		}
+	}
+	const target = findDraftItemTarget(
+		currentItems,
+		route.itemQuery,
+		route.previousQuantity,
+		route.searchQuery || userText,
+	)
+	if (target.message || !target.item) {
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: currentItems.map(toDraftMaterialItem),
+			reference: draft.request_number,
+			message:
+				target.message ?? 'I could not identify which draft line to replace.',
+		}
+	}
+	const replacementText = route.replacementQuery || route.itemQuery || ''
+	if (!replacementText.trim()) {
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: currentItems.map(toDraftMaterialItem),
+			reference: draft.request_number,
+			message:
+				'Tell me what available catalog product should replace that line.',
+		}
+	}
+	const products = await findOrderableProductsForDraft(
+		supabase,
+		replacementText,
+		replacementText,
+	)
+	const [replacement] = buildDraftItemsFromPlan(replacementText, products)
+	if (!replacement?.productId) {
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: currentItems.map(toDraftMaterialItem),
+			reference: draft.request_number,
+			message:
+				'I could not find a currently available catalog product for the replacement.',
+		}
+	}
+	const quantity = route.quantity ?? target.item.quantity
+	const replacementInput: QuoteRequestItemInput = {
+		customerDescription: replacement.name,
+		isUnmatched: false,
+		matchConfidence: 0.85,
+		notes: replacement.notes,
+		productId: replacement.productId,
+		quantity,
+		sortOrder: target.item.sort_order,
+		unitOfMeasure: replacement.unit,
+		unitOfMeasureAr: replacement.unitAr,
+	}
+	await assertQuoteRequestItemsHaveOrderableProductLinks(supabase, [
+		replacementInput,
+	])
+	const { error: deleteError } = await supabase
+		.from('quote_request_items')
+		.delete()
+		.eq('id', target.item.id)
+		.eq('quote_request_id', draft.id)
+	if (deleteError) throw new Error(deleteError.message)
+	await insertQuoteRequestItems(supabase, draft.id, [replacementInput], {
+		requireOrderableProductLinks: true,
+	})
+
+	const replacementMaterial: DraftMaterialItem = {
+		...replacement,
+		qty: quantity,
+	}
+	const materialItems = currentItems.map((item) =>
+		item.id === target.item?.id
+			? replacementMaterial
+			: toDraftMaterialItem(item),
+	)
+	await refreshDraftCopyAfterItemEdit(
+		supabase,
+		customerId,
+		draft,
+		materialItems,
+		route,
+		locale,
+	)
+	await recordDraftSavedActivity(supabase, draft.id, {
+		operation: 'portal_ai_replace_item',
+		quote_request_item_id: target.item.id,
+	})
+	return {
+		draftId: draft.id,
+		editRoute: `/orders/edit/${draft.id}`,
+		items: materialItems,
+		reference: draft.request_number,
+		message: `I replaced ${draftItemDisplayName(target.item)} with ${replacement.name} in ${draft.request_number}.`,
+	}
+}
+
+async function setDraftDelivery(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerToolRequest,
+	userText: string,
+): Promise<DraftWriteContext> {
+	const draftResolution = await resolveEditableDraft(
+		supabase,
+		customerId,
+		route.targetReference,
+		route.searchQuery || userText,
+	)
+	const draft = draftResolution.draft
+	if (!draft) {
+		return {
+			message:
+				draftResolution.message ??
+				'I could not find an editable draft to update delivery details.',
+		}
+	}
+	const update: Record<string, string | null> = {}
+	if (route.deliveryDate !== undefined) {
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(route.deliveryDate)) {
+			return {
+				draftId: draft.id,
+				editRoute: `/orders/edit/${draft.id}`,
+				reference: draft.request_number,
+				message: 'Use a delivery date in YYYY-MM-DD format.',
+			}
+		}
+		update.delivery_date = route.deliveryDate
+	}
+	if (route.addressQuery !== undefined) {
+		const profileContext = await loadCustomerProfileContext(
+			supabase,
+			customerId,
+		)
+		const address = findCustomerAddress(
+			profileContext.addresses,
+			route.addressQuery,
+		)
+		if (!address) {
+			return {
+				draftId: draft.id,
+				editRoute: `/orders/edit/${draft.id}`,
+				reference: draft.request_number,
+				message: 'I could not match that to one saved delivery address.',
+			}
+		}
+		update.delivery_address_id = address.id
+	}
+	if (Object.keys(update).length === 0) {
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			reference: draft.request_number,
+			message:
+				'Tell me the delivery date, saved address, or both for this draft.',
+		}
+	}
+	const { error } = await supabase
+		.from('quote_requests')
+		.update(update)
+		.eq('id', draft.id)
+		.eq('customer_id', customerId)
+		.eq('status', 'draft')
+	if (error) throw new Error(error.message)
+	await recordDraftSavedActivity(supabase, draft.id, {
+		operation: 'portal_ai_delivery_update',
+		...update,
+	})
+	return {
+		draftId: draft.id,
+		editRoute: `/orders/edit/${draft.id}`,
+		items: sortedQuoteRequestItems(draft).map(toDraftMaterialItem),
+		reference: draft.request_number,
+		message: `I updated delivery details on ${draft.request_number}.`,
+	}
+}
+
+async function validateDraftContext(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerToolRequest,
+	userText: string,
+): Promise<DraftValidationContext> {
+	const draftResolution = await resolveEditableDraft(
+		supabase,
+		customerId,
+		route.targetReference,
+		route.searchQuery || userText,
+	)
+	const draft = draftResolution.draft
+	if (!draft) {
+		return {
+			draft: null,
+			issues: [draftResolution.message ?? 'No editable draft matched.'],
+			unavailableItems: [],
+		}
+	}
+	const materialItems = sortedQuoteRequestItems(draft).map(toDraftMaterialItem)
+	const unavailableItems = materialItems.filter((item) => !item.orderable)
+	const issues: string[] = []
+	if (materialItems.length === 0) issues.push('No material lines are saved.')
+	if (unavailableItems.length > 0) {
+		issues.push(
+			`${unavailableItems.length} material line${unavailableItems.length === 1 ? '' : 's'} is unavailable.`,
+		)
+	}
+	if (!draft.delivery_address_id) issues.push('Delivery address is not set.')
+	if (!draft.delivery_date) issues.push('Delivery date is not set.')
+	return {
+		draft: toCustomerOrderSummary(draft),
+		issues,
+		unavailableItems,
+	}
+}
+
+function findCustomerAddress(
+	addresses: CustomerAddressRow[],
+	query: string,
+): CustomerAddressRow | null {
+	const tokens = normalizeForMatch(query)
+		.split(' ')
+		.filter((token) => token.length > 1)
+	if (tokens.length === 0) {
+		return addresses.find((address) => address.is_default) ?? null
+	}
+	const matches = addresses.filter((address) => {
+		const haystack = normalizeForMatch(
+			[
+				address.label ?? '',
+				address.street,
+				address.city,
+				address.governorate,
+				address.is_default ? 'default home primary' : '',
+			].join(' '),
+		)
+		return tokens.every((token) => haystack.includes(token))
+	})
+	return matches.length === 1 ? (matches[0] ?? null) : null
+}
+
+async function createSupportRequest(
+	supabase: AuthedSupabase,
+	customerId: string,
+	route: PortalCustomerToolRequest,
+	userText: string,
+): Promise<SupportRequestContext> {
+	const profileContext = await loadCustomerProfileContext(supabase, customerId)
+	const message = (route.supportMessage || route.searchQuery || userText).trim()
+	if (!message || message === '/feedback') {
+		return {
+			message: 'Tell me the feedback or support message to send.',
+			ticket: null,
+		}
+	}
+	if (!profileContext.profile.email) {
+		return {
+			message:
+				'Your profile does not have an email address saved, so I did not create a support ticket from chat.',
+			ticket: null,
+		}
+	}
+	const subject =
+		route.supportSubject?.trim() || supportSubjectFromMessage(message)
+	const { data, error } = await supabase.rpc('create_support_ticket', {
+		p_message: message,
+		p_requester_email: profileContext.profile.email,
+		p_requester_name: profileContext.profile.contact_name,
+		p_requester_phone: profileContext.profile.phone,
+		p_source: 'portal',
+		p_subject: subject,
+	})
+	if (error) throw new Error(error.message)
+	return {
+		ticket: data as unknown as SupportTicketRow,
+	}
+}
+
+function supportSubjectFromMessage(message: string): string {
+	const cleaned = message
+		.replace(/^\/feedback\s*/i, '')
+		.replace(/\s+/g, ' ')
+		.trim()
+	return cleaned.length > 80 ? `${cleaned.slice(0, 77)}...` : cleaned
 }
 
 async function updateDraftItems(
@@ -2687,6 +3637,8 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 				}),
 			]
 		case '/products':
+		case '/compare-products':
+		case '/recommend-materials':
 		case '/market':
 			return [
 				actionButtonEvent({
@@ -2704,6 +3656,7 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 				}),
 			]
 		case '/new-draft':
+		case '/cart':
 			return [
 				actionButtonEvent({
 					icon: 'draft',
@@ -2726,6 +3679,7 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 				}),
 			]
 		case '/orders':
+		case '/status':
 			return [
 				actionButtonEvent({
 					icon: 'orders',
@@ -2742,6 +3696,17 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 				}),
 			]
 		case '/drafts':
+		case '/draft':
+		case '/edit-draft':
+		case '/validate-draft':
+		case '/delete-draft':
+		case '/clear-draft':
+		case '/rename-draft':
+		case '/note-draft':
+		case '/add-to-draft':
+		case '/replace-draft-item':
+		case '/set-draft-delivery':
+		case '/reorder':
 			return [
 				actionButtonEvent({
 					icon: 'orders',
@@ -2764,7 +3729,9 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 				}),
 			]
 		case '/latest-order':
+		case '/activity':
 		case '/track':
+		case '/deliveries':
 			return [
 				actionButtonEvent({
 					icon: 'orders',
@@ -2780,6 +3747,9 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 				}),
 			]
 		case '/profile':
+		case '/addresses':
+		case '/projects':
+		case '/account-health':
 			return [
 				actionButtonEvent({
 					icon: 'profile',
@@ -2795,6 +3765,8 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 				}),
 			]
 		case '/support':
+		case '/contact':
+		case '/feedback':
 			return [
 				actionButtonEvent({
 					icon: 'support',
@@ -2822,6 +3794,7 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 				}),
 			]
 		case '/docs':
+		case '/docs-search':
 			return [
 				actionButtonEvent({
 					href: 'https://www.hyperquote.net/docs',
@@ -2911,6 +3884,9 @@ function contextActionEvents(context: PortalToolContext): StreamChunk[] {
 			]
 		case 'order_detail':
 		case 'delivery_tracking':
+		case 'delivery_list':
+		case 'draft_validation':
+		case 'order_activity':
 			return [
 				actionButtonEvent({
 					icon: 'orders',
@@ -2926,6 +3902,9 @@ function contextActionEvents(context: PortalToolContext): StreamChunk[] {
 				}),
 			]
 		case 'profile':
+		case 'addresses':
+		case 'projects':
+		case 'account_health':
 			return [
 				actionButtonEvent({
 					icon: 'profile',
@@ -2938,6 +3917,21 @@ function contextActionEvents(context: PortalToolContext): StreamChunk[] {
 					label: 'Support',
 					labelAr: 'الدعم',
 					route: '/support',
+				}),
+			]
+		case 'support_request':
+			return [
+				actionButtonEvent({
+					icon: 'support',
+					label: 'Support',
+					labelAr: 'الدعم',
+					route: '/support',
+				}),
+				actionButtonEvent({
+					href: 'mailto:support@hyperquote.net',
+					icon: 'mail',
+					label: 'Email support',
+					labelAr: 'راسل الدعم',
 				}),
 			]
 		default:

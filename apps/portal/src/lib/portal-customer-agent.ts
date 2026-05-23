@@ -16,13 +16,26 @@ const AGENT_TOOL_ACTIONS = [
 	'customer_orders',
 	'order_detail',
 	'delivery_tracking',
+	'delivery_list',
 	'product_search',
+	'compare_products',
+	'recommend_materials',
+	'address_list',
+	'project_list',
+	'account_health',
+	'draft_detail',
+	'draft_add_items',
+	'draft_replace_item',
+	'draft_set_delivery',
+	'draft_validate',
 	'create_draft_from_plan',
 	'update_draft_items',
 	'duplicate_order_to_draft',
 	'update_draft_metadata',
 	'cleanup_drafts',
 	'delete_draft',
+	'order_activity',
+	'support_request',
 	'refuse',
 ] as const
 
@@ -30,8 +43,10 @@ export type PortalCustomerAgentAction = (typeof AGENT_TOOL_ACTIONS)[number]
 
 export interface PortalCustomerToolRequest {
 	action: PortalCustomerAgentAction
+	addressQuery?: string
 	cleanupMode?: 'delete_all' | 'merge' | 'remove_empty'
 	commandName?: PortalChatCommandName
+	deliveryDate?: string
 	draftItemAction?:
 		| 'set_quantity'
 		| 'remove_item'
@@ -46,7 +61,10 @@ export interface PortalCustomerToolRequest {
 	previousQuantity?: number
 	quantity?: number
 	reason?: string
+	replacementQuery?: string
 	searchQuery: string
+	supportMessage?: string
+	supportSubject?: string
 	targetReference?: string
 }
 
@@ -74,7 +92,7 @@ export function buildPortalCustomerAgentPrompt(
 Choose one internal tool only when it helps. Use chat for normal conversation or a short clarification. Return JSON only.
 
 Schema:
-{"tool":"chat"|"public_docs"|"customer_profile"|"customer_orders"|"order_detail"|"delivery_tracking"|"product_search"|"create_draft_from_plan"|"update_draft_items"|"duplicate_order_to_draft"|"update_draft_metadata"|"cleanup_drafts"|"delete_draft"|"refuse","search_query":"string","target_reference":"string","order_scope":"all"|"drafts"|"submitted"|"active"|"completed","draft_name":"string","draft_notes":"string","draft_item_action":"set_quantity"|"remove_item"|"clear_items"|"set_item_notes","item_query":"string","quantity":123,"previous_quantity":123,"item_notes":"string","cleanup_mode":"delete_all"|"merge"|"remove_empty","reason":"string","final_response":"string"}
+{"tool":"chat"|"public_docs"|"customer_profile"|"customer_orders"|"order_detail"|"delivery_tracking"|"delivery_list"|"product_search"|"compare_products"|"recommend_materials"|"address_list"|"project_list"|"account_health"|"draft_detail"|"draft_add_items"|"draft_replace_item"|"draft_set_delivery"|"draft_validate"|"create_draft_from_plan"|"update_draft_items"|"duplicate_order_to_draft"|"update_draft_metadata"|"cleanup_drafts"|"delete_draft"|"order_activity"|"support_request"|"refuse","search_query":"string","target_reference":"string","order_scope":"all"|"drafts"|"submitted"|"active"|"completed","draft_name":"string","draft_notes":"string","draft_item_action":"set_quantity"|"remove_item"|"clear_items"|"set_item_notes","item_query":"string","replacement_query":"string","quantity":123,"previous_quantity":123,"item_notes":"string","address_query":"string","delivery_date":"YYYY-MM-DD","cleanup_mode":"delete_all"|"merge"|"remove_empty","support_subject":"string","support_message":"string","reason":"string","final_response":"string"}
 
 Tools:
 - chat: friendly talk, clarification, or final_response.
@@ -82,11 +100,14 @@ Tools:
 - customer_profile: the signed-in customer's company/account info, contact details, addresses, or projects.
 - customer_orders: customer-owned records. Set order_scope: all, drafts, submitted, active, or completed.
 - order_detail: one specific or latest quote/order.
-- delivery_tracking: the customer's own delivery tracking.
-- product_search: catalog search or material planning. Ask before writing plans to drafts.
+- delivery_tracking, delivery_list: the customer's own delivery tracking.
+- product_search, compare_products, recommend_materials: catalog search, comparison, or material planning. Ask before writing plans to drafts.
+- address_list, project_list, account_health: customer-owned account context.
+- draft_detail, draft_validate, order_activity: inspect customer-owned records.
 - create_draft_from_plan: explicit draft-create/catalog-selection only; server writes real Available product IDs. Include a natural draft_name and draft_notes.
 - update_draft_items: edit an editable draft line, quantity, note, or clear lines. Include refreshed draft_notes; include draft_name when the title should change.
-- duplicate_order_to_draft, update_draft_metadata, cleanup_drafts, delete_draft: customer-scoped draft-only edits.
+- draft_add_items, draft_replace_item, draft_set_delivery, duplicate_order_to_draft, update_draft_metadata, cleanup_drafts, delete_draft: customer-scoped draft-only edits.
+- support_request: explicit support/feedback ticket only. Use support_subject and support_message.
 - refuse: submit/confirm/place/cancel orders, payments, cross-customer data, internal finance, supplier costs/margins, employee data, secrets, or unrelated driver-only data.
 
 Use the conversation like a capable assistant. Decide from intent and context, not isolated keywords. Put natural draft targets in search_query when no exact reference exists. Slash commands are user shortcuts, not words to repeat back.
@@ -144,7 +165,7 @@ export function routePortalChatCommand(
 	const command = parsePortalChatCommand(userMessage)
 	if (!command) return null
 
-	const searchQuery = command.args || command.name
+	const searchQuery = command.args
 	switch (command.name) {
 		case '/help':
 			return {
@@ -158,6 +179,18 @@ export function routePortalChatCommand(
 				commandName: command.name,
 				searchQuery,
 			}
+		case '/compare-products':
+			return {
+				action: 'compare_products',
+				commandName: command.name,
+				searchQuery,
+			}
+		case '/recommend-materials':
+			return {
+				action: 'recommend_materials',
+				commandName: command.name,
+				searchQuery,
+			}
 		case '/market':
 			return {
 				action: 'chat',
@@ -165,6 +198,12 @@ export function routePortalChatCommand(
 				searchQuery: '',
 			}
 		case '/new-draft':
+			return {
+				action: 'chat',
+				commandName: command.name,
+				searchQuery: '',
+			}
+		case '/cart':
 			return {
 				action: 'chat',
 				commandName: command.name,
@@ -184,11 +223,122 @@ export function routePortalChatCommand(
 				orderScope: 'drafts',
 				searchQuery,
 			}
+		case '/draft':
+			return {
+				action: 'draft_detail',
+				commandName: command.name,
+				searchQuery,
+				targetReference: extractTargetReference(command.args),
+			}
+		case '/edit-draft':
+			return {
+				action: 'draft_detail',
+				commandName: command.name,
+				searchQuery,
+				targetReference: extractTargetReference(command.args),
+			}
+		case '/delete-draft':
+			return {
+				action: 'delete_draft',
+				commandName: command.name,
+				searchQuery,
+				targetReference: extractTargetReference(command.args),
+			}
+		case '/clear-draft':
+			return {
+				action: 'update_draft_items',
+				commandName: command.name,
+				draftItemAction: 'clear_items',
+				searchQuery,
+				targetReference: extractTargetReference(command.args),
+			}
+		case '/rename-draft': {
+			const { rest, targetReference } = splitCommandTarget(command.args)
+			return {
+				action: 'update_draft_metadata',
+				commandName: command.name,
+				draftName: cleanCommandText(rest),
+				searchQuery,
+				targetReference,
+			}
+		}
+		case '/note-draft': {
+			const { rest, targetReference } = splitCommandTarget(command.args)
+			return {
+				action: 'update_draft_metadata',
+				commandName: command.name,
+				draftNotes: cleanCommandText(rest),
+				searchQuery,
+				targetReference,
+			}
+		}
+		case '/validate-draft':
+			return {
+				action: 'draft_validate',
+				commandName: command.name,
+				searchQuery,
+				targetReference: extractTargetReference(command.args),
+			}
+		case '/add-to-draft': {
+			const { rest, targetReference } = splitCommandTarget(command.args)
+			return {
+				action: 'draft_add_items',
+				commandName: command.name,
+				itemQuery: rest || undefined,
+				searchQuery,
+				targetReference,
+			}
+		}
+		case '/replace-draft-item': {
+			const { rest, targetReference } = splitCommandTarget(command.args)
+			const replacement = splitReplacementCommand(rest)
+			return {
+				action: 'draft_replace_item',
+				commandName: command.name,
+				itemQuery: replacement.itemQuery,
+				replacementQuery: replacement.replacementQuery,
+				searchQuery,
+				targetReference,
+			}
+		}
+		case '/set-draft-delivery': {
+			const { rest, targetReference } = splitCommandTarget(command.args)
+			const delivery = parseDeliveryCommand(rest)
+			return {
+				action: 'draft_set_delivery',
+				addressQuery: delivery.addressQuery,
+				commandName: command.name,
+				deliveryDate: delivery.deliveryDate,
+				searchQuery,
+				targetReference,
+			}
+		}
+		case '/reorder':
+			return {
+				action: 'duplicate_order_to_draft',
+				commandName: command.name,
+				searchQuery,
+				targetReference: extractTargetReference(command.args),
+			}
 		case '/latest-order':
 			return {
 				action: 'order_detail',
 				commandName: command.name,
 				searchQuery,
+			}
+		case '/status':
+			return {
+				action: 'order_detail',
+				commandName: command.name,
+				searchQuery,
+				targetReference: extractTargetReference(command.args),
+			}
+		case '/activity':
+			return {
+				action: 'order_activity',
+				commandName: command.name,
+				searchQuery,
+				targetReference: extractTargetReference(command.args),
 			}
 		case '/track':
 			return {
@@ -197,9 +347,33 @@ export function routePortalChatCommand(
 				searchQuery,
 				targetReference: command.args || undefined,
 			}
+		case '/deliveries':
+			return {
+				action: 'delivery_list',
+				commandName: command.name,
+				searchQuery,
+			}
 		case '/profile':
 			return {
 				action: 'customer_profile',
+				commandName: command.name,
+				searchQuery,
+			}
+		case '/addresses':
+			return {
+				action: 'address_list',
+				commandName: command.name,
+				searchQuery,
+			}
+		case '/projects':
+			return {
+				action: 'project_list',
+				commandName: command.name,
+				searchQuery,
+			}
+		case '/account-health':
+			return {
+				action: 'account_health',
 				commandName: command.name,
 				searchQuery,
 			}
@@ -216,7 +390,39 @@ export function routePortalChatCommand(
 				commandName: command.name,
 				searchQuery: '',
 			}
+		case '/contact':
+			return {
+				action: 'chat',
+				commandName: command.name,
+				searchQuery: '',
+			}
+		case '/feedback':
+			return command.args
+				? {
+						action: 'support_request',
+						commandName: command.name,
+						searchQuery,
+						supportMessage: command.args,
+						supportSubject: 'Portal feedback',
+					}
+				: {
+						action: 'chat',
+						commandName: command.name,
+						searchQuery: '',
+					}
 		case '/docs':
+			return command.args
+				? {
+						action: 'public_docs',
+						commandName: command.name,
+						searchQuery: command.args,
+					}
+				: {
+						action: 'chat',
+						commandName: command.name,
+						searchQuery: '',
+					}
+		case '/docs-search':
 			return command.args
 				? {
 						action: 'public_docs',
@@ -244,6 +450,54 @@ function orderScopeFromCommandArgs(
 ): PortalCustomerOrderScope | null {
 	const scope = args.trim().split(/\s+/)[0]?.toLowerCase()
 	return isPortalCustomerOrderScope(scope) ? scope : null
+}
+
+function splitCommandTarget(args: string): {
+	rest: string
+	targetReference?: string
+} {
+	const trimmed = args.trim()
+	if (!trimmed) return { rest: '' }
+	const match = trimmed.match(
+		/^([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}|(?:QR|RFQ|REQ|ORD|ORDER|QUOTE)[-_ ]?\d[A-Z0-9]*(?:[-_][A-Z0-9]+)?)\s*(.*)$/i,
+	)
+	if (!match) return { rest: trimmed }
+	return {
+		rest: match[2]?.trim() ?? '',
+		targetReference: match[1]?.replace(/\s+/g, '-'),
+	}
+}
+
+function cleanCommandText(value: string): string | undefined {
+	const trimmed = value.trim()
+	if (!trimmed) return undefined
+	return trimmed.replace(/^["“”']|["“”']$/g, '').trim() || undefined
+}
+
+function splitReplacementCommand(value: string): {
+	itemQuery?: string
+	replacementQuery?: string
+} {
+	const parts = value.split(/\s+(?:with|to|=>|→)\s+/i)
+	if (parts.length >= 2) {
+		return {
+			itemQuery: cleanCommandText(parts[0] ?? ''),
+			replacementQuery: cleanCommandText(parts.slice(1).join(' with ')),
+		}
+	}
+	return { replacementQuery: cleanCommandText(value) }
+}
+
+function parseDeliveryCommand(value: string): {
+	addressQuery?: string
+	deliveryDate?: string
+} {
+	const date = value.match(/\b\d{4}-\d{2}-\d{2}\b/)?.[0]
+	const addressQuery = cleanCommandText(value.replace(date ?? '', ' '))
+	return {
+		addressQuery,
+		deliveryDate: date,
+	}
 }
 
 export function parsePortalCustomerToolRequest(
@@ -295,6 +549,24 @@ export function parsePortalCustomerToolRequest(
 		if (typeof parsed.item_notes === 'string' && parsed.item_notes.trim()) {
 			request.itemNotes = parsed.item_notes.trim().slice(0, 600)
 		}
+		if (
+			typeof parsed.replacement_query === 'string' &&
+			parsed.replacement_query.trim()
+		) {
+			request.replacementQuery = parsed.replacement_query.trim().slice(0, 160)
+		}
+		if (
+			typeof parsed.address_query === 'string' &&
+			parsed.address_query.trim()
+		) {
+			request.addressQuery = parsed.address_query.trim().slice(0, 160)
+		}
+		if (
+			typeof parsed.delivery_date === 'string' &&
+			parsed.delivery_date.trim()
+		) {
+			request.deliveryDate = parsed.delivery_date.trim().slice(0, 40)
+		}
 		if (isPortalCustomerOrderScope(parsed.order_scope)) {
 			request.orderScope = parsed.order_scope
 		}
@@ -303,6 +575,18 @@ export function parsePortalCustomerToolRequest(
 		}
 		if (typeof parsed.reason === 'string' && parsed.reason.trim()) {
 			request.reason = parsed.reason.trim()
+		}
+		if (
+			typeof parsed.support_subject === 'string' &&
+			parsed.support_subject.trim()
+		) {
+			request.supportSubject = parsed.support_subject.trim().slice(0, 160)
+		}
+		if (
+			typeof parsed.support_message === 'string' &&
+			parsed.support_message.trim()
+		) {
+			request.supportMessage = parsed.support_message.trim().slice(0, 1200)
 		}
 		if (
 			typeof parsed.final_response === 'string' &&
@@ -342,11 +626,15 @@ export function enforcePortalCustomerToolRequest(
 export function isDraftWriteAction(action: PortalCustomerAgentAction): boolean {
 	return (
 		action === 'create_draft_from_plan' ||
+		action === 'draft_add_items' ||
+		action === 'draft_replace_item' ||
+		action === 'draft_set_delivery' ||
 		action === 'update_draft_items' ||
 		action === 'duplicate_order_to_draft' ||
 		action === 'update_draft_metadata' ||
 		action === 'cleanup_drafts' ||
-		action === 'delete_draft'
+		action === 'delete_draft' ||
+		action === 'support_request'
 	)
 }
 

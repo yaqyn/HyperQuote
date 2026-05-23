@@ -51,6 +51,7 @@ describe('portal customer AI agent', () => {
 			true,
 		)
 		expect(isLocalPortalChatCommand('/clear')).toBe(true)
+		expect(isLocalPortalChatCommand('/cart')).toBe(true)
 		expect(routePortalChatCommand('/help')).toMatchObject({
 			action: 'chat',
 			commandName: '/help',
@@ -58,6 +59,18 @@ describe('portal customer AI agent', () => {
 		expect(routePortalChatCommand('/products')).toMatchObject({
 			action: 'product_search',
 			commandName: '/products',
+		})
+		expect(routePortalChatCommand('/compare-products wood')).toMatchObject({
+			action: 'compare_products',
+			commandName: '/compare-products',
+			searchQuery: 'wood',
+		})
+		expect(
+			routePortalChatCommand('/recommend-materials tree house'),
+		).toMatchObject({
+			action: 'recommend_materials',
+			commandName: '/recommend-materials',
+			searchQuery: 'tree house',
 		})
 		expect(routePortalChatCommand('/market')).toMatchObject({
 			action: 'chat',
@@ -82,9 +95,95 @@ describe('portal customer AI agent', () => {
 			commandName: '/drafts',
 			orderScope: 'drafts',
 		})
+		expect(routePortalChatCommand('/draft QR-2026-00003')).toMatchObject({
+			action: 'draft_detail',
+			commandName: '/draft',
+			targetReference: 'QR-2026-00003',
+		})
+		expect(routePortalChatCommand('/edit-draft QR-2026-00003')).toMatchObject({
+			action: 'draft_detail',
+			commandName: '/edit-draft',
+			targetReference: 'QR-2026-00003',
+		})
+		expect(routePortalChatCommand('/delete-draft QR-2026-00003')).toMatchObject(
+			{
+				action: 'delete_draft',
+				commandName: '/delete-draft',
+				targetReference: 'QR-2026-00003',
+			},
+		)
+		expect(routePortalChatCommand('/clear-draft QR-2026-00003')).toMatchObject({
+			action: 'update_draft_items',
+			commandName: '/clear-draft',
+			draftItemAction: 'clear_items',
+			targetReference: 'QR-2026-00003',
+		})
+		expect(
+			routePortalChatCommand('/rename-draft QR-2026-00003 "woody"'),
+		).toMatchObject({
+			action: 'update_draft_metadata',
+			commandName: '/rename-draft',
+			draftName: 'woody',
+			targetReference: 'QR-2026-00003',
+		})
+		expect(
+			routePortalChatCommand('/note-draft QR-2026-00003 Wood frame'),
+		).toMatchObject({
+			action: 'update_draft_metadata',
+			commandName: '/note-draft',
+			draftNotes: 'Wood frame',
+			targetReference: 'QR-2026-00003',
+		})
+		expect(
+			routePortalChatCommand('/validate-draft QR-2026-00003'),
+		).toMatchObject({
+			action: 'draft_validate',
+			commandName: '/validate-draft',
+			targetReference: 'QR-2026-00003',
+		})
+		expect(
+			routePortalChatCommand('/add-to-draft QR-2026-00003 cement'),
+		).toMatchObject({
+			action: 'draft_add_items',
+			commandName: '/add-to-draft',
+			itemQuery: 'cement',
+			targetReference: 'QR-2026-00003',
+		})
+		expect(
+			routePortalChatCommand(
+				'/replace-draft-item QR-2026-00003 wood with cement',
+			),
+		).toMatchObject({
+			action: 'draft_replace_item',
+			commandName: '/replace-draft-item',
+			itemQuery: 'wood',
+			replacementQuery: 'cement',
+			targetReference: 'QR-2026-00003',
+		})
+		expect(
+			routePortalChatCommand(
+				'/set-draft-delivery QR-2026-00003 2026-06-01 Home',
+			),
+		).toMatchObject({
+			action: 'draft_set_delivery',
+			addressQuery: 'Home',
+			commandName: '/set-draft-delivery',
+			deliveryDate: '2026-06-01',
+			targetReference: 'QR-2026-00003',
+		})
 		expect(routePortalChatCommand('/latest-order')).toMatchObject({
 			action: 'order_detail',
 			commandName: '/latest-order',
+		})
+		expect(routePortalChatCommand('/status QR-2026-00001')).toMatchObject({
+			action: 'order_detail',
+			commandName: '/status',
+			targetReference: 'QR-2026-00001',
+		})
+		expect(routePortalChatCommand('/activity QR-2026-00001')).toMatchObject({
+			action: 'order_activity',
+			commandName: '/activity',
+			targetReference: 'QR-2026-00001',
 		})
 		expect(routePortalChatCommand('/track QR-2026-00001')).toMatchObject({
 			action: 'delivery_tracking',
@@ -92,9 +191,25 @@ describe('portal customer AI agent', () => {
 			searchQuery: 'QR-2026-00001',
 			targetReference: 'QR-2026-00001',
 		})
+		expect(routePortalChatCommand('/deliveries')).toMatchObject({
+			action: 'delivery_list',
+			commandName: '/deliveries',
+		})
 		expect(routePortalChatCommand('/profile')).toMatchObject({
 			action: 'customer_profile',
 			commandName: '/profile',
+		})
+		expect(routePortalChatCommand('/addresses')).toMatchObject({
+			action: 'address_list',
+			commandName: '/addresses',
+		})
+		expect(routePortalChatCommand('/projects')).toMatchObject({
+			action: 'project_list',
+			commandName: '/projects',
+		})
+		expect(routePortalChatCommand('/account-health')).toMatchObject({
+			action: 'account_health',
+			commandName: '/account-health',
 		})
 		expect(routePortalChatCommand('/clear-all-drafts')).toMatchObject({
 			action: 'cleanup_drafts',
@@ -105,10 +220,21 @@ describe('portal customer AI agent', () => {
 			action: 'chat',
 			commandName: '/support',
 		})
+		expect(routePortalChatCommand('/feedback slow checkout')).toMatchObject({
+			action: 'support_request',
+			commandName: '/feedback',
+			supportMessage: 'slow checkout',
+			supportSubject: 'Portal feedback',
+		})
 		expect(routePortalChatCommand('/docs prices')).toMatchObject({
 			action: 'public_docs',
 			commandName: '/docs',
 			searchQuery: 'prices',
+		})
+		expect(routePortalChatCommand('/docs-search warranty')).toMatchObject({
+			action: 'public_docs',
+			commandName: '/docs-search',
+			searchQuery: 'warranty',
 		})
 	})
 
@@ -227,6 +353,38 @@ describe('portal customer AI agent', () => {
 			).action,
 		).toBe('create_draft_from_plan')
 		expect(
+			parsePortalCustomerToolRequest(
+				JSON.stringify({
+					item_query: 'wood',
+					replacement_query: 'cement',
+					search_query: 'replace wood with cement',
+					target_reference: 'QR-2026-00003',
+					tool: 'draft_replace_item',
+				}),
+				'replace wood with cement in QR-2026-00003',
+			),
+		).toMatchObject({
+			action: 'draft_replace_item',
+			itemQuery: 'wood',
+			replacementQuery: 'cement',
+			targetReference: 'QR-2026-00003',
+		})
+		expect(
+			parsePortalCustomerToolRequest(
+				JSON.stringify({
+					search_query: 'checkout is slow',
+					support_message: 'The checkout page is slow today.',
+					support_subject: 'Checkout performance',
+					tool: 'support_request',
+				}),
+				'send feedback that checkout is slow',
+			),
+		).toMatchObject({
+			action: 'support_request',
+			supportMessage: 'The checkout page is slow today.',
+			supportSubject: 'Checkout performance',
+		})
+		expect(
 			parsePortalCustomerToolRequest('not json', 'find cement').action,
 		).toBe('chat')
 		expect(
@@ -321,5 +479,8 @@ describe('portal customer AI agent', () => {
 		expect(prompt).toContain(
 			'"order_scope":"all"|"drafts"|"submitted"|"active"|"completed"',
 		)
+		expect(prompt).toContain('draft_add_items')
+		expect(prompt).toContain('support_request')
+		expect(prompt).toContain('Decide from intent and context')
 	})
 })

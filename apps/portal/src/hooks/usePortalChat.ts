@@ -23,6 +23,7 @@ import {
 	parsePortalChatCommand,
 } from '../lib/portal-chat-commands'
 import { useChatStore } from '../stores/chat'
+import { useDraftQuoteStore } from '../stores/draft-quote'
 import { usePortalStore } from '../stores/portal'
 
 // ============================================================================
@@ -100,6 +101,69 @@ function shouldInvalidateCustomerOrders(chunks: StreamChunk[]): boolean {
 		(chunk) =>
 			chunk.type === 'CUSTOM' && chunk.name === 'portal_cache_invalidation',
 	)
+}
+
+function textMessage(role: 'assistant' | 'user', content: string): UIMessage {
+	return {
+		id: crypto.randomUUID(),
+		role,
+		parts: [{ type: 'text', content }],
+		createdAt: new Date(),
+	}
+}
+
+function localCartResponse(): { richContent: RichContent[]; text: string } {
+	const cart = useDraftQuoteStore.getState()
+	const itemCount = cart.items.length
+	const totalUnits = cart.items.reduce((sum, item) => sum + item.quantity, 0)
+	const text =
+		itemCount === 0
+			? '## Cart\nYour quote drawer is empty.'
+			: [
+					'## Cart',
+					`${itemCount} item${itemCount === 1 ? '' : 's'} in the quote drawer, ${totalUnits} total unit${totalUnits === 1 ? '' : 's'}.`,
+					cart.globalNote ? `Note: ${cart.globalNote}` : '',
+				]
+					.filter(Boolean)
+					.join('\n')
+	const richContent: RichContent[] = [
+		...(itemCount > 0
+			? [
+					{
+						type: 'material_list' as const,
+						data: {
+							items: cart.items.map((item) => ({
+								name: item.name,
+								nameAr: item.nameAr,
+								qty: item.quantity,
+								unit: item.unitOfMeasure,
+								unitAr: item.unitOfMeasureAr,
+							})),
+						},
+					},
+				]
+			: []),
+		{
+			type: 'action_button',
+			data: {
+				icon: 'draft',
+				label: itemCount > 0 ? 'Open quote drawer' : 'Start quote drawer',
+				labelAr: itemCount > 0 ? 'افتح درج العرض' : 'ابدأ درج العرض',
+				params: { draft: 'true' },
+				route: '/orders',
+			},
+		},
+		{
+			type: 'action_button',
+			data: {
+				icon: 'market',
+				label: 'Browse market',
+				labelAr: 'تصفح السوق',
+				route: '/market',
+			},
+		},
+	]
+	return { richContent, text }
 }
 
 // ============================================================================
@@ -231,12 +295,22 @@ export function usePortalChat() {
 		(message: string) => {
 			const command = parsePortalChatCommand(message)
 			if (command && isLocalPortalChatCommand(command.name)) {
+				if (command.name === '/cart') {
+					const response = localCartResponse()
+					richContentRef.current = response.richContent
+					chat.setMessages([
+						...chat.messages,
+						textMessage('user', message),
+						textMessage('assistant', response.text),
+					])
+					return
+				}
 				clear()
 				return
 			}
 			chat.sendMessage(message)
 		},
-		[chat.sendMessage, clear],
+		[chat.messages, chat.sendMessage, chat.setMessages, clear],
 	)
 
 	return {
