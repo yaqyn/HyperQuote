@@ -1,5 +1,5 @@
 /**
- * ScrollToBottom — compact blue pill used when the user scrolls away from
+ * ScrollToBottom — subtle blur pill used when the user scrolls away from
  * the latest chat message.
  */
 
@@ -25,10 +25,10 @@ export function ScrollToBottom({ show, onClick }: ScrollToBottomProps) {
 					transition={{ duration: 0.15 }}
 					onClick={onClick}
 					aria-label={t('chat.jumpToLatest', 'Jump to latest')}
-					className="relative isolate flex h-9 items-center gap-2 rounded-full bg-[var(--p-accent)] px-3.5 text-[12px] font-semibold text-[var(--p-accent-contrast)] shadow-[0_14px_32px_rgba(37,99,235,0.28)] transition-colors hover:bg-[var(--p-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)]"
+					className="relative isolate flex h-9 items-center gap-2 rounded-full bg-[var(--p-bg)]/45 px-3.5 text-[12px] font-semibold text-[var(--p-accent)] shadow-none backdrop-blur-md transition-colors hover:text-[var(--p-accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)]"
 				>
 					<span
-						className="absolute -inset-2 -z-10 rounded-full bg-[var(--p-accent)] opacity-30 blur-xl"
+						className="absolute -inset-1 -z-10 rounded-full bg-[var(--p-accent)]/10 blur-md"
 						aria-hidden
 					/>
 					<span aria-hidden>↓</span>
