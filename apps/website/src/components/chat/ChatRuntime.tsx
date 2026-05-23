@@ -5,6 +5,12 @@ import { useAIChat } from '../../hooks/useAIChat'
 import { useChatWidget } from '../../hooks/useChatWidget'
 import { ChatPanel } from './ChatPanel'
 
+function waitForRuntimeReadyFrame() {
+	return new Promise<void>((resolve) => {
+		window.setTimeout(resolve, 0)
+	})
+}
+
 export function ChatRuntime() {
 	return (
 		<>
@@ -24,7 +30,10 @@ function ChatSessionBridge() {
 	const setSnapshot = useChatSession((state) => state.setSnapshot)
 
 	useEffect(() => {
-		bindRuntime(chat.sendMessage)
+		bindRuntime(async (message) => {
+			await waitForRuntimeReadyFrame()
+			await chat.sendMessage(message)
+		})
 	}, [bindRuntime, chat.sendMessage])
 
 	useEffect(() => {
@@ -39,6 +48,7 @@ function ChatSessionBridge() {
 		if (queuedMessages.length === 0) return
 		const messages = consumeQueuedMessages()
 		void (async () => {
+			await waitForRuntimeReadyFrame()
 			for (const message of messages) {
 				await chat.sendMessage(message)
 			}
