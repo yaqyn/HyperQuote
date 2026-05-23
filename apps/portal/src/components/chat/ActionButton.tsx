@@ -14,8 +14,10 @@ import {
 	Mail,
 	MessageCircle,
 	PackageSearch,
+	Phone,
 	ReceiptText,
 	Route,
+	ShoppingCart,
 	SquarePen,
 	UserRound,
 } from 'lucide-react'
@@ -26,6 +28,7 @@ import {
 	PORTAL_CHAT_OPEN_DRAFT_EVENT,
 	PORTAL_CHAT_RUN_COMMAND_EVENT,
 } from '../../lib/chat-types'
+import { usePortalStore } from '../../stores/portal'
 
 interface ActionButtonProps {
 	data: ActionButtonData
@@ -33,6 +36,7 @@ interface ActionButtonProps {
 
 const ACTION_ICONS = {
 	book: BookOpen,
+	cart: ShoppingCart,
 	command: Command,
 	draft: SquarePen,
 	external: ExternalLink,
@@ -40,6 +44,7 @@ const ACTION_ICONS = {
 	mail: Mail,
 	market: PackageSearch,
 	orders: ReceiptText,
+	phone: Phone,
 	profile: UserRound,
 	support: MessageCircle,
 	track: Route,
@@ -83,6 +88,10 @@ export function ActionButton({ data }: ActionButtonProps) {
 					detail: { draftId: data.params?.draftId },
 				}),
 			)
+			return
+		}
+		if (data.event === 'open_cart') {
+			usePortalStore.getState().setDraftQuoteOpen(true)
 			return
 		}
 		if (data.route) {

@@ -129,11 +129,12 @@ function SupportPage() {
 
 			{/* Contact */}
 			<motion.section
+				id="contact"
 				initial="hidden"
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={revealUp}
-				className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-12 lg:py-24"
+				className="scroll-mt-24 px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-12 lg:py-24"
 			>
 				<div className="mx-auto max-w-[1200px]">
 					<div

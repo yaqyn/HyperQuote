@@ -12,6 +12,7 @@ import { DeliveryTrackingCard } from './DeliveryTrackingCard'
 import { DraftCleanupResult } from './DraftCleanupResult'
 import { MaterialList } from './MaterialList'
 import { StatusCard } from './StatusCard'
+import { SupportOptions } from './SupportOptions'
 
 interface RichMessageProps {
 	type: string
@@ -50,6 +51,20 @@ function RichMessage({ type, data }: RichMessageProps) {
 					data={
 						data as RichContent extends {
 							type: 'command_palette'
+							data: infer D
+						}
+							? D
+							: never
+					}
+				/>
+			)
+			break
+		case 'support_options':
+			content = (
+				<SupportOptions
+					data={
+						data as RichContent extends {
+							type: 'support_options'
 							data: infer D
 						}
 							? D

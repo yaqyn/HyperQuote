@@ -207,11 +207,10 @@ function localCartResponse(options: { opened?: boolean } = {}): {
 		{
 			type: 'action_button',
 			data: {
-				icon: 'draft',
-				label: itemCount > 0 ? 'Open quote drawer' : 'Start quote drawer',
-				labelAr: itemCount > 0 ? 'افتح درج العرض' : 'ابدأ درج العرض',
-				params: { draft: 'true' },
-				route: '/orders',
+				event: 'open_cart',
+				icon: 'cart',
+				label: itemCount > 0 ? 'Open cart' : 'Open empty cart',
+				labelAr: itemCount > 0 ? 'افتح السلة' : 'افتح السلة الفارغة',
 			},
 		},
 		{

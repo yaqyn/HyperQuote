@@ -8,6 +8,7 @@ import {
 	MessageSquareText,
 	MoreHorizontal,
 	Package,
+	PanelRightOpen,
 	Plus,
 	Save,
 	Search,
@@ -38,6 +39,7 @@ import {
 import { toast } from '../../lib/toast'
 import { unavailableItemNamesFromError } from '../../lib/unavailable-quote-items'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
+import { usePortalStore } from '../../stores/portal'
 import type { Order, OrderItem } from '../../types/order'
 
 interface ChatDraftsPanelProps {
@@ -293,6 +295,7 @@ export function ChatDraftsPanel({
 	const isAr = i18n.language === 'ar'
 	const shouldReduceMotion = useReducedMotion()
 	const addCartItem = useDraftQuoteStore((s) => s.add)
+	const setDraftQuoteOpen = usePortalStore((s) => s.setDraftQuoteOpen)
 	const defaultDraftName = getDefaultDraftName(
 		t('market.defaultDraftName'),
 		isAr,
@@ -794,6 +797,7 @@ export function ChatDraftsPanel({
 			)
 		})
 		toast.success(t('orders.draftAddedToCart'))
+		setDraftQuoteOpen(true)
 	}
 
 	function requestAddEditorToCart() {
@@ -1315,7 +1319,7 @@ export function ChatDraftsPanel({
 							</motion.div>
 						)}
 					</AnimatePresence>
-					<div className="grid grid-cols-[minmax(0,1fr)_40px_40px_40px] gap-2">
+					<div className="grid grid-cols-[minmax(0,1fr)_40px_40px_40px_40px] gap-2">
 						<motion.button
 							type="button"
 							onClick={requestSubmitEditor}
@@ -1356,6 +1360,15 @@ export function ChatDraftsPanel({
 							whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
 						>
 							<ShoppingCart size={15} strokeWidth={1.7} />
+						</motion.button>
+						<motion.button
+							type="button"
+							onClick={() => setDraftQuoteOpen(true)}
+							className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+							aria-label={t('market.openCart')}
+							whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
+						>
+							<PanelRightOpen size={15} strokeWidth={1.7} />
 						</motion.button>
 						<div ref={actionsMenuRef} className="relative">
 							<motion.button

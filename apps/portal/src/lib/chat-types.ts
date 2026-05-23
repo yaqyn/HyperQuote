@@ -34,10 +34,11 @@ export interface StatusCardData {
 
 export interface ActionButtonData {
 	command?: string
-	event?: 'open_draft_panel'
+	event?: 'open_cart' | 'open_draft_panel'
 	href?: string
 	icon?:
 		| 'book'
+		| 'cart'
 		| 'command'
 		| 'draft'
 		| 'external'
@@ -45,6 +46,7 @@ export interface ActionButtonData {
 		| 'mail'
 		| 'market'
 		| 'orders'
+		| 'phone'
 		| 'profile'
 		| 'support'
 		| 'track'
@@ -77,6 +79,16 @@ export interface CommandPaletteData {
 			scope: 'local' | 'server'
 			title: string
 		}[]
+		title: string
+	}[]
+	title: string
+}
+
+export interface SupportOptionsData {
+	description: string
+	options: {
+		action: ActionButtonData
+		description: string
 		title: string
 	}[]
 	title: string
@@ -130,6 +142,7 @@ export type RichContent =
 	| { type: 'status_card'; data: StatusCardData }
 	| { type: 'action_button'; data: ActionButtonData }
 	| { type: 'command_palette'; data: CommandPaletteData }
+	| { type: 'support_options'; data: SupportOptionsData }
 	| { type: 'material_list'; data: MaterialListData }
 	| { type: 'delivery_tracking'; data: DeliveryTrackingData }
 	| { type: 'draft_cleanup_result'; data: DraftCleanupResultData }

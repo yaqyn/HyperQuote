@@ -40,7 +40,10 @@ export function ChatView({ locale }: ChatViewProps) {
 	}, [])
 
 	const realMessages = useMemo(
-		() => chat.messages.filter((m) => m.content.trim().length > 0),
+		() =>
+			chat.messages.filter(
+				(m) => m.content.trim().length > 0 || (m.richContent?.length ?? 0) > 0,
+			),
 		[chat.messages],
 	)
 	const hasMessages = realMessages.length > 0 || chat.isLoading

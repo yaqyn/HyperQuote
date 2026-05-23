@@ -31,6 +31,7 @@ import type {
 	ActionButtonData,
 	ActiveChatDraftContext,
 	CommandPaletteData,
+	SupportOptionsData,
 } from './chat-types'
 import {
 	draftProductIntentTerms,
@@ -88,6 +89,12 @@ const MODEL_CHAT_MESSAGE_CHARACTERS = 2000
 const OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE = 24
 const OPEN_ENDED_DRAFT_ITEM_COUNT = 3
 const PRODUCT_CATALOG_CONTEXT_LIMIT = 160
+const WEBSITE_URL = (
+	import.meta.env.VITE_WEBSITE_URL ?? 'https://www.hyperquote.net'
+).replace(/\/+$/, '')
+const SUPPORT_EMAIL =
+	import.meta.env.VITE_SUPPORT_EMAIL ?? 'support@hyperquote.net'
+const SUPPORT_PHONE_E164 = import.meta.env.VITE_SUPPORT_PHONE_E164 ?? ''
 const PRODUCT_CATALOG_RESULT_COUNT = 12
 
 const activeDraftInput = z
@@ -1302,16 +1309,7 @@ function commandToolAnswer(
 				: fallbackText
 		case '/support':
 		case '/contact':
-			return [
-				commandName === '/contact' ? '## Contact' : '## Support',
-				'',
-				'| Channel | Best for |',
-				'| --- | --- |',
-				'| Support panel | Account, order, delivery, or portal help |',
-				'| Email support | Issues that need attachments or longer context |',
-				'| Docs | Public product, quote, and portal guidance |',
-				'| FAQ | Quick policy and workflow answers |',
-			].join('\n')
+			return supportCommandAnswer(commandName)
 		case '/feedback':
 			return result.context.type === 'support_request'
 				? supportRequestFallbackAnswer(result.context)
@@ -1347,6 +1345,13 @@ function helpCommandAnswer(): string {
 		'| Command | Area | Title | Description |',
 		'| --- | --- | --- | --- |',
 		...rows,
+	].join('\n')
+}
+
+function supportCommandAnswer(commandName: string): string {
+	return [
+		commandName === '/contact' ? '## Contact' : '## Support Desk',
+		'Choose the support option you need below.',
 	].join('\n')
 }
 
@@ -1753,6 +1758,12 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 	const events: StreamChunk[] = []
 	if (result.route.commandName === '/help') {
 		events.push(commandPaletteEvent())
+	}
+	if (
+		result.route.commandName === '/support' ||
+		result.route.commandName === '/contact'
+	) {
+		events.push(supportOptionsEvent())
 	}
 	switch (result.context.type) {
 		case 'orders':
@@ -3915,6 +3926,88 @@ function commandPaletteEvent(): StreamChunk {
 	}
 }
 
+function supportOptionsEvent(): StreamChunk {
+	const options: SupportOptionsData['options'] = [
+		{
+			action: {
+				href: `${WEBSITE_URL}/support#contact`,
+				icon: 'external',
+				label: 'Open contact',
+				labelAr: 'افتح التواصل',
+			},
+			description: 'Website contact form and public support channels.',
+			title: 'Contact',
+		},
+		{
+			action: {
+				href: `${WEBSITE_URL}/docs`,
+				icon: 'book',
+				label: 'Open docs',
+				labelAr: 'افتح الوثائق',
+			},
+			description: 'Public HyperQuote guides and workflow documentation.',
+			title: 'Docs',
+		},
+		{
+			action: {
+				href: `${WEBSITE_URL}/support#faq`,
+				icon: 'help',
+				label: 'Open FAQ',
+				labelAr: 'افتح الأسئلة',
+			},
+			description: 'Quick answers for common customer questions.',
+			title: 'FAQ',
+		},
+		{
+			action: {
+				icon: 'support',
+				label: 'Open panel',
+				labelAr: 'افتح اللوحة',
+				route: '/support',
+			},
+			description: 'Portal support panel for account and order help.',
+			title: 'Support panel',
+		},
+		{
+			action: {
+				href: `mailto:${SUPPORT_EMAIL}`,
+				icon: 'mail',
+				label: 'Email',
+				labelAr: 'إيميل',
+			},
+			description: SUPPORT_EMAIL,
+			title: 'Email',
+		},
+	]
+	if (SUPPORT_PHONE_E164) {
+		options.push({
+			action: {
+				href: `tel:${SUPPORT_PHONE_E164}`,
+				icon: 'phone',
+				label: 'Call',
+				labelAr: 'اتصال',
+			},
+			description: SUPPORT_PHONE_E164,
+			title: 'Phone',
+		})
+	}
+
+	return {
+		type: 'CUSTOM' as const,
+		timestamp: Date.now(),
+		name: 'rich_message',
+		value: {
+			type: 'support_options',
+			data: {
+				description:
+					'Choose the exact support destination. External links open the public website.',
+				options,
+				title: 'Support Desk',
+			} satisfies SupportOptionsData,
+		},
+	}
+}
+
 function commandPaletteGroups(): CommandPaletteData['groups'] {
 	const order: PortalChatCommandCategory[] = [
 		'Workspace',
@@ -3987,11 +4080,10 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 		case '/open-cart':
 			return [
 				actionButtonEvent({
-					icon: 'draft',
-					label: 'Open quote drawer',
-					labelAr: 'افتح درج العرض',
-					params: { draft: 'true' },
-					route: '/orders',
+					event: 'open_cart',
+					icon: 'cart',
+					label: 'Open cart',
+					labelAr: 'افتح السلة',
 				}),
 				actionButtonEvent({
 					event: 'open_draft_panel',
@@ -4094,6 +4186,7 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 			]
 		case '/support':
 		case '/contact':
+			return []
 		case '/feedback':
 			return [
 				actionButtonEvent({
@@ -4103,19 +4196,19 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 					route: '/support',
 				}),
 				actionButtonEvent({
-					href: 'mailto:support@hyperquote.net',
+					href: `mailto:${SUPPORT_EMAIL}`,
 					icon: 'mail',
 					label: 'Email support',
 					labelAr: 'راسل الدعم',
 				}),
 				actionButtonEvent({
-					href: 'https://www.hyperquote.net/docs',
+					href: `${WEBSITE_URL}/docs`,
 					icon: 'book',
 					label: 'Docs',
 					labelAr: 'الوثائق',
 				}),
 				actionButtonEvent({
-					href: 'https://www.hyperquote.net/support#faq',
+					href: `${WEBSITE_URL}/support#faq`,
 					icon: 'help',
 					label: 'FAQ',
 					labelAr: 'الأسئلة الشائعة',
@@ -4125,13 +4218,13 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 		case '/docs-search':
 			return [
 				actionButtonEvent({
-					href: 'https://www.hyperquote.net/docs',
+					href: `${WEBSITE_URL}/docs`,
 					icon: 'book',
 					label: 'Open docs',
 					labelAr: 'افتح الوثائق',
 				}),
 				actionButtonEvent({
-					href: 'https://www.hyperquote.net/support#faq',
+					href: `${WEBSITE_URL}/support#faq`,
 					icon: 'help',
 					label: 'FAQ',
 					labelAr: 'الأسئلة الشائعة',
@@ -4256,7 +4349,7 @@ function contextActionEvents(context: PortalToolContext): StreamChunk[] {
 					route: '/support',
 				}),
 				actionButtonEvent({
-					href: 'mailto:support@hyperquote.net',
+					href: `mailto:${SUPPORT_EMAIL}`,
 					icon: 'mail',
 					label: 'Email support',
 					labelAr: 'راسل الدعم',
