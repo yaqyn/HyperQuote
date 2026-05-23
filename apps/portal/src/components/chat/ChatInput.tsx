@@ -1,6 +1,14 @@
 import { ArrowUp, Command, Mic, Square } from 'lucide-react'
 import { AnimatePresence, cubicBezier, motion } from 'motion/react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react'
+import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import type { usePortalChat } from '../../hooks/usePortalChat'
 import { PORTAL_CHAT_RUN_COMMAND_EVENT } from '../../lib/chat-types'
@@ -102,6 +110,19 @@ export function ChatInput({ chat }: ChatInputProps) {
 		)
 	}, [commandSuggestions.length])
 
+	const moveActiveCommand = useCallback(
+		(step: -1 | 1) => {
+			const lastIndex = commandSuggestions.length - 1
+			if (lastIndex < 0) return
+			flushSync(() => {
+				setActiveCommandIndex((index) =>
+					Math.max(0, Math.min(lastIndex, index + step)),
+				)
+			})
+		},
+		[commandSuggestions.length],
+	)
+
 	const handleSubmit = useCallback(() => {
 		if (!value.trim() || chat.isLoading) return
 		chat.sendMessage(value.trim())
@@ -183,14 +204,12 @@ export function ChatInput({ chat }: ChatInputProps) {
 			if (commandMenuOpen) {
 				if (e.key === 'ArrowDown') {
 					e.preventDefault()
-					setActiveCommandIndex((index) =>
-						Math.min(index + 1, commandSuggestions.length - 1),
-					)
+					moveActiveCommand(1)
 					return
 				}
 				if (e.key === 'ArrowUp') {
 					e.preventDefault()
-					setActiveCommandIndex((index) => Math.max(index - 1, 0))
+					moveActiveCommand(-1)
 					return
 				}
 				if (e.key === 'Enter' && !e.shiftKey) {
@@ -221,6 +240,7 @@ export function ChatInput({ chat }: ChatInputProps) {
 			commandMenuOpen,
 			commandSuggestions,
 			handleSubmit,
+			moveActiveCommand,
 			selectCommand,
 		],
 	)
@@ -453,11 +473,25 @@ function CommandMenu({
 	onSelect: (command: PortalChatCommand) => void
 }) {
 	const commandRefs = useRef<Array<HTMLButtonElement | null>>([])
+	const scrollRef = useRef<HTMLDivElement | null>(null)
 
-	useEffect(() => {
-		commandRefs.current[activeIndex]?.scrollIntoView({
-			block: 'nearest',
-		})
+	useLayoutEffect(() => {
+		const scroller = scrollRef.current
+		const activeItem = commandRefs.current[activeIndex]
+		if (!scroller || !activeItem) return
+
+		const itemTop = activeItem.offsetTop
+		const itemBottom = itemTop + activeItem.offsetHeight
+		const visibleTop = scroller.scrollTop
+		const visibleBottom = visibleTop + scroller.clientHeight
+
+		if (itemTop < visibleTop) {
+			scroller.scrollTop = itemTop
+			return
+		}
+		if (itemBottom > visibleBottom) {
+			scroller.scrollTop = itemBottom - scroller.clientHeight
+		}
 	}, [activeIndex])
 
 	return (
@@ -480,7 +514,7 @@ function CommandMenu({
 					Commands
 				</span>
 			</div>
-			<div className="max-h-[280px] overflow-y-auto p-1.5">
+			<div ref={scrollRef} className="max-h-[280px] overflow-y-auto p-1.5">
 				{commands.map((command, index) => {
 					const active = index === activeIndex
 					return (
@@ -496,7 +530,7 @@ function CommandMenu({
 								event.preventDefault()
 								onSelect(command)
 							}}
-							className={`grid w-full grid-cols-1 gap-1 rounded-lg px-3 py-2.5 text-start transition-colors ${
+							className={`grid w-full grid-cols-1 gap-1 rounded-lg px-3 py-2.5 text-start ${
 								active ? 'bg-[var(--p-hover)]' : 'hover:bg-[var(--p-hover)]'
 							}`}
 						>
