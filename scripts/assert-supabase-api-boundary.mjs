@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
 
 const dbUrl =
 	process.env.SUPABASE_DB_URL ??
@@ -107,6 +108,54 @@ function actorRpcNames() {
 	)
 }
 
+function sourceFiles(root) {
+	const entries = []
+	for (const entry of readdirSync(root)) {
+		const fullPath = join(root, entry)
+		const stat = statSync(fullPath)
+		if (stat.isDirectory()) {
+			if (
+				entry === 'node_modules' ||
+				entry === 'dist' ||
+				entry === '.output' ||
+				entry === '.turbo'
+			) {
+				continue
+			}
+			entries.push(...sourceFiles(fullPath))
+			continue
+		}
+		if (!/\.[cm]?[tj]sx?$/.test(entry)) continue
+		if (entry === 'routeTree.gen.ts') continue
+		const repoPath = relative(process.cwd(), fullPath)
+		if (
+			repoPath === 'packages/auth/src/server.ts' ||
+			repoPath === 'packages/types/src/database.types.ts'
+		) {
+			continue
+		}
+		entries.push(repoPath)
+	}
+	return entries
+}
+
+function appRpcCalls() {
+	const calls = new Map()
+	for (const root of ['apps', 'packages']) {
+		for (const file of sourceFiles(root)) {
+			const source = readFileSync(file, 'utf8')
+			for (const match of source.matchAll(
+				/[.]rpc[(]\s*['"`]([a-zA-Z0-9_]+)['"`]/g,
+			)) {
+				const name = match[1]
+				if (!calls.has(name)) calls.set(name, new Set())
+				calls.get(name).add(file)
+			}
+		}
+	}
+	return calls
+}
+
 const failures = []
 for (const assertion of assertions) {
 	const count = Number(scalar(assertion.sql))
@@ -115,7 +164,8 @@ for (const assertion of assertions) {
 	}
 }
 
-const requiredServiceFunctions = actorRpcNames().map(
+const actorRpcNameSet = new Set(actorRpcNames())
+const requiredServiceFunctions = [...actorRpcNameSet].map(
 	(name) => `service_${name}`,
 )
 const missingServiceFunctions = scalar(`
@@ -136,6 +186,19 @@ const missingServiceFunctions = scalar(`
 `)
 if (missingServiceFunctions) {
 	failures.push(`missing service-role RPC wrappers: ${missingServiceFunctions}`)
+}
+
+const uncoveredRpcCalls = []
+for (const [name, files] of appRpcCalls()) {
+	if (name.startsWith('service_') || actorRpcNameSet.has(name)) continue
+	uncoveredRpcCalls.push(`${name} (${[...files].sort().join(', ')})`)
+}
+if (uncoveredRpcCalls.length > 0) {
+	failures.push(
+		`app RPC calls missing actor wrapper coverage: ${uncoveredRpcCalls
+			.sort()
+			.join('; ')}`,
+	)
 }
 
 if (failures.length > 0) {

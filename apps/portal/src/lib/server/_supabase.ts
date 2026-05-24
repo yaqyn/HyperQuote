@@ -54,15 +54,21 @@ export async function getAuthenticatedSupabase() {
 export async function getAuthenticatedPortalCustomer() {
 	const { supabase, session } = await getAuthenticatedSupabase()
 	const metadataCustomerId = session.user.app_metadata?.customer_id
-	if (typeof metadataCustomerId === 'string' && metadataCustomerId.length > 0) {
-		return { customerId: metadataCustomerId, session, supabase }
-	}
+	const query =
+		typeof metadataCustomerId === 'string' && metadataCustomerId.length > 0
+			? supabase
+					.from('customers')
+					.select('id')
+					.eq('id', metadataCustomerId)
+					.eq('user_id', session.user.id)
+					.in('status', ['active', 'claimed'])
+			: supabase
+					.from('customers')
+					.select('id')
+					.eq('user_id', session.user.id)
+					.in('status', ['active', 'claimed'])
 
-	const { data, error } = await supabase
-		.from('customers')
-		.select('id')
-		.eq('user_id', session.user.id)
-		.single()
+	const { data, error } = await query.single()
 
 	if (error || !data) {
 		throw new Error(error?.message ?? 'Customer profile not found')

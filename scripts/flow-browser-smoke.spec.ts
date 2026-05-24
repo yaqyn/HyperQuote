@@ -198,6 +198,7 @@ test('portal customer market and orders load Supabase-backed data', async ({
 		.getByPlaceholder(/Delivery timing, site access/i)
 		.fill(websiteFlowNote)
 	await confirmDraftSave(page, websiteDraftName)
+	await page.getByRole('button', { name: /Quote Cart/i }).click()
 	await page.getByRole('button', { name: /Request Quote/i }).click()
 	await page.getByRole('button', { name: /^Send request$/i }).click()
 	await expect(page.locator('body')).toContainText(
@@ -872,6 +873,12 @@ test('auth sessions stay isolated across website, portal, internal, and driver a
 	const context = await browser.newContext({
 		viewport: { height: 1000, width: 1440 },
 	})
+	const driverAuth = await createAuthSession(
+		ACCOUNTS.driver,
+		COOKIE_NAMES.driver,
+		URLS.driver,
+	)
+	await claimDriverApiSession(driverAuth.accessToken)
 	const authCookies = [
 		...(await createAuthCookies(
 			ACCOUNTS.customer,
@@ -883,11 +890,7 @@ test('auth sessions stay isolated across website, portal, internal, and driver a
 			COOKIE_NAMES.internal,
 			URLS.internal,
 		)),
-		...(await createAuthCookies(
-			ACCOUNTS.driver,
-			COOKIE_NAMES.driver,
-			URLS.driver,
-		)),
+		...driverAuth.cookies,
 	]
 	await context.addCookies(authCookies)
 
@@ -1080,10 +1083,19 @@ async function confirmDraftSave(page: Page, draftName?: string) {
 		if (draftName !== undefined) await draftNameInput.fill(draftName)
 		await saveButton.click()
 	}
-	const savedDraftButton = draftName
-		? page.getByRole('button', { exact: true, name: draftName })
-		: page.getByRole('button', { name: /^(Draft \d|مسودة )/i })
-	await expect(savedDraftButton).toBeDisabled({ timeout: 15_000 })
+	const savedDraftStatus = page
+		.getByRole('status')
+		.filter({ hasText: /Draft saved|Draft .* saved|تم حفظ المسودة/i })
+		.first()
+	await expect(savedDraftStatus).toBeVisible({ timeout: 15_000 })
+	const continueBrowsing = page.getByRole('button', {
+		name: /Continue browsing|متابعة التصفح/i,
+	})
+	if (await continueBrowsing.isVisible({ timeout: 1_000 }).catch(() => false)) {
+		await continueBrowsing.click()
+	} else {
+		await expect(savedDraftStatus).toBeHidden({ timeout: 7_000 })
+	}
 }
 
 function slugPart(value: string): string {
@@ -1220,6 +1232,15 @@ async function createAuthCookies(
 	cookieName: string,
 	url: string,
 ) {
+	const { cookies } = await createAuthSession(account, cookieName, url)
+	return cookies
+}
+
+async function createAuthSession(
+	account: { email: string; password: string },
+	cookieName: string,
+	url: string,
+) {
 	const env = readLocalSupabaseEnv()
 	const cookieJar: SupabaseCookieToSet[] = []
 	const client = createServerClient(env.apiUrl, env.anonKey, {
@@ -1232,17 +1253,33 @@ async function createAuthCookies(
 		},
 	})
 
-	const { error } = await client.auth.signInWithPassword(account)
+	const { data, error } = await client.auth.signInWithPassword(account)
 	if (error) throw new Error(`Could not seed ${cookieName}: ${error.message}`)
+	if (!data.session?.access_token) {
+		throw new Error(`Could not seed ${cookieName}: missing access token.`)
+	}
 
 	const nowSeconds = Math.floor(Date.now() / 1000)
-	return cookieJar.map((cookie) => ({
-		expires: nowSeconds + (cookie.options?.maxAge ?? 3600),
-		name: cookie.name,
-		sameSite: 'Lax' as const,
-		url,
-		value: cookie.value,
-	}))
+	return {
+		accessToken: data.session.access_token,
+		cookies: cookieJar.map((cookie) => ({
+			expires: nowSeconds + (cookie.options?.maxAge ?? 3600),
+			name: cookie.name,
+			sameSite: 'Lax' as const,
+			url,
+			value: cookie.value,
+		})),
+	}
+}
+
+async function claimDriverApiSession(accessToken: string) {
+	const response = await fetch(`${URLS.driver}/api/driver/session/claim`, {
+		headers: { authorization: `Bearer ${accessToken}` },
+		method: 'POST',
+	})
+	if (!response.ok) {
+		throw new Error(`Could not claim driver API session: ${response.status}`)
+	}
 }
 
 function createLocalServiceClient() {

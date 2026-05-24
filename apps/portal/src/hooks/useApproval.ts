@@ -13,7 +13,7 @@ import { checkTeamHasApprover } from '../lib/server/approvals'
 
 /**
  * Returns true if the current user has the 'approver' role.
- * Reads from route context (loaded by _portal.tsx beforeLoad).
+ * Reads app-metadata roles from route context (loaded by _portal.tsx beforeLoad).
  */
 function useIsApprover(): boolean {
 	const context = useRouteContext({ from: '/_portal' })
@@ -21,8 +21,7 @@ function useIsApprover(): boolean {
 
 	if (!auth) return false
 
-	const roles: string[] = auth.user?.user_metadata?.roles ?? []
-	return roles.includes('approver')
+	return auth.roles.includes('approver')
 }
 
 // ============================================================================

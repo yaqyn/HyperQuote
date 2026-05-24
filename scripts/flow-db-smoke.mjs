@@ -25,13 +25,18 @@ async function main() {
 
 	await cleanupInterruptedFlowSmokeRuns(env)
 	await assertSupportUsesServerBoundary(env, anon, runId)
-	await assertMarketCategoriesAreDatabaseDriven(env, anon, runId)
+	const smokeProduct = await assertMarketCategoriesAreDatabaseDriven(
+		env,
+		anon,
+		runId,
+	)
 	const customer = await signIn(env, ACCOUNTS.customer)
 	await assertCustomerCannotReadInternalEmployees(customer.authClient)
 	const auditTargets = await assertCustomerToSalesToDeliveryFlow(
 		env,
 		customer,
 		runId,
+		smokeProduct,
 	)
 	await assertActivityRecorded(env, auditTargets)
 	await assertDriverCannotReadOrders(env, auditTargets.order.id)
@@ -97,7 +102,12 @@ async function assertCustomerCannotReadInternalEmployees(authClient) {
 	)
 }
 
-async function assertCustomerToSalesToDeliveryFlow(env, customer, runId) {
+async function assertCustomerToSalesToDeliveryFlow(
+	env,
+	customer,
+	runId,
+	smokeProduct,
+) {
 	const service = createServiceClient(env)
 	const { data: customerRow, error: customerError } = await service
 		.from('customers')
@@ -108,7 +118,7 @@ async function assertCustomerToSalesToDeliveryFlow(env, customer, runId) {
 		throw new Error(customerError?.message ?? 'Customer row not found')
 	}
 
-	const product = await findOrderableSmokeProduct(service)
+	const product = smokeProduct ?? (await findOrderableSmokeProduct(service))
 	const supplierId = await ensureSmokeSupplierSpecialty(env, service, product)
 	await refreshProductPriceForSmoke(env, product.id, supplierId, runId)
 
@@ -637,18 +647,40 @@ async function findOrderableSmokeProduct(service) {
 		throw new Error('No categories available for smoke product lookup')
 	}
 
-	const { data: product, error } = await service
+	const { data: products, error } = await service
 		.from('products')
 		.select('id, category, name, slug, unit_of_measure, unit_of_measure_ar')
 		.eq('is_active', true)
 		.not('availability_status', 'in', '("hidden","out_of_stock")')
 		.in('category', categorySlugs)
 		.order('created_at', { ascending: true })
-		.limit(1)
-		.single()
-	if (error || !product) {
+		.limit(25)
+	if (error || !products || products.length === 0) {
 		throw new Error(
 			error?.message ?? 'No orderable product with a valid category for smoke',
+		)
+	}
+
+	const { data: stockRows, error: stockError } = await service
+		.from('inventory_stock')
+		.select('product_id, available_quantity')
+		.in(
+			'product_id',
+			products.map((product) => product.id),
+		)
+		.gte('available_quantity', 2)
+	if (stockError) {
+		throw new Error(`Smoke stock lookup failed: ${stockError.message}`)
+	}
+	const stockedProductIds = new Set(
+		(stockRows ?? []).map((stock) => stock.product_id),
+	)
+	const product = products.find((candidate) =>
+		stockedProductIds.has(candidate.id),
+	)
+	if (!product) {
+		throw new Error(
+			'No orderable product with at least 2 available stock units for smoke',
 		)
 	}
 	return product
@@ -740,29 +772,48 @@ async function assertMarketCategoriesAreDatabaseDriven(env, anon, runId) {
 	if (categoryError)
 		throw new Error(`Market category insert failed: ${categoryError.message}`)
 
-	const { error: productError } = await service.from('products').insert({
-		availability_status: 'available',
-		category: categorySlug,
-		description: `Flow smoke dynamic category product ${runId}`,
-		description_ar: `وصف منتج اختبار ${runId}`,
-		is_active: true,
-		is_stockable: true,
-		name: `Flow Smoke Product ${runId}`,
-		name_ar: `منتج اختبار ${runId}`,
-		price_range_max: 2,
-		price_range_min: 1,
-		price_tier: 'budget',
-		sku: `FLOW-${runId}`,
-		slug: productSlug,
-		subcategory: categorySlug,
-		subcategory_ar: `فئة اختبار ${runId}`,
-		specifications: { grade: 'smoke' },
-		specifications_ar: { الدرجة: 'smoke' },
-		unit_of_measure: 'piece',
-		unit_of_measure_ar: 'قطعة',
-	})
-	if (productError)
-		throw new Error(`Market product insert failed: ${productError.message}`)
+	const { data: product, error: productError } = await service
+		.from('products')
+		.insert({
+			availability_status: 'available',
+			category: categorySlug,
+			description: `Flow smoke dynamic category product ${runId}`,
+			description_ar: `وصف منتج اختبار ${runId}`,
+			is_active: true,
+			is_stockable: true,
+			name: `Flow Smoke Product ${runId}`,
+			name_ar: `منتج اختبار ${runId}`,
+			price_range_max: 2,
+			price_range_min: 1,
+			price_tier: 'budget',
+			sku: `FLOW-${runId}`,
+			slug: productSlug,
+			subcategory: categorySlug,
+			subcategory_ar: `فئة اختبار ${runId}`,
+			specifications: { grade: 'smoke' },
+			specifications_ar: { الدرجة: 'smoke' },
+			unit_of_measure: 'piece',
+			unit_of_measure_ar: 'قطعة',
+		})
+		.select('id, category, name, slug, unit_of_measure, unit_of_measure_ar')
+		.single()
+	if (productError || !product)
+		throw new Error(
+			productError?.message ?? 'Market product insert did not return a row',
+		)
+
+	const { error: stockError } = await service.from('inventory_stock').upsert(
+		{
+			good_quantity: 20,
+			minimum_quantity: 0,
+			on_hand_quantity: 20,
+			product_id: product.id,
+			reserved_quantity: 0,
+		},
+		{ onConflict: 'product_id' },
+	)
+	if (stockError)
+		throw new Error(`Market product stock setup failed: ${stockError.message}`)
 
 	const publicCategory = await anon
 		.from('categories')
@@ -797,6 +848,8 @@ async function assertMarketCategoriesAreDatabaseDriven(env, anon, runId) {
 				'Market product was not visible through the server boundary',
 		)
 	}
+
+	return product
 }
 
 async function assertDriverTeamChannelUsesSupabase(client, runId) {

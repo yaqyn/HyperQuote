@@ -83,8 +83,7 @@ function PortalLayout() {
 
 	const userName = auth?.user?.user_metadata?.name ?? ''
 	const companyName = auth?.user?.user_metadata?.company_name ?? undefined
-	const roles: string[] = auth?.user?.user_metadata?.roles ?? []
-	const hasSupplierRole = roles.includes('supplier')
+	const hasSupplierRole = auth?.roles.includes('supplier') ?? false
 	const sidebarInitialX = i18n.dir() === 'rtl' ? 24 : -24
 
 	return (
