@@ -1,16 +1,20 @@
 import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
 import type {
 	ChannelType,
 	Conversation,
 	Customer,
 	InboxMetrics,
 } from '../../types/customer-service'
-import type { JsonObject } from '../db/types'
+import type { JsonObject, JsonValue } from '../db/types'
 import { getInternalSupabaseClient } from './_supabase'
 import {
 	buildSupportEmailEnvelope,
 	deliverSupportEmail,
+	type SupportEmailDeliveryResult,
+	type SupportEmailEnvelope,
 	type SupportEmailTicket,
+	supportEmailFailedDelivery,
 	supportEmailMetadata,
 } from './support-email'
 
@@ -83,8 +87,48 @@ interface SupabaseSupportMessageRow {
 
 interface SupportReplyRow {
 	id: string
-	metadata: Record<string, unknown> | null
+	metadata: JsonObject
 }
+
+const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
+	z.union([
+		z.string(),
+		z.number(),
+		z.boolean(),
+		z.null(),
+		z.array(jsonValueSchema),
+		z.record(z.string(), jsonValueSchema),
+	]),
+)
+
+const jsonObjectSchema: z.ZodType<JsonObject> = z.record(
+	z.string(),
+	jsonValueSchema,
+)
+
+const conversationIdSchema = z.string().trim().min(1).max(120)
+
+const sendReplyInputSchema = z.object({
+	channel: z.enum(['email', 'live', 'whatsapp']),
+	content: z.string().trim().min(1).max(4000),
+	conversationId: conversationIdSchema,
+	metadata: jsonObjectSchema.optional(),
+	senderName: z.string().trim().max(120).optional(),
+})
+
+const statusInputSchema = z.object({
+	conversationId: conversationIdSchema,
+	status: z.enum(['closed', 'open', 'pending', 'resolved']),
+})
+
+const conversationOnlyInputSchema = z.object({
+	conversationId: conversationIdSchema,
+})
+
+const supportReplyRowSchema = z.object({
+	id: z.string().uuid(),
+	metadata: jsonObjectSchema.nullish(),
+})
 
 function firstRelation<T>(value: T | T[] | null | undefined): T | null {
 	if (Array.isArray(value)) return value[0] ?? null
@@ -218,10 +262,33 @@ async function getSupportEmailTicket(
 }
 
 function supportReplyRow(value: unknown): SupportReplyRow {
-	if (!value || typeof value !== 'object' || !('id' in value)) {
-		throw new Error('support_reply_insert_failed')
+	const row = supportReplyRowSchema.parse(value)
+	return { id: row.id, metadata: row.metadata ?? {} }
+}
+
+async function updateSupportReplyDelivery(
+	client: InternalSupportClient,
+	messageId: string,
+	envelope: SupportEmailEnvelope,
+	delivery: SupportEmailDeliveryResult,
+	baseMetadata: JsonObject,
+): Promise<void> {
+	const metadata = {
+		...baseMetadata,
+		...supportEmailMetadata(envelope, delivery),
+	} satisfies JsonObject
+	const { error } = await client
+		.from('support_messages')
+		.update({
+			external_message_id: delivery.externalMessageId,
+			metadata,
+			provider_error: delivery.providerError,
+			provider_status: delivery.providerStatus,
+		})
+		.eq('id', messageId)
+	if (error && delivery.providerStatus !== 'sent') {
+		throw new Error(error.message)
 	}
-	return value as SupportReplyRow
 }
 
 // ─── Computed Metrics ─────────────────────────────────────────────────────────
@@ -532,15 +599,7 @@ export const getConversations = createServerFn({ method: 'GET' }).handler(
 )
 
 export const sendReply = createServerFn({ method: 'POST' })
-	.inputValidator(
-		(d: {
-			conversationId: string
-			channel: ChannelType
-			content: string
-			senderName?: string
-			metadata?: JsonObject
-		}) => d,
-	)
+	.inputValidator((d) => sendReplyInputSchema.parse(d))
 	.handler(
 		async ({ data }): Promise<{ success: boolean; messageId: string }> => {
 			const auth = await getInternalSupabaseClient()
@@ -554,10 +613,13 @@ export const sendReply = createServerFn({ method: 'POST' })
 					metadata: data.metadata,
 					ticket,
 				})
-				const delivery = await deliverSupportEmail(envelope)
 				const metadata = {
 					...(data.metadata ?? {}),
-					...supportEmailMetadata(envelope, delivery),
+					...supportEmailMetadata(envelope, {
+						externalMessageId: null,
+						providerError: null,
+						providerStatus: 'sending',
+					}),
 				} satisfies JsonObject
 				const { data: message, error } = await auth.client.rpc(
 					'send_support_reply',
@@ -569,7 +631,32 @@ export const sendReply = createServerFn({ method: 'POST' })
 					},
 				)
 				if (error) throw new Error(error.message)
-				return { success: true, messageId: supportReplyRow(message).id }
+				const reply = supportReplyRow(message)
+				try {
+					const delivery = await deliverSupportEmail(envelope, reply.id)
+					await updateSupportReplyDelivery(
+						auth.client,
+						reply.id,
+						envelope,
+						delivery,
+						reply.metadata,
+					)
+				} catch (deliveryError) {
+					try {
+						await updateSupportReplyDelivery(
+							auth.client,
+							reply.id,
+							envelope,
+							supportEmailFailedDelivery(deliveryError),
+							reply.metadata,
+						)
+					} catch {
+						// Preserve the provider failure for the UI; the recorded reply can
+						// still be inspected by support instead of being retried blindly.
+					}
+					throw deliveryError
+				}
+				return { success: true, messageId: reply.id }
 			}
 			const { data: message, error } = await auth.client.rpc(
 				'send_support_conversation_reply',
@@ -585,7 +672,7 @@ export const sendReply = createServerFn({ method: 'POST' })
 	)
 
 export const updateConversationStatus = createServerFn({ method: 'POST' })
-	.inputValidator((d: { conversationId: string; status: string }) => d)
+	.inputValidator((d) => statusInputSchema.parse(d))
 	.handler(async ({ data }): Promise<{ success: boolean }> => {
 		const auth = await getInternalSupabaseClient()
 		const ref = supportRef(data.conversationId)
@@ -616,7 +703,7 @@ export const updateConversationStatus = createServerFn({ method: 'POST' })
 	})
 
 export const assignConversation = createServerFn({ method: 'POST' })
-	.inputValidator((d: { conversationId: string }) => d)
+	.inputValidator((d) => conversationOnlyInputSchema.parse(d))
 	.handler(async ({ data }): Promise<{ success: boolean }> => {
 		const auth = await getInternalSupabaseClient()
 		const ref = supportRef(data.conversationId)
@@ -635,7 +722,7 @@ export const assignConversation = createServerFn({ method: 'POST' })
 	})
 
 export const linkConversationToCustomer = createServerFn({ method: 'POST' })
-	.inputValidator((d: { conversationId: string }) => d)
+	.inputValidator((d) => conversationOnlyInputSchema.parse(d))
 	.handler(async ({ data }): Promise<{ success: boolean }> => {
 		const auth = await getInternalSupabaseClient()
 		const ref = supportRef(data.conversationId)

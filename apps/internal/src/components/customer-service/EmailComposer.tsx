@@ -109,6 +109,8 @@ interface EmailDraft {
 }
 
 const DRAFT_STORAGE_PREFIX = 'hq-email-draft:'
+const EMAIL_BODY_MAX_LENGTH = 4000
+const EMAIL_SUBJECT_MAX_LENGTH = 180
 
 function draftKey(conversationId: string): string {
 	return `${DRAFT_STORAGE_PREFIX}${conversationId}`
@@ -139,6 +141,24 @@ function emailSendErrorMessage(error: unknown): string {
 	}
 	if (message.includes('support_email_recipient_required')) {
 		return 'Add a customer email address before sending.'
+	}
+	if (message.includes('support_email_invalid_to')) {
+		return 'Check the recipient email address before sending.'
+	}
+	if (
+		message.includes('support_email_invalid_cc') ||
+		message.includes('support_email_invalid_bcc')
+	) {
+		return 'Check the cc and bcc email addresses before sending.'
+	}
+	if (message.includes('support_email_subject_required')) {
+		return 'Add a subject before sending.'
+	}
+	if (message.includes('support_email_subject_too_long')) {
+		return 'Shorten the subject before sending.'
+	}
+	if (message.includes('support_email_body_too_long')) {
+		return 'Shorten the email before sending.'
 	}
 	if (message.includes('support_email_mixed_test_recipients')) {
 		return 'Use either real recipients or local test recipients, not both.'
@@ -208,6 +228,7 @@ export function EmailComposer({
 			await queryClient.invalidateQueries({ queryKey: ['support-inbox'] })
 			onDiscard()
 		} catch (sendError) {
+			await queryClient.invalidateQueries({ queryKey: ['support-inbox'] })
 			setError(emailSendErrorMessage(sendError))
 		} finally {
 			setIsSending(false)
@@ -261,7 +282,11 @@ export function EmailComposer({
 	}
 
 	const canSend =
-		body.trim().length > 0 && to.trim().length > 0 && subject.trim().length > 0
+		body.trim().length > 0 &&
+		body.length <= EMAIL_BODY_MAX_LENGTH &&
+		to.trim().length > 0 &&
+		subject.trim().length > 0 &&
+		subject.length <= EMAIL_SUBJECT_MAX_LENGTH
 
 	const modeLabel =
 		action === 'forward'
@@ -330,7 +355,11 @@ export function EmailComposer({
 					)}
 
 					<FieldRow label={t('email.subject')}>
-						<FieldTextArea value={subject} onChange={setSubject} />
+						<FieldTextArea
+							value={subject}
+							onChange={setSubject}
+							maxLength={EMAIL_SUBJECT_MAX_LENGTH}
+						/>
 					</FieldRow>
 				</div>
 
@@ -356,6 +385,7 @@ export function EmailComposer({
 							onKeyDown={handleKeyDown}
 							placeholder={t('email.bodyPlaceholder')}
 							rows={7}
+							maxLength={EMAIL_BODY_MAX_LENGTH}
 							className="max-h-[360px] min-h-56 w-full resize-none bg-white px-5 py-5 font-[family-name:var(--font-archivo)] text-[15px] leading-[1.75] text-neutral-900 outline-none transition-colors placeholder:text-neutral-400"
 						/>
 					</div>
@@ -429,14 +459,17 @@ function FieldInput({
 function FieldTextArea({
 	value,
 	onChange,
+	maxLength,
 }: {
 	value: string
 	onChange: (value: string) => void
+	maxLength?: number
 }) {
 	return (
 		<textarea
 			value={value}
 			onChange={(event) => onChange(event.target.value)}
+			maxLength={maxLength}
 			rows={2}
 			className="min-h-16 min-w-0 flex-1 resize-none rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 py-2 font-[family-name:var(--font-archivo)] text-[13px] leading-relaxed text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
 		/>

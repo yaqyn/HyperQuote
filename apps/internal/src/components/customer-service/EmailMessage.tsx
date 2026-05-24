@@ -41,6 +41,27 @@ function stringMetadata(message: Message, key: string): string {
 	return typeof value === 'string' ? value : ''
 }
 
+function deliveryStatus(message: Message): {
+	label: string
+	tone: 'danger' | 'neutral' | 'success' | 'warning'
+} | null {
+	const status =
+		stringMetadata(message, 'providerStatus') ||
+		stringMetadata(message, 'provider_status')
+	switch (status) {
+		case 'failed':
+			return { label: 'Email failed', tone: 'danger' }
+		case 'local_delivery_skipped':
+			return { label: 'Local delivery', tone: 'neutral' }
+		case 'sending':
+			return { label: 'Sending email', tone: 'warning' }
+		case 'sent':
+			return { label: 'Email sent', tone: 'success' }
+		default:
+			return null
+	}
+}
+
 /**
  * Email in correspondence form. Collapsed: a single line that reads like
  * an index entry in a letter archive. Expanded: a proper letter with
@@ -58,6 +79,10 @@ export function EmailMessage({
 	const to = stringMetadata(message, 'to')
 	const cc = stringMetadata(message, 'cc')
 	const isInbound = message.direction === 'inbound'
+	const status = isInbound ? null : deliveryStatus(message)
+	const providerError =
+		stringMetadata(message, 'providerError') ||
+		stringMetadata(message, 'provider_error')
 
 	if (!expanded) {
 		return (
@@ -107,6 +132,11 @@ export function EmailMessage({
 						<EmployeeStatusPill tone={isInbound ? 'neutral' : 'success'}>
 							{isInbound ? 'Customer message' : 'Support reply'}
 						</EmployeeStatusPill>
+						{status && (
+							<EmployeeStatusPill tone={status.tone}>
+								{status.label}
+							</EmployeeStatusPill>
+						)}
 						<span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
 							{formatEmailDate(message.timestamp)}
 						</span>
@@ -135,6 +165,16 @@ export function EmailMessage({
 								</dt>
 								<dd className="min-w-0 break-all text-[var(--color-text-muted)]">
 									{cc}
+								</dd>
+							</div>
+						)}
+						{!isInbound && providerError && (
+							<div className="flex flex-col gap-0.5 lg:flex-row lg:items-baseline lg:gap-3">
+								<dt className="font-semibold uppercase tracking-[0.12em] lg:w-12 lg:shrink-0">
+									status
+								</dt>
+								<dd className="min-w-0 break-words text-red-700 dark:text-red-300">
+									{providerError}
 								</dd>
 							</div>
 						)}

@@ -9,9 +9,15 @@ import {
 } from '../lib/server/support-email'
 
 const originalFetch = globalThis.fetch
+const originalResendApiKey = process.env.HQ_RESEND_API_KEY
 
 afterEach(() => {
 	vi.stubGlobal('fetch', originalFetch)
+	if (originalResendApiKey) {
+		process.env.HQ_RESEND_API_KEY = originalResendApiKey
+	} else {
+		delete process.env.HQ_RESEND_API_KEY
+	}
 })
 
 describe('customer service email rendering', () => {
@@ -68,7 +74,7 @@ describe('customer service email rendering', () => {
 			},
 		})
 
-		const delivery = await deliverSupportEmail(envelope)
+		const delivery = await deliverSupportEmail(envelope, 'local-message-id')
 
 		expect(fetchMock).not.toHaveBeenCalled()
 		expect(delivery.providerStatus).toBe('local_delivery_skipped')
@@ -76,5 +82,79 @@ describe('customer service email rendering', () => {
 			provider_status: 'local_delivery_skipped',
 			to: 'flow-support@hyperquote.local',
 		})
+	})
+
+	it('rejects malformed explicit recipients instead of falling back silently', async () => {
+		await expect(
+			buildSupportEmailEnvelope({
+				body: 'Please confirm this ticket.',
+				metadata: {
+					to: 'bad-value',
+				},
+				ticket: {
+					id: '00000000-0000-4000-8000-000000000002',
+					reference: 'TK-LOCAL-AI-002',
+					requester_email: 'customer@hyperquote.net',
+					requester_name: 'Flow Support',
+					subject: 'Recipient validation',
+				},
+			}),
+		).rejects.toThrow('support_email_invalid_to')
+	})
+
+	it('sends Resend email with message scoped idempotency and branded payload', async () => {
+		process.env.HQ_RESEND_API_KEY = 'test-resend-key'
+		const fetchMock = vi.fn().mockResolvedValue({
+			json: async () => ({ id: 'email_123' }),
+			ok: true,
+		})
+		vi.stubGlobal('fetch', fetchMock)
+
+		const envelope = await buildSupportEmailEnvelope({
+			body: 'Hello Ahmed,\n\nYour order update is ready.',
+			metadata: {
+				cc: 'ops@hyperquote.net',
+				subject: 'Re: Delivery update',
+				to: 'customer@hyperquote.net',
+			},
+			ticket: {
+				id: '00000000-0000-4000-8000-000000000003',
+				reference: 'TK-LOCAL-AI-003',
+				requester_email: 'customer@hyperquote.net',
+				requester_name: 'Ahmed',
+				subject: 'Delivery update',
+			},
+		})
+
+		const delivery = await deliverSupportEmail(envelope, 'message-123')
+
+		expect(delivery).toEqual({
+			externalMessageId: 'email_123',
+			providerError: null,
+			providerStatus: 'sent',
+		})
+		expect(fetchMock).toHaveBeenCalledTimes(1)
+		const request = fetchMock.mock.calls[0]?.[1]
+		expect(request).toMatchObject({
+			headers: expect.objectContaining({
+				Authorization: 'Bearer test-resend-key',
+				'Idempotency-Key': 'support-reply/message-123',
+			}),
+			method: 'POST',
+		})
+		const body =
+			request && typeof request.body === 'string'
+				? JSON.parse(request.body)
+				: null
+		expect(body).toMatchObject({
+			cc: ['ops@hyperquote.net'],
+			from: 'HyperQuote <support@hyperquote.net>',
+			reply_to: 'support@hyperquote.net',
+			subject: 'Re: Delivery update',
+			to: ['customer@hyperquote.net'],
+		})
+		expect(body.html).toContain('HyperQuote')
+		expect(body.html).toContain('Your order update is ready.')
+		expect(body.text).toContain('Customer portal:')
 	})
 })

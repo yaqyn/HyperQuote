@@ -33,7 +33,7 @@ export interface SupportEmailRenderInput {
 export interface SupportEmailDeliveryResult {
 	externalMessageId: string | null
 	providerError: string | null
-	providerStatus: 'sent' | 'local_delivery_skipped'
+	providerStatus: 'failed' | 'local_delivery_skipped' | 'sending' | 'sent'
 }
 
 interface ResendResponse {
@@ -54,6 +54,9 @@ const DEFAULT_WEBSITE_URL = 'https://hyperquote.net'
 const DEFAULT_PORTAL_URL = 'https://portal.hyperquote.net'
 const DEFAULT_SUPPORT_URL = 'https://hyperquote.net/support'
 const EMAIL_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/
+const MAX_PROVIDER_ERROR_LENGTH = 500
+const MAX_SUPPORT_EMAIL_BODY_LENGTH = 4000
+const MAX_SUPPORT_EMAIL_SUBJECT_LENGTH = 180
 const LOCAL_ONLY_DOMAINS = new Set([
 	'example.com',
 	'example.net',
@@ -67,20 +70,32 @@ export async function buildSupportEmailEnvelope(input: {
 	ticket: SupportEmailTicket
 }): Promise<SupportEmailEnvelope> {
 	const metadata = input.metadata ?? {}
-	const to = parseEmailList(metadataString(metadata, 'to'))
-	if (to.length === 0) to.push(input.ticket.requester_email)
+	const rawTo = metadataString(metadata, 'to')
+	const to = parseEmailField(rawTo, 'to')
+	if (to.length === 0) {
+		to.push(validEmailOrThrow(input.ticket.requester_email, 'to'))
+	}
 
 	const subject =
 		metadataString(metadata, 'subject') || normalizedReplySubject(input.ticket)
+	if (!subject.trim()) throw new Error('support_email_subject_required')
+	if (subject.length > MAX_SUPPORT_EMAIL_SUBJECT_LENGTH) {
+		throw new Error('support_email_subject_too_long')
+	}
+	const body = input.body.trim()
+	if (!body) throw new Error('support_email_body_required')
+	if (body.length > MAX_SUPPORT_EMAIL_BODY_LENGTH) {
+		throw new Error('support_email_body_too_long')
+	}
 	const from =
 		(await readRuntimeEnv('HQ_SUPPORT_EMAIL_FROM')) ?? DEFAULT_SUPPORT_FROM
 	const replyTo =
 		(await readRuntimeEnv('HQ_SUPPORT_REPLY_TO')) ?? DEFAULT_SUPPORT_REPLY_TO
 
 	const envelope: SupportEmailEnvelope = {
-		bcc: parseEmailList(metadataString(metadata, 'bcc')),
-		body: input.body.trim(),
-		cc: parseEmailList(metadataString(metadata, 'cc')),
+		bcc: parseEmailField(metadataString(metadata, 'bcc'), 'bcc'),
+		body,
+		cc: parseEmailField(metadataString(metadata, 'cc'), 'cc'),
 		from,
 		replyTo,
 		subject,
@@ -96,6 +111,7 @@ export async function buildSupportEmailEnvelope(input: {
 
 export async function deliverSupportEmail(
 	envelope: SupportEmailEnvelope,
+	idempotencyKey: string,
 ): Promise<SupportEmailDeliveryResult> {
 	const allRecipients = [...envelope.to, ...envelope.cc, ...envelope.bcc]
 	const realRecipients = allRecipients.filter(
@@ -136,7 +152,7 @@ export async function deliverSupportEmail(
 		headers: {
 			Authorization: `Bearer ${apiKey}`,
 			'Content-Type': 'application/json',
-			'Idempotency-Key': await supportEmailIdempotencyKey(envelope),
+			'Idempotency-Key': `support-reply/${idempotencyKey}`,
 		},
 		method: 'POST',
 	})
@@ -172,6 +188,16 @@ export function parseEmailList(value: string | null | undefined): string[] {
 		emails.push(normalized)
 	}
 	return emails
+}
+
+export function supportEmailFailedDelivery(
+	error: unknown,
+): SupportEmailDeliveryResult {
+	return {
+		externalMessageId: null,
+		providerError: providerErrorMessage(error),
+		providerStatus: 'failed',
+	}
 }
 
 export function renderSupportEmailHtml(input: SupportEmailRenderInput): string {
@@ -306,6 +332,33 @@ async function renderInputForEnvelope(
 	}
 }
 
+function parseEmailField(value: string, field: 'bcc' | 'cc' | 'to'): string[] {
+	if (!value) return []
+	const tokens = emailFieldTokens(value)
+	const invalid = tokens.filter(
+		(token) => !EMAIL_PATTERN.test(emailAddressFromToken(token)),
+	)
+	if (invalid.length > 0) {
+		throw new Error(`support_email_invalid_${field}`)
+	}
+	return parseEmailList(value)
+}
+
+function emailFieldTokens(value: string): string[] {
+	return value
+		.split(/[;,]/)
+		.map((token) => token.trim())
+		.filter(Boolean)
+}
+
+function validEmailOrThrow(value: string, field: 'bcc' | 'cc' | 'to'): string {
+	const email = emailAddressFromToken(value).toLowerCase()
+	if (!EMAIL_PATTERN.test(email)) {
+		throw new Error(`support_email_invalid_${field}`)
+	}
+	return email
+}
+
 function metadataString(metadata: JsonObject, key: string): string {
 	const value = metadata[key]
 	return typeof value === 'string' ? value.trim() : ''
@@ -384,34 +437,15 @@ async function readRuntimeEnv(name: string): Promise<string | undefined> {
 	}
 }
 
-async function supportEmailIdempotencyKey(
-	envelope: SupportEmailEnvelope,
-): Promise<string> {
-	const material = [
-		envelope.ticket.id,
-		envelope.to.join(','),
-		envelope.cc.join(','),
-		envelope.bcc.join(','),
-		envelope.subject,
-		envelope.body,
-	].join('|')
-	const digest = await crypto.subtle.digest(
-		'SHA-256',
-		new TextEncoder().encode(material),
-	)
-	return `support-reply/${envelope.ticket.id}/${hexDigest(digest).slice(0, 24)}`
-}
-
-function hexDigest(buffer: ArrayBuffer): string {
-	return [...new Uint8Array(buffer)]
-		.map((byte) => byte.toString(16).padStart(2, '0'))
-		.join('')
-}
-
 function safeTagValue(value: string): string {
 	return value.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 256)
 }
 
 function stringFromUnknown(value: unknown): string {
 	return typeof value === 'string' ? value : ''
+}
+
+function providerErrorMessage(error: unknown): string {
+	const message = error instanceof Error ? error.message : String(error)
+	return message.slice(0, MAX_PROVIDER_ERROR_LENGTH)
 }
