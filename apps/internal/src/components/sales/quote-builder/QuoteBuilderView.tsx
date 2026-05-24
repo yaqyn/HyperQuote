@@ -3587,9 +3587,8 @@ export function QuoteBuilderView({
 						marginPercent: item.marginPercent,
 						sellPrice: item.sellPrice,
 					})),
-					// Override fields — sent as-is when the user has edited them.
-					// Null means "no explicit value yet", which the server treats as
-					// a fallback to the RFQ's field at render time.
+					// The delivery address is sales-owned. Null clears any inherited
+					// customer/profile address from the order request.
 					deliveryAddress: deliveryAddressOverride
 						? deliveryAddress || null
 						: null,

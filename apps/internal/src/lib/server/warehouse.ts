@@ -6,6 +6,7 @@ import {
 	getInternalSupabaseClient,
 	getInternalSupabasePasswordClient,
 } from './_supabase'
+import { formatSupabaseAddress, isSalesQuoteAddress } from './address-format'
 import { verifyEmployeeCredential } from './employee-credentials'
 
 /**
@@ -127,6 +128,7 @@ interface SupabaseLoadingAddressRow {
 	area: string | null
 	city: string
 	governorate: string
+	label: string | null
 }
 
 interface SupabaseLoadingCustomerRow {
@@ -285,13 +287,6 @@ function warehouseLoadingActionError(message: string): string {
 	return message
 }
 
-function formatSupabaseAddress(address: SupabaseLoadingAddressRow | null) {
-	if (!address) return ''
-	return [address.street, address.area, address.city, address.governorate]
-		.filter((part): part is string => Boolean(part))
-		.join(', ')
-}
-
 function supabaseAdvisorName(
 	row: {
 		employees:
@@ -420,6 +415,7 @@ async function getSupabaseLoadingData(orderId?: string) {
 				delivery_date,
 				created_at,
 				customer_addresses (
+					label,
 					street,
 					area,
 					city,
@@ -524,13 +520,14 @@ function buildSupabaseLoadingRow(
 		assignments.flatMap((a) => parseAssignedItems(a.assigned_items)),
 	)
 	const address = firstRelation(request.customer_addresses)
+	const salesAddress = isSalesQuoteAddress(address) ? address : null
 	return {
 		quoteId: order.id,
 		quoteNumber: order.order_number || request.request_number,
 		customerName: customer.company_name,
 		customerTier: customer.status || 'standard',
-		deliveryAddress: formatSupabaseAddress(address),
-		deliveryCity: address?.city ?? '',
+		deliveryAddress: formatSupabaseAddress(salesAddress),
+		deliveryCity: salesAddress?.city ?? '',
 		deliveryUrgencyDays: supabaseDeliveryUrgencyDays(request.delivery_date),
 		itemCount: items.length,
 		totalValue: roundMoney(Number(order.total_amount)),

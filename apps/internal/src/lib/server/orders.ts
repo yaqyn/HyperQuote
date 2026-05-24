@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getInternalSupabaseClient } from './_supabase'
-import { formatSupabaseAddress } from './address-format'
+import { formatSupabaseAddress, isSalesQuoteAddress } from './address-format'
 
 /**
  * Customer orders arriving at inventory prep. Each row represents a won
@@ -84,6 +84,7 @@ interface SupabaseOrderAddressRow {
 	city: string
 	governorate: string
 	landmark: string | null
+	label: string | null
 }
 
 interface SupabaseOrderProductRow {
@@ -212,6 +213,7 @@ function buildSupabaseOrder(
 	const request = firstRelation(order.quote_requests)
 	if (!customer || !request) return null
 	const address = firstRelation(request.customer_addresses)
+	const salesAddress = isSalesQuoteAddress(address) ? address : null
 	const items = (request.quote_request_items ?? [])
 		.slice()
 		.sort((a, b) => a.sort_order - b.sort_order)
@@ -236,8 +238,8 @@ function buildSupabaseOrder(
 		customerPoNumber: null,
 		acceptedAt: order.created_at,
 		acceptedHoursAgo: hoursAgo(order.created_at),
-		deliveryAddress: formatSupabaseAddress(address),
-		deliveryCity: address?.city ?? '',
+		deliveryAddress: formatSupabaseAddress(salesAddress),
+		deliveryCity: salesAddress?.city ?? '',
 		deliveryUrgencyDays: deliveryUrgencyDays(request.delivery_date),
 		items,
 		totalValue: roundMoney(totalValue),
@@ -271,6 +273,7 @@ async function getSupabaseCustomerOrders(orderId?: string) {
 				request_number,
 				delivery_date,
 				customer_addresses (
+					label,
 					street,
 					area,
 					city,

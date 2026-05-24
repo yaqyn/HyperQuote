@@ -417,7 +417,6 @@ export function SalesModule() {
 								initialCustomerEmail={newQuoteCustomer.email ?? undefined}
 								initialCustomerName={newQuoteCustomer.name}
 								initialCustomerPhone={newQuoteCustomer.phone}
-								initialDeliveryAddress={newQuoteCustomer.address}
 								onBack={() => setNewQuoteCustomer(null)}
 								onSave={handleSaveRequest}
 							/>

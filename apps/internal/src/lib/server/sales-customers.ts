@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { Customer } from '../../types/sales'
 import { getInternalSupabaseClient } from './_supabase'
+import { formatSupabaseAddress } from './address-format'
 
 interface SupabaseCustomerRow {
 	id: string
@@ -41,10 +42,7 @@ function formatAddress(
 ): string {
 	const address =
 		addresses?.find((candidate) => candidate.is_default) ?? addresses?.[0]
-	if (!address) return ''
-	return [address.street, address.area, address.city, address.governorate]
-		.filter((part): part is string => Boolean(part?.trim()))
-		.join(', ')
+	return formatSupabaseAddress(address ?? null)
 }
 
 function projectSupabaseCustomer(

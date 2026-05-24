@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getInternalSupabaseClient } from './_supabase'
+import { formatSupabaseAddress, isSalesQuoteAddress } from './address-format'
 import { verifyEmployeeCredential } from './employee-credentials'
 
 const OVERDUE_HOURS = 4
@@ -123,6 +124,7 @@ interface SupabaseDispatchAddressRow {
 	area: string | null
 	city: string
 	governorate: string
+	label: string | null
 	phone: string | null
 	latitude: number | null
 	longitude: number | null
@@ -330,13 +332,6 @@ function roundedHoursSince(iso: string): number {
 	)
 }
 
-function formatSupabaseAddress(address: SupabaseDispatchAddressRow | null) {
-	if (!address) return ''
-	return [address.street, address.area, address.city, address.governorate]
-		.filter((part): part is string => Boolean(part))
-		.join(', ')
-}
-
 function supabaseDeliveryUrgencyDays(deliveryDate: string | null) {
 	if (!deliveryDate) return 0
 	const today = new Date()
@@ -388,6 +383,7 @@ async function getSupabaseDispatchData(orderId?: string) {
 				delivery_date,
 				created_at,
 				customer_addresses (
+					label,
 					street,
 					area,
 					city,
@@ -533,7 +529,8 @@ function buildSupabaseRoute(
 	if (!customer || !request || assignments.length === 0) return null
 
 	const address = firstRelation(request.customer_addresses)
-	const city = address?.city ?? ''
+	const salesAddress = isSalesQuoteAddress(address) ? address : null
+	const city = salesAddress?.city ?? ''
 	const passedAt = task.updated_at || task.created_at
 	const passedAtHoursAgo = roundedHoursSince(passedAt)
 	const itemAssignments = new Map<
@@ -622,7 +619,7 @@ function buildSupabaseRoute(
 		customerName: customer.company_name,
 		customerPhone: customer.phone,
 		customerContactName: customer.contact_name,
-		deliveryAddress: formatSupabaseAddress(address),
+		deliveryAddress: formatSupabaseAddress(salesAddress),
 		deliveryCity: city,
 		deliveryUrgencyDays: supabaseDeliveryUrgencyDays(request.delivery_date),
 		items,
@@ -630,8 +627,8 @@ function buildSupabaseRoute(
 		passedAt,
 		passedAtHoursAgo,
 		isOverdue: passedAtHoursAgo >= OVERDUE_HOURS,
-		deliveryLat: nullableCoordinate(address?.latitude),
-		deliveryLng: nullableCoordinate(address?.longitude),
+		deliveryLat: nullableCoordinate(salesAddress?.latitude),
+		deliveryLng: nullableCoordinate(salesAddress?.longitude),
 		driverLat: leadTruck.driverLat,
 		driverLng: leadTruck.driverLng,
 	}

@@ -2,7 +2,11 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { JsonObject, OrderReportStage } from '../db/types'
 import { computeMarginFromSellPrice } from '../pricing-math'
-import { formatSupabaseAddress } from './address-format'
+import {
+	formatSupabaseAddress,
+	isSalesQuoteAddress,
+	normalizeAddressText,
+} from './address-format'
 
 /**
  * Reads the living report for an RFQ/order. The response is a fully
@@ -73,6 +77,7 @@ interface SupabaseReportAddressRow {
 	city: string
 	governorate: string
 	landmark: string | null
+	label: string | null
 }
 
 interface SupabaseReportProductRow {
@@ -176,7 +181,7 @@ function parseSavedVersionNotes(
 	const outer = parseJsonObject(value)
 	if (!outer) return {}
 
-	const metadata = parseJsonObject(stringOrNull(outer.notes))
+	const metadata = parseJsonObject(stringOrNull(outer.notes)) ?? outer
 	const rawItems = Array.isArray(outer.items) ? outer.items : []
 	const items = rawItems
 		.map((item): SupabaseReportSavedLineItem | null => {
@@ -201,10 +206,9 @@ function parseSavedVersionNotes(
 		.filter((item): item is SupabaseReportSavedLineItem => item !== null)
 
 	return {
-		deliveryAddress: metadata
-			? stringOrNull(metadata.deliveryAddress)
-			: undefined,
-		deliveryCity: metadata ? stringOrNull(metadata.deliveryCity) : undefined,
+		deliveryAddress:
+			normalizeAddressText(stringOrNull(metadata.deliveryAddress)) || undefined,
+		deliveryCity: stringOrNull(metadata.deliveryCity) ?? undefined,
 		items: items.length > 0 ? items : undefined,
 	}
 }
@@ -326,6 +330,7 @@ async function getSupabaseOrderReport(
 				tier
 			),
 			customer_addresses (
+				label,
 				street,
 				area,
 				city,
@@ -373,6 +378,7 @@ async function getSupabaseOrderReport(
 	const order = orderData as unknown as SupabaseReportOrderRow | null
 	const customer = firstRelation(request.customers)
 	const address = firstRelation(request.customer_addresses)
+	const salesAddress = isSalesQuoteAddress(address) ? address : null
 	const savedNotes = parseSavedVersionNotes(version?.notes ?? null)
 	const currentStage = mapSupabaseStage(request, version, order)
 	const canceledNote =
@@ -396,8 +402,8 @@ async function getSupabaseOrderReport(
 				contactName: customer?.contact_name ?? '',
 				phone: customer?.phone ?? '',
 				deliveryAddress:
-					savedNotes.deliveryAddress ?? formatSupabaseAddress(address),
-				deliveryCity: savedNotes.deliveryCity ?? address?.city ?? '',
+					savedNotes.deliveryAddress ?? formatSupabaseAddress(salesAddress),
+				deliveryCity: savedNotes.deliveryCity ?? salesAddress?.city ?? '',
 				deliveryUrgencyDays: deliveryUrgencyDays(request.delivery_date),
 				items:
 					reportItemsFromSavedVersion(savedNotes.items) ??
