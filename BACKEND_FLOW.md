@@ -12,6 +12,11 @@ server functions, local API handlers, or server-only helpers.
   service RPC wrappers, and seed scripts are the reproducible backend surface.
 - There is no active hosted staging, hosted production, Cloudflare Worker,
   GitHub Actions deploy, or promotion workflow in this repo.
+- The HyperQuote Cloudflare deploy/runtime surface was reset on 2026-05-24.
+  Retained `modern` resources and unrelated buckets are outside this repo's
+  runtime contract.
+- Stale disabled GitHub workflow records for old staging/production deploys are
+  not a deploy path and must not be re-enabled.
 - Do not wire apps to hosted Supabase projects from this codebase unless the
   user explicitly reopens hosted architecture.
 - Infisical and local process environment may provide operator/runtime secrets,

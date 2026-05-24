@@ -13,6 +13,38 @@ verification. `package.json` and `bun.lock` remain the live version authority.
 The repo is local-only. There is no active hosted staging, hosted production,
 Cloudflare Worker, GitHub Actions deploy, or promotion workflow.
 
+## External Resource Baseline
+
+The 2026-05-24 cloud reset removed the HyperQuote Cloudflare deploy/runtime
+surface that was in scope: HyperQuote Workers, D1, R2, Vectorize,
+Hyperdrive, AI Gateway, AI Search, KV, Pages, Tunnels, Workflows, and
+HyperQuote/qvOS Secrets Store entries were absent after verification.
+
+Retained resources are outside the HyperQuote reset scope and must be left
+alone unless the user names them directly:
+
+- Cloudflare Worker: `modern`.
+- Cloudflare R2 buckets: `modern`, `othren-assets`.
+- Cloudflare Secrets Store entries: `modern_*`.
+- GitHub repos: `yaqyn/Modern`, `yaqyn/qv`, `yaqyn/HyperQuote`.
+
+GitHub deploy secrets, deploy variables, Actions artifacts, and Actions caches
+for HyperQuote were cleared. If `Deploy Staging Workers` or
+`Deploy Production Workers` still appears in GitHub, it is a stale disabled
+workflow record until the workflow-file deletion reaches the default branch.
+Do not re-enable those workflows.
+
+Supabase cloud projects can exist as account inventory, but they are not this
+repo's runtime. Do not point apps, tests, seed scripts, or generated config at
+hosted Supabase unless hosted backend architecture is reopened.
+
+Cloudflare DNS records and Pipelines were not part of the verified reset
+because the available tokens did not allow full inspection. Re-inventory before
+touching them.
+
+Product AI/Lyon behavior remains part of the app and docs. Deleted Lyon-named
+Cloudflare resources must not be recreated automatically.
+
 ## Backend Boundary
 
 Local Supabase/Postgres is the active source of truth. The checked-in
@@ -47,8 +79,9 @@ Delivery signatures and generated documents use Supabase Storage locally unless
 a later scoped decision chooses a different object store.
 
 Do not introduce hosted Supabase projects, Cloudflare Workers, Cloudflare D1,
-Cloudflare Secrets Store, GitHub deploy workflows, Convex, Neon, Clerk, or a
-custom auth system unless the user explicitly reopens architecture.
+Cloudflare Secrets Store, Cloudflare Vectorize, Cloudflare Hyperdrive,
+Cloudflare AI Gateway, GitHub deploy workflows, Convex, Neon, Clerk, or a custom
+auth system unless the user explicitly reopens architecture.
 
 ## Core Pins
 
@@ -104,7 +137,8 @@ custom auth system unless the user explicitly reopens architecture.
 - Pass locale explicitly to React Aria `I18nProvider`.
 - Zustand persisted stores use `skipHydration: true` plus manual `rehydrate()`.
 - No `cloudflare:workers` imports, Wrangler configs, Cloudflare Secrets Store
-  bindings, or deploy scripts in the active app path.
+  bindings, Vectorize/Hyperdrive/AI Gateway bindings, or deploy scripts in the
+  active app path.
 - Supabase auth checks use `getUser()`, not `getSession()`.
 - Supabase browser and server clients stay separate.
 - Each app declares its own React/Node/Vite type dependencies and
@@ -119,7 +153,8 @@ custom auth system unless the user explicitly reopens architecture.
 2. Start all app surfaces with `bun run dev`.
 3. Use ports: website `3000`, portal `3001`, internal `3002`, driver `3003`.
 4. Local AI may load operator secrets through Infisical. Runtime app config must
-   still come from local process env or local Supabase status.
+   still come from local process env or local Supabase status, not Cloudflare
+   Secrets Store or GitHub deployment secrets.
 5. There is no hosted deploy command. Designing a new deploy workflow is a
    separate architecture task.
 

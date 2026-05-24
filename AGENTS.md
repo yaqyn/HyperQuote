@@ -3,6 +3,17 @@
 Use this file for repo working rules. Use `STACK.md` for stack and backend
 facts.
 
+## Document Map
+
+- `STACK.md` is the source of truth for stack, runtime, backend, and external
+  resource policy.
+- `BACKEND_FLOW.md` defines backend workflow contracts and app/server
+  boundaries.
+- `Flow.md` is the product workflow spec. `Flow.evidence.md` and
+  `Flow.human-tasklist.md` are generated proof/checklist artifacts.
+- `packages/docs/src/content/docs/` contains customer-facing product docs, not
+  repo operations policy.
+
 ## Project Shape
 
 HyperQuote is a B2B building-materials platform for Egypt. Active apps are
@@ -12,6 +23,27 @@ Bun workspaces and Turborepo own the monorepo. Shared packages under
 `packages/` can affect every app, so broaden verification with intent. This
 repo often has unrelated local work. Preserve it. Never revert, reset, delete,
 or checkout away changes you did not make.
+
+## External Resource State
+
+HyperQuote is local-first after the cloud reset. Do not recreate Cloudflare,
+GitHub Actions deploy, or hosted Supabase runtime resources unless the user
+explicitly reopens hosted architecture.
+
+Leave the retained non-HyperQuote Cloudflare resources alone unless the user
+names them directly: the `modern` Worker, `modern` R2 bucket, `modern_*`
+Secrets Store entries, and `othren-assets` R2 bucket. Also leave the GitHub
+repos `yaqyn/Modern`, `yaqyn/qv`, and `yaqyn/HyperQuote`.
+
+If GitHub still lists `Deploy Staging Workers` or `Deploy Production Workers`,
+treat those as stale disabled records from old workflow files. Do not re-enable
+them. Removing them from GitHub requires the source deletion of
+`.github/workflows/*` to reach the default branch, or a newly designed deploy
+workflow.
+
+Supabase cloud projects may exist in the account inventory, but this repo must
+use local Supabase for runtime, development, and proof until hosted backend
+architecture is explicitly reopened.
 
 ## Backend Status And Database Policy
 
@@ -59,9 +91,10 @@ when grants, wrappers, generated types, or workflow transitions change.
 - Read named files before making claims; read nearby patterns and 1-2 analogs
   before adding modules, components, routes, stores, or scripts.
 - Backend work follows `STACK.md`: local Supabase/Postgres is the active source
-  of truth. Do not add Cloudflare Workers, D1, Pages, Secrets Store, GitHub
-  deploy workflows, hosted Supabase projects, Convex, Neon, Clerk, or another
-  backend/deploy target unless the user explicitly reopens architecture.
+  of truth. Do not add or recreate Cloudflare Workers, D1, Pages, Secrets
+  Store, Vectorize, Hyperdrive, AI Gateway, GitHub deploy workflows, hosted
+  Supabase projects, Convex, Neon, Clerk, or another backend/deploy target
+  unless the user explicitly reopens architecture.
 - Supplier auth is out of scope for v1. Treat suppliers as business records
   managed by employees, not as portal/auth users.
 - Make the smallest coherent root-cause change. Do not refactor unrelated code.
@@ -172,6 +205,9 @@ when grants, wrappers, generated types, or workflow transitions change.
 - There is no active staging or production deploy path in this repo. If the
   user says "push to staging" or "push to production", stop and design the new
   workflow first.
+- Pushing is only a source-control action. It must not imply hosted deploy,
+  Cloudflare resource creation, Supabase cloud usage, or GitHub workflow
+  reactivation unless that workflow has been explicitly designed.
 - Use `bun run db:start` / `bun run db:reset` and `bun run dev` as the operating
   path. Use local verification scripts before committing.
 
