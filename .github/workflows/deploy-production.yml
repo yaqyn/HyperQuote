@@ -4,8 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       source_sha:
-        description: Commit SHA with a successful staging deployment
-        required: true
+        description: Optional full SHA; blank promotes the latest successful staging run on main
+        required: false
+        default: ''
         type: string
       target_app:
         description: App to deploy
@@ -24,7 +25,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: cloudflare-production-${{ inputs.source_sha }}
+  group: cloudflare-production-${{ inputs.source_sha || 'latest-staging' }}
   cancel-in-progress: false
 
 env:
@@ -38,7 +39,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       matrix: ${{ steps.select.outputs.matrix }}
-      source_sha: ${{ steps.validate.outputs.source_sha }}
+      source_sha: ${{ steps.resolve.outputs.source_sha }}
 
     steps:
       - name: Checkout
@@ -46,54 +47,89 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate source SHA
-        id: validate
+      - name: Resolve staging promotion source
+        id: resolve
         env:
           SOURCE_SHA_INPUT: ${{ inputs.source_sha }}
-        run: |
-          sha="$SOURCE_SHA_INPUT"
-          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::source_sha must be a full 40-character commit SHA."
-            exit 1
-          fi
-          git cat-file -e "${sha}^{commit}"
-          echo "source_sha=$sha" >> "$GITHUB_OUTPUT"
-
-      - name: Require successful staging workflow
-        env:
           GITHUB_TOKEN: ${{ github.token }}
-          SOURCE_SHA: ${{ steps.validate.outputs.source_sha }}
           WORKFLOW_FILE: deploy-cloudflare.yml
+          STAGING_BRANCH: main
         run: |
           node <<'NODE'
+          import { spawnSync } from 'node:child_process'
+          import { appendFileSync } from 'node:fs'
+
           const repo = process.env.GITHUB_REPOSITORY
           const token = process.env.GITHUB_TOKEN
-          const sha = process.env.SOURCE_SHA
+          const shaInput = (process.env.SOURCE_SHA_INPUT ?? '').trim()
           const workflow = encodeURIComponent(process.env.WORKFLOW_FILE)
-          const url = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs?head_sha=${sha}&event=push&status=success&per_page=20`
+          const branch = process.env.STAGING_BRANCH ?? 'main'
+          const stagingEvents = new Set(['push', 'workflow_dispatch'])
 
-          const response = await fetch(url, {
-            headers: {
-              authorization: `Bearer ${token}`,
-              accept: 'application/vnd.github+json',
-              'x-github-api-version': '2022-11-28',
-            },
-          })
-
-          if (!response.ok) {
-            throw new Error(`GitHub workflow lookup failed with ${response.status}`)
+          if (!repo || !token) {
+            throw new Error('Missing GitHub workflow environment')
           }
 
-          const body = await response.json()
-          const run = body.workflow_runs?.find(
-            (item) => item.head_sha === sha && item.conclusion === 'success',
-          )
+          async function listSuccessfulStagingRuns(params) {
+            const query = new URLSearchParams({
+              status: 'success',
+              per_page: '20',
+              ...params,
+            })
+            const url = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/runs?${query}`
+            const response = await fetch(url, {
+              headers: {
+                authorization: `Bearer ${token}`,
+                accept: 'application/vnd.github+json',
+                'x-github-api-version': '2022-11-28',
+              },
+            })
+
+            if (!response.ok) {
+              throw new Error(`GitHub workflow lookup failed with ${response.status}`)
+            }
+
+            const body = await response.json()
+            return (body.workflow_runs ?? []).filter((item) => stagingEvents.has(item.event))
+          }
+
+          let sha = shaInput.toLowerCase()
+          let run
+
+          if (sha) {
+            if (!/^[0-9a-f]{40}$/.test(sha)) {
+              throw new Error('source_sha must be blank or a full 40-character commit SHA.')
+            }
+
+            const runs = await listSuccessfulStagingRuns({ head_sha: sha })
+            run = runs.find((item) => item.head_sha === sha && item.conclusion === 'success')
+          } else {
+            const runs = await listSuccessfulStagingRuns({ branch })
+            run = runs.find(
+              (item) =>
+                item.head_branch === branch &&
+                item.head_sha &&
+                item.conclusion === 'success',
+            )
+            sha = run?.head_sha ?? ''
+          }
 
           if (!run) {
-            throw new Error(`No successful staging deployment found for ${sha}`)
+            const target = sha || `branch ${branch}`
+            throw new Error(`No successful staging deployment found for ${target}`)
+          }
+
+          const git = spawnSync('git', ['cat-file', '-e', `${sha}^{commit}`], {
+            stdio: 'inherit',
+          })
+          if (git.status !== 0) {
+            throw new Error(`Selected staging commit is not available locally: ${sha}`)
           }
 
           console.log(`Staging run verified: ${run.html_url}`)
+          console.log(`Promoting source SHA: ${sha}`)
+          appendFileSync(process.env.GITHUB_OUTPUT, `source_sha=${sha}\n`)
+          appendFileSync(process.env.GITHUB_OUTPUT, `staging_run_url=${run.html_url}\n`)
           NODE
 
       - name: Select deploy matrix
@@ -280,6 +316,7 @@ jobs:
 
       - name: Attach production custom domains
         run: |
+          # shellcheck disable=SC2016
           bun --eval '
             const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
             const token = process.env.CLOUDFLARE_API_TOKEN;

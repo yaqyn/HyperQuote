@@ -171,8 +171,9 @@ when grants, wrappers, generated types, or workflow transitions change.
   delete branches/files, or create GitHub repos unless explicitly asked.
 - "Push to staging" means verify, commit if needed, push through GitHub, and
   let `main` trigger the staging workers.
-- "Push to production" means trigger the manual production workflow for an
-  already-staged `source_sha` and selected `target_app`.
+- "Push to production" means trigger the manual production workflow for a
+  selected `target_app`; leave `source_sha` blank to promote the latest
+  successful staging run, or provide a full already-staged SHA to pin it.
 - Do not deploy independently with local Wrangler/Infisical unless explicitly
   asked for a local deploy/admin action.
 

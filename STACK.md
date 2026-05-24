@@ -131,14 +131,16 @@ Deploys are GitHub-driven and promotion-based:
 
 1. Feature branch -> PR checks / optional preview.
 2. Merge to `main`.
-3. `Deploy Staging Workers` runs quality gates, builds, scrubs generated
-   `.dev.vars`, uploads sanitized artifacts, and deploys Workers.dev staging:
+3. `Deploy Staging Workers` runs on pushes to `main` and can also be started
+   manually. It runs quality gates, builds, scrubs generated `.dev.vars`,
+   uploads sanitized artifacts, and deploys Workers.dev staging:
    `hyperquote-website-staging`, `hyperquote-portal-staging`,
    `hyperquote-internal-staging`, and `hyperquote-driver-staging`.
 4. Test staging.
-5. Manually run `Deploy Production Workers` with a full 40-character
-   `source_sha` and `target_app`: `website`, `portal`, `internal`, `driver`,
-   or `all`.
+5. Manually run `Deploy Production Workers` with `target_app`: `website`,
+   `portal`, `internal`, `driver`, or `all`. Leave `source_sha` blank to
+   promote the latest successful staging run on `main`, or provide a full
+   40-character already-staged SHA to pin the promotion.
 6. Production verifies successful staging for that exact SHA, checks out the
    SHA, reruns critical verification, rebuilds selected app(s), scrubs
    `.dev.vars`, deploys production workers, and attaches production custom
