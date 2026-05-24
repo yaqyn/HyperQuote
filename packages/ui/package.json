@@ -16,6 +16,7 @@
 		"./logging/redacted-error": "./src/logging/redacted-error.ts",
 		"./maps/maplibre-style": "./src/maps/maplibre-style.ts",
 		"./maps/osm": "./src/maps/osm.ts",
+		"./maps/road-route": "./src/maps/road-route.ts",
 		"./quote-cart/SavedDraftsPanelView": "./src/quote-cart/SavedDraftsPanelView.tsx",
 		"./selection/SelectionCopyToolbar": "./src/selection/SelectionCopyToolbar.tsx",
 		"./brand/LionMark": "./src/brand/LionMark.tsx",

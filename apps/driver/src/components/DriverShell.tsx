@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next'
 import { type DriverAuthSession, signOutDriver } from '../lib/auth'
 import {
 	type DriverDelivery,
+	type DriverLocation,
 	type DriverProfile,
 	DriverRepositoryError,
 } from '../lib/driver-repository'
@@ -39,6 +40,7 @@ const DeliveryMap = lazy(() =>
 
 const DRIVER_LOCATION_SYNC_MS = 10_000
 const DRIVER_QUERY_REFRESH_MS = 10_000
+const LIVE_LOCATION_SYNC_MAX_AGE_MS = 15_000
 
 interface DriverShellProps {
 	session: DriverAuthSession
@@ -58,7 +60,14 @@ export function DriverShell({ session }: DriverShellProps) {
 	const [recentOutcomeDelivery, setRecentOutcomeDelivery] =
 		useState<DriverDelivery | null>(null)
 	const autoOnlineAttemptedRef = useRef<string | null>(null)
+	const liveLocationRef = useRef<DriverLocation | null>(null)
 	const locationSyncInFlightRef = useRef(false)
+	const [liveLocation, setLiveLocation] = useState<DriverLocation | null>(null)
+
+	const rememberLiveLocation = useCallback((location: DriverLocation) => {
+		liveLocationRef.current = location
+		setLiveLocation(location)
+	}, [])
 
 	const dashboard = useQuery({
 		queryKey: ['driver', 'dashboard', session.driverId],
@@ -141,6 +150,7 @@ export function DriverShell({ session }: DriverShellProps) {
 			secretCode: string
 		}) => {
 			const location = await locationProvider.getCurrentPosition()
+			rememberLiveLocation(location)
 			return driverRepository.completeDelivery(deliveryId, session.driverId, {
 				capturedAt: new Date().toISOString(),
 				location,
@@ -160,6 +170,7 @@ export function DriverShell({ session }: DriverShellProps) {
 	const refreshLocation = useMutation({
 		mutationFn: async () => {
 			const location = await locationProvider.getCurrentPosition()
+			rememberLiveLocation(location)
 			const deliveryForLocation = activeDelivery ?? nextDelivery
 			return driverRepository.updateLocation(
 				session.driverId,
@@ -211,10 +222,13 @@ export function DriverShell({ session }: DriverShellProps) {
 	const visibleActiveDelivery =
 		activeDelivery ?? (nextDelivery ? null : recentOutcomeDelivery)
 	const mapDelivery = activeDelivery ?? nextDelivery
-	const currentLocation = currentDriver?.location ?? null
+	const dashboardLocation = currentDriver?.location ?? null
 	const isOnline = currentDriver?.onlineStatus
 		? currentDriver.onlineStatus === 'online'
 		: currentDriver?.status !== 'offline'
+	const currentLocation = isOnline
+		? (liveLocation ?? dashboardLocation)
+		: dashboardLocation
 	const currentDriverId = currentDriver?.id ?? null
 	const activeDeliveryId = activeDelivery?.id ?? null
 	const nextDeliveryId = nextDelivery?.id ?? null
@@ -232,7 +246,10 @@ export function DriverShell({ session }: DriverShellProps) {
 
 		locationSyncInFlightRef.current = true
 		try {
-			const location = await locationProvider.getCurrentPosition()
+			const location =
+				freshDriverLocation(liveLocationRef.current) ??
+				(await locationProvider.getCurrentPosition())
+			rememberLiveLocation(location)
 			await driverRepository.updateLocation(
 				session.driverId,
 				location,
@@ -250,6 +267,7 @@ export function DriverShell({ session }: DriverShellProps) {
 		invalidateDriverQueries,
 		isOnline,
 		nextDeliveryId,
+		rememberLiveLocation,
 		session.driverId,
 	])
 
@@ -278,6 +296,35 @@ export function DriverShell({ session }: DriverShellProps) {
 
 		return () => window.clearInterval(intervalId)
 	}, [currentDriverId, isOnline, syncDriverLocation])
+
+	useEffect(() => {
+		if (!currentDriverId || !isOnline) {
+			liveLocationRef.current = null
+			setLiveLocation(null)
+			return
+		}
+
+		let cancelled = false
+		let stopWatching: (() => void) | null = null
+
+		void locationProvider
+			.watchPosition(rememberLiveLocation)
+			.then((stop) => {
+				if (cancelled) {
+					stop()
+					return
+				}
+				stopWatching = stop
+			})
+			.catch(() => {
+				// The manual refresh action still surfaces location permission failures.
+			})
+
+		return () => {
+			cancelled = true
+			stopWatching?.()
+		}
+	}, [currentDriverId, isOnline, rememberLiveLocation])
 
 	const handleOnlineStatusPress = () => {
 		if (isOnline) {
@@ -512,4 +559,14 @@ function driverMutationError(error: unknown): string | null {
 	if (error instanceof DriverRepositoryError) return error.message
 	if (error instanceof Error) return error.message
 	return 'Driver action could not be completed.'
+}
+
+function freshDriverLocation(
+	location: DriverLocation | null,
+): DriverLocation | null {
+	if (!location) return null
+	const recordedAt = Date.parse(location.recordedAt)
+	if (!Number.isFinite(recordedAt)) return null
+	if (Date.now() - recordedAt > LIVE_LOCATION_SYNC_MAX_AGE_MS) return null
+	return location
 }

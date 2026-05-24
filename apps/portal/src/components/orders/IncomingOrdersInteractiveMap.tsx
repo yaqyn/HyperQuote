@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
 import MapGL, { Layer, Marker, Source } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import type { RoadRouteCoordinate } from '@hyperquote/ui/maps/road-route'
 import { MAP_STYLE } from '../../lib/map-style'
 
 interface MapPoint {
@@ -27,7 +28,7 @@ export interface IncomingRouteFeatureCollection {
 		properties: { color: string; deliveryId: string }
 		geometry: {
 			type: 'LineString'
-			coordinates: number[][]
+			coordinates: RoadRouteCoordinate[]
 		}
 	}>
 }

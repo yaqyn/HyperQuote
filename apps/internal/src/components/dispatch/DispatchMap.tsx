@@ -12,7 +12,11 @@ import {
 	buildOpenStreetMapTileView,
 	type GeoPoint,
 } from '@hyperquote/ui/maps/osm'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+	type RoadRouteCoordinate,
+	resolveRoadRoute,
+} from '@hyperquote/ui/maps/road-route'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
 import MapGL, { Layer, Marker, Source } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -38,6 +42,24 @@ interface DispatchMapFallbackProps extends DispatchMapProps {
 	resolvedRoutes: ResolvedDispatchRoute[]
 }
 
+interface DispatchRoadRoutePair {
+	isOverdue: boolean
+	points: [GeoPoint, GeoPoint]
+	quoteId: string
+}
+
+interface DispatchRouteFeatureCollection {
+	type: 'FeatureCollection'
+	features: Array<{
+		type: 'Feature'
+		properties: { isOverdue: boolean; quoteId: string }
+		geometry: {
+			type: 'LineString'
+			coordinates: RoadRouteCoordinate[]
+		}
+	}>
+}
+
 const DISPATCH_STATIC_MAP_WIDTH = 1200
 const DISPATCH_STATIC_MAP_HEIGHT = 720
 
@@ -58,6 +80,10 @@ function pointFrom(lat: number | null, lng: number | null) {
 		return { lat, lng }
 	}
 	return null
+}
+
+function emptyDispatchRouteFeatureCollection(): DispatchRouteFeatureCollection {
+	return { features: [], type: 'FeatureCollection' }
 }
 
 export function DispatchMap({
@@ -88,14 +114,77 @@ export function DispatchMap({
 		[onSelectRoute],
 	)
 
-	const resolvedRoutes: ResolvedDispatchRoute[] = routes.map((route) => ({
-		destination: pointFrom(route.deliveryLat, route.deliveryLng),
-		route,
-		trucks: route.trucks.map((truck) => ({
-			position: pointFrom(truck.driverLat, truck.driverLng),
-			truck,
-		})),
-	}))
+	const resolvedRoutes: ResolvedDispatchRoute[] = useMemo(
+		() =>
+			routes.map((route) => ({
+				destination: pointFrom(route.deliveryLat, route.deliveryLng),
+				route,
+				trucks: route.trucks.map((truck) => ({
+					position: pointFrom(truck.driverLat, truck.driverLng),
+					truck,
+				})),
+			})),
+		[routes],
+	)
+	const roadRoutePairs = useMemo<DispatchRoadRoutePair[]>(
+		() =>
+			resolvedRoutes.flatMap(({ destination, route, trucks }) => {
+				if (!destination) return []
+				return trucks.flatMap(({ position }) =>
+					position
+						? [
+								{
+									isOverdue: route.isOverdue,
+									points: [position, destination],
+									quoteId: route.quoteId,
+								},
+							]
+						: [],
+				)
+			}),
+		[resolvedRoutes],
+	)
+	const [roadRouteLinesGeoJSON, setRoadRouteLinesGeoJSON] =
+		useState<DispatchRouteFeatureCollection>(() =>
+			emptyDispatchRouteFeatureCollection(),
+		)
+
+	useEffect(() => {
+		if (roadRoutePairs.length === 0) {
+			setRoadRouteLinesGeoJSON(emptyDispatchRouteFeatureCollection())
+			return
+		}
+
+		const controller = new AbortController()
+		void Promise.all(
+			roadRoutePairs.map(async (routePair) => {
+				const route = await resolveRoadRoute({
+					endpoint: import.meta.env.VITE_ROAD_ROUTE_ENDPOINT,
+					points: routePair.points,
+					signal: controller.signal,
+				})
+				return {
+					geometry: {
+						coordinates: route.coordinates,
+						type: 'LineString' as const,
+					},
+					properties: {
+						isOverdue: routePair.isOverdue,
+						quoteId: routePair.quoteId,
+					},
+					type: 'Feature' as const,
+				}
+			}),
+		).then((features) => {
+			if (controller.signal.aborted) return
+			setRoadRouteLinesGeoJSON({
+				features,
+				type: 'FeatureCollection',
+			})
+		})
+
+		return () => controller.abort()
+	}, [roadRoutePairs])
 
 	if (interactiveMapReady === false || mapFailed) {
 		return (
@@ -141,9 +230,6 @@ export function DispatchMap({
 	)
 	const mapCenter =
 		truckMarkers[0]?.position ?? routeMarkers[0]?.destination ?? null
-	const destinationByRoute = new Map(
-		routeMarkers.map(({ route, destination }) => [route.quoteId, destination]),
-	)
 
 	if (!mapCenter) {
 		return (
@@ -154,27 +240,6 @@ export function DispatchMap({
 				onSelectRoute={onSelectRoute}
 			/>
 		)
-	}
-
-	// GeoJSON — ink-dashed lines from live truck locations to each delivery.
-	const routeLinesGeoJSON: GeoJSON.FeatureCollection = {
-		type: 'FeatureCollection',
-		features: truckMarkers
-			.flatMap(({ route, position }) => {
-				const destination = destinationByRoute.get(route.quoteId) ?? null
-				return destination ? [{ route, position, destination }] : []
-			})
-			.map(({ route, position, destination }) => ({
-				type: 'Feature' as const,
-				properties: { quoteId: route.quoteId, isOverdue: route.isOverdue },
-				geometry: {
-					type: 'LineString' as const,
-					coordinates: [
-						[position.lng, position.lat],
-						[destination.lng, destination.lat],
-					],
-				},
-			})),
 	}
 
 	return (
@@ -214,7 +279,7 @@ export function DispatchMap({
 						<Source
 							id="dispatch-routes"
 							type="geojson"
-							data={routeLinesGeoJSON}
+							data={roadRouteLinesGeoJSON}
 						>
 							<Layer
 								id="dispatch-route-lines"

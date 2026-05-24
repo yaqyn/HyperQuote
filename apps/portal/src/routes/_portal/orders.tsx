@@ -9,6 +9,7 @@ import {
 	buildOpenStreetMapTileView,
 	type GeoPoint,
 } from '@hyperquote/ui/maps/osm'
+import { resolveRoadRoute } from '@hyperquote/ui/maps/road-route'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
@@ -123,11 +124,21 @@ const IncomingOrdersInteractiveMap = lazy(() =>
 	),
 )
 
+interface IncomingRoadRoutePair {
+	color: string
+	deliveryId: string
+	points: [GeoPoint, GeoPoint]
+}
+
 function canUseInteractiveMap(): boolean {
 	const canvas = document.createElement('canvas')
 	return Boolean(
 		canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl'),
 	)
+}
+
+function emptyIncomingRouteFeatureCollection(): IncomingRouteFeatureCollection {
+	return { features: [], type: 'FeatureCollection' }
 }
 
 function OrdersPage() {
@@ -730,33 +741,64 @@ function IncomingOrdersMap({
 			}),
 		[deliveries, t],
 	)
-	const routeLinesGeoJSON: IncomingRouteFeatureCollection = useMemo(
-		() => ({
-			features: deliveries.flatMap((delivery, index) => {
+	const routePairs = useMemo<IncomingRoadRoutePair[]>(
+		() =>
+			deliveries.flatMap((delivery, index) => {
 				const driverPoint = toGeoPoint(delivery.route.driverLocation)
 				const destinationPoint = toGeoPoint(delivery.route.destinationLocation)
 				if (!driverPoint || !destinationPoint) return []
 				return [
 					{
-						geometry: {
-							coordinates: [
-								[driverPoint.lng, driverPoint.lat],
-								[destinationPoint.lng, destinationPoint.lat],
-							],
-							type: 'LineString' as const,
-						},
-						properties: {
-							color: INCOMING_COLORS[index % INCOMING_COLORS.length].driver,
-							deliveryId: delivery.id,
-						},
-						type: 'Feature' as const,
+						color: INCOMING_COLORS[index % INCOMING_COLORS.length].driver,
+						deliveryId: delivery.id,
+						points: [driverPoint, destinationPoint],
 					},
 				]
 			}),
-			type: 'FeatureCollection',
-		}),
 		[deliveries],
 	)
+	const [routeLinesGeoJSON, setRouteLinesGeoJSON] =
+		useState<IncomingRouteFeatureCollection>(() =>
+			emptyIncomingRouteFeatureCollection(),
+		)
+
+	useEffect(() => {
+		if (routePairs.length === 0) {
+			setRouteLinesGeoJSON(emptyIncomingRouteFeatureCollection())
+			return
+		}
+
+		const controller = new AbortController()
+		void Promise.all(
+			routePairs.map(async (routePair) => {
+				const route = await resolveRoadRoute({
+					endpoint: import.meta.env.VITE_ROAD_ROUTE_ENDPOINT,
+					points: routePair.points,
+					signal: controller.signal,
+				})
+				return {
+					geometry: {
+						coordinates: route.coordinates,
+						type: 'LineString' as const,
+					},
+					properties: {
+						color: routePair.color,
+						deliveryId: routePair.deliveryId,
+					},
+					type: 'Feature' as const,
+				}
+			}),
+		).then((features) => {
+			if (controller.signal.aborted) return
+			setRouteLinesGeoJSON({
+				features,
+				type: 'FeatureCollection',
+			})
+		})
+
+		return () => controller.abort()
+	}, [routePairs])
+
 	const mapCenter = interactivePoints[0]?.point ?? null
 	const staticMap = <IncomingStaticMap deliveries={deliveries} />
 	const staticMapOverlay = (

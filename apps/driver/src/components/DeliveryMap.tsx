@@ -4,6 +4,15 @@ import {
 	isGeoPoint,
 	type ProjectedMapPoint,
 } from '@hyperquote/ui/maps/osm'
+import {
+	bearingBetweenPoints,
+	buildRoadRouteKey,
+	normalizeBearing,
+	type RoadRouteCoordinate,
+	type RoadRouteResult,
+	resolveRoadRoute,
+} from '@hyperquote/ui/maps/road-route'
+import { Navigation } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MapRef } from 'react-map-gl/maplibre'
 import MapGL, { Layer, Marker, Source } from 'react-map-gl/maplibre'
@@ -30,9 +39,14 @@ interface RouteFeatureCollection {
 		properties: Record<string, never>
 		geometry: {
 			type: 'LineString'
-			coordinates: number[][]
+			coordinates: RoadRouteCoordinate[]
 		}
 	}>
+}
+
+interface RenderedRouteState {
+	destinationKey: string
+	route: RoadRouteResult
 }
 
 function canUseInteractiveMap(): boolean {
@@ -68,6 +82,8 @@ export function DeliveryMap({ currentLocation, delivery }: DeliveryMapProps) {
 	const [interactiveMapReady, setInteractiveMapReady] = useState<
 		boolean | null
 	>(null)
+	const [roadRouteState, setRoadRouteState] =
+		useState<RenderedRouteState | null>(null)
 	const language = usePreferencesStore((state) => state.language)
 	const theme = usePreferencesStore((state) => state.theme)
 	const currentPoint = useMemo(
@@ -98,13 +114,40 @@ export function DeliveryMap({ currentLocation, delivery }: DeliveryMapProps) {
 		[delivery],
 	)
 	const destinationPoint = explicitDestinationPoint
+	const routeWaypoints = useMemo(() => {
+		const startPoint = currentPoint ?? originPoint
+		return [startPoint, destinationPoint].filter(isGeoPoint)
+	}, [currentPoint, destinationPoint, originPoint])
+	const routeRequestKey = useMemo(
+		() => buildRoadRouteKey(routeWaypoints, 4),
+		[routeWaypoints],
+	)
+	const routeRequestPoints = useMemo(
+		() => routePointsFromKey(routeRequestKey),
+		[routeRequestKey],
+	)
+	const routeDestinationKey = useMemo(
+		() => mapPointKey(destinationPoint),
+		[destinationPoint],
+	)
+	const routeForRender =
+		roadRouteState?.destinationKey === routeDestinationKey
+			? roadRouteState.route
+			: null
+	const driverBearing = useMemo(() => {
+		const heading = normalizeDriverHeading(currentLocation?.heading)
+		if (heading !== null) return heading
+		return bearingFromRoadRoute(
+			currentPoint,
+			routeForRender?.coordinates,
+			destinationPoint,
+		)
+	}, [currentLocation?.heading, currentPoint, destinationPoint, routeForRender])
 
 	const routeGeoJson = useMemo<RouteFeatureCollection | null>(() => {
-		if (!delivery) return null
-		const routePoints = [originPoint, currentPoint, destinationPoint].filter(
-			isGeoPoint,
-		)
-		if (routePoints.length < 2) return null
+		if (!delivery || !routeForRender || routeForRender.coordinates.length < 2) {
+			return null
+		}
 		return {
 			type: 'FeatureCollection',
 			features: [
@@ -113,12 +156,12 @@ export function DeliveryMap({ currentLocation, delivery }: DeliveryMapProps) {
 					properties: {},
 					geometry: {
 						type: 'LineString',
-						coordinates: routePoints.map((point) => [point.lng, point.lat]),
+						coordinates: routeForRender.coordinates,
 					},
 				},
 			],
 		}
-	}, [currentPoint, delivery, destinationPoint, originPoint])
+	}, [delivery, routeForRender])
 
 	const mapCenter = useMemo(() => {
 		if (currentPoint) return currentPoint
@@ -132,10 +175,30 @@ export function DeliveryMap({ currentLocation, delivery }: DeliveryMapProps) {
 	}, [])
 
 	useEffect(() => {
-		const routePoints = [originPoint, currentPoint, destinationPoint].filter(
-			isGeoPoint,
-		)
-		if (!mapLoaded || routePoints.length < 2) return
+		if (!routeRequestKey || !routeDestinationKey) {
+			setRoadRouteState(null)
+			return
+		}
+		const controller = new AbortController()
+
+		void resolveRoadRoute({
+			endpoint: import.meta.env.VITE_ROAD_ROUTE_ENDPOINT,
+			points: routeRequestPoints,
+			signal: controller.signal,
+		}).then((route) => {
+			if (controller.signal.aborted) return
+			setRoadRouteState({
+				destinationKey: routeDestinationKey,
+				route,
+			})
+		})
+
+		return () => controller.abort()
+	}, [routeDestinationKey, routeRequestKey, routeRequestPoints])
+
+	useEffect(() => {
+		const routePoints = [originPoint, destinationPoint].filter(isGeoPoint)
+		if (!mapLoaded || currentPoint || routePoints.length < 2) return
 		const lngs = routePoints.map((point) => point.lng)
 		const lats = routePoints.map((point) => point.lat)
 		mapRef.current?.fitBounds(
@@ -146,6 +209,21 @@ export function DeliveryMap({ currentLocation, delivery }: DeliveryMapProps) {
 			{ duration: 900, padding: 72 },
 		)
 	}, [currentPoint, destinationPoint, mapLoaded, originPoint])
+
+	useEffect(() => {
+		if (!mapLoaded || !currentPoint) return
+		const map = mapRef.current
+		if (!map) return
+
+		map.easeTo({
+			bearing: driverBearing ?? map.getBearing(),
+			center: [currentPoint.lng, currentPoint.lat],
+			duration: 700,
+			essential: true,
+			pitch: 58,
+			zoom: Math.max(map.getZoom(), 15.5),
+		})
+	}, [currentPoint, driverBearing, mapLoaded])
 
 	if (interactiveMapReady === false || mapFailed) {
 		return (
@@ -202,15 +280,27 @@ export function DeliveryMap({ currentLocation, delivery }: DeliveryMapProps) {
 				minZoom={3}
 				maxZoom={18}
 			>
-				{routeGeoJson && (
+				{routeGeoJson && routeForRender && (
 					<Source id="driver-route" type="geojson" data={routeGeoJson}>
+						<Layer
+							id="driver-route-casing"
+							type="line"
+							paint={{
+								'line-color': theme === 'dark' ? '#050505' : '#FFFFFF',
+								'line-opacity': routeForRender.source === 'road' ? 0.86 : 0.5,
+								'line-width': routeForRender.source === 'road' ? 8 : 5,
+							}}
+						/>
 						<Layer
 							id="driver-route-line"
 							type="line"
 							paint={{
-								'line-color': theme === 'dark' ? '#d4d4d4' : '#111111',
-								'line-width': 3,
-								'line-opacity': 0.68,
+								'line-color': theme === 'dark' ? '#F97316' : '#2563EB',
+								'line-opacity': routeForRender.source === 'road' ? 0.92 : 0.6,
+								'line-width': routeForRender.source === 'road' ? 5 : 3,
+								...(routeForRender.source === 'fallback'
+									? { 'line-dasharray': [1.5, 1.5] }
+									: {}),
 							}}
 						/>
 					</Source>
@@ -241,6 +331,7 @@ export function DeliveryMap({ currentLocation, delivery }: DeliveryMapProps) {
 						latitude={currentLocation.latitude}
 						longitude={currentLocation.longitude}
 						label=""
+						bearing={driverBearing}
 						tone="driver"
 					/>
 				)}
@@ -444,12 +535,79 @@ function staticPinDot(tone: 'customer' | 'driver' | 'warehouse') {
 	return 'var(--color-map-pin-dot-on-fill)'
 }
 
+function mapPointKey(point: GeoPoint | null): string | null {
+	if (!point) return null
+	return `${point.lng.toFixed(5)},${point.lat.toFixed(5)}`
+}
+
+function routePointsFromKey(key: string | null): GeoPoint[] {
+	if (!key) return []
+	return key.split(';').flatMap((entry) => {
+		const [lngValue, latValue] = entry.split(',')
+		const lng = Number(lngValue)
+		const lat = Number(latValue)
+		if (!Number.isFinite(lat) || !Number.isFinite(lng)) return []
+		return [{ lat, lng }]
+	})
+}
+
+function normalizeDriverHeading(heading: number | undefined): number | null {
+	if (typeof heading !== 'number' || !Number.isFinite(heading) || heading < 0) {
+		return null
+	}
+	return normalizeBearing(heading)
+}
+
+function bearingFromRoadRoute(
+	currentPoint: GeoPoint | null,
+	coordinates: RoadRouteCoordinate[] | undefined,
+	destinationPoint: GeoPoint | null,
+): number | null {
+	if (!currentPoint) return null
+	const nextRoutePoint = nextPointOnRoute(currentPoint, coordinates)
+	return bearingBetweenPoints(currentPoint, nextRoutePoint ?? destinationPoint)
+}
+
+function nextPointOnRoute(
+	currentPoint: GeoPoint,
+	coordinates: RoadRouteCoordinate[] | undefined,
+): GeoPoint | null {
+	if (!coordinates || coordinates.length < 2) return null
+	let nearestIndex = 0
+	let nearestDistance = Number.POSITIVE_INFINITY
+	for (const [index, coordinate] of coordinates.entries()) {
+		const point = routeCoordinateToPoint(coordinate)
+		const distance = distanceSquared(currentPoint, point)
+		if (distance < nearestDistance) {
+			nearestDistance = distance
+			nearestIndex = index
+		}
+	}
+
+	for (const coordinate of coordinates.slice(nearestIndex + 1)) {
+		const point = routeCoordinateToPoint(coordinate)
+		if (distanceSquared(currentPoint, point) > 0.0000000004) return point
+	}
+
+	return null
+}
+
+function routeCoordinateToPoint([lng, lat]: RoadRouteCoordinate): GeoPoint {
+	return { lat, lng }
+}
+
+function distanceSquared(a: GeoPoint, b: GeoPoint): number {
+	return (a.lat - b.lat) ** 2 + (a.lng - b.lng) ** 2
+}
+
 function MapPin({
+	bearing,
 	label,
 	latitude,
 	longitude,
 	tone,
 }: {
+	bearing?: number | null
 	label: string
 	latitude: number
 	longitude: number
@@ -458,25 +616,38 @@ function MapPin({
 	return (
 		<Marker latitude={latitude} longitude={longitude} anchor="center">
 			<div className="flex flex-col items-center">
-				<div
-					className={`grid h-5 w-5 place-items-center border-2 shadow-[0_6px_20px_rgba(17,17,17,0.18)] ${
-						tone === 'driver'
-							? 'rounded-full border-[var(--color-map-pin-driver-border)] bg-[var(--color-map-pin-driver-bg)]'
-							: tone === 'customer'
+				{tone === 'driver' ? (
+					<div className="relative grid h-8 w-8 place-items-center">
+						<span className="absolute h-8 w-8 rounded-full bg-[var(--color-map-pin-driver-bg)] opacity-20 shadow-[0_8px_24px_rgba(17,17,17,0.22)]" />
+						<div className="relative grid h-6 w-6 place-items-center rounded-full border-2 border-[var(--color-map-pin-driver-border)] bg-[var(--color-map-pin-driver-bg)] text-[var(--color-map-pin-driver-dot)]">
+							<Navigation
+								aria-hidden="true"
+								size={14}
+								strokeWidth={2.4}
+								style={{
+									transform: `rotate(${bearing ?? 0}deg)`,
+									transformOrigin: 'center',
+								}}
+							/>
+						</div>
+					</div>
+				) : (
+					<div
+						className={`grid h-5 w-5 place-items-center border-2 shadow-[0_6px_20px_rgba(17,17,17,0.18)] ${
+							tone === 'customer'
 								? 'border-[var(--color-map-pin-customer-border)] bg-[var(--color-map-pin-customer-bg)]'
 								: 'border-[var(--color-map-pin-warehouse-border)] bg-[#D97706]'
-					}`}
-				>
-					<div
-						className={`h-1.5 w-1.5 rounded-full ${
-							tone === 'driver'
-								? 'bg-[var(--color-map-pin-driver-dot)]'
-								: tone === 'customer'
+						}`}
+					>
+						<div
+							className={`h-1.5 w-1.5 rounded-full ${
+								tone === 'customer'
 									? 'bg-[var(--color-map-pin-customer-dot)]'
 									: 'bg-[var(--color-map-pin-dot-on-fill)]'
-						}`}
-					/>
-				</div>
+							}`}
+						/>
+					</div>
+				)}
 				{label && (
 					<span className="mt-1 max-w-[160px] border border-[var(--color-map-label-border)] bg-[var(--color-map-label-bg)] px-1.5 py-0.5 text-center font-[family-name:var(--font-archivo)] text-[10px] font-semibold leading-tight text-[var(--color-map-label-text)] shadow-sm">
 						{label}
