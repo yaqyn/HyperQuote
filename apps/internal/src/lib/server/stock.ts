@@ -1,5 +1,4 @@
 import {
-	type AvailabilityStatus,
 	BROAD_CATEGORIES,
 	type BroadCategory,
 	getBroadCategory,
@@ -35,7 +34,6 @@ export interface StockProductView {
 	primaryRawCost: number
 	supplierCount: number
 	pendingDealCount: number
-	availability: AvailabilityStatus
 }
 
 interface StockCategorySummary {
@@ -85,7 +83,6 @@ interface SupabaseStockProductRow {
 	unit_of_measure: string
 	price_range_min: number | null
 	price_range_max: number | null
-	availability_status: AvailabilityStatus
 	image_urls: string[] | null
 }
 
@@ -276,7 +273,6 @@ function buildSupabaseStockView({
 		),
 		supplierCount: supplierIds.size,
 		pendingDealCount,
-		availability: product.availability_status,
 	}
 }
 
@@ -286,7 +282,7 @@ async function getSupabaseStockOverview() {
 	const { data: productRows, error: productError } = await auth.client
 		.from('products')
 		.select(
-			'id, slug, sku, name, category, subcategory, unit_of_measure, price_range_min, price_range_max, availability_status, image_urls',
+			'id, slug, sku, name, category, subcategory, unit_of_measure, price_range_min, price_range_max, image_urls',
 		)
 		.eq('is_active', true)
 		.eq('is_stockable', true)
@@ -433,42 +429,6 @@ export const getStockOverview = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
 		return getSupabaseStockOverview()
-	})
-
-export const setStockProductAvailability = createServerFn({ method: 'POST' })
-	.inputValidator(
-		z.object({
-			slug: z.string(),
-			availability: z.enum(['available', 'out_of_stock']),
-		}),
-	)
-	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
-		const { data: product, error: productError } = await auth.client
-			.from('products')
-			.select('id')
-			.eq('slug', data.slug)
-			.eq('is_active', true)
-			.eq('is_stockable', true)
-			.maybeSingle()
-		if (productError) throw new Error(productError.message)
-		if (!product?.id) {
-			return { success: false as const, error: 'Unknown stock item' }
-		}
-
-		const { error } = await auth.client.rpc(
-			'inventory_set_product_availability',
-			{
-				p_availability: data.availability,
-				p_product_id: product.id,
-			},
-		)
-		if (error) throw new Error(error.message)
-
-		return {
-			success: true as const,
-			availability: data.availability,
-		}
 	})
 
 function presentSupabaseSupplierOffer(

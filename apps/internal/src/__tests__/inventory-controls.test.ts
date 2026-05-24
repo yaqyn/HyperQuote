@@ -19,31 +19,20 @@ function readMigrationSource(): string {
 }
 
 describe('inventory controls', () => {
-	it('backs stock availability toggles with inventory RPCs', () => {
+	it('keeps the stock tab focused on refill actions', () => {
 		const stockView = readWorkspaceFile(
 			'apps/internal/src/components/procurement/stock/StockView.tsx',
 		)
 		const stockServer = readWorkspaceFile(
 			'apps/internal/src/lib/server/stock.ts',
 		)
-		const authServer = readWorkspaceFile('packages/auth/src/server.ts')
-		const migrations = readMigrationSource()
 
-		expect(stockView).toContain('setStockProductAvailability')
-		expect(stockView).toContain("isAvailable ? 'out_of_stock' : 'available'")
-		expect(stockView).toContain('Available')
-		expect(stockView).toContain('Unavailable')
-		expect(stockServer).toContain('inventory_set_product_availability')
-		expect(authServer).toContain('inventory_set_product_availability')
-		expect(migrations).toContain(
-			'create or replace function public.inventory_set_product_availability',
-		)
-		expect(migrations).toContain(
-			"if p_availability not in ('available', 'out_of_stock')",
-		)
-		expect(migrations).toContain(
-			'create or replace function public.service_inventory_set_product_availability',
-		)
+		expect(stockView).toContain('onRefill={setRefillSlug}')
+		expect(stockView).not.toContain('setStockProductAvailability')
+		expect(stockView).not.toContain('onToggleAvailability')
+		expect(stockView).not.toContain('aria-label={`Switch')
+		expect(stockServer).not.toContain('setStockProductAvailability')
+		expect(stockServer).not.toContain('inventory_set_product_availability')
 	})
 
 	it('lets employees mark prices outdated without bypassing proof for updates', () => {
