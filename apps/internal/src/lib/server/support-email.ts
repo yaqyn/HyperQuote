@@ -1,4 +1,7 @@
-import { runtimeStringEnvValue } from '@hyperquote/auth/server'
+import {
+	getInstalledRuntimeEnv,
+	runtimeStringEnvValue,
+} from '@hyperquote/auth/server'
 import type { JsonObject } from '../db/types'
 
 export interface SupportEmailTicket {
@@ -427,6 +430,11 @@ function escapeHtml(value: string): string {
 async function readRuntimeEnv(name: string): Promise<string | undefined> {
 	const processValue = process.env[name]?.trim()
 	if (processValue) return processValue
+	const installedValue = await runtimeStringEnvValue(
+		getInstalledRuntimeEnv(),
+		name,
+	)
+	if (installedValue?.trim()) return installedValue.trim()
 	try {
 		const workersModule = 'cloudflare:workers'
 		const { env } = await import(/* @vite-ignore */ workersModule)

@@ -12,11 +12,31 @@
  *                  Default: on in dev (NODE_ENV !== 'production'), off in prod.
  */
 
+import {
+	getInstalledRuntimeEnv,
+	runtimeEnvRecord,
+} from '@hyperquote/runtime/env'
 import type { StreamChunk } from '@tanstack/ai'
+
+export { runtimeEnvValue } from '@hyperquote/runtime/env'
 
 const DEFAULT_GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b'
 const CLASSIFIER_LEAK_BUFFER_CHARACTERS = 120
+const RUNTIME_KEYS = [
+	'GROQ_API_KEY',
+	'GROQ_MODEL',
+	'GROQ_REASONING_EFFORT',
+	'GROQ_URL',
+	'HQ_GROQ_API_KEY',
+	'HQ_GROQ_MODEL',
+	'HQ_GROQ_REASONING_EFFORT',
+	'HQ_GROQ_URL',
+	'HQ_USE_AI',
+	'USE_AI',
+	'VITE_USE_AI',
+	'NODE_ENV',
+] as const
 
 interface ChatMessage {
 	role: 'system' | 'user' | 'assistant'
@@ -45,12 +65,6 @@ interface GroqEnv {
 	url: string
 }
 
-interface RuntimeSecretBinding {
-	get(): Promise<string | null | undefined> | string | null | undefined
-}
-
-type RuntimeEnvValue = RuntimeSecretBinding | string | null | undefined
-
 interface ChatCompletionOptions {
 	temperature?: number
 }
@@ -67,41 +81,7 @@ async function readWorkersEnv(): Promise<
 	try {
 		const workersModule = 'cloudflare:workers'
 		const { env } = await import(/* @vite-ignore */ workersModule)
-		if (!env || typeof env !== 'object') return undefined
-		const values: Record<string, string | undefined> = {}
-		for (const key of [
-			'GROQ_API_KEY',
-			'GROQ_MODEL',
-			'GROQ_REASONING_EFFORT',
-			'GROQ_URL',
-			'HQ_GROQ_API_KEY',
-			'HQ_GROQ_MODEL',
-			'HQ_GROQ_REASONING_EFFORT',
-			'HQ_GROQ_URL',
-			'HQ_USE_AI',
-			'USE_AI',
-			'VITE_USE_AI',
-			'NODE_ENV',
-		]) {
-			const value = await runtimeEnvValue(
-				(env as Record<string, RuntimeEnvValue>)[key],
-			)
-			if (value !== undefined) values[key] = value
-		}
-		return values
-	} catch {
-		return undefined
-	}
-}
-
-export async function runtimeEnvValue(
-	value: RuntimeEnvValue,
-): Promise<string | undefined> {
-	if (typeof value === 'string') return value
-	if (!value || typeof value !== 'object' || !('get' in value)) return undefined
-	try {
-		const secret = await value.get()
-		return typeof secret === 'string' ? secret : undefined
+		return runtimeEnvRecord(env, RUNTIME_KEYS)
 	} catch {
 		return undefined
 	}
@@ -109,8 +89,9 @@ export async function runtimeEnvValue(
 
 async function readRuntimeEnv(): Promise<Record<string, string | undefined>> {
 	return {
-		...((await readWorkersEnv()) ?? {}),
 		...(processEnvRecord() ?? {}),
+		...((await readWorkersEnv()) ?? {}),
+		...(await runtimeEnvRecord(getInstalledRuntimeEnv(), RUNTIME_KEYS)),
 	}
 }
 

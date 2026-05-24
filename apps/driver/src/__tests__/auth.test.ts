@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs'
 import {
+	clearInstalledRuntimeEnv,
+	installCloudflareRuntimeEnv,
 	resolveSupabaseWorkerServiceRoleConfig,
 	runtimeEnvValue,
 } from '@hyperquote/auth/server'
@@ -63,5 +65,27 @@ describe('driver login validation', () => {
 			supabaseServiceRoleKey: 'service-role-key',
 			supabaseUrl: 'https://example.supabase.co',
 		})
+	})
+
+	it('reads installed Cloudflare runtime env from the TanStack server entry bridge', async () => {
+		clearInstalledRuntimeEnv()
+		installCloudflareRuntimeEnv({
+			SUPABASE_ANON_KEY: { get: async () => 'installed-anon-key' },
+			SUPABASE_SERVICE_ROLE_KEY: {
+				get: async () => 'installed-service-role-key',
+			},
+			SUPABASE_URL: { get: async () => 'https://installed.supabase.co' },
+		})
+
+		try {
+			const config = await resolveSupabaseWorkerServiceRoleConfig({})
+			expect(config).toMatchObject({
+				supabaseAnonKey: 'installed-anon-key',
+				supabaseServiceRoleKey: 'installed-service-role-key',
+				supabaseUrl: 'https://installed.supabase.co',
+			})
+		} finally {
+			clearInstalledRuntimeEnv()
+		}
 	})
 })

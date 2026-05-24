@@ -1,4 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
+import { getInstalledRuntimeEnv } from '@hyperquote/runtime/env'
+
 // Rate limiting via Cloudflare KV counters
 // Key pattern: rate:{action}:{identifier}
 // Uses KV with TTL for sliding window counters
@@ -20,6 +22,10 @@ interface RateLimitResult {
  * Encapsulates env access so the binding name can be swapped.
  */
 async function getKVNamespace(): Promise<KVNamespace | null> {
+	const installedEnv = getInstalledRuntimeEnv()
+	const installedKV = installedEnv?.RATE_KV
+	if (installedKV) return installedKV as KVNamespace
+
 	try {
 		// Dynamic import to avoid bundling cloudflare:workers in client code
 		const workersModule = 'cloudflare:workers'

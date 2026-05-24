@@ -212,6 +212,9 @@
     "packages/ai": {
       "name": "@hyperquote/ai",
       "version": "0.0.0",
+      "dependencies": {
+        "@hyperquote/runtime": "workspace:*",
+      },
       "devDependencies": {
         "vitest": "^4.1.6",
       },
@@ -223,6 +226,7 @@
       "name": "@hyperquote/auth",
       "version": "0.0.0",
       "dependencies": {
+        "@hyperquote/runtime": "workspace:*",
         "@supabase/ssr": "^0.9.0",
         "@supabase/supabase-js": "^2.106.1",
       },
@@ -279,6 +283,10 @@
       "peerDependencies": {
         "react": "^19.2.6",
       },
+    },
+    "packages/runtime": {
+      "name": "@hyperquote/runtime",
+      "version": "0.0.0",
     },
     "packages/tables": {
       "name": "@hyperquote/tables",
@@ -684,6 +692,8 @@
     "@hyperquote/portal": ["@hyperquote/portal@workspace:apps/portal"],
 
     "@hyperquote/quote-cart": ["@hyperquote/quote-cart@workspace:packages/quote-cart"],
+
+    "@hyperquote/runtime": ["@hyperquote/runtime@workspace:packages/runtime"],
 
     "@hyperquote/tables": ["@hyperquote/tables@workspace:packages/tables"],
 

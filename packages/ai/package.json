@@ -8,6 +8,9 @@
 		"./groq": "./src/groq.ts",
 		"./prompts": "./src/prompts.ts"
 	},
+	"dependencies": {
+		"@hyperquote/runtime": "workspace:*"
+	},
 	"devDependencies": {
 		"vitest": "^4.1.6"
 	},

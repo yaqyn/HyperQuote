@@ -1,3 +1,7 @@
+import {
+	clearInstalledRuntimeEnv,
+	installRuntimeEnv,
+} from '@hyperquote/runtime/env'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { completeChat, isAIEnabled, runtimeEnvValue, streamChat } from './groq'
 
@@ -19,6 +23,7 @@ const originalEnv = new Map(
 
 afterEach(() => {
 	vi.restoreAllMocks()
+	clearInstalledRuntimeEnv()
 	for (const key of ENV_KEYS) {
 		const value = originalEnv.get(key)
 		if (value === undefined) {
@@ -50,6 +55,15 @@ describe('Groq runtime env', () => {
 		delete process.env.USE_AI
 		process.env.HQ_GROQ_API_KEY = 'operator-key'
 		process.env.HQ_USE_AI = '1'
+
+		await expect(isAIEnabled()).resolves.toBe(true)
+	})
+
+	it('enables AI from installed Cloudflare runtime env', async () => {
+		installRuntimeEnv({
+			GROQ_API_KEY: { get: async () => 'runtime-key' },
+			USE_AI: { get: async () => '1' },
+		})
 
 		await expect(isAIEnabled()).resolves.toBe(true)
 	})

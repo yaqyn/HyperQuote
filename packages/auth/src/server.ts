@@ -1,4 +1,10 @@
 /// <reference types="@cloudflare/workers-types" />
+
+import {
+	getInstalledRuntimeEnv,
+	type RuntimeEnvValue,
+	runtimeEnvRecord,
+} from '@hyperquote/runtime/env'
 import {
 	type CookieOptions,
 	createServerClient,
@@ -14,17 +20,20 @@ import {
 import type { AuthPool } from './types'
 
 export {
+	clearInstalledRuntimeEnv,
+	getInstalledRuntimeEnv,
+	installRuntimeEnv as installCloudflareRuntimeEnv,
+	type RuntimeEnvValue,
+	type RuntimeSecretBinding,
+	runtimeEnvValue,
+	runtimeStringEnvValue,
+} from '@hyperquote/runtime/env'
+export {
 	resolveSupabaseServerConfig,
 	resolveSupabaseServiceRoleConfig,
 	type SupabaseServerRuntimeConfig,
 	type SupabaseServiceRoleRuntimeConfig,
 }
-
-export interface RuntimeSecretBinding {
-	get(): Promise<string | null | undefined> | string | null | undefined
-}
-
-export type RuntimeEnvValue = RuntimeSecretBinding | string | null | undefined
 
 interface ServerClientOptions {
 	request: Request
@@ -296,6 +305,10 @@ export async function resolveSupabaseWorkerConfig(
 		await runtimeEnvRecord(fallbackEnv, runtimeKeys),
 	)
 	if (fallbackConfig) return fallbackConfig
+	const installedConfig = resolveSupabaseServerConfig(
+		await runtimeEnvRecord(getInstalledRuntimeEnv(), runtimeKeys),
+	)
+	if (installedConfig) return installedConfig
 
 	try {
 		const workersModule = 'cloudflare:workers'
@@ -304,40 +317,6 @@ export async function resolveSupabaseWorkerConfig(
 	} catch {
 		return null
 	}
-}
-
-export async function runtimeEnvValue(
-	value: RuntimeEnvValue,
-): Promise<string | undefined> {
-	if (typeof value === 'string') return value
-	if (!value || typeof value !== 'object' || !('get' in value)) return undefined
-	try {
-		const secret = await value.get()
-		return typeof secret === 'string' ? secret : undefined
-	} catch {
-		return undefined
-	}
-}
-
-export async function runtimeStringEnvValue(
-	env: unknown,
-	key: string,
-): Promise<string | undefined> {
-	if (!env || typeof env !== 'object') return undefined
-	const value = (env as Record<string, unknown>)[key]
-	return runtimeEnvValue(value as RuntimeEnvValue)
-}
-
-async function runtimeEnvRecord<const TKey extends readonly string[]>(
-	env: unknown,
-	keys: TKey,
-): Promise<Record<TKey[number], string | undefined>> {
-	const entries = await Promise.all(
-		keys.map(
-			async (key) => [key, await runtimeStringEnvValue(env, key)] as const,
-		),
-	)
-	return Object.fromEntries(entries) as Record<TKey[number], string | undefined>
 }
 
 export async function resolveSupabaseWorkerServiceRoleConfig(
@@ -354,6 +333,10 @@ export async function resolveSupabaseWorkerServiceRoleConfig(
 		await runtimeEnvRecord(fallbackEnv, runtimeKeys),
 	)
 	if (fallbackConfig) return fallbackConfig
+	const installedConfig = resolveSupabaseServiceRoleConfig(
+		await runtimeEnvRecord(getInstalledRuntimeEnv(), runtimeKeys),
+	)
+	if (installedConfig) return installedConfig
 
 	try {
 		const workersModule = 'cloudflare:workers'
