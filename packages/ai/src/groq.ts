@@ -134,6 +134,17 @@ export async function* streamChat(
 	const runId = crypto.randomUUID()
 	const messageId = crypto.randomUUID()
 	const groq = await readGroqEnv()
+	let emittedText = false
+
+	const textContentChunk = (delta: string): StreamChunk => {
+		emittedText = true
+		return {
+			type: 'TEXT_MESSAGE_CONTENT' as const,
+			timestamp: Date.now(),
+			messageId,
+			delta,
+		}
+	}
 
 	yield { type: 'RUN_STARTED' as const, timestamp: Date.now(), runId }
 	yield {
@@ -228,20 +239,10 @@ export async function* streamChat(
 								continue
 							}
 							flushedText = true
-							yield {
-								type: 'TEXT_MESSAGE_CONTENT' as const,
-								timestamp: Date.now(),
-								messageId,
-								delta: sanitizeClassifierLeak(pendingText),
-							}
+							yield textContentChunk(sanitizeClassifierLeak(pendingText))
 							pendingText = ''
 						} else {
-							yield {
-								type: 'TEXT_MESSAGE_CONTENT' as const,
-								timestamp: Date.now(),
-								messageId,
-								delta,
-							}
+							yield textContentChunk(delta)
 						}
 					}
 				} catch (parseErr) {
@@ -254,20 +255,15 @@ export async function* streamChat(
 			}
 		}
 		if (!flushedText && pendingText) {
-			yield {
-				type: 'TEXT_MESSAGE_CONTENT' as const,
-				timestamp: Date.now(),
-				messageId,
-				delta: sanitizeClassifierLeak(pendingText),
-			}
+			yield textContentChunk(sanitizeClassifierLeak(pendingText))
 		}
 	} catch (err) {
 		const msg = err instanceof Error ? err.message : 'unreachable'
-		yield {
-			type: 'TEXT_MESSAGE_CONTENT' as const,
-			timestamp: Date.now(),
-			messageId,
-			delta: `— AI unavailable (${msg}). —`,
+		if (!emittedText) {
+			const fallbackText = await completeChat(messages, systemPrompt).catch(
+				() => null,
+			)
+			yield textContentChunk(fallbackText ?? `— AI unavailable (${msg}). —`)
 		}
 	}
 

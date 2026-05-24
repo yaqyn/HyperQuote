@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { completeChat, isAIEnabled } from './groq'
+import { completeChat, isAIEnabled, streamChat } from './groq'
 
 const ENV_KEYS = [
 	'GROQ_API_KEY',
@@ -76,5 +76,55 @@ describe('Groq runtime env', () => {
 				}),
 			}),
 		)
+	})
+
+	it('falls back to a non-streaming completion when streaming drops before text', async () => {
+		process.env.GROQ_API_KEY = 'normal-key'
+		process.env.GROQ_MODEL = 'openai/gpt-oss-120b'
+		process.env.GROQ_URL = 'https://groq.test/openai/v1/chat/completions'
+
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(
+				new Response(
+					new ReadableStream({
+						start(controller) {
+							controller.error(new Error('Network connection lost.'))
+						},
+					}),
+					{
+						headers: { 'Content-Type': 'text/event-stream' },
+						status: 200,
+					},
+				),
+			)
+			.mockResolvedValueOnce(
+				Response.json({
+					choices: [{ message: { content: 'Recovered answer.' } }],
+				}),
+			)
+		vi.stubGlobal('fetch', fetchMock)
+
+		const chunks = []
+		for await (const chunk of streamChat(
+			[{ role: 'user', content: 'hi' }],
+			'system',
+		)) {
+			chunks.push(chunk)
+		}
+
+		expect(
+			chunks
+				.filter((chunk) => chunk.type === 'TEXT_MESSAGE_CONTENT')
+				.map((chunk) => chunk.delta)
+				.join(''),
+		).toBe('Recovered answer.')
+		expect(fetchMock).toHaveBeenCalledTimes(2)
+		expect(
+			JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
+		).toMatchObject({ stream: true })
+		expect(
+			JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)),
+		).toMatchObject({ stream: false })
 	})
 })
