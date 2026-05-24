@@ -32,6 +32,7 @@ export async function runtimeEnvValue(
 	value: RuntimeEnvValue,
 ): Promise<string | undefined> {
 	if (typeof value === 'string') return value
+	if (value instanceof String) return value.toString()
 	if (!value || typeof value !== 'object' || !('get' in value)) return undefined
 	try {
 		const secret = await value.get()
