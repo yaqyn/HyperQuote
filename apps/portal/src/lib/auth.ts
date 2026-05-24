@@ -53,6 +53,8 @@ const createAccountInput = z.object({
 	companyName: z.string().min(1).max(200),
 	fullName: z.string().min(1).max(100),
 	method: z.enum(['phone_otp', 'email_password']).optional(),
+	email: z.string().trim().email().max(254).optional(),
+	password: z.string().min(6).max(128).optional(),
 })
 
 const claimAccountInput = z.object({
@@ -76,7 +78,10 @@ const emailPasswordInput = z.object({
 	password: z.string().min(6).max(128),
 })
 
-type EmailAuthError = 'email_not_confirmed' | 'invalid_credentials'
+type EmailAuthError =
+	| 'email_not_confirmed'
+	| 'invalid_credentials'
+	| 'phone_verification_required'
 
 // ============================================================================
 // Helpers
@@ -375,6 +380,10 @@ export const createAccount = createServerFn({ method: 'POST' })
 				fullName: input.fullName,
 				method: input.method,
 				source: 'portal',
+				emailCredentials:
+					input.email || input.password
+						? { email: input.email, password: input.password }
+						: undefined,
 				appendAuthCookies: () =>
 					appendPendingAuthCookies(
 						responseCookies.values(),

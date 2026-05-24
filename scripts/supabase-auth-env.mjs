@@ -1,8 +1,8 @@
 const LOCAL_TWILIO_ACCOUNT_SID = ['local', 'test', 'account', 'sid'].join('-')
-const LOCAL_TWILIO_MESSAGE_SERVICE_SID = [
+const LOCAL_TWILIO_VERIFY_SERVICE_SID = [
 	'local',
 	'test',
-	'message',
+	'verify',
 	'service',
 	'sid',
 ].join('-')
@@ -16,12 +16,12 @@ export function withLocalSupabaseAuthEnv(env = process.env) {
 				env.SUPABASE_AUTH_SMS_TWILIO_ACCOUNT_SID,
 				env.TWILIO_ACCOUNT_SID,
 			) ?? LOCAL_TWILIO_ACCOUNT_SID,
-		SUPABASE_AUTH_SMS_TWILIO_MESSAGE_SERVICE_SID:
+		SUPABASE_AUTH_SMS_TWILIO_VERIFY_SERVICE_SID:
 			firstString(
-				env.SUPABASE_AUTH_SMS_TWILIO_MESSAGE_SERVICE_SID,
-				env.TWILIO_MESSAGE_SERVICE_SID,
-				twilioMessagingServiceSid(env.TWILIO_SID),
-			) ?? LOCAL_TWILIO_MESSAGE_SERVICE_SID,
+				env.SUPABASE_AUTH_SMS_TWILIO_VERIFY_SERVICE_SID,
+				env.TWILIO_VERIFY_SERVICE_SID,
+				twilioVerifyServiceSid(env.TWILIO_SID),
+			) ?? LOCAL_TWILIO_VERIFY_SERVICE_SID,
 		SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN:
 			firstString(
 				env.SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN,
@@ -37,8 +37,8 @@ function firstString(...values) {
 	return undefined
 }
 
-function twilioMessagingServiceSid(value) {
+function twilioVerifyServiceSid(value) {
 	if (typeof value !== 'string') return undefined
 	const trimmed = value.trim()
-	return trimmed.startsWith('MG') ? trimmed : undefined
+	return trimmed.startsWith('VA') ? trimmed : undefined
 }

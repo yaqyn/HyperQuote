@@ -107,7 +107,7 @@ test('website account signup, fake OTP rejection, account menu, and signout pass
 	await guard.expectClean('website signup/account/signout')
 })
 
-test('website email signup requires confirmation before orders and works in portal after confirmation', async ({
+test('website phone signup can attach confirmed email/password for portal login', async ({
 	browser,
 }) => {
 	test.setTimeout(180_000)
@@ -115,7 +115,7 @@ test('website email signup requires confirmation before orders and works in port
 	const stamp = Date.now().toString(36)
 	const email = `flow-email-${stamp}@example.com`
 	const password = `Flow-email-${stamp}-123456`
-	const phone = `10${String(Date.now()).slice(-8)}`
+	const phone = '1011111111'
 	const fullPhone = `+20${phone}`
 	const companyName = `Flow Email ${stamp}`
 	const fullName = 'Flow Email Customer'
@@ -130,18 +130,27 @@ test('website email signup requires confirmation before orders and works in port
 
 	await page.goto(`${URLS.website}/login`, { waitUntil: 'domcontentloaded' })
 	await waitForHydration(page)
-	await page.getByRole('button', { name: /email and password/i }).click()
-	await page.getByRole('button', { name: /^Create$/i }).click()
-	await page.getByLabel(/^Email$/i).fill(email)
-	await page.getByLabel(/^Password$/i).fill(password)
-	await page.getByLabel(/^Phone Number$/i).fill(phone)
-	await page.getByLabel(/^Company Name$/i).fill(companyName)
-	await page.getByLabel(/^Full Name$/i).fill(fullName)
-	await page.getByRole('button', { name: /^Create Account$/i }).click()
-	await expect(page.locator('body')).toContainText(/Confirmation email sent/i, {
+	await page.getByLabel(/phone/i).fill(phone)
+	await page.getByRole('button', { name: /whatsapp/i }).click()
+	await expect(page.getByLabel(/digit 1/i)).toBeVisible({ timeout: 15_000 })
+	await enterOtp(page, '123456')
+	await expect(page.getByLabel(/^Company Name$/i)).toBeVisible({
 		timeout: 20_000,
 	})
+	await page.getByLabel(/^Company Name$/i).fill(companyName)
+	await page.getByLabel(/^Full Name$/i).fill(fullName)
+	await page.getByLabel(/email.*optional/i).fill(email)
+	await page.getByLabel(/password.*optional/i).fill(password)
+	await page.getByRole('button', { name: /^Create Account$/i }).click()
+	await expect(page).toHaveURL(/\/market/, { timeout: 20_000 })
 
+	const emailCustomer = await expectCustomerByEmail(service, email)
+	expect(emailCustomer.phone).toBe(fullPhone)
+
+	await context.clearCookies()
+	await page.goto(`${URLS.website}/login`, { waitUntil: 'domcontentloaded' })
+	await waitForHydration(page)
+	await page.getByRole('button', { name: /email and password/i }).click()
 	await page.getByLabel(/^Email$/i).fill(email)
 	await page.getByLabel(/^Password$/i).fill(password)
 	await page
@@ -149,14 +158,7 @@ test('website email signup requires confirmation before orders and works in port
 		.getByRole('button', { name: /^Sign In$/i })
 		.last()
 		.click()
-	await expect(page.locator('body')).toContainText(/Confirm your email/i)
-	await page.goto(`${URLS.website}/market`, { waitUntil: 'domcontentloaded' })
-	await waitForHydration(page)
-	await addWebsiteProductToCart(page)
-	await ensureWebsiteCartOpen(page)
-	await page.getByRole('button', { name: /Request Quote|Submit/i }).click()
-	await expect(page.locator('body')).toContainText(/sign in|sign up|account/i)
-	await expectCustomerMissing(service, email)
+	await expect(page.locator('body')).toContainText(/not confirmed/i)
 
 	const confirmationUrl = await latestInbucketConfirmationUrl(email)
 	const confirmPage = await context.newPage()
@@ -174,16 +176,8 @@ test('website email signup requires confirmation before orders and works in port
 		.getByRole('button', { name: /^Sign In$/i })
 		.last()
 		.click()
-	await expect(page.getByLabel(/^Company Name$/i)).toBeVisible({
-		timeout: 20_000,
-	})
-	await expect(page.getByLabel(/^Company Name$/i)).toHaveValue(companyName)
-	await expect(page.getByLabel(/^Full Name$/i)).toHaveValue(fullName)
-	await page.getByRole('button', { name: /^Create Account$/i }).click()
 	await expect(page).toHaveURL(/\/market/, { timeout: 20_000 })
 
-	const emailCustomer = await expectCustomerByEmail(service, email)
-	expect(emailCustomer.phone).toBe(fullPhone)
 	await expectActivityActionsSince(service, activityStartedAt, [
 		'customer_signed_up',
 	])
@@ -224,7 +218,7 @@ test('website email signup requires confirmation before orders and works in port
 	await portalGuard.expectClean('portal email/password customer sign-in')
 	await portalContext.close()
 
-	await guard.expectClean('website email/password signup confirmation')
+	await guard.expectClean('website phone signup email confirmation')
 	await context.close()
 })
 
@@ -1647,19 +1641,6 @@ async function expectCustomerByEmail(
 	expect(error).toBeNull()
 	expect(data?.id).toBeTruthy()
 	return data
-}
-
-async function expectCustomerMissing(
-	service: ReturnType<typeof createLocalServiceClient>,
-	email: string,
-) {
-	const { data, error } = await service
-		.from('customers')
-		.select('id')
-		.eq('email', email)
-		.maybeSingle()
-	expect(error).toBeNull()
-	expect(data).toBeNull()
 }
 
 async function expectQuoteRequestByReference(

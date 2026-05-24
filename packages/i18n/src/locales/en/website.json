@@ -543,7 +543,7 @@
 				},
 				"4": {
 					"question": "How do I sign up?",
-					"answer": "Enter your Egyptian mobile number and verify via WhatsApp OTP, or use the secondary email/password path and confirm your email before signing in. Add your company name and full name to complete registration. You can browse the product catalog without an account, but submitting quotes requires a confirmed account.",
+					"answer": "Enter your Egyptian mobile number and verify it first. Add your company name and full name to complete registration. Email/password is optional during account setup and only works after the email is confirmed.",
 					"tag": "account"
 				},
 				"5": {
@@ -620,7 +620,7 @@
 			}
 		},
 		"cardEyebrow": "Secure sign in",
-		"cardSubtitle": "Phone OTP is the primary path. Email/password is available as a secondary confirmed-account path.",
+		"cardSubtitle": "Phone verification is required for every account. Email/password can be added after phone verification.",
 		"step1": {
 			"heading": "Sign In",
 			"subtitle": "Enter the mobile number connected to your company account."
@@ -644,19 +644,13 @@
 		"passwordLabel": "Password",
 		"emailInvalid": "Enter a valid email address",
 		"passwordInvalid": "Password must be at least 6 characters",
-		"profileRequired": "Company name and full name are required",
 		"emailSignInHeading": "Sign in with email.",
 		"emailSignInSubtitle": "Use this only if your email account is already confirmed.",
-		"emailSignUpHeading": "Create an email account.",
-		"emailSignUpSubtitle": "Phone OTP remains the fastest path. Email accounts must be confirmed before they can submit orders.",
 		"emailSignInTab": "Sign in",
-		"emailSignUpTab": "Create",
 		"emailSignInButton": "Sign In",
-		"emailSignUpButton": "Create Account",
 		"emailNotConfirmed": "Confirm your email before signing in.",
-		"emailSignInFailed": "Email or password is incorrect.",
-		"emailSignUpFailed": "Could not create this email account. Try again.",
-		"emailConfirmationSent": "Confirmation email sent. Confirm it, then sign in with your email and password.",
+		"emailSignInFailed": "Email/password is incorrect, or the email is not confirmed yet.",
+		"phoneVerificationRequired": "Verify your phone number first, then add email/password from account setup.",
 		"codeSent": "Code sent to",
 		"wrongCode": "Incorrect code. Try again.",
 		"resend": "Resend",
@@ -664,6 +658,11 @@
 		"sendFailed": "Failed to send. Try again.",
 		"companyName": "Company Name",
 		"fullName": "Full Name",
+		"verifiedPhone": "Verified phone",
+		"emailPasswordOptional": "Optional email/password. We will send a confirmation email before this login method can be used.",
+		"optionalEmailLabel": "Email (optional)",
+		"optionalPasswordLabel": "Password (optional)",
+		"emailSetupFailed": "Could not attach this email/password. Try a different email or continue with phone only.",
 		"createButton": "Create Account",
 		"createFailed": "Something went wrong. Try again.",
 		"legalPrefix": "By continuing, you agree to our",

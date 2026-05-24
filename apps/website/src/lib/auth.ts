@@ -3,7 +3,6 @@ import {
 	createAuthenticatedCustomerProfile,
 	formattedEgyptPhone,
 	isCustomerAuthUser,
-	normalizedEmail,
 	sendCustomerOtp,
 	signInCustomerWithEmailPassword,
 	verifyCustomerOtp,
@@ -51,6 +50,8 @@ const createAccountInput = z.object({
 	companyName: z.string().min(1).max(200),
 	fullName: z.string().min(1).max(100),
 	method: z.enum(['phone_otp', 'email_password']).optional(),
+	email: z.string().trim().email().max(254).optional(),
+	password: z.string().min(6).max(128).optional(),
 })
 
 const claimAccountInput = z.object({
@@ -62,16 +63,10 @@ const emailPasswordInput = z.object({
 	password: z.string().min(6).max(128),
 })
 
-const emailPasswordSignupInput = emailPasswordInput.extend({
-	phone: phoneSchema,
-	companyName: z.string().min(1).max(200),
-	fullName: z.string().min(1).max(100),
-})
-
 type EmailAuthError =
 	| 'email_not_confirmed'
 	| 'invalid_credentials'
-	| 'signup_failed'
+	| 'phone_verification_required'
 
 function getSupabaseConfig() {
 	return resolveSupabaseRuntimeConfig(process.env)
@@ -121,11 +116,6 @@ async function getAuthenticatedClient() {
 	if (!dbClient) return { error: 'not_configured' as const }
 
 	return { client, dbClient, responseCookies, responseHeaders, user }
-}
-
-function confirmationRedirectUrl(request: Request): string {
-	const url = new URL(request.url)
-	return `${url.origin}/login`
 }
 
 export const checkWebsiteAccount = createServerFn({ method: 'GET' }).handler(
@@ -213,61 +203,6 @@ export const signOutWebsiteAccount = createServerFn({ method: 'POST' }).handler(
 		return { success: true }
 	},
 )
-
-export const signUpWithEmailPassword = createServerFn({ method: 'POST' })
-	.inputValidator(emailPasswordSignupInput)
-	.handler(
-		async ({
-			data: input,
-		}): Promise<{
-			success: boolean
-			error?: EmailAuthError
-			needsConfirmation?: boolean
-		}> => {
-			try {
-				const config = await getSupabaseConfig()
-				if (!config) return { success: false, error: 'signup_failed' }
-
-				const request = getRequest()
-				const { client } = createSupabaseServerClient({
-					request,
-					...config,
-				})
-
-				const formattedPhone = formattedEgyptPhone(input.phone)
-				const { data, error } = await client.auth.signUp({
-					email: normalizedEmail(input.email),
-					password: input.password,
-					options: {
-						emailRedirectTo: confirmationRedirectUrl(request),
-						data: {
-							company_name: input.companyName.trim(),
-							contact_name: input.fullName.trim(),
-							phone: formattedPhone,
-							pool: 'external',
-						},
-					},
-				})
-
-				if (error || !data.user) {
-					logWebsiteServerError(
-						'website.auth.email_signup.supabase_error',
-						error,
-					)
-					return { success: false, error: 'signup_failed' }
-				}
-
-				if (data.session) {
-					await client.auth.signOut()
-				}
-
-				return { success: true, needsConfirmation: true }
-			} catch (err) {
-				logWebsiteServerError('website.auth.email_signup.unexpected_error', err)
-				return { success: false, error: 'signup_failed' }
-			}
-		},
-	)
 
 export const signInWithEmailPassword = createServerFn({ method: 'POST' })
 	.inputValidator(emailPasswordInput)
@@ -469,6 +404,10 @@ export const createAccount = createServerFn({ method: 'POST' })
 				fullName: input.fullName,
 				method: input.method,
 				source: 'website',
+				emailCredentials:
+					input.email || input.password
+						? { email: input.email, password: input.password }
+						: undefined,
 				appendAuthCookies: () =>
 					appendPendingAuthCookies(
 						responseCookies.values(),

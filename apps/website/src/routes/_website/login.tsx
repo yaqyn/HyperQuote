@@ -31,7 +31,6 @@ import {
 	createAccount,
 	sendOTP,
 	signInWithEmailPassword,
-	signUpWithEmailPassword,
 } from '../../lib/auth'
 
 export const Route = createFileRoute('/_website/login')({
@@ -48,13 +47,6 @@ export const Route = createFileRoute('/_website/login')({
 })
 
 type AuthStep = 'phone' | 'otp' | 'email' | 'create' | 'claiming'
-type CreateAuthMethod = 'phone_otp' | 'email_password'
-
-interface EmailProfileDefaults {
-	companyName?: string
-	fullName?: string
-	phone?: string
-}
 
 const RESEND_COOLDOWN = 30
 const EMAIL_ADDRESS_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -70,10 +62,6 @@ function LoginPage() {
 	const [step, setStep] = useState<AuthStep>('phone')
 	const [phone, setPhone] = useState('')
 	const [claimableCompany, setClaimableCompany] = useState<string | null>(null)
-	const [createAuthMethod, setCreateAuthMethod] =
-		useState<CreateAuthMethod>('phone_otp')
-	const [emailProfileDefaults, setEmailProfileDefaults] =
-		useState<EmailProfileDefaults>({})
 
 	const handleComplete = () => {
 		window.dispatchEvent(new Event('hyperquote-account-updated'))
@@ -135,8 +123,6 @@ function LoginPage() {
 										phone={phone}
 										onBack={() => setStep('phone')}
 										onNeedsAccount={() => {
-											setCreateAuthMethod('phone_otp')
-											setEmailProfileDefaults({})
 											setStep('create')
 										}}
 										onClaimable={(company) => {
@@ -152,23 +138,12 @@ function LoginPage() {
 									<EmailPasswordStep
 										onBack={() => setStep('phone')}
 										onComplete={handleComplete}
-										onNeedsAccount={(defaults) => {
-											setCreateAuthMethod('email_password')
-											setEmailProfileDefaults(defaults)
-											setPhone(defaults.phone ?? '')
-											setStep('create')
-										}}
 									/>
 								</StepWrapper>
 							)}
 							{step === 'create' && (
 								<StepWrapper key="create">
-									<CreateStep
-										phone={phone}
-										method={createAuthMethod}
-										defaults={emailProfileDefaults}
-										onComplete={handleComplete}
-									/>
+									<CreateStep phone={phone} onComplete={handleComplete} />
 								</StepWrapper>
 							)}
 							{step === 'claiming' && (
@@ -561,33 +536,18 @@ function OTPStep({
 // Email/password step
 // --------------------------------------------------------------------------
 
-type EmailMode = 'signin' | 'signup'
-
 function EmailPasswordStep({
 	onBack,
 	onComplete,
-	onNeedsAccount,
 }: {
 	onBack: () => void
 	onComplete: () => void
-	onNeedsAccount: (defaults: EmailProfileDefaults) => void
 }) {
 	const { t } = useTranslation('website')
-	const [mode, setMode] = useState<EmailMode>('signin')
 	const [email, setEmail] = useState('')
 	const [password, setPassword] = useState('')
-	const [phone, setPhone] = useState('')
-	const [companyName, setCompanyName] = useState('')
-	const [fullName, setFullName] = useState('')
 	const [error, setError] = useState<string | null>(null)
-	const [success, setSuccess] = useState<string | null>(null)
 	const [loading, setLoading] = useState(false)
-
-	function switchMode(nextMode: EmailMode) {
-		setMode(nextMode)
-		setError(null)
-		setSuccess(null)
-	}
 
 	function validateEmailPassword(): boolean {
 		if (!EMAIL_ADDRESS_REGEX.test(email.trim())) {
@@ -605,21 +565,18 @@ function EmailPasswordStep({
 		if (!validateEmailPassword()) return
 		setLoading(true)
 		setError(null)
-		setSuccess(null)
 		try {
 			const result = await signInWithEmailPassword({
 				data: { email: email.trim(), password },
 			})
 			if (!result.success) {
-				setError(
-					result.error === 'email_not_confirmed'
-						? t('login.emailNotConfirmed')
-						: t('login.emailSignInFailed'),
-				)
-				return
-			}
-			if (result.needsAccount) {
-				onNeedsAccount(result.prefill ?? {})
+				if (result.error === 'email_not_confirmed') {
+					setError(t('login.emailNotConfirmed'))
+				} else if (result.error === 'phone_verification_required') {
+					setError(t('login.phoneVerificationRequired'))
+				} else {
+					setError(t('login.emailSignInFailed'))
+				}
 				return
 			}
 			onComplete()
@@ -629,44 +586,6 @@ function EmailPasswordStep({
 			setLoading(false)
 		}
 	}
-
-	async function handleSignUp() {
-		if (!validateEmailPassword()) return
-		if (!EGYPT_MOBILE_REGEX.test(phone)) {
-			setError(t('login.phoneInvalid'))
-			return
-		}
-		if (!companyName.trim() || !fullName.trim()) {
-			setError(t('login.profileRequired'))
-			return
-		}
-		setLoading(true)
-		setError(null)
-		setSuccess(null)
-		try {
-			const result = await signUpWithEmailPassword({
-				data: {
-					email: email.trim(),
-					password,
-					phone,
-					companyName: companyName.trim(),
-					fullName: fullName.trim(),
-				},
-			})
-			if (!result.success) {
-				setError(t('login.emailSignUpFailed'))
-				return
-			}
-			setMode('signin')
-			setSuccess(t('login.emailConfirmationSent'))
-		} catch {
-			setError(t('login.emailSignUpFailed'))
-		} finally {
-			setLoading(false)
-		}
-	}
-
-	const primaryAction = mode === 'signin' ? handleSignIn : handleSignUp
 
 	return (
 		<div>
@@ -680,53 +599,20 @@ function EmailPasswordStep({
 			</button>
 
 			<h2 className="text-[28px] font-bold leading-[1.08] tracking-normal text-[var(--color-text)] sm:text-[32px]">
-				{t(
-					mode === 'signin'
-						? 'login.emailSignInHeading'
-						: 'login.emailSignUpHeading',
-				)}
+				{t('login.emailSignInHeading')}
 			</h2>
 			<p className="mt-3 text-[14px] leading-relaxed text-[var(--color-text-muted)]">
-				{t(
-					mode === 'signin'
-						? 'login.emailSignInSubtitle'
-						: 'login.emailSignUpSubtitle',
-				)}
+				{t('login.emailSignInSubtitle')}
 			</p>
 
-			<div className="mt-7 flex rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
-				<button
-					type="button"
-					onClick={() => switchMode('signin')}
-					className={`h-10 flex-1 rounded-lg text-[13px] font-semibold transition-colors ${
-						mode === 'signin'
-							? 'bg-[var(--color-base)] text-[var(--color-text)] shadow-sm'
-							: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-					}`}
-				>
-					{t('login.emailSignInTab')}
-				</button>
-				<button
-					type="button"
-					onClick={() => switchMode('signup')}
-					className={`h-10 flex-1 rounded-lg text-[13px] font-semibold transition-colors ${
-						mode === 'signup'
-							? 'bg-[var(--color-base)] text-[var(--color-text)] shadow-sm'
-							: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-					}`}
-				>
-					{t('login.emailSignUpTab')}
-				</button>
-			</div>
-
-			<div className="mt-6 flex flex-col gap-4">
+			<div className="mt-7 flex flex-col gap-4">
 				<AuthTextInput
 					id="email-auth-email"
 					label={t('login.emailLabel')}
 					type="email"
 					value={email}
 					onChange={setEmail}
-					onEnter={primaryAction}
+					onEnter={handleSignIn}
 				/>
 				<AuthTextInput
 					id="email-auth-password"
@@ -734,41 +620,8 @@ function EmailPasswordStep({
 					type="password"
 					value={password}
 					onChange={setPassword}
-					onEnter={primaryAction}
+					onEnter={handleSignIn}
 				/>
-				{mode === 'signup' && (
-					<>
-						<div>
-							<label
-								htmlFor="email-signup-phone"
-								className="mb-2 block text-start text-[13px] font-medium text-[var(--color-text-muted)]"
-							>
-								{t('login.phoneLabel')}
-							</label>
-							<PhoneNumberInput
-								id="email-signup-phone"
-								ariaLabel={t('login.phoneLabel')}
-								value={phone}
-								onChange={setPhone}
-								onEnter={primaryAction}
-							/>
-						</div>
-						<AuthTextInput
-							id="email-signup-company"
-							label={t('login.companyName')}
-							value={companyName}
-							onChange={setCompanyName}
-							onEnter={primaryAction}
-						/>
-						<AuthTextInput
-							id="email-signup-name"
-							label={t('login.fullName')}
-							value={fullName}
-							onChange={setFullName}
-							onEnter={primaryAction}
-						/>
-					</>
-				)}
 			</div>
 
 			{error && (
@@ -776,27 +629,14 @@ function EmailPasswordStep({
 					{error}
 				</p>
 			)}
-			{success && (
-				<p className="mt-4 text-[13px] leading-relaxed text-[var(--color-text-muted)]">
-					{success}
-				</p>
-			)}
 
 			<button
 				type="button"
-				onClick={primaryAction}
+				onClick={handleSignIn}
 				disabled={loading}
 				className="mt-6 h-[54px] w-full rounded-xl bg-[var(--color-primary)] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 sm:h-14"
 			>
-				{loading ? (
-					<Spinner />
-				) : (
-					t(
-						mode === 'signin'
-							? 'login.emailSignInButton'
-							: 'login.emailSignUpButton',
-					)
-				)}
+				{loading ? <Spinner /> : t('login.emailSignInButton')}
 			</button>
 		</div>
 	)
@@ -846,20 +686,17 @@ function AuthTextInput({
 const accountSchema = z.object({
 	companyName: z.string().min(1).max(200),
 	fullName: z.string().min(1).max(100),
-	phone: z.string().optional(),
+	email: z.string().optional(),
+	password: z.string().optional(),
 })
 
 type AccountFormData = z.infer<typeof accountSchema>
 
 function CreateStep({
 	phone,
-	method,
-	defaults,
 	onComplete,
 }: {
 	phone: string
-	method: CreateAuthMethod
-	defaults: EmailProfileDefaults
 	onComplete: () => void
 }) {
 	const { t } = useTranslation('website')
@@ -873,16 +710,27 @@ function CreateStep({
 	} = useForm<AccountFormData>({
 		resolver: standardSchemaResolver(accountSchema),
 		defaultValues: {
-			companyName: defaults.companyName ?? '',
-			fullName: defaults.fullName ?? '',
-			phone: defaults.phone ?? phone,
+			companyName: '',
+			email: '',
+			fullName: '',
+			password: '',
 		},
 	})
 
 	async function onSubmit(data: AccountFormData) {
-		const accountPhone = (phone || data.phone || '').trim()
-		if (!EGYPT_MOBILE_REGEX.test(accountPhone)) {
+		if (!EGYPT_MOBILE_REGEX.test(phone)) {
 			setServerError(t('login.phoneInvalid'))
+			return
+		}
+		const email = data.email?.trim() ?? ''
+		const password = data.password ?? ''
+		const wantsEmailPassword = Boolean(email || password)
+		if (wantsEmailPassword && !EMAIL_ADDRESS_REGEX.test(email)) {
+			setServerError(t('login.emailInvalid'))
+			return
+		}
+		if (wantsEmailPassword && password.length < 6) {
+			setServerError(t('login.passwordInvalid'))
 			return
 		}
 		setLoading(true)
@@ -890,14 +738,21 @@ function CreateStep({
 		try {
 			const result = await createAccount({
 				data: {
-					phone: accountPhone,
+					phone,
 					companyName: data.companyName,
 					fullName: data.fullName,
-					method,
+					method: 'phone_otp',
+					...(wantsEmailPassword ? { email, password } : {}),
 				},
 			})
 			if (!result.success) {
-				setServerError(t('login.createFailed'))
+				setServerError(
+					result.error === 'email_setup_failed'
+						? t('login.emailSetupFailed')
+						: result.error === 'phone_mismatch'
+							? t('login.phoneVerificationRequired')
+							: t('login.createFailed'),
+				)
 				return
 			}
 			onComplete()
@@ -922,21 +777,14 @@ function CreateStep({
 				className="mt-7 flex flex-col gap-5 sm:mt-8"
 				noValidate
 			>
-				{method === 'email_password' && (
-					<div>
-						<label
-							htmlFor="signup-phone"
-							className="mb-2 block text-start text-[13px] font-medium text-[var(--color-text-muted)]"
-						>
-							{t('login.phoneLabel')}
-						</label>
-						<input
-							id="signup-phone"
-							{...register('phone')}
-							className="h-[54px] w-full rounded-xl border border-[var(--color-border)] bg-transparent px-4 text-[16px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] sm:h-14"
-						/>
-					</div>
-				)}
+				<div>
+					<p className="mb-2 text-start text-[13px] font-medium text-[var(--color-text-muted)]">
+						{t('login.verifiedPhone')}
+					</p>
+					<p className="h-[54px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-[15px] font-mono text-[16px] text-[var(--color-text)] sm:h-14">
+						+20 {phone}
+					</p>
+				</div>
 				<div>
 					<label
 						htmlFor="signup-company-name"
@@ -973,6 +821,42 @@ function CreateStep({
 							{errors.fullName.message}
 						</p>
 					)}
+				</div>
+
+				<div className="border-y border-[var(--color-border)] py-5">
+					<p className="text-start text-[13px] font-semibold text-[var(--color-text)]">
+						{t('login.emailPasswordOptional')}
+					</p>
+					<div className="mt-4 flex flex-col gap-4">
+						<div>
+							<label
+								htmlFor="signup-email"
+								className="mb-2 block text-start text-[13px] font-medium text-[var(--color-text-muted)]"
+							>
+								{t('login.optionalEmailLabel')}
+							</label>
+							<input
+								id="signup-email"
+								type="email"
+								{...register('email')}
+								className="h-[54px] w-full rounded-xl border border-[var(--color-border)] bg-transparent px-4 text-[16px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] sm:h-14"
+							/>
+						</div>
+						<div>
+							<label
+								htmlFor="signup-password"
+								className="mb-2 block text-start text-[13px] font-medium text-[var(--color-text-muted)]"
+							>
+								{t('login.optionalPasswordLabel')}
+							</label>
+							<input
+								id="signup-password"
+								type="password"
+								{...register('password')}
+								className="h-[54px] w-full rounded-xl border border-[var(--color-border)] bg-transparent px-4 text-[16px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] sm:h-14"
+							/>
+						</div>
+					</div>
 				</div>
 
 				{serverError && (

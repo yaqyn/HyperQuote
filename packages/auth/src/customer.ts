@@ -19,6 +19,11 @@ export interface EmailProfileDefaults {
 	phone?: string
 }
 
+export interface OptionalEmailPasswordCredentials {
+	email?: string
+	password?: string
+}
+
 type AppendAuthCookies = () => void
 type CustomerAuthLogger = (error: unknown) => void
 type ResolveCustomerDataClient = (
@@ -110,7 +115,10 @@ export async function signInCustomerWithEmailPassword({
 	resolveDbClient?: ResolveCustomerDataClient
 }): Promise<{
 	success: boolean
-	error?: 'email_not_confirmed' | 'invalid_credentials'
+	error?:
+		| 'email_not_confirmed'
+		| 'invalid_credentials'
+		| 'phone_verification_required'
 	needsAccount?: boolean
 	prefill?: EmailProfileDefaults
 }> {
@@ -149,8 +157,11 @@ export async function signInCustomerWithEmailPassword({
 	const customer = await findCustomerByUserId(dataClient, data.user.id)
 	if (!customer) {
 		const metadata = data.user.user_metadata ?? {}
+		await client.auth.signOut()
+		appendAuthCookies()
 		return {
-			success: true,
+			success: false,
+			error: 'phone_verification_required',
 			needsAccount: true,
 			prefill: customerPrefillFromMetadata(metadata),
 		}
@@ -286,24 +297,35 @@ export async function createAuthenticatedCustomerProfile({
 	fullName,
 	method,
 	source,
+	emailCredentials,
 	appendAuthCookies,
 	onCreateError,
 	onActivityError,
 }: {
 	client: CustomerAuthClient
 	dbClient?: CustomerDataClient
-	user: { id: string; email?: string | null; app_metadata?: unknown }
+	user: {
+		id: string
+		email?: string | null
+		phone?: string | null
+		app_metadata?: unknown
+	}
 	formattedPhone: string
 	companyName: string
 	fullName: string
 	method?: 'phone_otp' | 'email_password'
 	source: 'portal' | 'website'
+	emailCredentials?: OptionalEmailPasswordCredentials
 	appendAuthCookies: AppendAuthCookies
 	onCreateError: CustomerAuthLogger
 	onActivityError: CustomerAuthLogger
 }): Promise<{
 	success: boolean
-	error?: 'create_failed' | 'not_authenticated'
+	error?:
+		| 'create_failed'
+		| 'email_setup_failed'
+		| 'not_authenticated'
+		| 'phone_mismatch'
 	customerId?: string
 	userId?: string
 }> {
@@ -312,12 +334,39 @@ export async function createAuthenticatedCustomerProfile({
 		appendAuthCookies()
 		return { success: false, error: 'not_authenticated' }
 	}
+	if (!doesUserPhoneMatch(user.phone, formattedPhone)) {
+		await client.auth.signOut()
+		appendAuthCookies()
+		return { success: false, error: 'phone_mismatch' }
+	}
 	const dataClient = dbClient ?? client
+	const requestedEmail = emailCredentials?.email
+		? normalizedEmail(emailCredentials.email)
+		: ''
+	const requestedPassword = emailCredentials?.password ?? ''
+	if (requestedEmail || requestedPassword) {
+		if (!requestedEmail || !requestedPassword) {
+			return { success: false, error: 'email_setup_failed' }
+		}
+		const { error: updateError } = await client.auth.updateUser({
+			email: requestedEmail,
+			password: requestedPassword,
+			data: {
+				company_name: companyName.trim(),
+				contact_name: fullName.trim(),
+				phone: formattedPhone,
+			},
+		})
+		if (updateError) {
+			onCreateError(updateError)
+			return { success: false, error: 'email_setup_failed' }
+		}
+	}
 
 	const { customerId, error } = await createCustomerProfile({
 		client: dataClient,
 		phone: formattedPhone,
-		email: user.email ?? null,
+		email: requestedEmail || user.email || null,
 		companyName,
 		fullName,
 		userId: user.id,
@@ -515,6 +564,15 @@ export function isProviderSendFailure(error: {
 	)
 }
 
+export function doesUserPhoneMatch(
+	userPhone: string | null | undefined,
+	formattedPhone: string,
+): boolean {
+	const userDigits = phoneDigits(userPhone)
+	const expectedDigits = phoneDigits(formattedPhone)
+	return Boolean(userDigits && expectedDigits && userDigits === expectedDigits)
+}
+
 async function findClaimableCustomerProfile(
 	client: CustomerDataClient,
 	formattedPhone: string,
@@ -549,4 +607,8 @@ function customerProfileFromUnknown(
 		return null
 	}
 	return { id, company_name: companyName, user_id: userId }
+}
+
+function phoneDigits(value: string | null | undefined): string {
+	return value?.replace(/\D/g, '') ?? ''
 }
