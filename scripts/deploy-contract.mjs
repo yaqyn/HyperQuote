@@ -36,7 +36,11 @@ const APP_DEPLOY_CONTRACTS = {
 	},
 	internal: {
 		buildVars: ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'],
-		runtimeSecrets: [...START_RUNTIME_SECRETS, 'SUPABASE_COOKIE_NAME'],
+		runtimeSecrets: [
+			...START_RUNTIME_SECRETS,
+			'SUPABASE_COOKIE_NAME',
+			'HQ_RESEND_API_KEY',
+		],
 	},
 	driver: {
 		buildVars: [],

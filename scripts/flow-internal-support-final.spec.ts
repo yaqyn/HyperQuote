@@ -101,7 +101,10 @@ test('website support ticket enters internal queue and can be replied to from su
 		.poll(() => supportTicketStatus(service, ticket.id, 'assigned'))
 		.toBe('assigned')
 
-	await internal.locator('button').filter({ hasText: 'Compose reply' }).click()
+	await internal
+		.locator('button')
+		.filter({ hasText: /Compose (email|reply)/ })
+		.click()
 	await expect(internal.locator('input[type="email"]').first()).toHaveValue(
 		requesterEmail,
 	)
@@ -120,7 +123,7 @@ test('website support ticket enters internal queue and can be replied to from su
 		'support_reply_sent',
 		'support_ticket_reply_sent',
 	])
-	expect(reply.provider_status).toBe('provider_not_configured')
+	expect(reply.provider_status).toBe('local_delivery_skipped')
 
 	await internal
 		.getByRole('button', { name: /Close support conversation/i })

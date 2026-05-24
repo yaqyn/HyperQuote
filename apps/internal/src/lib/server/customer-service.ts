@@ -7,6 +7,12 @@ import type {
 } from '../../types/customer-service'
 import type { JsonObject } from '../db/types'
 import { getInternalSupabaseClient } from './_supabase'
+import {
+	buildSupportEmailEnvelope,
+	deliverSupportEmail,
+	type SupportEmailTicket,
+	supportEmailMetadata,
+} from './support-email'
 
 type SupportEntityRef =
 	| { kind: 'ticket'; id: string }
@@ -73,6 +79,11 @@ interface SupabaseSupportMessageRow {
 	provider_error?: string | null
 	metadata?: Record<string, unknown>
 	created_at: string
+}
+
+interface SupportReplyRow {
+	id: string
+	metadata: Record<string, unknown> | null
 }
 
 function firstRelation<T>(value: T | T[] | null | undefined): T | null {
@@ -187,6 +198,30 @@ function supabaseMessageFromRow(
 			providerError: row.provider_error ?? null,
 		},
 	}
+}
+
+type InternalSupportClient = Awaited<
+	ReturnType<typeof getInternalSupabaseClient>
+>['client']
+
+async function getSupportEmailTicket(
+	client: InternalSupportClient,
+	ticketId: string,
+): Promise<SupportEmailTicket> {
+	const { data, error } = await client
+		.from('support_tickets')
+		.select('id, reference, requester_email, requester_name, subject')
+		.eq('id', ticketId)
+		.single()
+	if (error) throw new Error(error.message)
+	return data as unknown as SupportEmailTicket
+}
+
+function supportReplyRow(value: unknown): SupportReplyRow {
+	if (!value || typeof value !== 'object' || !('id' in value)) {
+		throw new Error('support_reply_insert_failed')
+	}
+	return value as SupportReplyRow
 }
 
 // ─── Computed Metrics ─────────────────────────────────────────────────────────
@@ -513,17 +548,28 @@ export const sendReply = createServerFn({ method: 'POST' })
 			if (ref.kind === 'local')
 				throw new Error('Supabase support record required')
 			if (ref.kind === 'ticket') {
+				const ticket = await getSupportEmailTicket(auth.client, ref.id)
+				const envelope = await buildSupportEmailEnvelope({
+					body: data.content,
+					metadata: data.metadata,
+					ticket,
+				})
+				const delivery = await deliverSupportEmail(envelope)
+				const metadata = {
+					...(data.metadata ?? {}),
+					...supportEmailMetadata(envelope, delivery),
+				} satisfies JsonObject
 				const { data: message, error } = await auth.client.rpc(
 					'send_support_reply',
 					{
 						p_body: data.content,
 						p_channel: data.channel === 'whatsapp' ? 'whatsapp' : 'email',
-						p_metadata: data.metadata ?? {},
+						p_metadata: metadata,
 						p_ticket_id: ref.id,
 					},
 				)
 				if (error) throw new Error(error.message)
-				return { success: true, messageId: message.id }
+				return { success: true, messageId: supportReplyRow(message).id }
 			}
 			const { data: message, error } = await auth.client.rpc(
 				'send_support_conversation_reply',

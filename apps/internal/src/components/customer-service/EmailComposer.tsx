@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Paperclip, Save, Send, X } from 'lucide-react'
+import { AlertTriangle, Save, Send, X } from 'lucide-react'
 import {
 	type ChangeEvent,
 	type KeyboardEvent,
@@ -132,6 +132,23 @@ function loadDraft(conversationId: string): EmailDraft | null {
 	}
 }
 
+function emailSendErrorMessage(error: unknown): string {
+	const message = error instanceof Error ? error.message : ''
+	if (message.includes('support_email_provider_not_configured')) {
+		return 'Email provider is not configured for this server.'
+	}
+	if (message.includes('support_email_recipient_required')) {
+		return 'Add a customer email address before sending.'
+	}
+	if (message.includes('support_email_mixed_test_recipients')) {
+		return 'Use either real recipients or local test recipients, not both.'
+	}
+	if (message.includes('support_email_send_failed')) {
+		return 'Resend rejected the email. Keep the draft and try again.'
+	}
+	return 'Email was not sent. Keep the draft and try again.'
+}
+
 export function EmailComposer({
 	conversation,
 	replyTo,
@@ -174,11 +191,10 @@ export function EmailComposer({
 					channel: 'email',
 					content: body.trim(),
 					metadata: {
-						from: 'support@hyperquote.io',
-						to,
-						cc: cc || null,
-						bcc: bcc || null,
-						subject,
+						bcc: bcc.trim() || null,
+						cc: cc.trim() || null,
+						subject: subject.trim(),
+						to: to.trim(),
 					},
 				},
 			})
@@ -191,8 +207,8 @@ export function EmailComposer({
 			setBcc('')
 			await queryClient.invalidateQueries({ queryKey: ['support-inbox'] })
 			onDiscard()
-		} catch {
-			setError('Email was not sent. Keep the draft and try again.')
+		} catch (sendError) {
+			setError(emailSendErrorMessage(sendError))
 		} finally {
 			setIsSending(false)
 		}
@@ -244,7 +260,8 @@ export function EmailComposer({
 		el.style.height = `${Math.min(el.scrollHeight, 300)}px`
 	}
 
-	const canSend = body.trim().length > 0 && to.trim().length > 0
+	const canSend =
+		body.trim().length > 0 && to.trim().length > 0 && subject.trim().length > 0
 
 	const modeLabel =
 		action === 'forward'
@@ -262,7 +279,7 @@ export function EmailComposer({
 			<div className="flex items-start justify-between gap-3 px-4 pb-3 pt-4 sm:px-6 lg:px-8">
 				<div className="min-w-0">
 					<p className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-						Email reply
+						HyperQuote email
 					</p>
 					<p className="mt-1 break-words font-[family-name:var(--font-archivo)] text-[13px] text-[var(--color-text)]">
 						{modeLabel}
@@ -317,16 +334,31 @@ export function EmailComposer({
 					</FieldRow>
 				</div>
 
-				<div className="border-t border-dashed border-black/[0.08] px-4 py-3 dark:border-white/[0.1] sm:px-6 lg:px-8">
-					<textarea
-						ref={bodyRef}
-						value={body}
-						onChange={handleBodyInput}
-						onKeyDown={handleKeyDown}
-						placeholder={t('email.bodyPlaceholder')}
-						rows={3}
-						className="max-h-[300px] min-h-28 w-full resize-none rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 py-3 font-[family-name:var(--font-archivo)] text-[14px] leading-relaxed text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
-					/>
+				<div className="border-t border-dashed border-black/[0.08] px-4 py-4 dark:border-white/[0.1] sm:px-6 lg:px-8">
+					<div className="overflow-hidden rounded-md border border-[#eadfce] bg-white shadow-[0_18px_60px_rgba(24,18,12,0.08)]">
+						<div className="flex items-center justify-between gap-3 border-b border-[#efe6d8] px-4 py-3">
+							<div className="flex min-w-0 items-center gap-3">
+								<span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-neutral-950 font-[family-name:var(--font-archivo)] text-[11px] font-bold tracking-[0.08em] text-white">
+									HQ
+								</span>
+								<span className="truncate font-[family-name:var(--font-bricolage)] text-[17px] font-semibold text-neutral-950">
+									HyperQuote
+								</span>
+							</div>
+							<span className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[10px] text-neutral-500">
+								{conversation.ticketId ?? 'SUPPORT'}
+							</span>
+						</div>
+						<textarea
+							ref={bodyRef}
+							value={body}
+							onChange={handleBodyInput}
+							onKeyDown={handleKeyDown}
+							placeholder={t('email.bodyPlaceholder')}
+							rows={7}
+							className="max-h-[360px] min-h-56 w-full resize-none bg-white px-5 py-5 font-[family-name:var(--font-archivo)] text-[15px] leading-[1.75] text-neutral-900 outline-none transition-colors placeholder:text-neutral-400"
+						/>
+					</div>
 				</div>
 
 				{error && (
@@ -342,14 +374,6 @@ export function EmailComposer({
 			</div>
 
 			<div className="flex shrink-0 items-center gap-2 border-t border-black/[0.06] px-4 py-3 dark:border-white/[0.08] sm:px-6 lg:px-8">
-				<button
-					type="button"
-					aria-label={t('composer.attach')}
-					className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-black/[0.1] text-[var(--color-text-subtle)] transition-colors hover:border-[var(--color-primary)]/45 hover:text-[var(--color-text)] dark:border-white/[0.12]"
-				>
-					<Paperclip size={15} strokeWidth={2.1} />
-				</button>
-
 				<div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
 					<EmployeeActionButton
 						onClick={handleSaveDraft}

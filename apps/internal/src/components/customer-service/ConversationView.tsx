@@ -458,7 +458,7 @@ export function ConversationView({
 								leading={<PenLine size={14} strokeWidth={2.2} />}
 								fullWidthOnMobile
 							>
-								Compose reply
+								Compose email
 							</EmployeeActionButton>
 						</div>
 					)
