@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import {
 	bearingBetweenPoints,
 	buildOsrmRouteUrl,
@@ -19,6 +19,29 @@ import type {
 	DeviceLocationProvider,
 	LocationProvider,
 } from '../lib/location-provider'
+
+function latestMigrationFunctionSource(functionName: string): string {
+	const migrationsDir = new URL(
+		'../../../../supabase/migrations/',
+		import.meta.url,
+	)
+	const source = readdirSync(migrationsDir)
+		.filter((file) => file.endsWith('.sql'))
+		.sort()
+		.map((file) => readFileSync(new URL(file, migrationsDir), 'utf8'))
+		.join('\n')
+	const functionStart = source.lastIndexOf(
+		`create or replace function ${functionName}`,
+	)
+	if (functionStart === -1) {
+		throw new Error(`Missing migration function ${functionName}`)
+	}
+	const functionEnd = source.indexOf('\n$$;', functionStart)
+	if (functionEnd === -1) {
+		throw new Error(`Missing migration function terminator for ${functionName}`)
+	}
+	return source.slice(functionStart, functionEnd + 4)
+}
 
 describe('driver app contracts', () => {
 	it('keeps exported delivery field contracts available for the future adapter', () => {
@@ -48,6 +71,47 @@ describe('driver app contracts', () => {
 
 		expect(source).not.toContain('autoRouteStarted')
 		expect(source).not.toContain('mutateAsync(routeCandidate.id)')
+	})
+
+	it('keeps warehouse sign-off as the route-starting confirmation', () => {
+		const warehouseApproveSource = latestMigrationFunctionSource(
+			'public.warehouse_approve_loading',
+		)
+		const ensureDeliverySource = latestMigrationFunctionSource(
+			'app_private.ensure_loading_task_active_deliveries',
+		)
+		const driverStartSource = latestMigrationFunctionSource(
+			'public.driver_start_delivery',
+		)
+
+		expect(warehouseApproveSource).toContain("set status = 'out_for_delivery'")
+		expect(warehouseApproveSource).toContain(
+			'perform app_private.ensure_delivery_secret_for_order(updated.order_id)',
+		)
+		expect(ensureDeliverySource).toMatch(
+			/insert into public\.deliveries \([\s\S]*status,[\s\S]*started_at[\s\S]*'in_transit',[\s\S]*now\(\)/,
+		)
+		expect(driverStartSource).toMatch(
+			/and status in \('assigned', 'accepted'\)/,
+		)
+	})
+
+	it('starts assigned deliveries with one driver action as a legacy fallback', () => {
+		const source = readFileSync(
+			new URL('../components/ActiveDeliveryFlow.tsx', import.meta.url),
+			'utf8',
+		)
+		const assignedBlockIndex = source.indexOf(
+			"delivery.status === 'assigned' || delivery.status === 'accepted'",
+		)
+		const assignedBlock = source.slice(
+			assignedBlockIndex,
+			assignedBlockIndex + 350,
+		)
+
+		expect(assignedBlockIndex).toBeGreaterThan(-1)
+		expect(assignedBlock).toContain('onStart(delivery.id)')
+		expect(assignedBlock).not.toContain('onAccept(delivery.id)')
 	})
 
 	it('enforces a single active driver app session at the Worker API boundary', () => {

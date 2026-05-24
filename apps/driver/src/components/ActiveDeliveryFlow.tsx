@@ -90,7 +90,7 @@ export function ActiveDeliveryFlow({
 				<StatusPill status={delivery.status} />
 			</div>
 
-			{(delivery.status === 'assigned' || delivery.status === 'available') && (
+			{delivery.status === 'available' && (
 				<ActionButton
 					icon={<Navigation aria-hidden="true" size={18} />}
 					isDisabled={isMutating}
@@ -98,7 +98,7 @@ export function ActiveDeliveryFlow({
 					onPress={() => onAccept(delivery.id)}
 				/>
 			)}
-			{delivery.status === 'accepted' && (
+			{(delivery.status === 'assigned' || delivery.status === 'accepted') && (
 				<ActionButton
 					icon={<Navigation aria-hidden="true" size={18} />}
 					isDisabled={isMutating}
