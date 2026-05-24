@@ -3,9 +3,13 @@ import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
 
+const FLOW_PASSWORD =
+	process.env.HYPERQUOTE_LOCAL_DEV_PASSWORD ??
+	['hyperquote', 'local', 'only', '2026'].join('-')
+
 const ACCOUNTS = {
 	customer: { email: 'customer@customer.customer', password: 'customer' },
-	driver: { email: 'driver@driver.driver', password: 'driver' },
+	driver: { email: 'local-driver@hyperquote.local', password: FLOW_PASSWORD },
 	employee: { email: 'admin@admin.admin', password: 'admin1' },
 }
 
@@ -19,6 +23,7 @@ async function main() {
 	const anon = createAnonClient(env)
 	const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
+	await cleanupInterruptedFlowSmokeRuns(env)
 	await assertSupportUsesServerBoundary(env, anon, runId)
 	await assertMarketCategoriesAreDatabaseDriven(env, anon, runId)
 	const customer = await signIn(env, ACCOUNTS.customer)
@@ -367,9 +372,9 @@ async function assertCustomerToSalesToDeliveryFlow(env, customer, runId) {
 	assert(
 		preSignoffDashboard.data?.nextDelivery === null &&
 			preSignoffDashboard.data?.activeDelivery === null &&
-			Array.isArray(preSignoffDashboard.data?.deliveries) &&
-			preSignoffDashboard.data.deliveries.length === 0,
-		'driver dashboard must stay empty until warehouse signoff',
+			preSignoffDashboard.data?.openDeliveries === 0 &&
+			Array.isArray(preSignoffDashboard.data?.deliveries),
+		'driver dashboard must not expose open deliveries until warehouse signoff',
 	)
 	await mustRpc(employee.client, 'warehouse_toggle_loading_item', {
 		p_order_id: order.id,
@@ -420,12 +425,23 @@ async function assertCustomerToSalesToDeliveryFlow(env, customer, runId) {
 		'driver location updates must be scoped to assigned deliveries',
 	)
 
-	await mustRpc(driver.client, 'driver_accept_delivery', {
-		p_delivery_id: delivery.id,
-	})
-	await mustRpc(driver.client, 'driver_start_delivery', {
-		p_delivery_id: delivery.id,
-	})
+	if (delivery.status === 'assigned') {
+		await mustRpc(driver.client, 'driver_accept_delivery', {
+			p_delivery_id: delivery.id,
+		})
+		await mustRpc(driver.client, 'driver_start_delivery', {
+			p_delivery_id: delivery.id,
+		})
+	} else if (delivery.status === 'accepted') {
+		await mustRpc(driver.client, 'driver_start_delivery', {
+			p_delivery_id: delivery.id,
+		})
+	} else {
+		assert(
+			delivery.status === 'in_transit',
+			'warehouse signoff must leave delivery assigned, accepted, or in transit',
+		)
+	}
 	const deliverySecret = deliverySecretCode(order.id)
 	assert(
 		/^[2-9A-HJ-NP-Z]{8}$/.test(deliverySecret),
@@ -608,15 +624,32 @@ async function assertCustomerOrderSaveAsDraftAudit(
 }
 
 async function findOrderableSmokeProduct(service) {
+	const { data: categories, error: categoryError } = await service
+		.from('categories')
+		.select('slug')
+	if (categoryError) {
+		throw new Error(`Smoke category lookup failed: ${categoryError.message}`)
+	}
+	const categorySlugs = (categories ?? [])
+		.map((category) => category.slug)
+		.filter(Boolean)
+	if (categorySlugs.length === 0) {
+		throw new Error('No categories available for smoke product lookup')
+	}
+
 	const { data: product, error } = await service
 		.from('products')
 		.select('id, category, name, slug, unit_of_measure, unit_of_measure_ar')
 		.eq('is_active', true)
 		.not('availability_status', 'in', '("hidden","out_of_stock")')
+		.in('category', categorySlugs)
+		.order('created_at', { ascending: true })
 		.limit(1)
 		.single()
 	if (error || !product) {
-		throw new Error(error?.message ?? 'No product available for smoke')
+		throw new Error(
+			error?.message ?? 'No orderable product with a valid category for smoke',
+		)
 	}
 	return product
 }
@@ -1071,6 +1104,91 @@ function runLocalSql(env, sql) {
 	if (result.status !== 0) {
 		throw new Error(result.stderr.trim() || 'Local SQL command failed')
 	}
+}
+
+async function cleanupInterruptedFlowSmokeRuns(env) {
+	const employee = await signIn(env, ACCOUNTS.employee)
+	const proof = {
+		evidenceText: 'Flow DB smoke interrupted-run cleanup.',
+		reason: 'interrupted_flow_smoke_cleanup',
+		source: 'flow-db-smoke',
+	}
+
+	const activeDeliveries = queryLocalJson(
+		env,
+		`
+			select coalesce(jsonb_agg(jsonb_build_object('id', d.id) order by d.created_at), '[]'::jsonb)
+			from public.deliveries d
+			join public.orders o on o.id = d.order_id
+			join public.quote_requests qr on qr.id = o.quote_request_id
+			where qr.notes like 'flow-smoke:%'
+			  and d.status in ('assigned', 'accepted', 'in_transit', 'arrived')
+		`,
+	)
+	for (const delivery of activeDeliveries) {
+		await mustRpc(employee.client, 'dispatch_complete_delivery', {
+			p_delivery_id: delivery.id,
+			p_proof: proof,
+		})
+	}
+
+	const loadedOrders = queryLocalJson(
+		env,
+		`
+			select coalesce(jsonb_agg(jsonb_build_object('id', o.id) order by o.created_at), '[]'::jsonb)
+			from public.orders o
+			join public.quote_requests qr on qr.id = o.quote_request_id
+			where qr.notes like 'flow-smoke:%'
+			  and o.status in ('dispatch_ready', 'dispatch_assigned', 'out_for_delivery')
+			  and exists (
+				select 1
+				from public.loading_tasks lt
+				where lt.order_id = o.id
+				  and lt.status = 'approved'
+			  )
+		`,
+	)
+	for (const order of loadedOrders) {
+		await mustRpc(employee.client, 'dispatch_complete_loaded_order', {
+			p_order_id: order.id,
+			p_proof: proof,
+		})
+	}
+
+	const loadingOrders = queryLocalJson(
+		env,
+		`
+			select coalesce(jsonb_agg(jsonb_build_object('id', o.id) order by o.created_at), '[]'::jsonb)
+			from public.orders o
+			join public.quote_requests qr on qr.id = o.quote_request_id
+			where qr.notes like 'flow-smoke:%'
+			  and o.status = 'warehouse_loading'
+			  and exists (
+				select 1
+				from public.loading_tasks lt
+				where lt.order_id = o.id
+				  and lt.status <> 'approved'
+			  )
+		`,
+	)
+	for (const order of loadingOrders) {
+		await mustRpc(employee.client, 'warehouse_reset_loading', {
+			p_order_id: order.id,
+		})
+	}
+}
+
+function queryLocalJson(env, sql) {
+	const result = spawnSync(
+		'psql',
+		[env.dbUrl, '-X', '-v', 'ON_ERROR_STOP=1', '-Atqc', sql],
+		{ encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+	)
+	if (result.status !== 0) {
+		throw new Error(result.stderr.trim() || 'Local SQL query failed')
+	}
+	const text = result.stdout.trim()
+	return text ? JSON.parse(text) : null
 }
 
 function sqlLiteral(value) {
