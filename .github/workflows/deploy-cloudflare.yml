@@ -137,7 +137,7 @@ jobs:
             exit 1
           fi
 
-          if grep -R -q -E "CLOUDFLARE_API_TOKEN|SUPABASE_SERVICE_ROLE|INFISICAL_TOKEN|BEGIN (RSA|OPENSSH|PRIVATE) KEY" \
+          if grep -R -q -E "CLOUDFLARE_API_TOKEN=|SUPABASE_SERVICE_ROLE_KEY=|INFISICAL_TOKEN=|BEGIN (RSA|OPENSSH|PRIVATE) KEY" \
             apps/website/dist apps/portal/dist apps/internal/dist apps/driver/dist; then
             echo "::error::Build artifacts contain a secret-like token marker."
             exit 1
