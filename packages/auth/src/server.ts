@@ -2,7 +2,6 @@
 
 import {
 	getInstalledRuntimeEnv,
-	type RuntimeEnvRecord,
 	type RuntimeEnvValue,
 	runtimeEnvRecord,
 } from '@hyperquote/runtime/env'
@@ -311,9 +310,13 @@ export async function resolveSupabaseWorkerConfig(
 	)
 	if (installedConfig) return installedConfig
 
-	return resolveSupabaseServerConfig(
-		await runtimeEnvRecord(await getCloudflareWorkersEnv(), runtimeKeys),
-	)
+	try {
+		const workersModule = 'cloudflare:workers'
+		const { env } = await import(/* @vite-ignore */ workersModule)
+		return resolveSupabaseServerConfig(await runtimeEnvRecord(env, runtimeKeys))
+	} catch {
+		return null
+	}
 }
 
 export async function resolveSupabaseWorkerServiceRoleConfig(
@@ -335,19 +338,14 @@ export async function resolveSupabaseWorkerServiceRoleConfig(
 	)
 	if (installedConfig) return installedConfig
 
-	return resolveSupabaseServiceRoleConfig(
-		await runtimeEnvRecord(await getCloudflareWorkersEnv(), runtimeKeys),
-	)
-}
-
-async function getCloudflareWorkersEnv(): Promise<
-	RuntimeEnvRecord | undefined
-> {
 	try {
-		const { env } = await import(/* @vite-ignore */ 'cloudflare:workers')
-		return env as RuntimeEnvRecord
+		const workersModule = 'cloudflare:workers'
+		const { env } = await import(/* @vite-ignore */ workersModule)
+		return resolveSupabaseServiceRoleConfig(
+			await runtimeEnvRecord(env, runtimeKeys),
+		)
 	} catch {
-		return undefined
+		return null
 	}
 }
 
