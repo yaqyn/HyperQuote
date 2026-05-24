@@ -445,7 +445,17 @@ export function shouldShowWebsiteChatActionButtons(userText: string): boolean {
 	const normalized = normalizeForSimpleChat(userText)
 	return (
 		WEBSITE_ACTION_BUTTON_REQUEST_PATTERN.test(normalized) ||
-		AR_WEBSITE_ACTION_BUTTON_REQUEST_PATTERN.test(userText)
+		AR_WEBSITE_ACTION_BUTTON_REQUEST_PATTERN.test(userText) ||
+		isShortDirectPageButtonRequest(normalized)
+	)
+}
+
+function isShortDirectPageButtonRequest(normalized: string): boolean {
+	const tokenCount = normalized.split(/\s+/).filter(Boolean).length
+	if (tokenCount === 0 || tokenCount > 3) return false
+	return (
+		WEBSITE_DIRECT_PAGE_TARGET_PATTERN.test(normalized) ||
+		AR_WEBSITE_DIRECT_PAGE_TARGET_PATTERN.test(normalized)
 	)
 }
 

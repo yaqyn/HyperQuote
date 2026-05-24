@@ -36,6 +36,8 @@ describe('website chat navigation helpers', () => {
 			shouldShowWebsiteChatActionButtons('which page has wood?'),
 			false,
 		)
+		assert.equal(shouldShowWebsiteChatActionButtons('market please?'), true)
+		assert.equal(shouldShowWebsiteChatActionButtons('support'), true)
 		assert.equal(
 			shouldShowWebsiteChatActionButtons('send me the market link'),
 			true,
