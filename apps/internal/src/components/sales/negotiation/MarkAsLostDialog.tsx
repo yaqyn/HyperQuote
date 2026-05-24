@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { UploadedProofDocument } from '../../../lib/server/proofs'
 import { markAsLost } from '../../../lib/server/sales-pipeline'
 import {
 	DispatchAction,
@@ -9,6 +10,7 @@ import {
 	DispatchFooter,
 	DispatchInputClass,
 } from '../../shared/DispatchDialog'
+import { ProofUploadField } from '../../shared/ProofUploadField'
 
 const LOSS_REASONS = [
 	'lost_to_competitor',
@@ -37,20 +39,52 @@ export function MarkAsLostDialog({
 	const [reason, setReason] = useState<LossReason>('lost_to_competitor')
 	const [competitorName, setCompetitorName] = useState('')
 	const [notes, setNotes] = useState('')
+	const [proofDocument, setProofDocument] =
+		useState<UploadedProofDocument | null>(null)
+	const [error, setError] = useState<string | null>(null)
 	const [isSubmitting, setIsSubmitting] = useState(false)
 
+	useEffect(() => {
+		if (isOpen) return
+		setReason('lost_to_competitor')
+		setCompetitorName('')
+		setNotes('')
+		setProofDocument(null)
+		setError(null)
+		setIsSubmitting(false)
+	}, [isOpen])
+
+	function handleClose() {
+		if (isSubmitting) return
+		onOpenChange(false)
+	}
+
 	async function handleSubmit() {
+		if (!proofDocument) {
+			setError('Proof is required before marking a quote lost.')
+			return
+		}
 		setIsSubmitting(true)
+		setError(null)
 		try {
 			await markAsLost({
 				data: {
 					quoteId,
 					lossReason: reason,
 					competitorName: competitorName || undefined,
+					notes: notes.trim() || undefined,
+					proof: {
+						fileName: proofDocument.fileName,
+						proofPath: proofDocument.proofPath,
+					},
 				},
 			})
 			onOpenChange(false)
 			onSuccess?.()
+		} catch (err) {
+			setError(
+				err instanceof Error ? err.message : 'Could not mark quote lost.',
+			)
 		} finally {
 			setIsSubmitting(false)
 		}
@@ -59,7 +93,7 @@ export function MarkAsLostDialog({
 	return (
 		<DispatchDialog
 			isOpen={isOpen}
-			onClose={() => onOpenChange(false)}
+			onClose={handleClose}
 			size="sm"
 			eyebrow={`Quote · ${quoteId.toUpperCase()}`}
 			title={t('sales.negotiation.markAsLost', 'Mark as lost')}
@@ -115,13 +149,28 @@ export function MarkAsLostDialog({
 							className={`${DispatchInputClass()} resize-none`}
 						/>
 					</DispatchField>
+					<ProofUploadField
+						label="Loss proof"
+						note="Upload customer message, competitor evidence, or approval under 1 MB."
+						value={proofDocument}
+						onChange={setProofDocument}
+						panel="sales"
+						proofType="sales_evaluation"
+						relatedEntityType="sales_lost"
+						title={`Sales lost proof · ${quoteId.toUpperCase()}`}
+					/>
+					{error && (
+						<p className="rounded-md border border-[#B3261E]/30 bg-[#B3261E]/10 px-3 py-2 font-[family-name:var(--font-archivo)] text-[12px] text-[#B3261E]">
+							{error}
+						</p>
+					)}
 				</div>
 			</DispatchBody>
 
 			<DispatchFooter>
 				<DispatchAction
 					tone="ghost"
-					onPress={() => onOpenChange(false)}
+					onPress={handleClose}
 					isDisabled={isSubmitting}
 				>
 					{t('common.cancel', 'Cancel')}
@@ -129,7 +178,7 @@ export function MarkAsLostDialog({
 				<DispatchAction
 					tone="danger"
 					onPress={handleSubmit}
-					isDisabled={isSubmitting}
+					isDisabled={isSubmitting || !proofDocument}
 				>
 					{isSubmitting
 						? t('common.submitting', 'Submitting…')

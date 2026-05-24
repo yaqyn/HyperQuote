@@ -915,6 +915,10 @@ const cancelInput = z.object({
 	dealId: z.string().optional(),
 	reason: z.string().min(3),
 	note: z.string().optional(),
+	proof: z.object({
+		fileName: z.string().trim().min(1),
+		proofPath: z.string().trim().min(1),
+	}),
 })
 
 /**
@@ -939,7 +943,9 @@ export const cancelOrderFromFinance = createServerFn({ method: 'POST' })
 				p_order_id: data.quoteId,
 				p_reason: data.reason,
 				p_proof: {
+					file_name: data.proof.fileName,
 					note: data.note ?? null,
+					proof_path: data.proof.proofPath,
 					source: 'internal_finance',
 				},
 			},
@@ -978,7 +984,9 @@ export const cancelDealFromFinance = createServerFn({ method: 'POST' })
 				p_refill_request_id: data.dealId,
 				p_reason: data.reason,
 				p_proof: {
+					file_name: data.proof.fileName,
 					note: data.note ?? null,
+					proof_path: data.proof.proofPath,
 					source: 'internal_finance',
 				},
 			},

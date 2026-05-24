@@ -52,6 +52,11 @@ export const markAsLost = createServerFn({ method: 'POST' })
 			quoteId: z.string(),
 			lossReason: z.string(),
 			competitorName: z.string().optional(),
+			notes: z.string().optional(),
+			proof: z.object({
+				fileName: z.string().trim().min(1),
+				proofPath: z.string().trim().min(1),
+			}),
 		}),
 	)
 	.handler(async ({ data }) => {
@@ -68,7 +73,10 @@ export const markAsLost = createServerFn({ method: 'POST' })
 			p_order_id: supabaseQuoteVersion.quoteRequestId,
 			p_reason: data.lossReason,
 			p_proof: {
-				competitorName: data.competitorName ?? null,
+				competitor_name: data.competitorName?.trim() || null,
+				file_name: data.proof.fileName,
+				note: data.notes?.trim() || null,
+				proof_path: data.proof.proofPath,
 				quoteVersionId: supabaseQuoteVersion.quoteVersionId,
 			},
 		})

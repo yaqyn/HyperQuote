@@ -8,6 +8,19 @@ import {
 } from '../../lib/server/proofs'
 
 const maxProofBytes = 1024 * 1024
+const imageMimeByExtension: Record<string, string> = {
+	avif: 'image/avif',
+	bmp: 'image/bmp',
+	gif: 'image/gif',
+	heic: 'image/heic',
+	heif: 'image/heif',
+	jpeg: 'image/jpeg',
+	jpg: 'image/jpeg',
+	png: 'image/png',
+	tif: 'image/tiff',
+	tiff: 'image/tiff',
+	webp: 'image/webp',
+}
 
 interface ProofUploadFieldProps {
 	disabled?: boolean
@@ -45,7 +58,8 @@ export function ProofUploadField({
 			setError('Proof must be under 1 MB.')
 			return
 		}
-		if (file.type !== 'application/pdf' && !file.type.startsWith('image/')) {
+		const mimeType = inferProofMimeType(file)
+		if (!mimeType) {
 			setError('Use a PDF or image proof.')
 			return
 		}
@@ -57,7 +71,7 @@ export function ProofUploadField({
 				data: {
 					base64,
 					fileName: file.name,
-					mimeType: file.type,
+					mimeType,
 					panel,
 					proofType,
 					relatedEntityId,
@@ -166,4 +180,15 @@ function readFileAsDataUrl(file: File): Promise<string> {
 		}
 		reader.readAsDataURL(file)
 	})
+}
+
+function inferProofMimeType(file: File): string | null {
+	const browserType = file.type.trim().toLowerCase()
+	if (browserType === 'application/pdf' || browserType.startsWith('image/')) {
+		return browserType
+	}
+	const extension = file.name.split('.').pop()?.toLowerCase()
+	if (!extension) return null
+	if (extension === 'pdf') return 'application/pdf'
+	return imageMimeByExtension[extension] ?? null
 }

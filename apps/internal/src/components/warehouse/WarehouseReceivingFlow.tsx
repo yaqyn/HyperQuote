@@ -394,6 +394,12 @@ function ReceivingBody({
 	}, [anyRejected, mobileStep])
 
 	useEffect(() => {
+		if (proofDocument && proofDocument.proofType !== proofType) {
+			setProofDocument(null)
+		}
+	}, [proofDocument, proofType, setProofDocument])
+
+	useEffect(() => {
 		const nextPendingItems = `${deal.dealId}:${pendingItemsSignature}`
 		if (previousPendingItemsRef.current === nextPendingItems) return
 		previousPendingItemsRef.current = nextPendingItems

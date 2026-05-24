@@ -142,6 +142,8 @@ export function FinancePaymentPanel({
 	const [stage, setStage] = useState<Stage>('preview')
 	const [proofDocument, setProofDocument] =
 		useState<UploadedProofDocument | null>(null)
+	const [cancelProofDocument, setCancelProofDocument] =
+		useState<UploadedProofDocument | null>(null)
 	const [cancelReason, setCancelReason] = useState('')
 	const [cancelNote, setCancelNote] = useState('')
 	const [error, setError] = useState<string | null>(null)
@@ -160,6 +162,7 @@ export function FinancePaymentPanel({
 		if (!isOpen) return
 		setStage('preview')
 		setProofDocument(null)
+		setCancelProofDocument(null)
 		setCancelReason('')
 		setCancelNote('')
 		setError(null)
@@ -216,12 +219,19 @@ export function FinancePaymentPanel({
 			if (!cancelReason.trim() || cancelReason.trim().length < 3) {
 				throw new Error('reason is required (min 3 characters)')
 			}
+			if (!cancelProofDocument) {
+				throw new Error('proof is required before canceling')
+			}
 			if (mode === 'order' && orderId) {
 				return cancelOrderFromFinance({
 					data: {
 						quoteId: orderId,
 						reason: cancelReason.trim(),
 						note: cancelNote.trim() || undefined,
+						proof: {
+							fileName: cancelProofDocument.fileName,
+							proofPath: cancelProofDocument.proofPath,
+						},
 					},
 				})
 			}
@@ -231,6 +241,10 @@ export function FinancePaymentPanel({
 						dealId: dealId,
 						reason: cancelReason.trim(),
 						note: cancelNote.trim() || undefined,
+						proof: {
+							fileName: cancelProofDocument.fileName,
+							proofPath: cancelProofDocument.proofPath,
+						},
 					},
 				})
 			}
@@ -284,6 +298,7 @@ export function FinancePaymentPanel({
 	})
 
 	const proofOk = proofDocument !== null
+	const cancelProofOk = cancelProofDocument !== null
 	const cancelReasonOk = cancelReason.trim().length >= 3
 	const followUpOk =
 		followUpOutcome.trim().length >= 2 &&
@@ -447,6 +462,10 @@ export function FinancePaymentPanel({
 							{!isTerminal && stage === 'cancel' && (
 								<CancelForm
 									mode={mode}
+									entityId={mode === 'order' ? orderId : dealId}
+									name={panelName}
+									proofDocument={cancelProofDocument}
+									setProofDocument={setCancelProofDocument}
 									reason={cancelReason}
 									setReason={setCancelReason}
 									note={cancelNote}
@@ -480,6 +499,7 @@ export function FinancePaymentPanel({
 								stage={stage}
 								mode={mode}
 								proofOk={proofOk}
+								cancelProofOk={cancelProofOk}
 								cancelReasonOk={cancelReasonOk}
 								isPending={mutation.isPending}
 								isCancelling={cancelMutation.isPending}
@@ -1157,14 +1177,22 @@ function FollowUpForm({
 // ─── Cancel form ─────────────────────────────────────────
 
 function CancelForm({
+	entityId,
 	mode,
+	name,
+	proofDocument,
 	reason,
+	setProofDocument,
 	setReason,
 	note,
 	setNote,
 }: {
+	entityId: string | null
 	mode: Mode | null
+	name: string
+	proofDocument: UploadedProofDocument | null
 	reason: string
+	setProofDocument: (proof: UploadedProofDocument | null) => void
 	setReason: (s: string) => void
 	note: string
 	setNote: (s: string) => void
@@ -1240,6 +1268,19 @@ function CancelForm({
 					}}
 				/>
 			</div>
+			<ProofUploadField
+				label="Cancel proof"
+				note="Upload customer message, supplier evidence, or approval under 1 MB."
+				value={proofDocument}
+				onChange={setProofDocument}
+				panel="finance"
+				proofType={mode === 'deal' ? 'finance_out' : 'finance_in'}
+				relatedEntityId={entityId ?? undefined}
+				relatedEntityType={
+					mode === 'deal' ? 'supplier_deal_cancel' : 'customer_order_cancel'
+				}
+				title={`Finance cancel proof · ${name}`}
+			/>
 		</div>
 	)
 }
@@ -1362,6 +1403,7 @@ function PanelFooter({
 	stage,
 	mode,
 	proofOk,
+	cancelProofOk,
 	cancelReasonOk,
 	isPending,
 	isCancelling,
@@ -1374,6 +1416,7 @@ function PanelFooter({
 	stage: Stage
 	mode: Mode | null
 	proofOk: boolean
+	cancelProofOk: boolean
 	cancelReasonOk: boolean
 	isPending: boolean
 	isCancelling: boolean
@@ -1404,7 +1447,7 @@ function PanelFooter({
 						tone="danger"
 						leading={<Ban aria-hidden="true" size={14} />}
 						fullWidthOnMobile
-						disabled={!cancelReasonOk || isCancelling}
+						disabled={!cancelReasonOk || !cancelProofOk || isCancelling}
 						onClick={onCommitCancel}
 						className="sm:justify-self-end"
 					>
