@@ -316,6 +316,42 @@ function normalizeForSimpleChat(value: string): string {
 		.trim()
 }
 
+const WEBSITE_DOCS_NAV_PATTERN =
+	/\b(docs?|documentation|faqs?|learn|learning|guides?|tutorials?|lessons?|manual|instructions?|steps?|walkthrough|explain|teach|understand|overview|knowledge|information|help center|getting started|start here|new here|first time|beginner)\b|\bhow\s+(?:to|do|can)\b|\bshow\s+me\b/
+
+const AR_WEBSITE_DOCS_NAV_PATTERN =
+	/(وثائق|دليل|ادله|تعلم|اتعلم|شرح|ازاي|كيف|خطوات|بدايه|مساعده|اعرف|علمني|فهمني)/
+
+const WEBSITE_MARKET_TOPIC_PATTERN =
+	/\b(market|catalog|catalogue|products?|materials?|browse|availability|available|stock|wood|lumber|timber|plywood|cement|concrete|rebar|steel|sand|aggregate|bricks?|blocks?|paint|pipes?|plumbing|electrical|hardware|fixtures?|roofing|drywall)\b/
+
+const WEBSITE_MARKET_ACTION_PATTERN =
+	/\b(buy|purchase|source|sourcing|procure|procurement|shop|find|get|need|looking for)\b/
+
+const WEBSITE_MATERIAL_PATTERN =
+	/\b(materials?|wood|lumber|timber|plywood|cement|concrete|rebar|steel|sand|aggregate|bricks?|blocks?|paint|pipes?|plumbing|electrical|hardware|fixtures?|roofing|drywall)\b/
+
+const AR_WEBSITE_MARKET_NAV_PATTERN =
+	/(السوق|كتالوج|منتج|منتجات|مواد|شراء|اشتري|توريد|مصدر|خشب|اسمنت|حديد|خرسانه|رمل|طوب|مواسير|دهان)/
+
+const WEBSITE_QUOTE_NAV_PATTERN =
+	/\b(quote|quotes|rfq|quotation|offer|price|prices|pricing|estimate|cost|budget|order|request|requesting|submit|checkout)\b/
+
+const AR_WEBSITE_QUOTE_NAV_PATTERN =
+	/(عرض|عروض|سعر|اسعار|تسعير|طلب|اطلب|تكلفه|ميزانيه)/
+
+const WEBSITE_PORTAL_NAV_PATTERN =
+	/\b(portal|login|log in|signin|sign in|account|dashboard|track|tracking|status|my quote|my order|invoice|delivery status|order status)\b/
+
+const AR_WEBSITE_PORTAL_NAV_PATTERN =
+	/(بوابه|دخول|حساب|لوحه|تتبع|تابع|حاله|فاتوره|طلبي|عرضي)/
+
+const WEBSITE_SUPPORT_NAV_PATTERN =
+	/\b(support|contact|help|problem|issue|damaged|damage|ticket|agent|representative|human|whatsapp|phone|email|call)\b/
+
+const AR_WEBSITE_SUPPORT_NAV_PATTERN =
+	/(دعم|تواصل|ساعد|مشكله|تالف|ضرر|واتساب|تليفون|ايميل|كلم|انسان)/
+
 function fallbackWebsitePublicChatRoute(
 	userText: string,
 ): WebsitePublicChatRoute {
@@ -352,17 +388,80 @@ function websiteNavigationButtons(
 	const normalized = normalizeForSimpleChat(userText)
 	const buttons: WebsiteActionButtonData[] = []
 	const add = (button: WebsiteActionButtonData) => {
-		if (buttons.some((existing) => existing.href === button.href)) return
+		if (
+			buttons.some(
+				(existing) =>
+					existing.href === button.href && existing.label === button.label,
+			)
+		) {
+			return
+		}
 		buttons.push(button)
 	}
+	const materialBuyingIntent =
+		WEBSITE_MARKET_ACTION_PATTERN.test(normalized) &&
+		WEBSITE_MATERIAL_PATTERN.test(normalized)
+	const wantsDocs =
+		route.action === 'retrieve_public_docs' ||
+		WEBSITE_DOCS_NAV_PATTERN.test(normalized) ||
+		AR_WEBSITE_DOCS_NAV_PATTERN.test(normalized)
+	const wantsLearning =
+		WEBSITE_DOCS_NAV_PATTERN.test(normalized) ||
+		AR_WEBSITE_DOCS_NAV_PATTERN.test(normalized)
 
-	if (route.action === 'retrieve_public_docs' || /\bdocs?\b/.test(normalized)) {
+	if (
+		WEBSITE_MARKET_TOPIC_PATTERN.test(normalized) ||
+		materialBuyingIntent ||
+		AR_WEBSITE_MARKET_NAV_PATTERN.test(normalized)
+	) {
+		add({
+			href: '/market',
+			icon: 'market',
+			label: 'Browse market',
+			labelAr: 'تصفح السوق',
+		})
+	}
+
+	if (
+		WEBSITE_QUOTE_NAV_PATTERN.test(normalized) ||
+		materialBuyingIntent ||
+		AR_WEBSITE_QUOTE_NAV_PATTERN.test(normalized)
+	) {
+		add({
+			href: '/market',
+			icon: 'quote',
+			label: 'Start quote',
+			labelAr: 'ابدأ عرض سعر',
+		})
+	}
+
+	if (
+		WEBSITE_PORTAL_NAV_PATTERN.test(normalized) ||
+		AR_WEBSITE_PORTAL_NAV_PATTERN.test(normalized)
+	) {
+		add({
+			href: '/login',
+			icon: 'login',
+			label: 'Portal',
+			labelAr: 'البوابة',
+		})
+	}
+
+	if (wantsDocs) {
 		add({
 			href: '/docs',
 			icon: 'book',
 			label: 'Docs',
 			labelAr: 'الوثائق',
 		})
+		if (wantsLearning) {
+			add({
+				href: '/docs/support/faq',
+				icon: 'book',
+				label: 'FAQ',
+				labelAr: 'الأسئلة',
+			})
+		}
 		for (const chunk of docs?.chunks ?? []) {
 			add({
 				href: chunk.href,
@@ -375,37 +474,9 @@ function websiteNavigationButtons(
 	}
 
 	if (
-		/\b(market|catalog|catalogue|product|products|material|materials)\b/.test(
-			normalized,
-		)
+		WEBSITE_SUPPORT_NAV_PATTERN.test(normalized) ||
+		AR_WEBSITE_SUPPORT_NAV_PATTERN.test(normalized)
 	) {
-		add({
-			href: '/market',
-			icon: 'market',
-			label: 'Browse market',
-			labelAr: 'تصفح السوق',
-		})
-	}
-
-	if (/\b(quote|quotes|rfq|price|pricing|estimate|order)\b/.test(normalized)) {
-		add({
-			href: '/market',
-			icon: 'quote',
-			label: 'Start quote',
-			labelAr: 'ابدأ عرض سعر',
-		})
-	}
-
-	if (/\b(portal|login|sign in|account|track|tracking)\b/.test(normalized)) {
-		add({
-			href: '/login',
-			icon: 'login',
-			label: 'Portal',
-			labelAr: 'البوابة',
-		})
-	}
-
-	if (/\b(support|contact|help|problem|issue|damaged)\b/.test(normalized)) {
 		add({
 			href: '/support',
 			icon: 'support',

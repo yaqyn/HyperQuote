@@ -127,16 +127,22 @@ const FACTUAL_QUESTION_PATTERN =
 	/\b(what|when|where|why|how|which|who|can|does|do|is|are|should|configure|setup|install|build|fix|tell me|explain|help me)\b|\?/i
 
 const PUBLIC_DOCS_TOPIC_PATTERN =
-	/\b(hyperquote|lyon|quote|quotes|rfq|price|prices|pricing|delivery|deliveries|payment|payments|market|catalog|product|products|order|orders|support|portal|supplier|driver|invoice|vat|eta|cairo|truck)\b/i
+	/\b(hyperquote|lyon|quote|quotes|rfq|price|prices|pricing|delivery|deliveries|payment|payments|market|catalog|catalogue|product|products|material|materials|buy|purchase|source|sourcing|procure|procurement|docs?|documentation|faq|learn|learning|guide|guides|tutorial|tutorials|order|orders|support|portal|supplier|driver|invoice|vat|eta|cairo|truck|wood|lumber|timber|plywood|cement|concrete|rebar|steel|sand|aggregate|brick|blocks?|paint|pipe|pipes|plumbing|electrical|hardware|roofing|drywall)\b/i
 
 const AR_PUBLIC_DOCS_TOPIC_PATTERN =
-	/(هايبر|ليون|عرض|عروض|سعر|اسعار|أسعار|تسعير|توصيل|التوصيل|دفع|الدفع|السوق|كتالوج|الكتالوج|منتج|منتجات|طلب|طلبات|دعم|الدعم|بوابة|مورد|سائق|فاتورة|ضريبة|القاهرة|شاحن)/
+	/(هايبر|ليون|عرض|عروض|سعر|اسعار|أسعار|تسعير|توصيل|التوصيل|دفع|الدفع|السوق|كتالوج|الكتالوج|منتج|منتجات|ماده|مواد|شراء|اشتري|مصدر|توريد|وثائق|دليل|تعلم|شرح|ازاي|كيف|طلب|طلبات|دعم|الدعم|بوابة|مورد|سائق|فاتورة|ضريبة|القاهرة|شاحن|خشب|اسمنت|أسمنت|حديد|خرسانه|رمل|طوب|مواسير|دهان)/
 
 const CUSTOMER_TAX_QUERY_PATTERN =
 	/(\b(my|buyer|customer|client)\b.*\b(invoice|invoices|vat|tax|recover|reclaim|input)\b|\b(invoice|invoices|vat|tax|recover|reclaim|input)\b.*\b(my|buyer|customer|client)\b)/i
 
 const SUPPLIER_TAX_QUERY_PATTERN =
 	/\b(supplier|purchase order|purchase orders|po|withholding)\b/i
+
+const MATERIAL_PROCUREMENT_QUERY_PATTERN =
+	/\b(buy|purchase|source|sourcing|procure|procurement|shop|store|find|get|need|looking for)\b.*\b(materials?|wood|lumber|timber|plywood|cement|concrete|rebar|steel|sand|aggregate|brick|bricks|blocks?|paint|pipe|pipes|plumbing|electrical|hardware|roofing|drywall)\b|\b(materials?|wood|lumber|timber|plywood|cement|concrete|rebar|steel|sand|aggregate|brick|bricks|blocks?|paint|pipe|pipes|plumbing|electrical|hardware|roofing|drywall)\b.*\b(buy|purchase|source|sourcing|procure|procurement|shop|store|find|get|need|looking for)\b/i
+
+const AR_MATERIAL_PROCUREMENT_QUERY_PATTERN =
+	/(اشتري|شراء|مصدر|توريد|فين|اين|أين|عايز|عاوز|محتاج).*(مواد|خشب|اسمنت|أسمنت|حديد|خرسانه|رمل|طوب|مواسير|دهان)|(مواد|خشب|اسمنت|أسمنت|حديد|خرسانه|رمل|طوب|مواسير|دهان).*(اشتري|شراء|مصدر|توريد|فين|اين|أين|عايز|عاوز|محتاج)/
 
 type DocsTopic =
 	| 'delivery'
@@ -239,14 +245,60 @@ const DOC_TOPIC_RULES: DocsTopicRule[] = [
 			'catalogue',
 			'product',
 			'products',
+			'material',
+			'materials',
 			'search',
 			'browse',
+			'buy',
+			'purchase',
+			'source',
+			'sourcing',
+			'procure',
+			'procurement',
+			'availability',
+			'stock',
+			'wood',
+			'lumber',
+			'timber',
+			'plywood',
+			'cement',
+			'concrete',
+			'rebar',
+			'steel',
+			'sand',
+			'aggregate',
+			'brick',
+			'bricks',
+			'block',
+			'blocks',
+			'paint',
+			'pipe',
+			'pipes',
+			'plumbing',
+			'electrical',
+			'hardware',
+			'roofing',
+			'drywall',
 		],
 	},
 	{
 		topic: 'support',
 		categories: ['support'],
-		tokens: ['support', 'help', 'faq', 'whatsapp', 'contact', 'damaged'],
+		tokens: [
+			'support',
+			'help',
+			'faq',
+			'faqs',
+			'learn',
+			'learning',
+			'guide',
+			'guides',
+			'tutorial',
+			'tutorials',
+			'whatsapp',
+			'contact',
+			'damaged',
+		],
 	},
 	{
 		topic: 'lyon',
@@ -324,8 +376,9 @@ Schema:
 {"action":"chat"|"retrieve_public_docs","search_query":"string"}
 
 Use "retrieve_public_docs" when the user asks for factual public HyperQuote information, docs, policies, quotes, pricing, VAT/taxes, invoices, payments, delivery, Cairo delivery rules, Market/catalog/products, support, portal usage, or Lyon's public product behavior.
+Use "retrieve_public_docs" for building-material buying, sourcing, procurement, availability, product, catalog, or learning/how-to/FAQ questions, even when the user does not say "HyperQuote".
 Use "retrieve_public_docs" for indirect follow-ups that refer to a previous HyperQuote/docs topic, such as "what about taxes there?" or "how does that work?"
-Use "chat" for greetings, small talk, jokes, complaints, meta conversation, or general non-HyperQuote questions.
+Use "chat" for greetings, small talk, jokes, complaints, and meta conversation. For general non-HyperQuote questions, keep the answer HyperQuote-only; never route so Lyon can recommend outside businesses, websites, search engines, marketplaces, sources, or competitors.
 
 For "retrieve_public_docs", write a concise search_query for the docs retriever with concrete HyperQuote terms and synonyms. Keep Arabic queries Arabic when the user is clearly Arabic.`
 
@@ -691,6 +744,15 @@ function scoreChunk(
 			chunk.article.categorySlug === 'website-market')
 	) {
 		score += 6
+	}
+	if (
+		(MATERIAL_PROCUREMENT_QUERY_PATTERN.test(rawQuery) ||
+			AR_MATERIAL_PROCUREMENT_QUERY_PATTERN.test(rawQuery)) &&
+		chunk.article.categorySlug === 'website-market'
+	) {
+		score += 14
+		if (chunk.article.articleSlug === 'browsing-catalog') score += 6
+		if (chunk.article.articleSlug === 'product-pages') score += 4
 	}
 	if (CUSTOMER_TAX_QUERY_PATTERN.test(rawQuery)) {
 		if (

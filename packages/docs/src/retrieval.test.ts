@@ -49,6 +49,21 @@ describe('website docs retrieval', () => {
 		assert.match(context, /price|quote/i)
 	})
 
+	it('routes material buying questions through HyperQuote market docs', () => {
+		const message = 'where to buy wood?'
+		const result = retrieveWebsiteDocs(message)
+
+		assert.equal(result.hasHighConfidence, true)
+		assert.equal(
+			result.chunks[0]?.href,
+			'/docs/website-market/browsing-catalog',
+		)
+		assert.equal(
+			classifyWebsitePublicChatIntent(message, result),
+			'public_docs',
+		)
+	})
+
 	it('prefers customer invoicing docs for buyer VAT recovery questions', () => {
 		const result = retrieveWebsiteDocs(
 			'can I recover tax on my HyperQuote invoice? HyperQuote invoice tax VAT recovery withholding tax',
@@ -222,6 +237,8 @@ describe('website docs retrieval', () => {
 		assert.match(WEBSITE_CHAT_ROUTER_PROMPT, /Return JSON only/)
 		assert.match(WEBSITE_CHAT_ROUTER_PROMPT, /retrieve_public_docs/)
 		assert.match(WEBSITE_CHAT_ROUTER_PROMPT, /indirect follow-ups/)
+		assert.match(WEBSITE_CHAT_ROUTER_PROMPT, /building-material buying/)
+		assert.match(WEBSITE_CHAT_ROUTER_PROMPT, /outside businesses/)
 	})
 
 	it('detects private/account-scope requests in English and Arabic', () => {

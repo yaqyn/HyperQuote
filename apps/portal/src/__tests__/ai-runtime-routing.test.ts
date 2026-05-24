@@ -86,6 +86,7 @@ describe('AI runtime routing', () => {
 
 	it('emits website AI navigation buttons that both website chat surfaces render', () => {
 		const websiteChatSource = readRepoFile('apps/website/src/lib/chat.ts')
+		const websitePromptSource = readRepoFile('packages/ai/src/prompts.ts')
 		const websiteHookSource = readRepoFile(
 			'apps/website/src/hooks/useAIChat.ts',
 		)
@@ -100,6 +101,15 @@ describe('AI runtime routing', () => {
 		expect(websiteChatSource).toContain("type: 'action_button'")
 		expect(websiteChatSource).not.toContain("label: 'Open ")
 		expect(websiteChatSource).not.toContain('label: `Open ')
+		expect(websiteChatSource).toContain('WEBSITE_DOCS_NAV_PATTERN')
+		expect(websiteChatSource).toContain('learn|learning')
+		expect(websiteChatSource).toContain("href: '/docs/support/faq'")
+		expect(websiteChatSource).toContain('WEBSITE_MARKET_TOPIC_PATTERN')
+		expect(websiteChatSource).toContain('wood|lumber|timber')
+		expect(websitePromptSource).toContain('stay warm and natural')
+		expect(websitePromptSource).toContain(
+			'Never recommend, compare, cite, or name outside businesses',
+		)
 		expect(websiteHookSource).toContain('websiteActionsFromChunks')
 		expect(bubbleSource).toContain(
 			'<ChatActionButtons actions={msg.actions} />',
