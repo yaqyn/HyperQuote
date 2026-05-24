@@ -146,6 +146,8 @@ async function main() {
 	})
 	debugStep('driver-row')
 	const driver = await upsertDriver(supabase, driverUser.id)
+	debugStep('driver-online')
+	await setDriverOnline(supabase, driverUser.id)
 	debugStep('driver-truck')
 	await upsertDriverTruck(supabase, driver.id)
 	await syncDriverProfile(supabase, driverUser.id, driver.id)
@@ -361,19 +363,41 @@ async function upsertEmployeeByUserOrEmail(
 }
 
 async function upsertDriver(supabase, userId) {
+	const payload = {
+		email: LOCAL_ACCOUNTS.driver.email,
+		full_name: LOCAL_ACCOUNTS.driver.fullName,
+		phone: LOCAL_ACCOUNTS.driver.phone,
+		user_id: userId,
+		vehicle_label: LOCAL_ACCOUNTS.driver.vehicleLabel,
+	}
+
+	const { data: existing, error: lookupError } = await supabase
+		.from('drivers')
+		.select('id')
+		.or(`user_id.eq.${userId},phone.eq.${LOCAL_ACCOUNTS.driver.phone}`)
+		.maybeSingle()
+
+	if (lookupError) throw new Error(lookupError.message)
+
+	if (existing) {
+		const { data, error } = await supabase
+			.from('drivers')
+			.update(payload)
+			.eq('id', existing.id)
+			.select('id')
+			.single()
+		if (error || !data) {
+			throw new Error(error?.message ?? 'Failed to update local driver')
+		}
+		return data
+	}
+
 	const { data, error } = await supabase
 		.from('drivers')
-		.upsert(
-			{
-				email: LOCAL_ACCOUNTS.driver.email,
-				full_name: LOCAL_ACCOUNTS.driver.fullName,
-				phone: LOCAL_ACCOUNTS.driver.phone,
-				status: 'available',
-				user_id: userId,
-				vehicle_label: LOCAL_ACCOUNTS.driver.vehicleLabel,
-			},
-			{ onConflict: 'phone' },
-		)
+		.insert({
+			...payload,
+			status: 'available',
+		})
 		.select('id')
 		.single()
 
@@ -381,6 +405,15 @@ async function upsertDriver(supabase, userId) {
 		throw new Error(error?.message ?? 'Failed to upsert local driver')
 	}
 	return data
+}
+
+async function setDriverOnline(supabase, userId) {
+	const { error } = await supabase.rpc('service_driver_set_online', {
+		p_actor_pool: 'driver',
+		p_actor_user_id: userId,
+		p_online: true,
+	})
+	if (error) throw new Error(error.message)
 }
 
 async function upsertDriverTruck(supabase, driverId) {
