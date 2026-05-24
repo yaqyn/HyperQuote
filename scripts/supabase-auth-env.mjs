@@ -30,6 +30,27 @@ export function withLocalSupabaseAuthEnv(env = process.env) {
 	}
 }
 
+export function hasConfiguredTwilioVerifyEnv(env = process.env) {
+	const accountSid = firstString(
+		env.SUPABASE_AUTH_SMS_TWILIO_ACCOUNT_SID,
+		env.TWILIO_ACCOUNT_SID,
+	)
+	const verifyServiceSid = firstString(
+		env.SUPABASE_AUTH_SMS_TWILIO_VERIFY_SERVICE_SID,
+		env.TWILIO_VERIFY_SERVICE_SID,
+		twilioVerifyServiceSid(env.TWILIO_SID),
+	)
+	const authToken = firstString(
+		env.SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN,
+		env.TWILIO_AUTH_TOKEN,
+	)
+	return Boolean(
+		accountSid?.startsWith('AC') &&
+			verifyServiceSid?.startsWith('VA') &&
+			authToken,
+	)
+}
+
 function firstString(...values) {
 	for (const value of values) {
 		if (typeof value === 'string' && value.trim()) return value

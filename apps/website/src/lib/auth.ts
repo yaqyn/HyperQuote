@@ -292,8 +292,6 @@ export const sendOTP = createServerFn({ method: 'POST' })
 				client,
 				formattedPhone,
 				method: input.method,
-				allowProviderFallback: true,
-				supabaseUrl: config.supabaseUrl,
 			})
 
 			if (!result.success) {

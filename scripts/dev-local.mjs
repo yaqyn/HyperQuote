@@ -3,6 +3,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import process from 'node:process'
+import { hasConfiguredTwilioVerifyEnv } from './supabase-auth-env.mjs'
 
 const DEFAULT_GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const LOCAL_AI_PROXY_KEY = 'local-groq-proxy'
@@ -120,6 +121,11 @@ async function main() {
 	console.log('Local Supabase is available.')
 	console.log(`API: ${localEnv.API_URL}`)
 	if (localEnv.STUDIO_URL) console.log(`Studio: ${localEnv.STUDIO_URL}`)
+	if (!hasConfiguredTwilioVerifyEnv(process.env)) {
+		console.log(
+			'Twilio Verify credentials are missing; real phone OTP delivery is disabled for this local run.',
+		)
+	}
 	if (aiProxy) console.log('Local AI proxy is available.')
 	for (const app of APPS) console.log(`${app.name}: ${app.url}`)
 

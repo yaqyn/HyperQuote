@@ -185,14 +185,10 @@ export async function sendCustomerOtp({
 	client,
 	formattedPhone,
 	method,
-	allowProviderFallback = false,
-	supabaseUrl,
 }: {
 	client: CustomerAuthClient
 	formattedPhone: string
 	method: 'whatsapp' | 'sms'
-	allowProviderFallback?: boolean
-	supabaseUrl?: string
 }): Promise<{ success: boolean; expiresIn?: number; error?: unknown }> {
 	const { error } = await client.auth.signInWithOtp({
 		phone: formattedPhone,
@@ -200,14 +196,6 @@ export async function sendCustomerOtp({
 	})
 
 	if (error) {
-		if (
-			allowProviderFallback &&
-			supabaseUrl &&
-			isLocalSupabaseUrl(supabaseUrl) &&
-			isProviderSendFailure(error)
-		) {
-			return { success: true, expiresIn: 300 }
-		}
 		return { success: false, error }
 	}
 
@@ -540,28 +528,6 @@ export async function claimCustomerProfile(
 		customerId: customerIdFromUnknown(data)?.id ?? null,
 		error,
 	}
-}
-
-export function isLocalSupabaseUrl(value: string): boolean {
-	try {
-		const hostname = new URL(value).hostname
-		return hostname === '127.0.0.1' || hostname === 'localhost'
-	} catch {
-		return value.includes('127.0.0.1') || value.includes('localhost')
-	}
-}
-
-export function isProviderSendFailure(error: {
-	message?: string
-	code?: string
-}): boolean {
-	return (
-		error.code === 'over_sms_send_rate_limit' ||
-		error.code === 'sms_send_failed' ||
-		/otp to provider|sms_send_failed|over_sms_send_rate_limit|error sending/i.test(
-			error.message ?? '',
-		)
-	)
 }
 
 export function doesUserPhoneMatch(
