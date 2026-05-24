@@ -98,6 +98,8 @@ describe('AI runtime routing', () => {
 
 		expect(websiteChatSource).toContain('websiteNavigationButtons')
 		expect(websiteChatSource).toContain("type: 'action_button'")
+		expect(websiteChatSource).not.toContain("label: 'Open ")
+		expect(websiteChatSource).not.toContain('label: `Open ')
 		expect(websiteHookSource).toContain('websiteActionsFromChunks')
 		expect(bubbleSource).toContain(
 			'<ChatActionButtons actions={msg.actions} />',

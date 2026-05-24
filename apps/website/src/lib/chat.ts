@@ -360,15 +360,15 @@ function websiteNavigationButtons(
 		add({
 			href: '/docs',
 			icon: 'book',
-			label: 'Open docs',
-			labelAr: 'افتح الوثائق',
+			label: 'Docs',
+			labelAr: 'الوثائق',
 		})
 		for (const chunk of docs?.chunks ?? []) {
 			add({
 				href: chunk.href,
 				icon: 'book',
-				label: `Open ${chunk.title}`,
-				labelAr: 'افتح المقال',
+				label: chunk.title,
+				labelAr: 'المقال',
 			})
 			if (buttons.length >= 3) break
 		}
@@ -400,8 +400,8 @@ function websiteNavigationButtons(
 		add({
 			href: '/login',
 			icon: 'login',
-			label: 'Open portal',
-			labelAr: 'افتح البوابة',
+			label: 'Portal',
+			labelAr: 'البوابة',
 		})
 	}
 
