@@ -46,19 +46,30 @@ main().catch((error) => {
 function maybeRelaunchWithInfisical() {
 	if (process.env[INFISICAL_DEV_SENTINEL]) return
 	if (process.env.CI) return
-	if (!localAiRequested()) return
-	if (process.env.GROQ_API_KEY || process.env.HQ_GROQ_API_KEY) return
+	if (skipInfisical()) return
 
 	const infisical = spawnSync('infisical', ['--version'], {
 		encoding: 'utf8',
 		stdio: ['ignore', 'ignore', 'ignore'],
 	})
-	if (infisical.status !== 0) return
+	if (infisical.status !== 0) {
+		console.error(
+			'Infisical CLI is required for local dev secrets. Install/login to Infisical or set HYPERQUOTE_SKIP_INFISICAL=1 for an explicit local-only bypass.',
+		)
+		process.exit(1)
+	}
 
-	console.log('Loading local development secrets from Infisical...')
+	console.log('Loading local development secrets from Infisical dev...')
 	const relaunched = spawnSync(
 		'infisical',
-		['run', '--recursive', '--', process.execPath, ...process.argv.slice(1)],
+		[
+			'run',
+			'--env=dev',
+			'--recursive',
+			'--',
+			process.execPath,
+			...process.argv.slice(1),
+		],
 		{
 			env: {
 				...process.env,
@@ -68,6 +79,12 @@ function maybeRelaunchWithInfisical() {
 		},
 	)
 	process.exit(relaunched.status ?? 1)
+}
+
+function skipInfisical() {
+	const flag = process.env.HYPERQUOTE_SKIP_INFISICAL
+	const normalized = flag?.trim().toLowerCase()
+	return normalized === '1' || normalized === 'true'
 }
 
 async function main() {

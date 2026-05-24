@@ -65,18 +65,31 @@ function sanitizeSupabaseOutput(output) {
 
 function maybeRelaunchWithInfisical() {
 	if (process.env[INFISICAL_SENTINEL]) return
+	if (process.env.HYPERQUOTE_DEV_INFISICAL_LOADED) return
 	if (process.env.CI) return
-	if (hasConfiguredTwilioVerifyEnv(process.env)) return
+	if (skipInfisical()) return
 
 	const infisical = spawnSync('infisical', ['--version'], {
 		encoding: 'utf8',
 		stdio: ['ignore', 'ignore', 'ignore'],
 	})
-	if (infisical.status !== 0) return
+	if (infisical.status !== 0) {
+		console.error(
+			'Infisical CLI is required for local Supabase secrets. Install/login to Infisical or set HYPERQUOTE_SKIP_INFISICAL=1 for an explicit local-only bypass.',
+		)
+		process.exit(1)
+	}
 
 	const relaunched = spawnSync(
 		'infisical',
-		['run', '--recursive', '--', process.execPath, ...process.argv.slice(1)],
+		[
+			'run',
+			'--env=dev',
+			'--recursive',
+			'--',
+			process.execPath,
+			...process.argv.slice(1),
+		],
 		{
 			env: {
 				...process.env,
@@ -86,4 +99,10 @@ function maybeRelaunchWithInfisical() {
 		},
 	)
 	process.exit(relaunched.status ?? 1)
+}
+
+function skipInfisical() {
+	const flag = process.env.HYPERQUOTE_SKIP_INFISICAL
+	const normalized = flag?.trim().toLowerCase()
+	return normalized === '1' || normalized === 'true'
 }

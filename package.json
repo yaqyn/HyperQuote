@@ -22,9 +22,9 @@
 		"sync:fix": "syncpack fix",
 		"dev:local": "node scripts/dev-local.mjs",
 		"db:start": "node scripts/supabase-local.mjs start",
-		"db:stop": "supabase stop",
+		"db:stop": "node scripts/supabase-local.mjs stop",
 		"db:reset": "node scripts/supabase-local.mjs db reset && node scripts/harden-local-supabase-api-boundary.mjs",
-		"db:migrate": "supabase migration up",
+		"db:migrate": "node scripts/supabase-local.mjs migration up",
 		"db:api-boundary": "node scripts/assert-supabase-api-boundary.mjs",
 		"db:seed:local-auth": "node scripts/seed-local-auth.mjs",
 		"db:types": "node scripts/db-types-local.mjs",
@@ -38,7 +38,12 @@
 		"scan:duplicates": "jscpd apps packages --ignore \"**/node_modules/**,**/dist/**,**/.output/**,**/.turbo/**,**/routeTree.gen.ts,apps/driver/android/app/src/main/assets/public/**,apps/driver/ios/App/App/public/**\" --min-lines 8 --min-tokens 80",
 		"scan:secrets": "gitleaks git --verbose --redact --no-banner",
 		"scan:vulns": "osv-scanner scan source -r .",
-		"scan:semgrep": "semgrep scan --config auto ."
+		"scan:semgrep": "semgrep scan --config auto .",
+		"secrets:check": "bun run secrets:check:dev",
+		"secrets:check:dev": "node scripts/verify-infisical-env.mjs dev",
+		"secrets:check:staging": "node scripts/verify-infisical-env.mjs staging",
+		"secrets:check:production": "node scripts/verify-infisical-env.mjs production",
+		"secrets:check:prod": "node scripts/verify-infisical-env.mjs production"
 	},
 	"devDependencies": {
 		"@ast-grep/cli": "0.42.2",

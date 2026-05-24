@@ -11,10 +11,17 @@ if (!command) {
 }
 
 if (shouldLoadInfisical()) {
-	console.log('Loading local development secrets from Infisical...')
+	console.log('Loading local development secrets from Infisical dev...')
 	const relaunched = spawnSync(
 		'infisical',
-		['run', '--recursive', '--', process.execPath, ...process.argv.slice(1)],
+		[
+			'run',
+			'--env=dev',
+			'--recursive',
+			'--',
+			process.execPath,
+			...process.argv.slice(1),
+		],
 		{
 			env: {
 				...process.env,
@@ -40,18 +47,21 @@ function shouldLoadInfisical() {
 	if (process.env[INFISICAL_DEV_SENTINEL]) return false
 	if (process.env.HYPERQUOTE_DEV_INFISICAL_LOADED) return false
 	if (process.env.CI) return false
-	if (!localAiRequested()) return false
-	if (process.env.GROQ_API_KEY || process.env.HQ_GROQ_API_KEY) return false
+	if (skipInfisical()) return false
 
 	const infisical = spawnSync('infisical', ['--version'], {
 		encoding: 'utf8',
 		stdio: ['ignore', 'ignore', 'ignore'],
 	})
-	return infisical.status === 0
+	if (infisical.status === 0) return true
+	console.error(
+		'Infisical CLI is required for local dev secrets. Install/login to Infisical or set HYPERQUOTE_SKIP_INFISICAL=1 for an explicit local-only bypass.',
+	)
+	process.exit(1)
 }
 
-function localAiRequested() {
-	const flag = process.env.USE_AI ?? process.env.HQ_USE_AI
+function skipInfisical() {
+	const flag = process.env.HYPERQUOTE_SKIP_INFISICAL
 	const normalized = flag?.trim().toLowerCase()
-	return normalized !== '0' && normalized !== 'false'
+	return normalized === '1' || normalized === 'true'
 }

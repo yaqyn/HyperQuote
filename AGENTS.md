@@ -169,9 +169,17 @@ when grants, wrappers, generated types, or workflow transitions change.
 
 ## Security And Credentials
 
-- Prefer authenticated `infisical` for local/operator secrets. Do not use
-  Cloudflare Secrets Store or GitHub deployment secrets for this repo while it
-  is local-only.
+- Infisical is the source of truth for local dev, staging, and production
+  secrets. Local commands use the Infisical `dev` environment explicitly;
+  staging uses `staging`; production uses the existing `prod` slug.
+- Local Supabase URL, anon key, and service-role key come from local Supabase
+  status during local dev. Do not store those generated local values in
+  Infisical.
+- Use `bun run secrets:check:dev`, `bun run secrets:check:staging`, or
+  `bun run secrets:check:production` before relying on environment-specific
+  runtime secrets.
+- Do not use Cloudflare Secrets Store or GitHub deployment secrets for this
+  repo while it is local-only.
 - Never print, log, paste, write, commit, or expose secrets or master tokens.
   Master credentials are for account administration only.
 - Ask before destructive operations, billing changes, public repo creation,
