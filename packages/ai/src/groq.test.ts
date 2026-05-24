@@ -35,7 +35,7 @@ afterEach(() => {
 })
 
 describe('Groq runtime env', () => {
-	it('reads Cloudflare Secrets Store bindings', async () => {
+	it('reads runtime secret bindings', async () => {
 		await expect(
 			runtimeEnvValue({
 				get: async () => 'store-secret',
@@ -59,7 +59,7 @@ describe('Groq runtime env', () => {
 		await expect(isAIEnabled()).resolves.toBe(true)
 	})
 
-	it('enables AI from installed Cloudflare runtime env', async () => {
+	it('enables AI from installed runtime env', async () => {
 		installRuntimeEnv({
 			GROQ_API_KEY: { get: async () => 'runtime-key' },
 			USE_AI: { get: async () => '1' },

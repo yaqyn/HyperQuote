@@ -1,6 +1,7 @@
 # HyperQuote Agent Guide
 
-Use this file for repo working rules. Use `STACK.md` for stack/deploy/backend facts.
+Use this file for repo working rules. Use `STACK.md` for stack and backend
+facts.
 
 ## Project Shape
 
@@ -19,12 +20,12 @@ source of truth, but browser/native clients must not read or write public tables
 or call business RPCs directly. Client apps may use Supabase Auth only for
 signup, login, session refresh, and sign-out.
 
-Local, staging, and production use separate Supabase environments. Current
-hosted refs and deploy/runtime ownership live in `STACK.md`; do not assume
-staging and production share a project.
+This repo is local-only until the user explicitly reopens hosted architecture.
+Use local Supabase through `supabase/` and the repo scripts. Do not wire apps to
+hosted staging or production from this codebase.
 
 Website, portal, internal, and driver data access must go through React Start
-server functions, Worker routes, or server-only helpers. Server code uses
+server functions, local API routes, or server-only helpers. Server code uses
 `@hyperquote/auth/server` service-role helpers, and actor-sensitive RPCs must be
 called through `createActorServiceRoleClient` so `service_*` wrappers receive
 `p_actor_user_id` and `p_actor_pool`.
@@ -57,10 +58,10 @@ when grants, wrappers, generated types, or workflow transitions change.
 
 - Read named files before making claims; read nearby patterns and 1-2 analogs
   before adding modules, components, routes, stores, or scripts.
-- Backend work follows `STACK.md`: Supabase/Postgres is the selected production
-  source of truth, Cloudflare Workers remain the app runtime, and Convex, D1,
-  Neon, or Clerk are not replacement backends unless the user explicitly
-  reopens architecture.
+- Backend work follows `STACK.md`: local Supabase/Postgres is the active source
+  of truth. Do not add Cloudflare Workers, D1, Pages, Secrets Store, GitHub
+  deploy workflows, hosted Supabase projects, Convex, Neon, Clerk, or another
+  backend/deploy target unless the user explicitly reopens architecture.
 - Supplier auth is out of scope for v1. Treat suppliers as business records
   managed by employees, not as portal/auth users.
 - Make the smallest coherent root-cause change. Do not refactor unrelated code.
@@ -114,7 +115,7 @@ when grants, wrappers, generated types, or workflow transitions change.
 - Format/lint with repo scripts first. `bun run check:ci` is read-only;
   `bun run check` writes Biome fixes.
 - Run the narrowest meaningful verification after each coherent change. Broaden
-  when shared packages, generated config, deploy wiring, or user-facing flows
+  when shared packages, generated config, runtime wiring, or user-facing flows
   are affected.
 - Shell/config changes need `bash -n`, `shellcheck`, and the narrowest
   practical runtime check.
@@ -135,18 +136,18 @@ when grants, wrappers, generated types, or workflow transitions change.
 
 ## Security And Credentials
 
-- Prefer authenticated `gh`, `wrangler`, and `infisical` sessions; prefer
-  Infisical over raw token env vars.
+- Prefer authenticated `infisical` for local/operator secrets. Do not use
+  Cloudflare Secrets Store or GitHub deployment secrets for this repo while it
+  is local-only.
 - Never print, log, paste, write, commit, or expose secrets or master tokens.
-  Master credentials are for account administration only. Use scoped project
-  credentials for routine runtime, CI, and deploy work.
+  Master credentials are for account administration only.
 - Ask before destructive operations, billing changes, public repo creation,
-  force-pushes, commit amends, dependency removals, CI rewrites, database
+  force-pushes, commit amends, dependency removals, workflow rewrites, database
   drops, platform resource deletion, or sending messages to shared channels.
 - If a token leaks or may have leaked, stop using it, rotate it at the source,
   update Infisical, and scrub exposed copies where practical.
 
-## Git And Deploy
+## Git And Local Workflow
 
 - For commits, use `Abdulrahman M. Yaqin <Hi@Yaqin.dev>` as author and
   committer. Verify local `git config` first and set it if needed.
@@ -163,19 +164,16 @@ when grants, wrappers, generated types, or workflow transitions change.
   into the new task. If it is clearly a completed and verified prior agent
   change, commit it separately first. If it is user/unknown work, incomplete, or
   unverified, leave it unstaged unless the user explicitly asks to commit all.
-- Do not auto-push. Pushing still requires an explicit user request or an
-  explicit deploy workflow command such as `push to staging`.
+- Do not auto-push. Pushing still requires an explicit user request.
 - Do not add Codex, AI, generated-by, co-author, or agent attribution to
   commits, PRs, releases, or project files unless explicitly asked.
 - Do not amend commits, skip hooks, force-push, hard reset, checkout away work,
   delete branches/files, or create GitHub repos unless explicitly asked.
-- "Push to staging" means verify, commit if needed, push through GitHub, and
-  let `main` trigger the staging workers.
-- "Push to production" means trigger the manual production workflow for a
-  selected `target_app`; leave `source_sha` blank to promote the latest
-  successful staging run, or provide a full already-staged SHA to pin it.
-- Do not deploy independently with local Wrangler/Infisical unless explicitly
-  asked for a local deploy/admin action.
+- There is no active staging or production deploy path in this repo. If the
+  user says "push to staging" or "push to production", stop and design the new
+  workflow first.
+- Use `bun run db:start` / `bun run db:reset` and `bun run dev` as the operating
+  path. Use local verification scripts before committing.
 
 ## When To Ask
 

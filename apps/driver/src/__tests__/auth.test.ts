@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs'
 import {
 	clearInstalledRuntimeEnv,
-	installCloudflareRuntimeEnv,
-	resolveSupabaseWorkerServiceRoleConfig,
+	installRuntimeEnv,
+	resolveSupabaseServiceRoleRuntimeConfig,
 	runtimeEnvValue,
 } from '@hyperquote/auth/server'
 import { describe, expect, it } from 'vitest'
@@ -47,14 +47,14 @@ describe('driver login validation', () => {
 		expect(source).toContain("scope: 'local'")
 	})
 
-	it('reads Cloudflare Secrets Store bindings for Worker runtime config', async () => {
+	it('reads runtime secret bindings for runtime config', async () => {
 		await expect(
 			runtimeEnvValue({
 				get: async () => 'store-secret',
 			}),
 		).resolves.toBe('store-secret')
 
-		const config = await resolveSupabaseWorkerServiceRoleConfig({
+		const config = await resolveSupabaseServiceRoleRuntimeConfig({
 			SUPABASE_ANON_KEY: { get: async () => 'anon-key' },
 			SUPABASE_SERVICE_ROLE_KEY: { get: async () => 'service-role-key' },
 			SUPABASE_URL: { get: async () => 'https://example.supabase.co' },
@@ -67,9 +67,9 @@ describe('driver login validation', () => {
 		})
 	})
 
-	it('reads installed Cloudflare runtime env from the TanStack server entry bridge', async () => {
+	it('reads installed runtime env from the TanStack server entry bridge', async () => {
 		clearInstalledRuntimeEnv()
-		installCloudflareRuntimeEnv({
+		installRuntimeEnv({
 			SUPABASE_ANON_KEY: { get: async () => 'installed-anon-key' },
 			SUPABASE_SERVICE_ROLE_KEY: {
 				get: async () => 'installed-service-role-key',
@@ -78,7 +78,7 @@ describe('driver login validation', () => {
 		})
 
 		try {
-			const config = await resolveSupabaseWorkerServiceRoleConfig({})
+			const config = await resolveSupabaseServiceRoleRuntimeConfig({})
 			expect(config).toMatchObject({
 				supabaseAnonKey: 'installed-anon-key',
 				supabaseServiceRoleKey: 'installed-service-role-key',

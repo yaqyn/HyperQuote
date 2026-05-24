@@ -4,10 +4,10 @@ import {
 	LYON_WEBSITE,
 	streamChat,
 } from '@hyperquote/ai'
-import { checkRateLimit, getKVNamespace } from '@hyperquote/auth/rate-limit'
+import { checkRateLimit, getRateLimitStore } from '@hyperquote/auth/rate-limit'
 import {
 	createSupabaseServiceRoleClient,
-	resolveSupabaseWorkerConfig,
+	resolveSupabaseRuntimeConfig,
 } from '@hyperquote/auth/server'
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
@@ -821,8 +821,8 @@ async function checkWebsiteChatRateLimit() {
 		request.headers.get('cf-connecting-ip') ??
 		request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
 		'unknown'
-	const kv = await getKVNamespace()
-	return checkRateLimit(kv, {
+	const rateLimitStore = await getRateLimitStore()
+	return checkRateLimit(rateLimitStore, {
 		key: `website-chat:${ip}`,
 		limit: CHAT_RATE_LIMIT,
 		windowSeconds: CHAT_RATE_LIMIT_WINDOW_SECONDS,
@@ -915,7 +915,7 @@ async function recordWebsiteAiAudit(
 	chunks: WebsiteStreamChunk[],
 	readEntities: string[],
 ) {
-	const config = await resolveSupabaseWorkerConfig(process.env)
+	const config = await resolveSupabaseRuntimeConfig(process.env)
 	if (!config) return
 	const client = await createSupabaseServiceRoleClient(process.env)
 	if (!client) return

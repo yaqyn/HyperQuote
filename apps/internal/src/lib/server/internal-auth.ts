@@ -1,7 +1,7 @@
 import {
 	appendSetCookieHeaders,
 	createSupabaseServerClient,
-	resolveSupabaseWorkerConfig,
+	resolveSupabaseRuntimeConfig,
 } from '@hyperquote/auth/server'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest, getResponse } from '@tanstack/react-start/server'
@@ -23,7 +23,7 @@ const internalLoginInput = z.object({
 
 export const getInternalLoginStatus = createServerFn({ method: 'GET' }).handler(
 	async () => ({
-		configured: Boolean(await resolveSupabaseWorkerConfig(process.env)),
+		configured: Boolean(await resolveSupabaseRuntimeConfig(process.env)),
 	}),
 )
 
@@ -31,7 +31,7 @@ export const submitInternalLogin = createServerFn({ method: 'POST' })
 	.inputValidator(internalLoginInput)
 	.handler(async ({ data: input }): Promise<InternalLoginResult> => {
 		try {
-			const config = await resolveSupabaseWorkerConfig(process.env)
+			const config = await resolveSupabaseRuntimeConfig(process.env)
 			if (!config) return { ok: false, error: 'not_configured' }
 
 			const request = getRequest()

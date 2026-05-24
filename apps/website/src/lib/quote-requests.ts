@@ -4,7 +4,7 @@ import {
 	createSupabaseServerClient,
 	createSupabaseServiceRoleClient,
 	getSupabaseServerUser,
-	resolveSupabaseWorkerConfig,
+	resolveSupabaseRuntimeConfig,
 } from '@hyperquote/auth/server'
 import { createServerFn, createServerOnlyFn } from '@tanstack/react-start'
 import { getRequest, getResponse } from '@tanstack/react-start/server'
@@ -211,7 +211,7 @@ function mapSavedDraftRow(
 }
 
 const getAuthenticatedClient = createServerOnlyFn(async () => {
-	const config = await resolveSupabaseWorkerConfig(process.env)
+	const config = await resolveSupabaseRuntimeConfig(process.env)
 	if (!config) return { error: 'not_configured' as const }
 
 	const request = getRequest()

@@ -20,10 +20,10 @@ import { useNotificationStore } from '../stores/notifications'
 
 const getAuthSession = createServerFn({ method: 'GET' }).handler(
 	async (): Promise<AuthSession> => {
-		const { resolveSupabaseWorkerConfig } = await import(
+		const { resolveSupabaseRuntimeConfig } = await import(
 			'@hyperquote/auth/server'
 		)
-		const config = await resolveSupabaseWorkerConfig(process.env)
+		const config = await resolveSupabaseRuntimeConfig(process.env)
 		if (!config) {
 			const { redirect } = await import('@tanstack/react-router')
 			throw redirect({ to: '/login' })

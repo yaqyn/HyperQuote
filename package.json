@@ -38,16 +38,7 @@
 		"scan:duplicates": "jscpd apps packages --ignore \"**/node_modules/**,**/dist/**,**/.output/**,**/.turbo/**,**/routeTree.gen.ts,apps/driver/android/app/src/main/assets/public/**,apps/driver/ios/App/App/public/**\" --min-lines 8 --min-tokens 80",
 		"scan:secrets": "gitleaks git --verbose --redact --no-banner",
 		"scan:vulns": "osv-scanner scan source -r .",
-		"scan:semgrep": "semgrep scan --config auto .",
-		"deploy:apply-secrets-store": "node scripts/apply-secrets-store-bindings.mjs",
-		"deploy:check-env": "node scripts/check-deploy-env.mjs",
-		"deploy:check-secrets": "node scripts/check-worker-secrets.mjs",
-		"deploy:smoke": "node scripts/deploy-smoke.mjs",
-		"secrets": "infisical secrets --env=prod --recursive -o json | jq -r '.[].secretKey' | sort",
-		"deploy:website": "infisical run --env=prod --recursive -- bun run --cwd apps/website deploy",
-		"deploy:portal": "infisical run --env=prod --recursive -- bun run --cwd apps/portal deploy",
-		"deploy:internal": "infisical run --env=prod --recursive -- bun run --cwd apps/internal deploy",
-		"deploy:driver": "infisical run --env=prod --recursive -- bun run --cwd apps/driver deploy"
+		"scan:semgrep": "semgrep scan --config auto ."
 	},
 	"devDependencies": {
 		"@ast-grep/cli": "0.42.2",

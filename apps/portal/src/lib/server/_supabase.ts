@@ -7,7 +7,7 @@
 import {
 	createActorServiceRoleClient,
 	createSupabaseServiceRoleClient,
-	resolveSupabaseWorkerConfig,
+	resolveSupabaseRuntimeConfig,
 	type SupabaseServerRuntimeConfig,
 } from '@hyperquote/auth/server'
 import { getServerSession } from '@hyperquote/auth/session'
@@ -16,7 +16,7 @@ import { getServerSession } from '@hyperquote/auth/session'
  * Returns validated Supabase env vars, throwing if not configured.
  */
 async function getSupabaseEnv(): Promise<SupabaseServerRuntimeConfig> {
-	const config = await resolveSupabaseWorkerConfig(process.env)
+	const config = await resolveSupabaseRuntimeConfig(process.env)
 	if (!config) {
 		throw new Error('Supabase env not configured')
 	}

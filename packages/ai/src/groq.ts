@@ -75,22 +75,9 @@ function processEnvRecord(): Record<string, string | undefined> | undefined {
 		: undefined
 }
 
-async function readWorkersEnv(): Promise<
-	Record<string, string | undefined> | undefined
-> {
-	try {
-		const workersModule = 'cloudflare:workers'
-		const { env } = await import(/* @vite-ignore */ workersModule)
-		return runtimeEnvRecord(env, RUNTIME_KEYS)
-	} catch {
-		return undefined
-	}
-}
-
 async function readRuntimeEnv(): Promise<Record<string, string | undefined>> {
 	return {
 		...(processEnvRecord() ?? {}),
-		...((await readWorkersEnv()) ?? {}),
 		...(await runtimeEnvRecord(getInstalledRuntimeEnv(), RUNTIME_KEYS)),
 	}
 }

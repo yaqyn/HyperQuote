@@ -26,14 +26,7 @@
 			"project": ["src/**/*.{ts,tsx}"]
 		}
 	},
-	"ignoreBinaries": [
-		"infisical",
-		"gitleaks",
-		"osv-scanner",
-		"semgrep",
-		"supabase",
-		"jq"
-	],
+	"ignoreBinaries": ["gitleaks", "osv-scanner", "semgrep", "supabase"],
 	"ignoreDependencies": [
 		"@capacitor/ios",
 		"@ast-grep/cli",

@@ -20,9 +20,18 @@ function readThemeFromCookie(cookieHeader: string): PortalTheme | undefined {
 	return isPortalTheme(theme) ? theme : undefined
 }
 
+function browserStorage(): Storage | undefined {
+	const storage = globalThis.localStorage
+	return typeof storage?.getItem === 'function' &&
+		typeof storage.setItem === 'function'
+		? storage
+		: undefined
+}
+
 export function readStoredPortalTheme(): PortalTheme | undefined {
-	if (typeof localStorage !== 'undefined') {
-		const stored = localStorage.getItem(PORTAL_THEME_STORAGE_KEY)
+	const storage = browserStorage()
+	if (storage) {
+		const stored = storage.getItem(PORTAL_THEME_STORAGE_KEY)
 		if (isPortalTheme(stored)) return stored
 	}
 
@@ -65,8 +74,9 @@ export function applyPortalTheme(theme: PortalTheme) {
 }
 
 function persistPortalTheme(theme: PortalTheme) {
-	if (typeof localStorage !== 'undefined') {
-		localStorage.setItem(PORTAL_THEME_STORAGE_KEY, theme)
+	const storage = browserStorage()
+	if (storage) {
+		storage.setItem(PORTAL_THEME_STORAGE_KEY, theme)
 	}
 
 	if (typeof document !== 'undefined') {

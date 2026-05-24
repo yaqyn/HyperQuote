@@ -106,7 +106,7 @@ async function main() {
 		VITE_SUPABASE_ANON_KEY: localEnv.ANON_KEY,
 		VITE_SUPABASE_URL: localEnv.API_URL,
 	}
-	writeLocalWorkerEnv(
+	writeLocalAppEnv(
 		{
 			SUPABASE_ANON_KEY: localEnv.ANON_KEY,
 			SUPABASE_SERVICE_ROLE_KEY: localEnv.SERVICE_ROLE_KEY,
@@ -153,7 +153,7 @@ async function main() {
 			if (!child.killed) child.kill('SIGTERM')
 		}
 		aiProxy?.server.close()
-		writeLocalWorkerEnv()
+		writeLocalAppEnv()
 		setTimeout(() => process.exit(exitCode), 250)
 	}
 
@@ -165,11 +165,11 @@ function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function writeLocalWorkerEnv(runtimeEnv = {}, aiProxy = null) {
-	const workerApps = APPS.filter((app) => app.name !== 'driver')
-	for (const app of workerApps) {
+function writeLocalAppEnv(runtimeEnv = {}, aiProxy = null) {
+	const serverApps = APPS.filter((app) => app.name !== 'driver')
+	for (const app of serverApps) {
 		const next = {
-			...localWorkerAiEnv(aiProxy),
+			...localAppAiEnv(aiProxy),
 			SUPABASE_ANON_KEY: 'placeholder',
 			SUPABASE_SERVICE_ROLE_KEY: 'placeholder',
 			SUPABASE_URL: 'https://placeholder.supabase.co',
@@ -189,7 +189,7 @@ function writeLocalWorkerEnv(runtimeEnv = {}, aiProxy = null) {
 	}
 }
 
-function localWorkerAiEnv(aiProxy) {
+function localAppAiEnv(aiProxy) {
 	const model = process.env.GROQ_MODEL ?? process.env.HQ_GROQ_MODEL
 	const reasoningEffort =
 		process.env.GROQ_REASONING_EFFORT ?? process.env.HQ_GROQ_REASONING_EFFORT

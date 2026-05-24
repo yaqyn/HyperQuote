@@ -1,11 +1,11 @@
-import { checkRateLimit, getKVNamespace } from '@hyperquote/auth/rate-limit'
+import { checkRateLimit, getRateLimitStore } from '@hyperquote/auth/rate-limit'
 import {
 	appendSetCookieHeaders,
 	createActorServiceRoleClient,
 	createSupabaseServerClient,
 	createSupabaseServiceRoleClient,
 	getSupabaseServerUser,
-	resolveSupabaseWorkerConfig,
+	resolveSupabaseRuntimeConfig,
 } from '@hyperquote/auth/server'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest, getResponse } from '@tanstack/react-start/server'
@@ -35,8 +35,8 @@ export const submitContactForm = createServerFn({ method: 'POST' })
 			'unknown'
 
 		// Rate limit: 5 per IP per 60 seconds
-		const kv = await getKVNamespace()
-		const rateCheck = await checkRateLimit(kv, {
+		const rateLimitStore = await getRateLimitStore()
+		const rateCheck = await checkRateLimit(rateLimitStore, {
 			key: `contact:${ip}`,
 			limit: 5,
 			windowSeconds: 60,
@@ -49,7 +49,7 @@ export const submitContactForm = createServerFn({ method: 'POST' })
 			}
 		}
 
-		const config = await resolveSupabaseWorkerConfig(process.env)
+		const config = await resolveSupabaseRuntimeConfig(process.env)
 		if (!config) return { error: 'not_configured' as const }
 
 		const client = await createSupabaseServiceRoleClient(process.env)

@@ -2,7 +2,7 @@ Every company that operates on HyperQuote gets its own branded experience — yo
 
 ## How tenant branding works
 
-HyperQuote resolves your brand identity at the edge, before any page loads. When a user visits your custom domain or subdomain, Cloudflare Workers identify the tenant and inject your brand configuration into every page, email, PDF, and notification.
+HyperQuote resolves your brand identity before each page loads. When a user enters the local platform, the app identifies the tenant and applies the brand configuration to every page, email, PDF, and notification.
 
 Your brand is defined in a configuration file that controls: company name, logo (light and dark variants), favicon, primary colors, fonts, border radius, and other visual properties. These values cascade through CSS custom properties to every surface — the website, customer portal, supplier portal, and all generated documents.
 
@@ -20,7 +20,7 @@ Your brand is defined in a configuration file that controls: company name, logo 
 
 The platform supports multiple tenants on a single database with strict data isolation. Each tenant's data is segregated through Row Level Security policies enforced at the database level. A `tenant_id` column on every table, automatically injected via triggers, ensures no data leaks between organizations.
 
-Tenants are resolved at the edge via subdomain or custom domain mapping. Assets like logos and documents are stored in Cloudflare R2 with tenant-prefixed paths (`/{tenant_id}/invoices/{year}/{month}/`), keeping file storage cleanly separated.
+Tenants are resolved through the application and database boundary. Assets like logos and documents are stored with tenant-prefixed paths (`/{tenant_id}/invoices/{year}/{month}/`), keeping file storage cleanly separated.
 
 ## What stays shared
 

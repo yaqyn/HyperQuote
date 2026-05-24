@@ -1,6 +1,6 @@
 /**
  * Supplier catalog upload server functions.
- * Catalog ingestion requires a real Supabase/R2 pipeline.
+ * Catalog ingestion requires a configured Supabase Storage pipeline.
  */
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'

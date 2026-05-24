@@ -1,5 +1,3 @@
-/// <reference types="@cloudflare/workers-types" />
-
 import {
 	getInstalledRuntimeEnv,
 	type RuntimeEnvValue,
@@ -22,7 +20,7 @@ import type { AuthPool } from './types'
 export {
 	clearInstalledRuntimeEnv,
 	getInstalledRuntimeEnv,
-	installRuntimeEnv as installCloudflareRuntimeEnv,
+	installRuntimeEnv,
 	type RuntimeEnvValue,
 	type RuntimeSecretBinding,
 	runtimeEnvValue,
@@ -67,9 +65,8 @@ function serializeSetCookie(
 }
 
 /**
- * Create a Supabase client for server-side use on Cloudflare Workers.
- * CRITICAL: Always call this INSIDE the request handler, never at module level.
- * Workers are long-lived isolates — module-level state leaks between requests.
+ * Create a Supabase client for server-side request handling.
+ * Always call this inside the request handler so auth cookies stay request-local.
  */
 export function createSupabaseServerClient({
 	request,
@@ -292,7 +289,7 @@ export async function getSupabaseServerUser({
 	return result
 }
 
-export async function resolveSupabaseWorkerConfig(
+export async function resolveSupabaseRuntimeConfig(
 	fallbackEnv: Record<string, RuntimeEnvValue>,
 ): Promise<SupabaseServerRuntimeConfig | null> {
 	const runtimeKeys = [
@@ -309,17 +306,10 @@ export async function resolveSupabaseWorkerConfig(
 		await runtimeEnvRecord(getInstalledRuntimeEnv(), runtimeKeys),
 	)
 	if (installedConfig) return installedConfig
-
-	try {
-		const workersModule = 'cloudflare:workers'
-		const { env } = await import(/* @vite-ignore */ workersModule)
-		return resolveSupabaseServerConfig(await runtimeEnvRecord(env, runtimeKeys))
-	} catch {
-		return null
-	}
+	return null
 }
 
-export async function resolveSupabaseWorkerServiceRoleConfig(
+export async function resolveSupabaseServiceRoleRuntimeConfig(
 	fallbackEnv: Record<string, RuntimeEnvValue>,
 ): Promise<SupabaseServiceRoleRuntimeConfig | null> {
 	const runtimeKeys = [
@@ -337,22 +327,13 @@ export async function resolveSupabaseWorkerServiceRoleConfig(
 		await runtimeEnvRecord(getInstalledRuntimeEnv(), runtimeKeys),
 	)
 	if (installedConfig) return installedConfig
-
-	try {
-		const workersModule = 'cloudflare:workers'
-		const { env } = await import(/* @vite-ignore */ workersModule)
-		return resolveSupabaseServiceRoleConfig(
-			await runtimeEnvRecord(env, runtimeKeys),
-		)
-	} catch {
-		return null
-	}
+	return null
 }
 
 export async function createSupabaseServiceRoleClient(
 	fallbackEnv: Record<string, RuntimeEnvValue>,
 ) {
-	const config = await resolveSupabaseWorkerServiceRoleConfig(fallbackEnv)
+	const config = await resolveSupabaseServiceRoleRuntimeConfig(fallbackEnv)
 	if (!config) return null
 
 	const { createClient } = await import('@supabase/supabase-js')

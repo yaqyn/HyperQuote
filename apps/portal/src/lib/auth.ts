@@ -13,7 +13,7 @@ import {
 	checkOTPVerifyLimit,
 	checkRateLimit,
 	clearRateLimit,
-	getKVNamespace,
+	getRateLimitStore,
 } from '@hyperquote/auth/rate-limit'
 import {
 	appendSetCookieHeaders,
@@ -21,7 +21,7 @@ import {
 	createSupabaseServerClient,
 	createSupabaseServiceRoleClient,
 	getSupabaseServerUser,
-	resolveSupabaseWorkerConfig,
+	resolveSupabaseRuntimeConfig,
 } from '@hyperquote/auth/server'
 import { getServerSession } from '@hyperquote/auth/session'
 import { createServerFn } from '@tanstack/react-start'
@@ -83,7 +83,7 @@ type EmailAuthError = 'email_not_confirmed' | 'invalid_credentials'
 // ============================================================================
 
 function getSupabaseConfig() {
-	return resolveSupabaseWorkerConfig(process.env)
+	return resolveSupabaseRuntimeConfig(process.env)
 }
 
 function appendPendingAuthCookies(
@@ -219,10 +219,10 @@ export const sendOTP = createServerFn({ method: 'POST' })
 	.inputValidator(sendOTPInput)
 	.handler(async ({ data: input }) => {
 		try {
-			const kv = await getKVNamespace()
+			const rateLimitStore = await getRateLimitStore()
 
 			// Rate limit: 3 attempts per phone per 60 seconds
-			const rateResult = await checkRateLimit(kv, {
+			const rateResult = await checkRateLimit(rateLimitStore, {
 				key: `sendOTP:${input.phone}`,
 				limit: 3,
 				windowSeconds: 60,
@@ -275,10 +275,10 @@ export const verifyOTP = createServerFn({ method: 'POST' })
 	.inputValidator(verifyOTPInput)
 	.handler(async ({ data: input }) => {
 		try {
-			const kv = await getKVNamespace()
+			const rateLimitStore = await getRateLimitStore()
 
 			// Rate limit: 5 attempts per phone per 60s, then 15-minute lockout
-			const rateResult = await checkOTPVerifyLimit(kv, input.phone)
+			const rateResult = await checkOTPVerifyLimit(rateLimitStore, input.phone)
 
 			if (!rateResult.allowed) {
 				return {
@@ -312,7 +312,8 @@ export const verifyOTP = createServerFn({ method: 'POST' })
 						responseCookies.values(),
 						responseHeaders.entries(),
 					),
-				clearVerifyLimit: () => clearRateLimit(kv, `verify:${input.phone}`),
+				clearVerifyLimit: () =>
+					clearRateLimit(rateLimitStore, `verify:${input.phone}`),
 				resolveDbClient: createCustomerDataClient,
 				onVerifyError: (error) =>
 					logPortalError('portal.auth.verify_otp.supabase_error', error),
@@ -457,8 +458,8 @@ export const requestPhoneChange = createServerFn({ method: 'POST' })
 	.inputValidator(phoneChangeRequestInput)
 	.handler(async ({ data: input }) => {
 		try {
-			const kv = await getKVNamespace()
-			const rateResult = await checkRateLimit(kv, {
+			const rateLimitStore = await getRateLimitStore()
+			const rateResult = await checkRateLimit(rateLimitStore, {
 				key: `phoneChange:${input.phone}`,
 				limit: 3,
 				windowSeconds: 60,
@@ -545,8 +546,8 @@ export const verifyPhoneChange = createServerFn({ method: 'POST' })
 	.inputValidator(phoneChangeVerifyInput)
 	.handler(async ({ data: input }) => {
 		try {
-			const kv = await getKVNamespace()
-			const rateResult = await checkOTPVerifyLimit(kv, input.phone)
+			const rateLimitStore = await getRateLimitStore()
+			const rateResult = await checkOTPVerifyLimit(rateLimitStore, input.phone)
 
 			if (!rateResult.allowed) {
 				return {
@@ -643,7 +644,7 @@ export const verifyPhoneChange = createServerFn({ method: 'POST' })
 				responseCookies.values(),
 				responseHeaders.entries(),
 			)
-			await clearRateLimit(kv, `verify:${input.phone}`)
+			await clearRateLimit(rateLimitStore, `verify:${input.phone}`)
 
 			return { success: true, phone: formattedPhone }
 		} catch (err) {

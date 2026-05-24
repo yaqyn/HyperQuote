@@ -126,7 +126,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
 		number: '04',
 		title: 'Data Storage & Security',
 		content: [
-			'Your data is stored on secure cloud infrastructure with encryption at rest and in transit. We use Cloudflare Workers and Supabase with data residency considerations appropriate for our operations. Database backups are encrypted and stored in geographically distributed locations.',
+			'Your data is stored in the configured HyperQuote environment with encryption at rest and in transit. We use Supabase with data residency considerations appropriate for our operations. Database backups are encrypted and retained according to the active operating policy.',
 			'We implement industry-standard security measures including role-based access control, audit logging, two-factor authentication for administrative access, and regular security assessments. Payment information is handled in compliance with PCI DSS standards.',
 			'We retain your account data for the duration of your account plus seven years as required by Egyptian commercial and tax law. Transaction records and tax invoices are retained for the statutory period mandated by the Egyptian Tax Authority. You may request deletion of non-legally-required data at any time.',
 		],

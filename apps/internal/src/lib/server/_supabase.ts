@@ -4,13 +4,13 @@ import {
 	createSupabaseServerClient,
 	createSupabaseServiceRoleClient,
 	getSupabaseServerUser,
-	resolveSupabaseWorkerConfig,
+	resolveSupabaseRuntimeConfig,
 } from '@hyperquote/auth/server'
 import { createClient } from '@supabase/supabase-js'
 import { getRequest, getResponse } from '@tanstack/react-start/server'
 
 export async function getInternalSupabaseClient() {
-	const config = await resolveSupabaseWorkerConfig(process.env)
+	const config = await resolveSupabaseRuntimeConfig(process.env)
 	if (!config) throw new Error('Supabase is required for internal app')
 
 	const request = getRequest()
@@ -57,7 +57,7 @@ export async function getInternalSupabaseClient() {
 }
 
 export async function getInternalSupabasePasswordClient() {
-	const config = await resolveSupabaseWorkerConfig(process.env)
+	const config = await resolveSupabaseRuntimeConfig(process.env)
 	if (!config) throw new Error('Supabase is required for internal app')
 	return createClient(config.supabaseUrl, config.supabaseAnonKey, {
 		auth: {

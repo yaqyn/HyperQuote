@@ -3,7 +3,7 @@ import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
 
-interface DriverWorkerEnv {
+interface DriverApiEnv {
 	ASSETS: { fetch(request: Request): Promise<Response> }
 	COOKIE_DOMAIN?: string
 	SUPABASE_ANON_KEY?: string
@@ -12,8 +12,8 @@ interface DriverWorkerEnv {
 	SUPABASE_URL?: string
 }
 
-interface DriverWorker {
-	fetch(request: Request, env: DriverWorkerEnv): Promise<Response>
+interface DriverApi {
+	fetch(request: Request, env: DriverApiEnv): Promise<Response>
 }
 
 function driverApiDevPlugin(): Plugin {
@@ -28,8 +28,8 @@ function driverApiDevPlugin(): Plugin {
 
 				try {
 					const request = await toFetchRequest(req)
-					const driverWorker = await loadDriverWorker(server)
-					const response = await driverWorker.fetch(request, {
+					const driverApi = await loadDriverApi(server)
+					const response = await driverApi.fetch(request, {
 						ASSETS: {
 							fetch: () => Promise.resolve(new Response(null, { status: 404 })),
 						},
@@ -57,18 +57,18 @@ function driverApiDevPlugin(): Plugin {
 	}
 }
 
-async function loadDriverWorker(server: {
+async function loadDriverApi(server: {
 	ssrLoadModule(url: string): Promise<Record<string, unknown>>
-}): Promise<DriverWorker> {
-	const workerModule = await server.ssrLoadModule('/src/worker.ts')
-	const worker = workerModule.default
-	if (!isDriverWorker(worker)) {
-		throw new Error('driver_worker_unavailable')
+}): Promise<DriverApi> {
+	const apiModule = await server.ssrLoadModule('/src/api.ts')
+	const api = apiModule.default
+	if (!isDriverApi(api)) {
+		throw new Error('driver_api_unavailable')
 	}
-	return worker
+	return api
 }
 
-function isDriverWorker(value: unknown): value is DriverWorker {
+function isDriverApi(value: unknown): value is DriverApi {
 	return (
 		!!value &&
 		typeof value === 'object' &&

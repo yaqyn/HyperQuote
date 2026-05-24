@@ -1,6 +1,6 @@
 import {
 	createSupabaseServiceRoleClient,
-	resolveSupabaseWorkerConfig,
+	resolveSupabaseRuntimeConfig,
 } from '@hyperquote/auth/server'
 import type { CatalogProduct } from '@hyperquote/types'
 import { createServerFn } from '@tanstack/react-start'
@@ -135,7 +135,7 @@ function publicProductSearchFilter(search: string): string | null {
 }
 
 function getSupabaseConfig() {
-	return resolveSupabaseWorkerConfig(process.env)
+	return resolveSupabaseRuntimeConfig(process.env)
 }
 
 async function getOptionalWebsiteCatalogClient() {

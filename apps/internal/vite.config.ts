@@ -1,15 +1,14 @@
 import { resolve } from 'node:path'
-import { cloudflare } from '@cloudflare/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
+import { nitro } from 'nitro/vite'
 import type { PluginOption } from 'vite'
 import { defineConfig } from 'vite'
 import { hyperquoteManualChunks } from '../../tooling/vite/manual-chunks'
 
 // Client-only shims for server modules that leak into the client module graph.
-// TanStack Start + Cloudflare leaks server-only modules (start-server-core,
-// router-core/ssr/server) into the client during dev. These shims provide
+// TanStack Start can expose server-only modules during dev. These shims provide
 // browser-compatible stubs so the leaked modules load without crashing.
 function clientOnlyShims(): PluginOption {
 	const id = 'tanstack-start-injected-head-scripts:v'
@@ -54,10 +53,10 @@ export default defineConfig({
 		},
 	},
 	plugins: [
-		cloudflare({ viteEnvironment: { name: 'ssr' } }),
 		tailwindcss(),
 		clientOnlyShims(),
 		tanstackStart(),
 		viteReact(),
+		nitro(),
 	],
 })

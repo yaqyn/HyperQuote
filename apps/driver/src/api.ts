@@ -7,7 +7,7 @@ import {
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 
-interface DriverWorkerEnv {
+interface DriverApiEnv {
 	ASSETS: { fetch(request: Request): Promise<Response> }
 	COOKIE_DOMAIN?: RuntimeEnvValue
 	SUPABASE_ANON_KEY?: RuntimeEnvValue
@@ -81,8 +81,8 @@ const locationUpdateInput = z.object({
 const UUID_PATTERN =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-async function workerEnvRecord(
-	env: DriverWorkerEnv,
+async function driverApiEnvRecord(
+	env: DriverApiEnv,
 ): Promise<Record<string, string | undefined>> {
 	return {
 		COOKIE_DOMAIN: await runtimeEnvValue(env.COOKIE_DOMAIN),
@@ -119,12 +119,12 @@ async function requestBody<T>(request: Request, schema: z.ZodType<T>) {
 
 async function requireDriverContext(
 	request: Request,
-	env: DriverWorkerEnv,
+	env: DriverApiEnv,
 	options: DriverContextOptions = {},
 ): Promise<DriverContext | Response> {
 	const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
 	if (!token) return errorJson(401, 'driver_session_required')
-	const runtimeEnv = await workerEnvRecord(env)
+	const runtimeEnv = await driverApiEnvRecord(env)
 	if (!runtimeEnv.SUPABASE_URL || !runtimeEnv.SUPABASE_ANON_KEY) {
 		return errorJson(500, 'supabase_env_required')
 	}
@@ -304,7 +304,7 @@ async function deliveryAfterMutation(ctx: DriverContext, deliveryId: string) {
 	return delivery
 }
 
-async function handleDriverApi(request: Request, env: DriverWorkerEnv) {
+async function handleDriverApi(request: Request, env: DriverApiEnv) {
 	const url = new URL(request.url)
 	const isSessionClaimOrRelease =
 		request.method === 'POST' &&
@@ -489,7 +489,7 @@ async function handleDriverApi(request: Request, env: DriverWorkerEnv) {
 }
 
 export default {
-	fetch(request: Request, env: DriverWorkerEnv): Promise<Response> {
+	fetch(request: Request, env: DriverApiEnv): Promise<Response> {
 		const url = new URL(request.url)
 		if (url.pathname.startsWith('/api/driver/')) {
 			return handleDriverApi(request, env)

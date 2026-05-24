@@ -12,7 +12,7 @@ import {
 	checkOTPVerifyLimit,
 	checkRateLimit,
 	clearRateLimit,
-	getKVNamespace,
+	getRateLimitStore,
 } from '@hyperquote/auth/rate-limit'
 import {
 	appendSetCookieHeaders,
@@ -20,7 +20,7 @@ import {
 	createSupabaseServerClient,
 	createSupabaseServiceRoleClient,
 	getSupabaseServerUser,
-	resolveSupabaseWorkerConfig,
+	resolveSupabaseRuntimeConfig,
 } from '@hyperquote/auth/server'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest, getResponse } from '@tanstack/react-start/server'
@@ -74,7 +74,7 @@ type EmailAuthError =
 	| 'signup_failed'
 
 function getSupabaseConfig() {
-	return resolveSupabaseWorkerConfig(process.env)
+	return resolveSupabaseRuntimeConfig(process.env)
 }
 
 function appendPendingAuthCookies(
@@ -323,10 +323,10 @@ export const sendOTP = createServerFn({ method: 'POST' })
 	.inputValidator(sendOTPInput)
 	.handler(async ({ data: input }) => {
 		try {
-			const kv = await getKVNamespace()
+			const rateLimitStore = await getRateLimitStore()
 
 			// Rate limit: 3 attempts per phone per 60 seconds
-			const rateResult = await checkRateLimit(kv, {
+			const rateResult = await checkRateLimit(rateLimitStore, {
 				key: `sendOTP:${input.phone}`,
 				limit: 3,
 				windowSeconds: 60,
@@ -384,10 +384,10 @@ export const verifyOTP = createServerFn({ method: 'POST' })
 	.inputValidator(verifyOTPInput)
 	.handler(async ({ data: input }) => {
 		try {
-			const kv = await getKVNamespace()
+			const rateLimitStore = await getRateLimitStore()
 
 			// Rate limit: 5 attempts per phone per 60s, then 15-minute lockout
-			const rateResult = await checkOTPVerifyLimit(kv, input.phone)
+			const rateResult = await checkOTPVerifyLimit(rateLimitStore, input.phone)
 
 			if (!rateResult.allowed) {
 				return {
@@ -421,7 +421,8 @@ export const verifyOTP = createServerFn({ method: 'POST' })
 						responseCookies.values(),
 						responseHeaders.entries(),
 					),
-				clearVerifyLimit: () => clearRateLimit(kv, `verify:${input.phone}`),
+				clearVerifyLimit: () =>
+					clearRateLimit(rateLimitStore, `verify:${input.phone}`),
 				resolveDbClient: createCustomerDataClient,
 				onVerifyError: (error) =>
 					logWebsiteServerError(

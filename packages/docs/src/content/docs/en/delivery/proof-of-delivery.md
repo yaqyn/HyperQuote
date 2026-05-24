@@ -11,7 +11,7 @@ The driver captures multiple photographs at the delivery site using the driver a
 
 Photos are GPS-tagged and timestamped automatically by the app. They compress to a practical size (1920px maximum, JPEG quality 0.7) before upload to keep file sizes manageable, especially when uploading over Egyptian mobile networks.
 
-All photos sync to the platform immediately if connected, or queue for background upload when the driver is offline. Photos are stored in Cloudflare R2 with tenant-prefixed paths and retained for the duration of the business relationship plus any legally required retention period.
+All photos sync to the local platform immediately if connected, or queue for background upload when the driver is offline. Photos are stored with delivery-scoped paths and retained for the duration of the business relationship plus any legally required retention period.
 
 ## Signature capture
 

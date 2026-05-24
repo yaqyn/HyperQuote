@@ -435,14 +435,7 @@ async function readRuntimeEnv(name: string): Promise<string | undefined> {
 		name,
 	)
 	if (installedValue?.trim()) return installedValue.trim()
-	try {
-		const workersModule = 'cloudflare:workers'
-		const { env } = await import(/* @vite-ignore */ workersModule)
-		const value = await runtimeStringEnvValue(env, name)
-		return value?.trim() || undefined
-	} catch {
-		return undefined
-	}
+	return undefined
 }
 
 function safeTagValue(value: string): string {

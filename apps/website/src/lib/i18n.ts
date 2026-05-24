@@ -9,9 +9,15 @@ import i18n from 'i18next'
 
 export { i18n }
 
+function browserStorage(): Storage | undefined {
+	const storage = globalThis.localStorage
+	return typeof storage?.getItem === 'function' ? storage : undefined
+}
+
 function detectEarlyLocale(): 'ar' | 'en' {
-	if (typeof localStorage !== 'undefined') {
-		const stored = localStorage.getItem('hq-locale')
+	const storage = browserStorage()
+	if (storage) {
+		const stored = storage.getItem('hq-locale')
 		if (stored === 'ar' || stored === 'en') return stored
 	}
 	if (typeof document !== 'undefined') {
