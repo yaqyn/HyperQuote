@@ -36,6 +36,7 @@ import { isSalesRfqStatusEvaluatable } from '../../../lib/sales-rfq-status'
 import { addCustomer } from '../../../lib/server/sales-customers'
 import { markAsWon } from '../../../lib/server/sales-pipeline'
 import {
+	getProductCatalog,
 	getQuoteBuilderData,
 	requestInventoryPriceUpdate,
 	saveQuoteDraft,
@@ -69,6 +70,7 @@ import {
 } from './ApprovalWorkflow'
 import { DeliveryTerms } from './DeliveryTerms'
 import {
+	type CatalogProduct,
 	type ProductCatalogSelection,
 	ProductSearchMenu,
 } from './ProductSearchMenu'
@@ -2959,6 +2961,40 @@ function lineMarginThreshold(
 	})
 }
 
+function refreshQuoteLineFromCatalog(
+	item: LineItemFormValues,
+	product: CatalogProduct,
+	thresholds: MarginThresholds[],
+): LineItemFormValues {
+	const productSlug = product.slug || item.productSlug
+	const productCategory = product.category || item.productCategory
+	const threshold = resolveMarginThreshold(thresholds, {
+		categorySlug: productCategory || null,
+		productSlug: productSlug || null,
+	})
+	const margin = clampQuoteMargin(
+		item.marginPercent,
+		Math.max(MINIMUM_MARGIN_PERCENT, threshold.floor),
+		threshold.bonus,
+	)
+	const sellPrice =
+		product.supplierCost > 0
+			? computeSellPriceFromMargin(product.supplierCost, margin)
+			: 0
+	return {
+		...item,
+		productCategory,
+		productSlug,
+		supplierCost: product.supplierCost,
+		marginPercent: margin,
+		sellPrice,
+		lineTotal: Math.round(sellPrice * item.quantity * 100) / 100,
+		freshnessIndicator: product.freshness,
+		priceStatus: product.priceStatus,
+		supplierName: product.supplierName,
+	}
+}
+
 // --- Main view ---
 
 export function QuoteBuilderView({
@@ -3080,6 +3116,7 @@ export function QuoteBuilderView({
 		control: methods.control,
 		name: 'lineItems',
 	})
+	const queryClient = useQueryClient()
 	const [searchOpen, setSearchOpen] = useState(false)
 
 	// Compute totals from watched items (useWatch, NOT watch)
@@ -3210,6 +3247,7 @@ export function QuoteBuilderView({
 	)
 	const [priceUpdateNotice, setPriceUpdateNotice] =
 		useState<PriceUpdateNoticeState | null>(null)
+	const [isRefreshingPrices, setIsRefreshingPrices] = useState(false)
 	const requestUpdateMutation = useMutation({
 		mutationFn: requestInventoryPriceUpdate,
 		onSuccess: (result) => {
@@ -3228,9 +3266,8 @@ export function QuoteBuilderView({
 			queryClient.invalidateQueries({ queryKey: ['inventory-overview'] })
 			queryClient.invalidateQueries({ queryKey: ['inventory-top-suppliers'] })
 			queryClient.invalidateQueries({ queryKey: ['sales-outdated-prices'] })
-			// Re-pull the quote builder payload so any line items whose price
-			// was refreshed in the background flip from 'outdated' back to
-			// 'updated' — the banner and outdated-items list derive from this.
+			// Keep backing caches fresh; open builders patch their copied line
+			// state through Refresh prices so customer/delivery fields are untouched.
 			queryClient.invalidateQueries({ queryKey: ['quote-builder-data', rfqId] })
 			// Pipeline ribbons read hasOutdatedPrices from sales RFQ projections;
 			// refresh both current and legacy keys after price changes.
@@ -3261,6 +3298,62 @@ export function QuoteBuilderView({
 		[requestUpdateMutation, rfqId],
 	)
 	const [validationErrors, setValidationErrors] = useState<string[]>([])
+
+	const handleRefreshQuotePrices = useCallback(async () => {
+		if (isRefreshingPrices) return
+		setIsRefreshingPrices(true)
+		try {
+			const catalog = await getProductCatalog({ data: {} })
+			queryClient.setQueryData(['product-catalog'], catalog)
+			const productsByKey = new Map<string, CatalogProduct>()
+			const productsByName = new Map<string, CatalogProduct>()
+			for (const product of catalog.products) {
+				productsByKey.set(product.slug, product)
+				productsByKey.set(product.id, product)
+				productsByName.set(product.name.trim().toLowerCase(), product)
+			}
+
+			const currentItems = methods.getValues('lineItems')
+			let matchedItems = 0
+			const refreshedItems = currentItems.map((item) => {
+				const product =
+					productsByKey.get(lineProductKey(item)) ??
+					productsByKey.get(item.id) ??
+					productsByName.get(item.productName.trim().toLowerCase())
+				if (!product) return item
+				matchedItems += 1
+				return refreshQuoteLineFromCatalog(item, product, marginThresholds)
+			})
+
+			if (matchedItems === 0 && currentItems.length > 0) {
+				setValidationErrors([
+					'Prices could not match the current quote items. Reopen item search and try again.',
+				])
+				return
+			}
+
+			replaceItems(refreshedItems)
+			setRequestedPriceIds((previous) => {
+				if (previous.size === 0) return previous
+				const next = new Set(previous)
+				for (const item of refreshedItems) {
+					if (item.priceStatus === 'updated') next.delete(lineProductKey(item))
+				}
+				return next.size === previous.size ? previous : next
+			})
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ['sales-outdated-prices'] }),
+				queryClient.invalidateQueries({ queryKey: ['quote-builder-data'] }),
+				queryClient.invalidateQueries({ queryKey: ['sales-rfq-list'] }),
+				queryClient.invalidateQueries({ queryKey: ['rfq-queue'] }),
+			])
+		} catch (err) {
+			console.error('Failed to refresh quote prices:', err)
+			setValidationErrors(['Prices could not refresh. Try again.'])
+		} finally {
+			setIsRefreshingPrices(false)
+		}
+	}, [isRefreshingPrices, marginThresholds, methods, queryClient, replaceItems])
 
 	const handleManualDeliveryAddressChange = useCallback((address: string) => {
 		setDeliveryAddress(address)
@@ -3323,7 +3416,6 @@ export function QuoteBuilderView({
 	const [persistedCustomerId, setPersistedCustomerId] = useState<string | null>(
 		null,
 	)
-	const queryClient = useQueryClient()
 
 	const showDeliveryDateAttention = useCallback(() => {
 		if (deliveryAttentionTimerRef.current) {
@@ -3807,7 +3899,9 @@ export function QuoteBuilderView({
 	}
 	const stepExit = { opacity: 0, transition: { duration: 0 } }
 	const canRequestPriceUpdate =
-		outdatedItems.length > 0 && !requestUpdateMutation.isPending
+		outdatedItems.length > 0 &&
+		!requestUpdateMutation.isPending &&
+		!isRefreshingPrices
 	const outdatedPriceLabel = requestUpdateMutation.isPending
 		? 'Updating prices'
 		: outdatedItems.length > 1
@@ -3826,6 +3920,8 @@ export function QuoteBuilderView({
 	const reviewCustomerName = customerName || 'Customer'
 	const reviewDeliveryAddress = deliveryAddress || 'No address'
 	const hasQuoteItems = reviewItemCount > 0
+	const canRefreshQuotePrices =
+		hasQuoteItems && !isRefreshingPrices && !requestUpdateMutation.isPending
 	const hasDeliveryAddress = isValidText(deliveryAddress, 4, 300)
 	const hasDeliveryDateTime = Boolean(watchedDeliveryDate)
 	const step2PrimaryAction:
@@ -3874,7 +3970,8 @@ export function QuoteBuilderView({
 		tryGoToStep(3)
 	}
 	const isStep2PrimaryDisabled =
-		step2PrimaryAction === 'request_prices' && !canRequestPriceUpdate
+		isRefreshingPrices ||
+		(step2PrimaryAction === 'request_prices' && !canRequestPriceUpdate)
 	const reviewPrimaryNeedsApproval = approvalBlocked && canEvaluateByStatus
 	const reviewPrimaryNeedsPrices = hasOutdatedPrices && canEvaluateByStatus
 	const canUseReviewPrimary =
@@ -4549,7 +4646,13 @@ export function QuoteBuilderView({
 							</div>
 						</div>
 
-						<div className="relative grid grid-cols-[auto_minmax(0,1fr)] gap-2 lg:flex lg:items-center lg:justify-end">
+						<div
+							className={`relative grid gap-2 lg:flex lg:items-center lg:justify-end ${
+								hasQuoteItems
+									? 'grid-cols-[auto_auto_minmax(0,1fr)]'
+									: 'grid-cols-[auto_minmax(0,1fr)]'
+							}`}
+						>
 							<AnimatePresence>
 								{priceUpdateNotice && (
 									<PriceUpdateNotice
@@ -4569,6 +4672,36 @@ export function QuoteBuilderView({
 							>
 								<span className="sr-only lg:not-sr-only">Customer</span>
 							</EmployeeActionButton>
+							{hasQuoteItems && (
+								<EmployeeActionButton
+									type="button"
+									tone="neutral"
+									size="sm"
+									onClick={handleRefreshQuotePrices}
+									disabled={!canRefreshQuotePrices}
+									aria-disabled={!canRefreshQuotePrices}
+									aria-busy={isRefreshingPrices}
+									leading={
+										isRefreshingPrices ? (
+											<Loader2
+												size={14}
+												strokeWidth={2.25}
+												aria-hidden="true"
+												className="animate-spin"
+											/>
+										) : (
+											<RefreshCw
+												size={14}
+												strokeWidth={2.25}
+												aria-hidden="true"
+											/>
+										)
+									}
+									className="h-full max-lg:min-h-11 max-lg:px-3"
+								>
+									{isRefreshingPrices ? 'Refreshing' : 'Refresh prices'}
+								</EmployeeActionButton>
+							)}
 							<button
 								type="button"
 								onClick={handleStep2PrimaryPress}
@@ -4627,7 +4760,13 @@ export function QuoteBuilderView({
 
 			{currentStep === 3 && (
 				<footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 shadow-[0_-14px_30px_-26px_rgba(0,0,0,0.55)] sm:px-6 lg:px-8">
-					<div className="relative grid grid-cols-[auto_minmax(0,1fr)] gap-2 xl:flex xl:items-center xl:justify-end">
+					<div
+						className={`relative grid gap-2 xl:flex xl:items-center xl:justify-end ${
+							hasQuoteItems
+								? 'grid-cols-[auto_auto_minmax(0,1fr)]'
+								: 'grid-cols-[auto_minmax(0,1fr)]'
+						}`}
+					>
 						<AnimatePresence>
 							{priceUpdateNotice && (
 								<PriceUpdateNotice
@@ -4646,19 +4785,51 @@ export function QuoteBuilderView({
 							<span aria-hidden="true">←</span>
 							<span className="sr-only xl:not-sr-only xl:ms-2">Quote</span>
 						</button>
+						{hasQuoteItems && (
+							<EmployeeActionButton
+								type="button"
+								tone="neutral"
+								size="sm"
+								onClick={handleRefreshQuotePrices}
+								disabled={!canRefreshQuotePrices}
+								aria-disabled={!canRefreshQuotePrices}
+								aria-busy={isRefreshingPrices}
+								leading={
+									isRefreshingPrices ? (
+										<Loader2
+											size={14}
+											strokeWidth={2.25}
+											aria-hidden="true"
+											className="animate-spin"
+										/>
+									) : (
+										<RefreshCw
+											size={14}
+											strokeWidth={2.25}
+											aria-hidden="true"
+										/>
+									)
+								}
+								className="min-h-11"
+							>
+								{isRefreshingPrices ? 'Refreshing' : 'Refresh prices'}
+							</EmployeeActionButton>
+						)}
 						<button
 							type="button"
 							onClick={handleReviewPrimaryPress}
 							disabled={
 								!canUseReviewPrimary ||
 								isReviewPrimaryBusy ||
-								isAlreadyEvaluated
+								isAlreadyEvaluated ||
+								isRefreshingPrices
 							}
 							aria-busy={isReviewPrimaryBusy}
 							aria-disabled={
 								!canUseReviewPrimary ||
 								isReviewPrimaryBusy ||
-								isAlreadyEvaluated
+								isAlreadyEvaluated ||
+								isRefreshingPrices
 							}
 							className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-md border px-3 py-2 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.1em] outline-none transition-colors focus-visible:ring-2 xl:min-w-[280px] ${
 								canEvaluate
