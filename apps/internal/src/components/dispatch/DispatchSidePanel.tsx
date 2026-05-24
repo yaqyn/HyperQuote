@@ -44,6 +44,7 @@ import {
 	markOrderDelivered,
 	markOrderReturned,
 } from '../../lib/server/dispatch'
+import type { UploadedProofDocument } from '../../lib/server/proofs'
 import type { SecurityMethod } from '../../lib/server/warehouse'
 import { useDispatchStore } from '../../stores/dispatch'
 import {
@@ -56,6 +57,7 @@ import {
 	EmployeeFilterChip,
 	EmployeeStatusPill,
 } from '../shared/EmployeeControls'
+import { ProofUploadField } from '../shared/ProofUploadField'
 
 type Mode = 'orders' | 'fleet'
 
@@ -1379,15 +1381,17 @@ function ConfirmDialog({
 	const [securityMethod, setSecurityMethod] =
 		useState<SecurityMethod>('password')
 	const [securityToken, setSecurityToken] = useState('')
-	const [proofUrl, setProofUrl] = useState('')
+	const [proofDocument, setProofDocument] =
+		useState<UploadedProofDocument | null>(null)
 	const [error, setError] = useState<string | null>(null)
 	const tokenOk = securityToken.trim().length > 0
+	const proofType = isDelivered ? 'dispatch_delivery' : 'dispatch_return'
 
 	const ready =
 		advisorId !== null &&
 		(isDelivered || reason.trim().length >= 3) &&
 		tokenOk &&
-		(isDelivered || proofUrl.trim().length > 0)
+		proofDocument !== null
 
 	const invalidateAll = () => {
 		for (const k of [
@@ -1411,7 +1415,7 @@ function ConfirmDialog({
 				data: {
 					quoteId: route.quoteId,
 					advisorId,
-					proofUrl: proofUrl.trim(),
+					proofUrl: proofDocument?.proofPath ?? '',
 					securityMethod,
 					securityToken: securityToken.trim(),
 				},
@@ -1436,7 +1440,7 @@ function ConfirmDialog({
 					quoteId: route.quoteId,
 					advisorId,
 					reason: reason.trim(),
-					proofUrl: proofUrl.trim(),
+					proofUrl: proofDocument?.proofPath ?? '',
 					securityMethod,
 					securityToken: securityToken.trim(),
 				},
@@ -1503,7 +1507,7 @@ function ConfirmDialog({
 						onChange={(value) => {
 							setAdvisorId(value || null)
 							setSecurityToken('')
-							setProofUrl('')
+							setProofDocument(null)
 						}}
 						placeholder="Select advisor"
 						disabled={employees.length === 0}
@@ -1525,7 +1529,7 @@ function ConfirmDialog({
 									onClick={() => {
 										setSecurityMethod(m)
 										setSecurityToken('')
-										setProofUrl('')
+										setProofDocument(null)
 									}}
 								>
 									{m === 'password' ? 'Password' : 'QR scan'}
@@ -1537,7 +1541,7 @@ function ConfirmDialog({
 							value={securityToken}
 							onChange={(value) => {
 								setSecurityToken(value)
-								setProofUrl('')
+								setProofDocument(null)
 							}}
 							placeholder={
 								securityMethod === 'password' ? 'your password' : 'scan badge'
@@ -1547,14 +1551,22 @@ function ConfirmDialog({
 					</DialogField>
 				)}
 
-				{tokenOk && !isDelivered && (
-					<DialogField label="Proof of return">
-						<HairlineInput
-							value={proofUrl}
-							onChange={setProofUrl}
-							placeholder="pod-photo.jpg"
-						/>
-					</DialogField>
+				{tokenOk && (
+					<ProofUploadField
+						label={isDelivered ? 'Proof of delivery' : 'Proof of return'}
+						note="Upload the signed POD, delivery photo, or return evidence under 1 MB."
+						value={proofDocument}
+						onChange={setProofDocument}
+						panel="dispatch"
+						proofType={proofType}
+						relatedEntityId={route.quoteId}
+						relatedEntityType="dispatch_delivery"
+						title={
+							isDelivered
+								? `Dispatch delivery proof · ${route.quoteNumber}`
+								: `Dispatch return proof · ${route.quoteNumber}`
+						}
+					/>
 				)}
 
 				{error && (

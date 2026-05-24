@@ -1,11 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, FileText } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import {
-	normalizeDecimalInput,
-	PRICE_PROOF_ESSAY_MIN,
-	sanitizeCost,
-} from '../../../lib/inputs'
+import { normalizeDecimalInput, sanitizeCost } from '../../../lib/inputs'
 import {
 	INTERNAL_LIVE_REFETCH_MS,
 	INTERNAL_LIVE_STALE_MS,
@@ -14,8 +10,10 @@ import {
 	getSupplierBatchPriceOptions,
 	updateSupplierQuoteBatch,
 } from '../../../lib/server/inventory'
+import type { UploadedProofDocument } from '../../../lib/server/proofs'
 import { EmployeeActionButton } from '../../shared/EmployeeControls'
 import { formatDecimalEgp } from '../../shared/formatters'
+import { ProofUploadField } from '../../shared/ProofUploadField'
 import { SlidePanel } from '../../shared/SlidePanel'
 
 interface SupplierBatchPricePanelProps {
@@ -31,7 +29,8 @@ export function SupplierBatchPricePanel({
 	const [supplierId, setSupplierId] = useState('')
 	const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
 	const [draftPrices, setDraftPrices] = useState<Record<string, string>>({})
-	const [proofEssay, setProofEssay] = useState('')
+	const [proofDocument, setProofDocument] =
+		useState<UploadedProofDocument | null>(null)
 	const [saveError, setSaveError] = useState<string | null>(null)
 
 	const { data: suppliers = [], isLoading } = useQuery({
@@ -55,7 +54,7 @@ export function SupplierBatchPricePanel({
 			setSupplierId('')
 			setSelectedProductIds([])
 			setDraftPrices({})
-			setProofEssay('')
+			setProofDocument(null)
 			setSaveError(null)
 		}
 	}, [isOpen])
@@ -76,7 +75,7 @@ export function SupplierBatchPricePanel({
 				]),
 			),
 		)
-		setProofEssay('')
+		setProofDocument(null)
 		setSaveError(null)
 	}, [selectedSupplier])
 
@@ -102,7 +101,7 @@ export function SupplierBatchPricePanel({
 	}, [draftPrices, selectedProductIds, selectedSupplier])
 
 	const selectedCount = selectedProductIds.length
-	const proofOk = proofEssay.trim().length >= PRICE_PROOF_ESSAY_MIN
+	const proofOk = proofDocument !== null
 	const canSave =
 		!!selectedSupplier &&
 		selectedCount >= 2 &&
@@ -142,7 +141,7 @@ export function SupplierBatchPricePanel({
 	}
 
 	function saveBatch() {
-		if (!selectedSupplier || !canSave) return
+		if (!selectedSupplier || !proofDocument || !canSave) return
 		setSaveError(null)
 		mutation.mutate({
 			data: {
@@ -151,7 +150,11 @@ export function SupplierBatchPricePanel({
 					productId: update.product.productId,
 					rawCost: update.rawCost,
 				})),
-				proof: { kind: 'essay', text: proofEssay.trim() },
+				proof: {
+					fileName: proofDocument.fileName,
+					kind: 'document',
+					proofPath: proofDocument.proofPath,
+				},
 			},
 		})
 	}
@@ -258,25 +261,22 @@ export function SupplierBatchPricePanel({
 						</div>
 					)}
 
-					<label className="mt-5 block">
-						<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-mid)]">
-							Supplier call proof
-						</span>
-						<textarea
-							value={proofEssay}
-							onChange={(event) => {
-								setProofEssay(event.target.value)
+					{selectedSupplier && (
+						<ProofUploadField
+							label="Supplier call proof"
+							note="Upload the supplier quote PDF, price sheet, invoice image, or chat screenshot under 1 MB."
+							value={proofDocument}
+							onChange={(proof) => {
+								setProofDocument(proof)
 								setSaveError(null)
 							}}
-							rows={6}
-							aria-label="Supplier call proof"
-							placeholder="Record who confirmed the prices, where the prices came from, and why this call covers every selected item."
-							className="mt-2 w-full resize-none rounded-md border border-[var(--rule-soft)] bg-[var(--folio)] px-3 py-2 font-[family-name:var(--font-archivo)] text-[13px] leading-5 text-[var(--ink)] outline-none placeholder:text-[var(--ink-ghost)] focus:border-[var(--color-primary)]/55"
+							panel="inventory"
+							proofType="price_change"
+							relatedEntityId={selectedSupplier.supplierId}
+							relatedEntityType="supplier_batch_price"
+							title={`Batch price proof · ${selectedSupplier.supplierName}`}
 						/>
-						<span className="mt-1 block font-[family-name:var(--font-geist-mono)] text-[10px] text-[var(--ink-mid)]">
-							{proofEssay.trim().length} / {PRICE_PROOF_ESSAY_MIN}
-						</span>
-					</label>
+					)}
 				</div>
 
 				<footer className="shrink-0 border-t border-[var(--rule-soft)] bg-[var(--folio)] px-4 py-4 sm:px-6">

@@ -13,6 +13,7 @@ import {
 	INTERNAL_LIVE_REFETCH_MS,
 	INTERNAL_LIVE_STALE_MS,
 } from '../../../lib/internal-live-query'
+import type { UploadedProofDocument } from '../../../lib/server/proofs'
 import {
 	createDeal,
 	getRefillProductDetail,
@@ -24,6 +25,7 @@ import {
 	formatDecimalEgp,
 	formatRelativeHoursAgo,
 } from '../../shared/formatters'
+import { ProofUploadField } from '../../shared/ProofUploadField'
 import { SlidePanel } from '../../shared/SlidePanel'
 
 interface RefillPanelProps {
@@ -82,6 +84,8 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 	>(null)
 	const [draft, setDraft] = useState<RefillDraft | null>(null)
 	const [notes, setNotes] = useState('')
+	const [proofDocument, setProofDocument] =
+		useState<UploadedProofDocument | null>(null)
 	const [supplierMenuOpen, setSupplierMenuOpen] = useState(false)
 	const [saveError, setSaveError] = useState<string | null>(null)
 
@@ -99,6 +103,7 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 		const first = data.suppliers[0]
 		setSelectedSupplierRowId(first?.rowId ?? null)
 		setNotes('')
+		setProofDocument(null)
 		setSupplierMenuOpen(false)
 		setSaveError(null)
 		if (!first) {
@@ -133,12 +138,14 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 		draft !== null && draft.agreedQty > 0 && draft.agreedQty < draft.minOrderQty
 	const notesRequired = priceDropped || moqOverride
 	const notesOk = !notesRequired || isValidProof(notes)
+	const proofOk = proofDocument !== null
 	const canSubmit =
 		!!selectedSupplier &&
 		!!draft &&
 		draft.agreedQty > 0 &&
 		draft.agreedRawCost > 0 &&
 		notesOk &&
+		proofOk &&
 		!mutation.isPending
 
 	const selectSupplier = (supplier: StockSupplierOffer) => {
@@ -146,6 +153,7 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 		setSelectedSupplierRowId(supplier.rowId)
 		setDraft(buildPrimaryDraft(data, supplier))
 		setNotes('')
+		setProofDocument(null)
 		setSaveError(null)
 		setSupplierMenuOpen(false)
 	}
@@ -156,7 +164,7 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 	}
 
 	const submitDeal = () => {
-		if (!selectedSupplier || !draft || !canSubmit) return
+		if (!selectedSupplier || !draft || !proofDocument || !canSubmit) return
 		setSaveError(null)
 		mutation.mutate({
 			data: {
@@ -170,6 +178,10 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 					},
 				],
 				notes: notes.trim() || undefined,
+				proof: {
+					fileName: proofDocument.fileName,
+					proofPath: proofDocument.proofPath,
+				},
 			},
 		})
 	}
@@ -228,6 +240,20 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 											valid={notesOk}
 										/>
 									)}
+									<ProofUploadField
+										label="Stock refill proof"
+										note="Upload supplier quote, stock exception approval, invoice image, or chat screenshot under 1 MB."
+										value={proofDocument}
+										onChange={(proof) => {
+											setProofDocument(proof)
+											setSaveError(null)
+										}}
+										panel="inventory"
+										proofType="stock_change"
+										relatedEntityId={selectedSupplier.supplierId}
+										relatedEntityType="stock_refill"
+										title={`Stock refill proof · ${data.name} · ${selectedSupplier.supplierName}`}
+									/>
 								</>
 							)}
 						</div>
@@ -239,7 +265,7 @@ export function RefillPanel({ productSlug, onClose }: RefillPanelProps) {
 							canSubmit={canSubmit}
 							saving={mutation.isPending}
 							notesRequired={notesRequired}
-							notesOk={notesOk}
+							notesOk={notesOk && proofOk}
 							errorMessage={saveError}
 							onSubmit={submitDeal}
 						/>

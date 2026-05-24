@@ -6,7 +6,6 @@ import {
 	CircleAlert,
 	FileText,
 	Package,
-	Upload,
 } from 'lucide-react'
 import {
 	type ReactNode,
@@ -16,11 +15,7 @@ import {
 	useRef,
 	useState,
 } from 'react'
-import {
-	normalizeDecimalInput,
-	PRICE_PROOF_ESSAY_MIN,
-	sanitizeCost,
-} from '../../../lib/inputs'
+import { normalizeDecimalInput, sanitizeCost } from '../../../lib/inputs'
 import {
 	INTERNAL_LIVE_REFETCH_MS,
 	INTERNAL_LIVE_STALE_MS,
@@ -33,8 +28,10 @@ import {
 	getInventoryProductDetail,
 	updateSupplierQuote,
 } from '../../../lib/server/inventory'
+import type { UploadedProofDocument } from '../../../lib/server/proofs'
 import { EmployeeActionButton } from '../../shared/EmployeeControls'
 import { formatDecimalEgp } from '../../shared/formatters'
+import { ProofUploadField } from '../../shared/ProofUploadField'
 import { SlidePanel } from '../../shared/SlidePanel'
 
 interface ProductDetailModalProps {
@@ -44,7 +41,6 @@ interface ProductDetailModalProps {
 
 type SupplierTone = 'fresh' | 'attention'
 type PricePanelStep = 'price' | 'proof'
-type ProofMethod = 'pdf' | 'essay'
 
 const TIER_LABEL = {
 	preferred: 'Preferred',
@@ -87,16 +83,13 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 	)
 	const [draftCost, setDraftCost] = useState('')
 	const [panelStep, setPanelStep] = useState<PricePanelStep>('price')
-	const [proofMethod, setProofMethod] = useState<ProofMethod>('pdf')
-	const [proofEssay, setProofEssay] = useState('')
-	const [proofPdfName, setProofPdfName] = useState('')
+	const [proofDocument, setProofDocument] =
+		useState<UploadedProofDocument | null>(null)
 	const [supplierMenuOpen, setSupplierMenuOpen] = useState(false)
 	const [saveError, setSaveError] = useState<string | null>(null)
 
 	const resetProof = useCallback(() => {
-		setProofMethod('pdf')
-		setProofEssay('')
-		setProofPdfName('')
+		setProofDocument(null)
 	}, [])
 
 	const { data, isLoading } = useQuery({
@@ -194,10 +187,7 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 		parsedDraft > 0 &&
 		(priceChanged || priceReconfirmed) &&
 		!quoteMutation.isPending
-	const proofEssayLength = proofEssay.trim().length
-	const proofEssayOk = proofEssayLength >= PRICE_PROOF_ESSAY_MIN
-	const proofPdfOk = proofPdfName.trim().toLowerCase().endsWith('.pdf')
-	const proofOk = proofMethod === 'pdf' ? proofPdfOk : proofEssayOk
+	const proofOk = proofDocument !== null
 	const canSave = canContinueToProof && panelStep === 'proof' && proofOk
 	const saveBlockReason = !selectedSupplier
 		? 'Choose a supplier first.'
@@ -206,23 +196,11 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 			: !(priceChanged || priceReconfirmed)
 				? 'Change the supplier cost before saving.'
 				: panelStep === 'proof' && !proofOk
-					? proofMethod === 'pdf'
-						? 'Upload a PDF proof before saving this price.'
-						: `Write at least ${PRICE_PROOF_ESSAY_MIN} characters of proof before saving.`
+					? 'Upload a PDF or image proof before saving this price.'
 					: null
 
 	const updateDraftCost = (value: string) => {
 		setDraftCost(value)
-		setSaveError(null)
-	}
-
-	const updateProofEssay = (value: string) => {
-		setProofEssay(value)
-		setSaveError(null)
-	}
-
-	const updateProofPdfName = (value: string) => {
-		setProofPdfName(value)
 		setSaveError(null)
 	}
 
@@ -234,10 +212,12 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 	const saveQuote = () => {
 		if (!data || !selectedSupplier || parsedDraft === null || !canSave) return
 		setSaveError(null)
-		const proof: PriceProofInput =
-			proofMethod === 'pdf'
-				? { kind: 'pdf', fileName: proofPdfName.trim() }
-				: { kind: 'essay', text: proofEssay.trim() }
+		if (!proofDocument) return
+		const proof: PriceProofInput = {
+			fileName: proofDocument.fileName,
+			kind: 'document',
+			proofPath: proofDocument.proofPath,
+		}
 		quoteMutation.mutate({
 			data: {
 				slug: data.slug,
@@ -333,19 +313,14 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 											productName={data.name}
 											unit={data.unit}
 											supplierName={selectedSupplier.name}
+											productId={data.productId}
 											oldCost={selectedSupplier.rawCost}
 											newCost={parsedDraft}
-											method={proofMethod}
-											onMethodChange={(method) => {
-												setProofMethod(method)
+											proofDocument={proofDocument}
+											onProofChange={(proof) => {
+												setProofDocument(proof)
 												setSaveError(null)
 											}}
-											pdfName={proofPdfName}
-											onPdfNameChange={updateProofPdfName}
-											essay={proofEssay}
-											onEssayChange={updateProofEssay}
-											essayLength={proofEssayLength}
-											essayMin={PRICE_PROOF_ESSAY_MIN}
 										/>
 									</div>
 								)}
@@ -749,32 +724,21 @@ function ProofSubmissionStep({
 	productName,
 	unit,
 	supplierName,
+	productId,
 	oldCost,
 	newCost,
-	method,
-	onMethodChange,
-	pdfName,
-	onPdfNameChange,
-	essay,
-	onEssayChange,
-	essayLength,
-	essayMin,
+	proofDocument,
+	onProofChange,
 }: {
 	productName: string
 	unit: string
 	supplierName: string
+	productId: string
 	oldCost: number
 	newCost: number
-	method: ProofMethod
-	onMethodChange: (method: ProofMethod) => void
-	pdfName: string
-	onPdfNameChange: (value: string) => void
-	essay: string
-	onEssayChange: (value: string) => void
-	essayLength: number
-	essayMin: number
+	proofDocument: UploadedProofDocument | null
+	onProofChange: (proof: UploadedProofDocument | null) => void
 }) {
-	const fileInputRef = useRef<HTMLInputElement | null>(null)
 	const delta = oldCost > 0 ? ((newCost - oldCost) / oldCost) * 100 : Number.NaN
 	const deltaLabel =
 		oldCost > 0 ? `${delta > 0 ? '+' : ''}${delta.toFixed(1)}%` : 'new'
@@ -835,89 +799,17 @@ function ProofSubmissionStep({
 				</div>
 			</div>
 
-			<div className="mt-4 grid grid-cols-2 overflow-hidden rounded-md border border-[var(--rule-soft)]">
-				<button
-					type="button"
-					onClick={() => onMethodChange('pdf')}
-					aria-pressed={method === 'pdf'}
-					className={`inline-flex min-h-11 items-center justify-center gap-2 border-e border-[var(--rule-soft)] px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.1em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
-						method === 'pdf'
-							? 'bg-[var(--color-primary)]/[0.08] text-[var(--ink)]'
-							: 'text-[var(--ink-mid)] hover:text-[var(--ink)]'
-					}`}
-				>
-					<Upload size={14} strokeWidth={2.1} aria-hidden="true" />
-					PDF
-				</button>
-				<button
-					type="button"
-					onClick={() => onMethodChange('essay')}
-					aria-pressed={method === 'essay'}
-					className={`inline-flex min-h-11 items-center justify-center gap-2 px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.1em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
-						method === 'essay'
-							? 'bg-[var(--color-primary)]/[0.08] text-[var(--ink)]'
-							: 'text-[var(--ink-mid)] hover:text-[var(--ink)]'
-					}`}
-				>
-					<FileText size={14} strokeWidth={2.1} aria-hidden="true" />
-					Essay
-				</button>
-			</div>
-
-			{method === 'pdf' ? (
-				<div className="mt-3 rounded-md border border-[var(--rule-soft)] p-3">
-					<button
-						type="button"
-						onClick={() => fileInputRef.current?.click()}
-						className="flex min-h-20 w-full flex-col items-center justify-center gap-2 rounded-md border border-dashed border-[var(--rule)] px-3 text-center font-[family-name:var(--font-archivo)] text-[12px] text-[var(--ink-mid)] outline-none transition-colors hover:border-[var(--color-primary)]/45 hover:text-[var(--ink)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
-					>
-						<Upload size={18} strokeWidth={2.1} aria-hidden="true" />
-						<span className="font-semibold">
-							{pdfName || 'Upload supplier PDF proof'}
-						</span>
-						<span className="text-[11px] text-[var(--ink-mid)]">
-							PDF only. The selected filename is attached to this price record.
-						</span>
-					</button>
-					<input
-						ref={fileInputRef}
-						type="file"
-						accept="application/pdf,.pdf"
-						className="hidden"
-						onChange={(event) => {
-							const file = event.currentTarget.files?.[0]
-							onPdfNameChange(file?.name ?? '')
-							event.currentTarget.value = ''
-						}}
-					/>
-				</div>
-			) : (
-				<div className="mt-3 rounded-md border border-[var(--rule-soft)] p-3">
-					<div className="mb-2 flex items-baseline justify-between gap-3">
-						<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--ink-mid)]">
-							Proof essay
-						</span>
-						<span
-							className="font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums"
-							style={{
-								color:
-									essayLength >= essayMin
-										? 'var(--compendium-fresh)'
-										: 'var(--ink-mid)',
-							}}
-						>
-							{essayLength} / {essayMin}
-						</span>
-					</div>
-					<textarea
-						value={essay}
-						onChange={(event) => onEssayChange(event.target.value)}
-						rows={7}
-						placeholder="Write the supplier contact, the source of the price, the commercial reason for the change, and anything finance should know before this reaches sales quotes."
-						className="w-full resize-none rounded-md border border-[var(--rule-soft)] bg-[var(--folio)] px-3 py-2 font-[family-name:var(--font-archivo)] text-[13px] leading-5 text-[var(--ink)] outline-none placeholder:text-[var(--ink-ghost)] focus:border-[var(--color-primary)]/55"
-					/>
-				</div>
-			)}
+			<ProofUploadField
+				label="Supplier price proof"
+				note="Upload the supplier quote PDF, price sheet, invoice image, or chat screenshot under 1 MB."
+				value={proofDocument}
+				onChange={onProofChange}
+				panel="inventory"
+				proofType="price_change"
+				relatedEntityId={productId}
+				relatedEntityType="product_price"
+				title={`Price proof · ${productName} · ${supplierName}`}
+			/>
 		</div>
 	)
 }

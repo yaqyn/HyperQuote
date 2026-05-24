@@ -596,6 +596,10 @@ export const createDeal = createServerFn({ method: 'POST' })
 				)
 				.min(1),
 			notes: z.string().optional(),
+			proof: z.object({
+				fileName: z.string().trim().min(1),
+				proofPath: z.string().trim().min(1),
+			}),
 		}),
 	)
 	.handler(async ({ data }) => {
@@ -638,7 +642,9 @@ export const createDeal = createServerFn({ method: 'POST' })
 					p_unit_cost: item.agreedRawCost,
 					p_proof: {
 						kind: 'supplier_refill',
+						file_name: data.proof.fileName,
 						notes: data.notes?.trim() || null,
+						proof_path: data.proof.proofPath,
 						supplier_name: supplier.name,
 					},
 				},

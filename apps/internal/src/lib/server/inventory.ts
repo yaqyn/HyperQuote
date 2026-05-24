@@ -7,7 +7,6 @@ import {
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { hoursSince, type JsonObject, type SupplierTier } from '../db/types'
-import { PRICE_PROOF_ESSAY_MIN } from '../inputs'
 import { getInternalSupabaseClient } from './_supabase'
 import { toJsonObject } from './json'
 
@@ -39,20 +38,11 @@ function bufferCost(raw: number): number {
 	return Math.round(raw * (1 + PROCUREMENT_BUFFER) * 100) / 100
 }
 
-const priceProofSchema = z.discriminatedUnion('kind', [
-	z.object({
-		kind: z.literal('pdf'),
-		fileName: z
-			.string()
-			.trim()
-			.min(1)
-			.regex(/\.pdf$/i),
-	}),
-	z.object({
-		kind: z.literal('essay'),
-		text: z.string().trim().min(PRICE_PROOF_ESSAY_MIN),
-	}),
-])
+const priceProofSchema = z.object({
+	kind: z.literal('document'),
+	fileName: z.string().trim().min(1),
+	proofPath: z.string().trim().min(1),
+})
 
 export type PriceProofInput = z.infer<typeof priceProofSchema>
 
@@ -69,18 +59,12 @@ function formatPriceProofNote({
 		oldCost > 0
 			? `${(((newCost - oldCost) / oldCost) * 100).toFixed(1)}%`
 			: 'new'
-	const evidence =
-		proof.kind === 'pdf'
-			? `PDF: ${proof.fileName.trim()}`
-			: `Essay: ${proof.text.trim()}`
+	const evidence = `Document: ${proof.fileName.trim()}`
 	return `Price proof · ${oldCost.toFixed(2)} -> ${newCost.toFixed(2)} EGP · ${delta} · ${evidence}`
 }
 
 function priceProofPath(proof: PriceProofInput): string {
-	if (proof.kind === 'pdf') {
-		return `price-proofs/${proof.fileName.trim().replace(/[^a-zA-Z0-9._-]/g, '-')}`
-	}
-	return 'price-proofs/internal-essay-proof.txt'
+	return proof.proofPath.trim()
 }
 
 // ─── Derived types the UI speaks ──────────────────────────
@@ -824,6 +808,7 @@ async function getSupabaseInventoryProductDetail(slug: string) {
 
 	const broad = getBroadCategory(product.category)
 	return {
+		productId: product.id,
 		slug: product.slug,
 		name: product.name,
 		name_ar: product.name_ar,
@@ -1002,10 +987,7 @@ function formatBatchPriceProofNote({
 	proof: PriceProofInput
 	updatedCount: number
 }): string {
-	const evidence =
-		proof.kind === 'pdf'
-			? `PDF: ${proof.fileName.trim()}`
-			: `Essay: ${proof.text.trim()}`
+	const evidence = `Document: ${proof.fileName.trim()}`
 	return `Supplier batch price proof · ${updatedCount} items · ${evidence}`
 }
 

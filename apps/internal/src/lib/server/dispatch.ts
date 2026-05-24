@@ -657,7 +657,7 @@ async function getDispatchAdvisorProof(
 		advisorId: string
 		securityMethod: 'password' | 'qr'
 		securityToken: string
-		proofUrl?: string
+		proofUrl: string
 		proofSource?: string
 	},
 ) {
@@ -672,7 +672,7 @@ async function getDispatchAdvisorProof(
 	const baseProof = {
 		advisor_id: credential.advisorId,
 		advisor_name: advisorCheck.advisor.name,
-		proof_url: credential.proofUrl?.trim() ?? null,
+		proof_url: credential.proofUrl.trim(),
 		security_method: credential.securityMethod,
 	}
 	return {
@@ -686,7 +686,7 @@ async function getDispatchAdvisorProof(
 interface DispatchTerminalProofInput {
 	quoteId: string
 	advisorId: string
-	proofUrl?: string
+	proofUrl: string
 	securityMethod: 'password' | 'qr'
 	securityToken: string
 }
@@ -909,7 +909,7 @@ export const markOrderDelivered = createServerFn({ method: 'POST' })
 		z.object({
 			quoteId: z.string(),
 			advisorId: z.string(),
-			proofUrl: z.string().optional(),
+			proofUrl: z.string().min(1),
 			securityMethod: z.enum(['password', 'qr']),
 			securityToken: z.string().min(1),
 		}),

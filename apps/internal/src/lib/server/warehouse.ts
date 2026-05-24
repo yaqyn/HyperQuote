@@ -924,6 +924,7 @@ export const recordWarehouseSignoff = createServerFn({ method: 'POST' })
 			p_loading_task_id: task.id,
 			p_proof: {
 				advisor_id: data.advisorId,
+				advisor_name: advisorCheck.advisor.name,
 				proof_url: data.proofUrl.trim(),
 				security_method: data.securityMethod,
 			},
@@ -971,6 +972,7 @@ export const logFailedInspection = createServerFn({ method: 'POST' })
 			p_loading_task_id: task.id,
 			p_proof: {
 				advisor_id: data.advisorId,
+				advisor_name: advisorCheck.advisor.name,
 				proof_url: data.proofUrl.trim(),
 				security_method: data.securityMethod,
 			},
@@ -1429,6 +1431,7 @@ export const recordReceivingAttempt = createServerFn({ method: 'POST' })
 			proof_url: data.proofUrl.trim(),
 			security_method: data.securityMethod,
 			advisor_id: data.advisorId,
+			advisor_name: actionAuth.advisor.name,
 		}
 		if (rejected.length > 0) {
 			const { error } = await actionAuth.client.rpc(

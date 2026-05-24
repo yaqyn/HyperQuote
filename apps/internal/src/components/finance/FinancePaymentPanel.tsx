@@ -26,11 +26,13 @@ import {
 	recordOrderFullPayment,
 	recordOrderPartialPayment,
 } from '../../lib/server/finance'
+import type { UploadedProofDocument } from '../../lib/server/proofs'
 import {
 	EmployeeActionButton,
 	EmployeeStatusPill,
 } from '../shared/EmployeeControls'
 import { formatDecimalEgp } from '../shared/formatters'
+import { ProofUploadField } from '../shared/ProofUploadField'
 import { SlidePanel } from '../shared/SlidePanel'
 
 interface FinancePaymentPanelProps {
@@ -138,7 +140,8 @@ export function FinancePaymentPanel({
 					: 0
 
 	const [stage, setStage] = useState<Stage>('preview')
-	const [proofFilename, setProofFilename] = useState('')
+	const [proofDocument, setProofDocument] =
+		useState<UploadedProofDocument | null>(null)
 	const [cancelReason, setCancelReason] = useState('')
 	const [cancelNote, setCancelNote] = useState('')
 	const [error, setError] = useState<string | null>(null)
@@ -156,7 +159,7 @@ export function FinancePaymentPanel({
 	useEffect(() => {
 		if (!isOpen) return
 		setStage('preview')
-		setProofFilename('')
+		setProofDocument(null)
 		setCancelReason('')
 		setCancelNote('')
 		setError(null)
@@ -172,14 +175,14 @@ export function FinancePaymentPanel({
 	const mutation = useMutation({
 		mutationFn: async () => {
 			if (!mode || !nextTransition) throw new Error('nothing to record')
-			if (!proofFilename.trim()) throw new Error('proof of payment required')
+			if (!proofDocument) throw new Error('proof of payment required')
 			if (mode === 'order' && orderId) {
 				const fn =
 					nextTransition === 'partial'
 						? recordOrderPartialPayment
 						: recordOrderFullPayment
 				return fn({
-					data: { quoteId: orderId, proofUrl: proofFilename.trim() },
+					data: { quoteId: orderId, proofUrl: proofDocument.proofPath },
 				})
 			}
 			if (mode === 'deal' && dealId) {
@@ -187,7 +190,9 @@ export function FinancePaymentPanel({
 					nextTransition === 'partial'
 						? recordDealPartialPayment
 						: recordDealFullPayment
-				return fn({ data: { dealId: dealId, proofUrl: proofFilename.trim() } })
+				return fn({
+					data: { dealId: dealId, proofUrl: proofDocument.proofPath },
+				})
 			}
 			throw new Error('invalid target')
 		},
@@ -278,7 +283,7 @@ export function FinancePaymentPanel({
 		onError: (e: Error) => setError(e.message),
 	})
 
-	const proofOk = proofFilename.trim().length > 0
+	const proofOk = proofDocument !== null
 	const cancelReasonOk = cancelReason.trim().length >= 3
 	const followUpOk =
 		followUpOutcome.trim().length >= 2 &&
@@ -416,7 +421,27 @@ export function FinancePaymentPanel({
 							)}
 
 							{!isTerminal && stage === 'preview' && (
-								<ProofInput value={proofFilename} onChange={setProofFilename} />
+								<ProofUploadField
+									label="Payment proof"
+									note="Upload the bank receipt, transfer PDF, or payment screenshot under 1 MB."
+									value={proofDocument}
+									onChange={setProofDocument}
+									panel="finance"
+									proofType={mode === 'deal' ? 'finance_out' : 'finance_in'}
+									relatedEntityId={
+										mode === 'deal'
+											? (dealId ?? undefined)
+											: (orderId ?? undefined)
+									}
+									relatedEntityType={
+										mode === 'deal' ? 'supplier_deal' : 'customer_order'
+									}
+									title={
+										mode === 'deal'
+											? `Supplier payment proof · ${panelName}`
+											: `Customer payment proof · ${panelName}`
+									}
+								/>
 							)}
 
 							{!isTerminal && stage === 'cancel' && (
@@ -433,7 +458,7 @@ export function FinancePaymentPanel({
 								<ConfirmReview
 									amount={amountThisStep}
 									nextTransition={nextTransition}
-									proof={proofFilename.trim()}
+									proof={proofDocument?.fileName ?? ''}
 								/>
 							)}
 
@@ -1126,54 +1151,6 @@ function FollowUpForm({
 				</EmployeeStatusPill>
 			)}
 		</section>
-	)
-}
-
-// ─── Proof input ─────────────────────────────────────────
-
-function ProofInput({
-	value,
-	onChange,
-}: {
-	value: string
-	onChange: (v: string) => void
-}) {
-	return (
-		<div className="mt-6">
-			<label
-				htmlFor="proof-filename"
-				className="flex items-baseline gap-2 font-[family-name:var(--font-archivo)] font-semibold uppercase"
-				style={{
-					fontSize: '11px',
-					letterSpacing: '0.1em',
-					color: 'var(--color-text-subtle)',
-				}}
-			>
-				Payment proof
-			</label>
-			<input
-				id="proof-filename"
-				type="text"
-				value={value}
-				onChange={(e) => onChange(e.target.value)}
-				placeholder="e.g. nbe-transfer-2026-04-15.pdf"
-				className="mt-2 min-h-11 w-full rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-bricolage)] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)]/55 focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
-				style={{
-					fontSize: '14px',
-				}}
-			/>
-			<p
-				className="mt-2 font-[family-name:var(--font-bricolage)]"
-				style={{
-					fontSize: '11px',
-					color: 'var(--color-text-muted)',
-					letterSpacing: '0.002em',
-				}}
-			>
-				Required before review. Use the bank transfer file name or internal
-				reference.
-			</p>
-		</div>
 	)
 }
 

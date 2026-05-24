@@ -7,6 +7,7 @@ import {
 	INTERNAL_LIVE_REFETCH_MS,
 	INTERNAL_LIVE_STALE_MS,
 } from '../../lib/internal-live-query'
+import type { UploadedProofDocument } from '../../lib/server/proofs'
 import {
 	getReceivingDealDetail,
 	type getReceivingQueue,
@@ -17,6 +18,7 @@ import {
 	type SecurityMethod,
 } from '../../lib/server/warehouse'
 import { useWarehouseStore } from '../../stores/warehouse'
+import { ProofUploadField } from '../shared/ProofUploadField'
 import {
 	MobileAdvisorMenu,
 	MobileStepControls,
@@ -150,7 +152,8 @@ function FlowInner({ dealId }: { dealId: string }) {
 		useState<SecurityMethod>('password')
 	const [securityToken, setSecurityToken] = useState('')
 	const [rejectionReason, setRejectionReason] = useState('')
-	const [proofUrl, setProofUrl] = useState('')
+	const [proofDocument, setProofDocument] =
+		useState<UploadedProofDocument | null>(null)
 	const [error, setError] = useState<string | null>(null)
 	const scrollToTop = () => {
 		scrollAreaRef.current?.scrollTo({ top: 0, behavior: 'auto' })
@@ -161,7 +164,7 @@ function FlowInner({ dealId }: { dealId: string }) {
 		setAdvisorId(null)
 		setSecurityToken('')
 		setRejectionReason('')
-		setProofUrl('')
+		setProofDocument(null)
 		setError(null)
 	}, [])
 
@@ -179,7 +182,7 @@ function FlowInner({ dealId }: { dealId: string }) {
 						accepted: decisions[i.productSlug] === 'receive',
 					})),
 					rejectionReason: rejectionReason.trim() || undefined,
-					proofUrl: proofUrl.trim(),
+					proofUrl: proofDocument?.proofPath ?? '',
 					securityMethod,
 					securityToken: securityToken.trim(),
 				},
@@ -203,7 +206,7 @@ function FlowInner({ dealId }: { dealId: string }) {
 			setSelectedDealId(null)
 			setDecisions({})
 			setRejectionReason('')
-			setProofUrl('')
+			setProofDocument(null)
 			setSecurityToken('')
 		},
 		onError: (e: Error) => setError(e.message),
@@ -226,7 +229,7 @@ function FlowInner({ dealId }: { dealId: string }) {
 	)
 	const nameOk = advisorId !== null
 	const tokenOk = securityToken.trim().length > 0
-	const proofOk = proofUrl.trim().length > 0
+	const proofOk = proofDocument !== null
 	const reasonOk = !anyRejected || rejectionReason.trim().length >= 3
 	const ready = allDecided && nameOk && tokenOk && proofOk && reasonOk
 
@@ -275,8 +278,8 @@ function FlowInner({ dealId }: { dealId: string }) {
 					setSecurityToken={setSecurityToken}
 					rejectionReason={rejectionReason}
 					setRejectionReason={setRejectionReason}
-					proofUrl={proofUrl}
-					setProofUrl={setProofUrl}
+					proofDocument={proofDocument}
+					setProofDocument={setProofDocument}
 					anyRejected={anyRejected}
 					error={error}
 					ready={ready}
@@ -308,8 +311,8 @@ function ReceivingBody({
 	setSecurityToken,
 	rejectionReason,
 	setRejectionReason,
-	proofUrl,
-	setProofUrl,
+	proofDocument,
+	setProofDocument,
 	anyRejected,
 	error,
 	ready,
@@ -330,8 +333,8 @@ function ReceivingBody({
 	setSecurityToken: (v: string) => void
 	rejectionReason: string
 	setRejectionReason: (v: string) => void
-	proofUrl: string
-	setProofUrl: (v: string) => void
+	proofDocument: UploadedProofDocument | null
+	setProofDocument: (proof: UploadedProofDocument | null) => void
 	anyRejected: boolean
 	error: string | null
 	ready: boolean
@@ -351,7 +354,8 @@ function ReceivingBody({
 	const allDecided = pendingItems.every((i) => decisions[i.productSlug] != null)
 	const reasonOk = !anyRejected || rejectionReason.trim().length >= 3
 	const tokenOk = securityToken.trim().length > 0
-	const proofOk = proofUrl.trim().length > 0
+	const proofOk = proofDocument !== null
+	const proofType = anyRejected ? 'rejection' : 'warehouse_receiving'
 	const mobileSteps: ReceivingMobileStep[] = anyRejected
 		? ['inspect', 'reason', 'signoff']
 		: ['inspect', 'signoff']
@@ -605,25 +609,29 @@ function ReceivingBody({
 
 					<AnimatePresence initial={false}>
 						{tokenOk && (
-							<motion.label
+							<motion.div
 								key="receiving-mobile-proof"
 								initial={{ opacity: 0, y: 8 }}
 								animate={{ opacity: 1, y: 0 }}
 								exit={{ opacity: 0, y: -6 }}
 								transition={{ duration: 0.2 }}
-								className="flex flex-col gap-2"
 							>
-								<span className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.2em] text-black/55">
-									Proof
-								</span>
-								<input
-									type="text"
-									value={proofUrl}
-									onChange={(event) => setProofUrl(event.target.value)}
-									placeholder="Photo, receipt, or note reference"
-									className="h-12 w-full border-2 border-[var(--color-text)] bg-[var(--color-surface)] px-3 text-[16px] outline-none placeholder:text-black/30"
+								<ProofUploadField
+									label="Proof"
+									note="Upload the delivery photo, supplier receipt, or rejection evidence under 1 MB."
+									value={proofDocument}
+									onChange={setProofDocument}
+									panel="warehouse"
+									proofType={proofType}
+									relatedEntityId={deal.dealId}
+									relatedEntityType="warehouse_receiving"
+									title={
+										anyRejected
+											? `Warehouse receiving rejection proof · ${deal.supplierName}`
+											: `Warehouse receiving proof · ${deal.supplierName}`
+									}
 								/>
-							</motion.label>
+							</motion.div>
 						)}
 					</AnimatePresence>
 				</div>
@@ -707,13 +715,20 @@ function ReceivingBody({
 			{/* Proof */}
 			<section className="hidden lg:block">
 				<SectionHeading index="05" title="Proof of receipt" />
-				<input
-					type="text"
-					value={proofUrl}
-					onChange={(e) => setProofUrl(e.target.value)}
-					placeholder="e.g. receipt-photo-bay01.jpg"
-					className="mt-3 w-full border-[3px] border-[var(--color-text)] bg-[var(--color-surface)] px-4 py-3 text-[16px] outline-none placeholder:text-black/30"
-					style={{ minHeight: '56px' }}
+				<ProofUploadField
+					label="Receipt proof"
+					note="Upload the delivery photo, supplier receipt, or rejection evidence under 1 MB."
+					value={proofDocument}
+					onChange={setProofDocument}
+					panel="warehouse"
+					proofType={proofType}
+					relatedEntityId={deal.dealId}
+					relatedEntityType="warehouse_receiving"
+					title={
+						anyRejected
+							? `Warehouse receiving rejection proof · ${deal.supplierName}`
+							: `Warehouse receiving proof · ${deal.supplierName}`
+					}
 				/>
 			</section>
 

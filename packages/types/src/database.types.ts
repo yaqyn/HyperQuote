@@ -9,6 +9,53 @@ export type Json =
 export type Database = {
 	public: {
 		Tables: {
+			activity_event_proofs: {
+				Row: {
+					activity_event_id: string
+					created_at: string
+					proof_document_id: string
+				}
+				Insert: {
+					activity_event_id: string
+					created_at?: string
+					proof_document_id: string
+				}
+				Update: {
+					activity_event_id?: string
+					created_at?: string
+					proof_document_id?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'activity_event_proofs_activity_event_id_fkey'
+						columns: ['activity_event_id']
+						isOneToOne: false
+						referencedRelation: 'activity_events'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'activity_event_proofs_activity_event_id_fkey'
+						columns: ['activity_event_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_activity_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'activity_event_proofs_activity_event_id_fkey'
+						columns: ['activity_event_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_business_activity_vtable'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'activity_event_proofs_proof_document_id_fkey'
+						columns: ['proof_document_id']
+						isOneToOne: false
+						referencedRelation: 'proof_documents'
+						referencedColumns: ['id']
+					},
+				]
+			}
 			activity_events: {
 				Row: {
 					action: Database['public']['Enums']['audit_event_type']
@@ -2181,6 +2228,75 @@ export type Database = {
 						columns: ['customer_id']
 						isOneToOne: false
 						referencedRelation: 'customers'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			proof_documents: {
+				Row: {
+					bucket_id: string
+					created_at: string
+					file_name: string
+					file_size_bytes: number
+					id: string
+					mime_type: string
+					notes: string | null
+					panel: Database['public']['Enums']['employee_panel']
+					proof_type: string
+					related_entity_id: string | null
+					related_entity_type: string | null
+					storage_path: string
+					title: string | null
+					uploaded_by_employee_id: string | null
+					uploaded_by_user_id: string | null
+				}
+				Insert: {
+					bucket_id?: string
+					created_at?: string
+					file_name: string
+					file_size_bytes: number
+					id?: string
+					mime_type: string
+					notes?: string | null
+					panel: Database['public']['Enums']['employee_panel']
+					proof_type: string
+					related_entity_id?: string | null
+					related_entity_type?: string | null
+					storage_path: string
+					title?: string | null
+					uploaded_by_employee_id?: string | null
+					uploaded_by_user_id?: string | null
+				}
+				Update: {
+					bucket_id?: string
+					created_at?: string
+					file_name?: string
+					file_size_bytes?: number
+					id?: string
+					mime_type?: string
+					notes?: string | null
+					panel?: Database['public']['Enums']['employee_panel']
+					proof_type?: string
+					related_entity_id?: string | null
+					related_entity_type?: string | null
+					storage_path?: string
+					title?: string | null
+					uploaded_by_employee_id?: string | null
+					uploaded_by_user_id?: string | null
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'proof_documents_uploaded_by_employee_id_fkey'
+						columns: ['uploaded_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'proof_documents_uploaded_by_employee_id_fkey'
+						columns: ['uploaded_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
 						referencedColumns: ['id']
 					},
 				]
@@ -5609,6 +5725,43 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			register_proof_document: {
+				Args: {
+					p_file_name: string
+					p_file_size_bytes: number
+					p_mime_type: string
+					p_notes?: string
+					p_panel: Database['public']['Enums']['employee_panel']
+					p_proof_type: string
+					p_related_entity_id?: string
+					p_related_entity_type?: string
+					p_storage_path: string
+					p_title?: string
+				}
+				Returns: {
+					bucket_id: string
+					created_at: string
+					file_name: string
+					file_size_bytes: number
+					id: string
+					mime_type: string
+					notes: string | null
+					panel: Database['public']['Enums']['employee_panel']
+					proof_type: string
+					related_entity_id: string | null
+					related_entity_type: string | null
+					storage_path: string
+					title: string | null
+					uploaded_by_employee_id: string | null
+					uploaded_by_user_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'proof_documents'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			request_price_update: {
 				Args: { p_order_id: string; p_product_id: string; p_reason: string }
 				Returns: {
@@ -7164,6 +7317,45 @@ export type Database = {
 					p_force?: boolean
 				}
 				Returns: number
+			}
+			service_register_proof_document: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_file_name: string
+					p_file_size_bytes: number
+					p_mime_type: string
+					p_notes?: string
+					p_panel: Database['public']['Enums']['employee_panel']
+					p_proof_type: string
+					p_related_entity_id?: string
+					p_related_entity_type?: string
+					p_storage_path: string
+					p_title?: string
+				}
+				Returns: {
+					bucket_id: string
+					created_at: string
+					file_name: string
+					file_size_bytes: number
+					id: string
+					mime_type: string
+					notes: string | null
+					panel: Database['public']['Enums']['employee_panel']
+					proof_type: string
+					related_entity_id: string | null
+					related_entity_type: string | null
+					storage_path: string
+					title: string | null
+					uploaded_by_employee_id: string | null
+					uploaded_by_user_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'proof_documents'
+					isOneToOne: true
+					isSetofReturn: false
+				}
 			}
 			service_request_price_update: {
 				Args: {

@@ -12,6 +12,7 @@ import {
 	INTERNAL_LIVE_REFETCH_MS,
 	INTERNAL_LIVE_STALE_MS,
 } from '../../lib/internal-live-query'
+import type { UploadedProofDocument } from '../../lib/server/proofs'
 import {
 	assignTruckToOrder,
 	getAvailableTrucks,
@@ -35,6 +36,7 @@ import {
 	DispatchDialog,
 	DispatchFooter,
 } from '../shared/DispatchDialog'
+import { ProofUploadField } from '../shared/ProofUploadField'
 import { MobileAdvisorMenu, MobileStepControls } from './WarehouseMobileStepper'
 
 /**
@@ -919,7 +921,8 @@ function SignoffStage({
 }) {
 	const [advisorId, setAdvisorId] = useState<string | null>(null)
 	const [qualityPass, setQualityPass] = useState<boolean | null>(null)
-	const [proofUrl, setProofUrl] = useState('')
+	const [proofDocument, setProofDocument] =
+		useState<UploadedProofDocument | null>(null)
 	const [failReason, setFailReason] = useState('')
 	const [securityMethod, setSecurityMethod] =
 		useState<SecurityMethod>('password')
@@ -948,7 +951,7 @@ function SignoffStage({
 				data: {
 					quoteId: order.quoteId,
 					advisorId,
-					proofUrl: proofUrl.trim(),
+					proofUrl: proofDocument?.proofPath ?? '',
 					securityMethod,
 					securityToken: securityToken.trim(),
 				},
@@ -980,7 +983,7 @@ function SignoffStage({
 					quoteId: order.quoteId,
 					advisorId,
 					reason: failReason.trim() || 'Warehouse inspection failed',
-					proofUrl: proofUrl.trim(),
+					proofUrl: proofDocument?.proofPath ?? '',
 					securityMethod,
 					securityToken: securityToken.trim(),
 				},
@@ -1000,8 +1003,9 @@ function SignoffStage({
 
 	const nameOk = advisorId !== null
 	const tokenOk = securityToken.trim().length > 0
-	const proofOk = proofUrl.trim().length > 0
+	const proofOk = proofDocument !== null
 	const reasonOk = failReason.trim().length >= 3
+	const proofType = qualityPass === false ? 'rejection' : 'warehouse_loading'
 
 	const readyPass = qualityPass === true && nameOk && tokenOk && proofOk
 	const readyFail =
@@ -1014,6 +1018,10 @@ function SignoffStage({
 		setError(null)
 		if (qualityPass === true) passMutation.mutate()
 		else if (qualityPass === false) failMutation.mutate()
+	}
+	const setQualityDecision = (next: boolean) => {
+		if (qualityPass !== next) setProofDocument(null)
+		setQualityPass(next)
 	}
 
 	return (
@@ -1086,13 +1094,13 @@ function SignoffStage({
 									active={qualityPass === true}
 									tone="#0A5C2E"
 									label="Pass"
-									onPress={() => setQualityPass(true)}
+									onPress={() => setQualityDecision(true)}
 								/>
 								<MobileQualityButton
 									active={qualityPass === false}
 									tone="#CC3300"
 									label="Fail"
-									onPress={() => setQualityPass(false)}
+									onPress={() => setQualityDecision(false)}
 								/>
 							</div>
 						</motion.div>
@@ -1108,18 +1116,21 @@ function SignoffStage({
 							exit={{ opacity: 0, y: -6 }}
 							transition={{ duration: 0.2 }}
 						>
-							<label className="flex flex-col gap-2">
-								<span className="font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.2em] text-black/55">
-									Proof
-								</span>
-								<input
-									type="text"
-									value={proofUrl}
-									onChange={(event) => setProofUrl(event.target.value)}
-									placeholder="Photo, manifest, or note reference"
-									className="h-12 w-full border-2 border-[var(--color-text)] bg-[var(--color-surface)] px-3 text-[16px] outline-none placeholder:text-black/30"
-								/>
-							</label>
+							<ProofUploadField
+								label="Proof"
+								note="Upload the load photo, signed manifest, or rejection evidence under 1 MB."
+								value={proofDocument}
+								onChange={setProofDocument}
+								panel="warehouse"
+								proofType={proofType}
+								relatedEntityId={order.quoteId}
+								relatedEntityType="warehouse_loading"
+								title={
+									qualityPass === false
+										? `Warehouse loading rejection proof · ${order.quoteNumber}`
+										: `Warehouse loading proof · ${order.quoteNumber}`
+								}
+							/>
 						</motion.div>
 					)}
 				</AnimatePresence>
@@ -1323,14 +1334,14 @@ function SignoffStage({
 					<ToggleButton
 						active={qualityPass === true}
 						accent="#0A5C2E"
-						onPress={() => setQualityPass(true)}
+						onPress={() => setQualityDecision(true)}
 						label="Pass"
 						sub="All items inspected"
 					/>
 					<ToggleButton
 						active={qualityPass === false}
 						accent="#CC3300"
-						onPress={() => setQualityPass(false)}
+						onPress={() => setQualityDecision(false)}
 						label="Fail"
 						sub="Something is off"
 					/>
@@ -1359,12 +1370,20 @@ function SignoffStage({
 			</AnimatePresence>
 
 			<div className="hidden lg:block">
-				<Field
+				<ProofUploadField
 					label="Proof of load"
-					hint="Filename of the photo / signed manifest"
-					value={proofUrl}
-					onChange={setProofUrl}
-					placeholder="e.g. load-photo-bay01.jpg"
+					note="Upload the load photo, signed manifest, or rejection evidence under 1 MB."
+					value={proofDocument}
+					onChange={setProofDocument}
+					panel="warehouse"
+					proofType={proofType}
+					relatedEntityId={order.quoteId}
+					relatedEntityType="warehouse_loading"
+					title={
+						qualityPass === false
+							? `Warehouse loading rejection proof · ${order.quoteNumber}`
+							: `Warehouse loading proof · ${order.quoteNumber}`
+					}
 				/>
 			</div>
 

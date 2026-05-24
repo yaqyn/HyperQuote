@@ -403,6 +403,7 @@ const ACTOR_RPC_NAMES = new Set([
 	'record_customer_payment_followup',
 	'record_supplier_payment',
 	'record_supplier_payment_followup',
+	'register_proof_document',
 	'request_price_update',
 	'require_panel',
 	'refresh_ceo_search_documents_if_dirty',

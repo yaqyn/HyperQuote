@@ -4,6 +4,8 @@ import {
 	ArrowLeft,
 	ChevronDown,
 	Database,
+	ExternalLink,
+	FileText,
 	Table2,
 } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
@@ -29,6 +31,10 @@ import type {
 	SearchTableSummary,
 	SearchTableView,
 } from '../../lib/search-registry'
+import {
+	type ActivityProofDocument,
+	getActivityProofDocuments,
+} from '../../lib/server/proofs'
 import {
 	getSearchActivityFeed,
 	getSearchExecutiveBrief,
@@ -116,6 +122,7 @@ export function SearchModule() {
 	const [isActivityMode, setIsActivityMode] = useState(false)
 	const [activeActivityDomainId, setActiveActivityDomainId] = useState('all')
 	const [selectedRow, setSelectedRow] = useState<SearchRow | null>(null)
+	const [proofRow, setProofRow] = useState<SearchRow | null>(null)
 	const [isFrameExpanded, setIsFrameExpanded] = useState(false)
 	const [isSearchFrameVisible, setIsSearchFrameVisible] = useState(true)
 	const [pendingFrameExpanded, setPendingFrameExpanded] = useState<
@@ -457,7 +464,9 @@ export function SearchModule() {
 				row={selectedRow}
 				onClose={() => setSelectedRow(null)}
 				onOpenSourcePanel={openSourcePanel}
+				onOpenProofs={setProofRow}
 			/>
+			<ActivityProofDrawer row={proofRow} onClose={() => setProofRow(null)} />
 		</div>
 	)
 }
@@ -1276,10 +1285,12 @@ function RowDetailPanel({
 	row,
 	onClose,
 	onOpenSourcePanel,
+	onOpenProofs,
 }: {
 	row: SearchRow | null
 	onClose: () => void
 	onOpenSourcePanel: (row: SearchRow) => void
+	onOpenProofs: (row: SearchRow) => void
 }) {
 	const detailStyle: DetailPanelStyle | undefined = row
 		? {
@@ -1355,10 +1366,123 @@ function RowDetailPanel({
 								Open {sourcePanelLabel}
 							</button>
 						)}
+						{row.tableId === 'activity' && (
+							<button
+								type="button"
+								onClick={() => onOpenProofs(row)}
+								className="mt-5 ms-2 inline-flex min-h-10 items-center gap-2 border border-white/[0.09] px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-white/64 outline-none transition-colors hover:border-white/[0.18] hover:text-white focus-visible:border-white/30"
+							>
+								<FileText aria-hidden="true" size={14} strokeWidth={1.8} />
+								Show Docs
+							</button>
+						)}
 					</div>
 				</div>
 			)}
 		</SlidePanel>
+	)
+}
+
+function ActivityProofDrawer({
+	row,
+	onClose,
+}: {
+	row: SearchRow | null
+	onClose: () => void
+}) {
+	const proofQuery = useQuery({
+		queryKey: ['activity-proof-documents', row?.rowId],
+		queryFn: () => {
+			if (!row) throw new Error('Missing activity')
+			return getActivityProofDocuments({ data: { activityId: row.rowId } })
+		},
+		enabled: row !== null,
+		staleTime: 30_000,
+	})
+	const docs = proofQuery.data ?? []
+
+	return (
+		<SlidePanel
+			isOpen={row !== null}
+			onClose={onClose}
+			maxWidth={440}
+			ariaLabel="Activity proof documents"
+			panelKey="activity-proof-documents"
+			scope="search"
+			tone="dark"
+			mobileTitle="Proof documents"
+			mobileSubtitle={row?.title}
+		>
+			<div className="flex h-full min-h-0 flex-col bg-[#050505] text-white">
+				<header className="shrink-0 border-b border-white/[0.075] px-5 py-5">
+					<p className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/36">
+						Activity proof
+					</p>
+					<h2 className="mt-2 font-[family-name:var(--font-bricolage)] text-[20px] font-semibold text-white/92">
+						Show Docs
+					</h2>
+				</header>
+				<div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+					{proofQuery.isLoading ? (
+						<p className="font-[family-name:var(--font-archivo)] text-[13px] text-white/44">
+							Loading documents...
+						</p>
+					) : proofQuery.isError ? (
+						<p className="font-[family-name:var(--font-archivo)] text-[13px] text-[#ffb4a6]">
+							Proof documents could not be loaded.
+						</p>
+					) : docs.length === 0 ? (
+						<p className="font-[family-name:var(--font-archivo)] text-[13px] text-white/44">
+							No proof documents are linked to this activity yet.
+						</p>
+					) : (
+						<div className="space-y-3">
+							{docs.map((doc) => (
+								<ActivityProofCard key={doc.id} doc={doc} />
+							))}
+						</div>
+					)}
+				</div>
+			</div>
+		</SlidePanel>
+	)
+}
+
+function ActivityProofCard({ doc }: { doc: ActivityProofDocument }) {
+	return (
+		<article className="border border-white/[0.08] bg-white/[0.03] p-3">
+			<div className="flex items-start gap-3">
+				<FileText
+					aria-hidden="true"
+					size={18}
+					strokeWidth={1.8}
+					className="mt-0.5 shrink-0 text-white/50"
+				/>
+				<div className="min-w-0 flex-1">
+					<h3 className="break-words font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-white/86">
+						{doc.title}
+					</h3>
+					<p className="mt-1 break-words font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/36">
+						{proofTypeLabel(doc.proofType)} · {formatProofSize(doc.sizeBytes)}
+					</p>
+					<p className="mt-2 font-[family-name:var(--font-archivo)] text-[12px] text-white/52">
+						{doc.uploadedBy ? `${doc.uploadedBy} uploaded it` : 'Uploaded'} on{' '}
+						{formatActivityTimestamp(doc.uploadedAt)}
+					</p>
+				</div>
+			</div>
+			{doc.url && (
+				<a
+					href={doc.url}
+					target="_blank"
+					rel="noreferrer"
+					className="mt-3 inline-flex min-h-9 items-center gap-2 border border-white/[0.1] px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-white/70 transition-colors hover:border-white/[0.2] hover:text-white"
+				>
+					<ExternalLink aria-hidden="true" size={13} strokeWidth={1.8} />
+					Open document
+				</a>
+			)}
+		</article>
 	)
 }
 
@@ -1546,6 +1670,21 @@ function renderJsonValue(value: JsonValue): ReactNode {
 			{JSON.stringify(value, null, 2)}
 		</pre>
 	)
+}
+
+function proofTypeLabel(value: string): string {
+	return value
+		.split('_')
+		.filter(Boolean)
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(' ')
+}
+
+function formatProofSize(bytes: number): string {
+	if (!Number.isFinite(bytes) || bytes <= 0) return 'Size unavailable'
+	if (bytes < 1024) return `${bytes} B`
+	if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function formatActivityTimestamp(value: string | null): string {
