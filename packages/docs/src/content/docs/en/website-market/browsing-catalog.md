@@ -32,4 +32,4 @@ Guest visitors can browse the full catalog, view all product specifications and 
 
 While browsing, you can add any product to a quote request using the "Add to Quote" button on product cards and detail pages. These selections accumulate in your material list, which you can review, adjust quantities, and organize by project before submitting as a formal RFQ.
 
-If you prefer, you can skip the catalog entirely and use the AI assistant to describe what you need in plain language. The assistant will identify the right products and draft a material list for your review.
+If you are not sure where to start, the website AI guide can point you toward the right Market area or support page. Product selection, material lists, and quote requests happen in the Market and signed-in portal flows, not inside the public website chat.

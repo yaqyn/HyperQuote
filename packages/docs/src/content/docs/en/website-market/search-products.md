@@ -22,7 +22,7 @@ Sorting options include relevance, price range (low to high or high to low), ava
 
 Construction projects often require materials with precise specifications. The search system handles specification-based queries: "Grade 60 rebar 16mm" returns exactly that, filtering out Grade 40 and other diameters. You can search by Egyptian standard references and international equivalents.
 
-For composite searches — "everything I need for a concrete pour" — the AI assistant is better suited than keyword search. The assistant understands construction context and can suggest complete material lists based on project descriptions.
+For broad searches — "materials for a concrete pour" — use the Market categories and filters to narrow the catalog. The website AI guide can help you find where to browse, but it does not build or submit material lists from public chat.
 
 ## Bulk product lookup
 

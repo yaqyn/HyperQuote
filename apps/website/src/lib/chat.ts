@@ -178,11 +178,17 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 				isWebsiteNavigationRequest(userText)
 			) {
 				for await (const chunk of textOnlyStream(
-					websiteNavigationDirectAnswer(userText, directNavigationButtons),
+					websiteNavigationDirectAnswer(
+						userText,
+						directNavigationButtons,
+						shouldShowWebsiteChatActionButtons(userText),
+					),
 				)) {
 					chunks.push(chunk)
 				}
-				appendWebsiteActionButtons(chunks, directNavigationButtons)
+				if (shouldShowWebsiteChatActionButtons(userText)) {
+					appendWebsiteActionButtons(chunks, directNavigationButtons)
+				}
 			} else {
 				const aiEnabled = await isAIEnabled()
 				const route = enforceDocsRoute(
@@ -201,7 +207,7 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 						const simpleAnswer = simpleWebsiteChatAnswer(modelMessages)
 						for await (const chunk of textOnlyStream(
 							simpleAnswer ??
-								'Ask me about quotes, delivery, payments, the market, or Lyon.',
+								'Ask me about HyperQuote pages, the Market, docs, support, or portal access.',
 						)) {
 							chunks.push(chunk)
 						}
@@ -317,8 +323,8 @@ function simpleWebsiteChatAnswer(messages: ChatMessageInput[]): string | null {
 	}
 	if (!isGreeting) return null
 	return isArabic
-		? 'أهلاً، أنا ليون. اسألني عن العروض، التوصيل، الدفع، أو السوق.'
-		: "Hi, I'm Lyon. Ask me about quotes, delivery, payments, or the market."
+		? 'أهلاً، أنا ليون. أقدر أرشدك في موقع هايبركوت، السوق، الوثائق، الدعم، أو دخول البوابة.'
+		: "Hi, I'm Lyon. I can guide you around the HyperQuote website, Market, docs, support, or portal login."
 }
 
 function isHostileWebsiteChatMessage(normalized: string, raw: string): boolean {
@@ -364,17 +370,14 @@ const WEBSITE_MARKET_TOPIC_PATTERN =
 const WEBSITE_MARKET_ACTION_PATTERN =
 	/\b(buy|purchase|source|sourcing|procure|procurement|shop|find|get|need|looking for)\b/
 
+const WEBSITE_GENERIC_BUYING_TARGET_PATTERN =
+	/\b(stuff|things|supplies|materials?|products?|place|section|area|where)\b/
+
 const WEBSITE_MATERIAL_PATTERN =
 	/\b(materials?|wood|lumber|timber|plywood|cement|concrete|rebar|steel|sand|aggregate|bricks?|blocks?|paint|pipes?|plumbing|electrical|hardware|fixtures?|roofing|drywall)\b/
 
 const AR_WEBSITE_MARKET_NAV_PATTERN =
 	/(السوق|كتالوج|منتج|منتجات|مواد|شراء|اشتري|توريد|مصدر|خشب|اسمنت|حديد|خرسانه|رمل|طوب|مواسير|دهان)/
-
-const WEBSITE_QUOTE_NAV_PATTERN =
-	/\b(quote|quotes|rfq|quotation|offer|price|prices|pricing|estimate|cost|budget|order|request|requesting|submit|checkout)\b/
-
-const AR_WEBSITE_QUOTE_NAV_PATTERN =
-	/(عرض|عروض|سعر|اسعار|تسعير|طلب|اطلب|تكلفه|ميزانيه)/
 
 const WEBSITE_PORTAL_NAV_PATTERN =
 	/\b(portal|login|log in|signin|sign in|account|dashboard|track|tracking|status|my quote|my order|invoice|delivery status|order status)\b/
@@ -421,6 +424,27 @@ function hasMaterialBuyingIntent(normalized: string): boolean {
 	)
 }
 
+function hasGenericBuyingIntent(normalized: string): boolean {
+	return (
+		WEBSITE_MARKET_ACTION_PATTERN.test(normalized) &&
+		WEBSITE_GENERIC_BUYING_TARGET_PATTERN.test(normalized)
+	)
+}
+
+const WEBSITE_ACTION_BUTTON_REQUEST_PATTERN =
+	/\b(link|links|url|button|buttons|open|go to|take me|send me)\b/i
+
+const AR_WEBSITE_ACTION_BUTTON_REQUEST_PATTERN =
+	/(لينك|رابط|روابط|زر|افتح|وديني|روح|ابعتي|ابعتلي|ابعث)/
+
+export function shouldShowWebsiteChatActionButtons(userText: string): boolean {
+	const normalized = normalizeForSimpleChat(userText)
+	return (
+		WEBSITE_ACTION_BUTTON_REQUEST_PATTERN.test(normalized) ||
+		AR_WEBSITE_ACTION_BUTTON_REQUEST_PATTERN.test(userText)
+	)
+}
+
 function isWebsiteNavigationRequest(userText: string): boolean {
 	const normalized = normalizeForSimpleChat(userText)
 	const isShortDirectTarget = normalized.split(/\s+/).length <= 5
@@ -428,6 +452,7 @@ function isWebsiteNavigationRequest(userText: string): boolean {
 		WEBSITE_NAVIGATION_REQUEST_PATTERN.test(normalized) ||
 		AR_WEBSITE_NAVIGATION_REQUEST_PATTERN.test(normalized) ||
 		hasMaterialBuyingIntent(normalized) ||
+		hasGenericBuyingIntent(normalized) ||
 		(isShortDirectTarget &&
 			(WEBSITE_DIRECT_PAGE_TARGET_PATTERN.test(normalized) ||
 				AR_WEBSITE_DIRECT_PAGE_TARGET_PATTERN.test(normalized)))
@@ -437,18 +462,60 @@ function isWebsiteNavigationRequest(userText: string): boolean {
 function websiteNavigationDirectAnswer(
 	userText: string,
 	buttons: WebsiteActionButtonData[],
+	includeButtons: boolean,
 ): string {
 	const isArabic = detectDocsQueryLocale(userText) === 'ar'
-	if (isArabic) return 'أكيد. دي روابط هايبركوت المناسبة:'
+	if (includeButtons) {
+		if (isArabic) return 'أكيد. دي روابط هايبركوت المناسبة:'
 
-	return buttons.length === 1
-		? 'Here is the right HyperQuote link:'
-		: 'Here are the right HyperQuote links:'
+		return buttons.length === 1
+			? 'Here is the right HyperQuote link:'
+			: 'Here are the right HyperQuote links:'
+	}
+
+	const primaryButton = buttons[0]
+	if (!primaryButton) {
+		return isArabic
+			? 'أقدر أرشدك في صفحات هايبركوت العامة.'
+			: 'I can guide you around the public HyperQuote website.'
+	}
+
+	if (isArabic) {
+		if (primaryButton.href.startsWith('/market')) {
+			return 'المكان المناسب هو السوق في موقع هايبركوت. تقدر تتصفح مواد البناء والمنتجات من هناك.'
+		}
+		if (primaryButton.href.startsWith('/support')) {
+			return 'المكان المناسب هو صفحة الدعم في موقع هايبركوت للتواصل أو المساعدة.'
+		}
+		if (primaryButton.href.startsWith('/login')) {
+			return 'لأي شيء خاص بحسابك، استخدم دخول البوابة. من هنا أقدر أرشدك فقط في الموقع العام.'
+		}
+		if (primaryButton.href.startsWith('/docs')) {
+			return 'المكان المناسب هو الوثائق العامة في موقع هايبركوت.'
+		}
+		return `المكان المناسب هو ${primaryButton.labelAr}.`
+	}
+
+	if (primaryButton.href.startsWith('/market')) {
+		return 'Use the Market page on HyperQuote to browse building materials and products.'
+	}
+	if (primaryButton.href.startsWith('/support')) {
+		return 'Use the Support page on HyperQuote for contact options or help.'
+	}
+	if (primaryButton.href.startsWith('/login')) {
+		return 'Use the Portal login for anything account-specific. From here, I can only guide you around the public website.'
+	}
+	if (primaryButton.href.startsWith('/docs')) {
+		return 'Use the public Docs page on HyperQuote for guides and answers.'
+	}
+	return `Use the ${primaryButton.label} page on HyperQuote.`
 }
 
-function websiteDirectNavigationButtons(
+export function websiteDirectNavigationButtons(
 	userText: string,
 ): WebsiteActionButtonData[] {
+	if (publicDocsPolicyRefusal(userText)) return []
+
 	const normalized = normalizeForSimpleChat(userText)
 	const buttons: WebsiteActionButtonData[] = []
 	const add = (button: WebsiteActionButtonData) => {
@@ -463,6 +530,7 @@ function websiteDirectNavigationButtons(
 		buttons.push(button)
 	}
 	const materialBuyingIntent = hasMaterialBuyingIntent(normalized)
+	const genericBuyingIntent = hasGenericBuyingIntent(normalized)
 
 	if (
 		WEBSITE_HOME_NAV_PATTERN.test(normalized) ||
@@ -479,6 +547,7 @@ function websiteDirectNavigationButtons(
 	if (
 		WEBSITE_MARKET_TOPIC_PATTERN.test(normalized) ||
 		materialBuyingIntent ||
+		genericBuyingIntent ||
 		AR_WEBSITE_MARKET_NAV_PATTERN.test(normalized)
 	) {
 		add({
@@ -486,19 +555,6 @@ function websiteDirectNavigationButtons(
 			icon: 'market',
 			label: 'Market',
 			labelAr: 'السوق',
-		})
-	}
-
-	if (
-		WEBSITE_QUOTE_NAV_PATTERN.test(normalized) ||
-		materialBuyingIntent ||
-		AR_WEBSITE_QUOTE_NAV_PATTERN.test(normalized)
-	) {
-		add({
-			href: '/market',
-			icon: 'quote',
-			label: 'Start quote',
-			labelAr: 'ابدأ عرض سعر',
 		})
 	}
 
@@ -539,7 +595,7 @@ function websiteDirectNavigationButtons(
 	}
 
 	if (
-		/\b(contact|reach|email|phone|call|whatsapp|message|talk|human)\b/.test(
+		/\b(contact|email|phone|call|whatsapp|message|talk|human)\b/.test(
 			normalized,
 		) ||
 		/تواصل|واتساب|تليفون|ايميل|كلم|انسان/.test(normalized)
@@ -659,6 +715,8 @@ function websiteNavigationButtons(
 	route: WebsitePublicChatRoute,
 	docs?: ReturnType<typeof retrieveRoutedDocs>,
 ): WebsiteActionButtonData[] {
+	if (!shouldShowWebsiteChatActionButtons(userText)) return []
+
 	const normalized = normalizeForSimpleChat(userText)
 	const buttons: WebsiteActionButtonData[] = []
 	const add = (button: WebsiteActionButtonData) => {

@@ -8,7 +8,7 @@
 		"build": "vite build",
 		"routes:generate": "tsr generate",
 		"typecheck": "bun run routes:generate && tsc --noEmit",
-		"test": "bun run --cwd ../../packages/docs test",
+		"test": "bun test src/lib/chat.test.ts && bun run --cwd ../../packages/docs test",
 		"preview": "vite preview",
 		"deploy": "vite build && rm -f dist/server/.dev.vars && wrangler deploy --config dist/server/wrangler.json",
 		"cf-typegen": "wrangler types"

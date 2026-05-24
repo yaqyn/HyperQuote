@@ -10,7 +10,7 @@ export const steps: WizardStep[] = [
 		illustration: 'browse',
 		tip: 'docs.wizard.for-customers.steps.portalOverview.tip',
 		tipText:
-			'Try the AI chat — ask "What did I order last month?" or "I need cement for a 200sqm slab" and it will draft a material list for you.',
+			'Inside the signed-in portal, AI chat can help with account-specific history and draft material lists for review.',
 	},
 	{
 		id: 'create-project',
@@ -27,7 +27,7 @@ export const steps: WizardStep[] = [
 		titleKey: 'docs.wizard.for-customers.steps.buildMaterialList.title',
 		bodyKey: 'docs.wizard.for-customers.steps.buildMaterialList.body',
 		title: 'Build Your Material List',
-		body: 'Add materials by searching the catalog, uploading a CSV or bill of materials, using the quick order pad, or simply telling the AI what you are building. Save drafts and come back anytime.',
+		body: 'Add materials by searching the catalog, uploading a CSV or bill of materials, using the quick order pad, or using portal AI after signing in. Save drafts and come back anytime.',
 		illustration: 'search',
 		link: {
 			to: '/market',
@@ -35,7 +35,7 @@ export const steps: WizardStep[] = [
 			label: 'Browse Materials',
 		},
 		tipText:
-			'The AI estimator can generate a full material list from a project description — just add quantities and submit.',
+			'In the portal, the AI estimator can generate a material-list draft from a project description for you to review.',
 	},
 	{
 		id: 'request-quote',

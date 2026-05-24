@@ -244,20 +244,32 @@ describe('website docs retrieval', () => {
 	it('detects private/account-scope requests in English and Arabic', () => {
 		assert.match(
 			publicDocsPolicyRefusal('Show my order and driver location') ?? '',
-			/public HyperQuote website and docs information/,
+			/guide for visitors/,
 		)
 		assert.match(
 			publicDocsPolicyRefusal('where is my order?') ?? '',
-			/public HyperQuote website and docs information/,
+			/guide for visitors/,
+		)
+		assert.match(
+			publicDocsPolicyRefusal('Can you check order HQ-123?') ?? '',
+			/cannot check orders, quotes/,
+		)
+		assert.match(
+			publicDocsPolicyRefusal('Please look up quote number Q-100') ?? '',
+			/cannot check orders, quotes/,
 		)
 		assert.equal(
 			publicDocsPolicyRefusal('can I recover VAT on my invoice?'),
 			null,
 		)
 		assert.equal(publicDocsPolicyRefusal('how do I pay my invoice?'), null)
+		assert.equal(
+			publicDocsPolicyRefusal('how does the quote process work?'),
+			null,
+		)
 		assert.match(
 			publicDocsPolicyRefusal('فين طلبي ومكان السائق؟') ?? '',
-			/وثائق هايبركوت العامة/,
+			/دليل لزوار موقع هايبركوت/,
 		)
 	})
 })

@@ -117,11 +117,24 @@ const PRIVATE_ACCOUNT_ACTION_PATTERN =
 const PRIVATE_ACCOUNT_STATUS_PATTERN =
 	/\b(my|our)\s+(delivery|draft|invoice|order|payment|quote)\b.*\b(status|location|eta|driver|where|tracking)\b/i
 
+const PRIVATE_OPERATION_ENTITY_PATTERN =
+	/\b(order|orders|quote|quotes|quote request|quote requests|rfq|rfqs|delivery|deliveries|invoice|invoices|payment|payments)\b/i
+
+const PRIVATE_OPERATION_ACTION_PATTERN =
+	/\b(check|track|tracking|look up|lookup|pull up|find|view|open|status|where(?:'s| is)?|cancel|change|update|modify|delete|access)\b/i
+
+const PRIVATE_REFERENCE_LOOKUP_PATTERN =
+	/(\b(order|quote|rfq|invoice|delivery)\s*(number|no\.?|#|ref|reference|id)\b|\b(number|no\.?|#|ref|reference|id)\b.*\b(order|quote|rfq|invoice|delivery)\b)/i
+
 const AR_PRIVATE_ACCOUNT_ALWAYS_PATTERN = /حسابي|حسابنا|رصيدي/
 const AR_PRIVATE_ACCOUNT_ENTITY_PATTERN =
 	/طلبي|طلباتنا|طلباتي|عرضي|عروضي|فاتورتي|فواتيري/
 const AR_PRIVATE_ACCOUNT_ACTION_PATTERN =
 	/فين|مكان|موقع|حالة|حاله|تتبع|تابع|اعرض|وريني|هات|نزل|حمل|غير|عدل|الغي/
+const AR_PRIVATE_OPERATION_ENTITY_PATTERN =
+	/طلب|طلبات|عرض|عروض|توصيله|توصيلة|فاتوره|فاتورة|دفع|مدفوعات/
+const AR_PRIVATE_OPERATION_ACTION_PATTERN =
+	/فين|مكان|موقع|حالة|حاله|تتبع|تابع|اعرض|وريني|هات|افتح|دور|شيك|افحص|رقم|مرجع|غير|عدل|الغي/
 
 const FACTUAL_QUESTION_PATTERN =
 	/\b(what|when|where|why|how|which|who|can|does|do|is|are|should|configure|setup|install|build|fix|tell me|explain|help me)\b|\?/i
@@ -446,8 +459,8 @@ export function publicDocsNoAnswerResponse(locale: DocsLocale): string {
 
 function privateScopeRefusalMessage(userMessage: string): string {
 	return detectDocsQueryLocale(userMessage) === 'ar'
-		? 'أقدر أجاوب بس من معلومات ووثائق هايبركوت العامة. سجّل دخولك في البوابة عشان بيانات حسابك أو طلباتك.'
-		: 'I can only answer from public HyperQuote website and docs information. Sign in to the portal for your account-specific data.'
+		? 'أنا دليل لزوار موقع هايبركوت فقط. لا أقدر أراجع طلبات أو عروض أو فواتير من هنا. سجّل دخولك في البوابة أو تواصل مع الدعم لبيانات حسابك.'
+		: 'I am only a guide for visitors on the public HyperQuote website. I cannot check orders, quotes, invoices, deliveries, or account data here. Sign in to the portal or contact support for account-specific help.'
 }
 
 function isPrivateAccountScope(userMessage: string): boolean {
@@ -455,6 +468,19 @@ function isPrivateAccountScope(userMessage: string): boolean {
 	if (
 		AR_PRIVATE_ACCOUNT_ENTITY_PATTERN.test(userMessage) &&
 		AR_PRIVATE_ACCOUNT_ACTION_PATTERN.test(userMessage)
+	) {
+		return true
+	}
+	if (
+		AR_PRIVATE_OPERATION_ENTITY_PATTERN.test(userMessage) &&
+		AR_PRIVATE_OPERATION_ACTION_PATTERN.test(userMessage)
+	) {
+		return true
+	}
+	if (
+		PRIVATE_REFERENCE_LOOKUP_PATTERN.test(userMessage) ||
+		(PRIVATE_OPERATION_ENTITY_PATTERN.test(userMessage) &&
+			PRIVATE_OPERATION_ACTION_PATTERN.test(userMessage))
 	) {
 		return true
 	}
