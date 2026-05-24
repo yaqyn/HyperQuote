@@ -19,6 +19,10 @@ source of truth, but browser/native clients must not read or write public tables
 or call business RPCs directly. Client apps may use Supabase Auth only for
 signup, login, session refresh, and sign-out.
 
+Local, staging, and production use separate Supabase environments. Current
+hosted refs and deploy/runtime ownership live in `STACK.md`; do not assume
+staging and production share a project.
+
 Website, portal, internal, and driver data access must go through React Start
 server functions, Worker routes, or server-only helpers. Server code uses
 `@hyperquote/auth/server` service-role helpers, and actor-sensitive RPCs must be

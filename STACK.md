@@ -17,8 +17,12 @@ workers. Shared packages live under `packages/`.
 ## Backend Boundary
 
 Supabase/Postgres is the selected production source of truth. Use separate
-Supabase environments for local development, hosted staging
-(`hyperquote-staged`), and hosted production (`hyperquote-production`).
+Supabase environments for local development, hosted staging, and hosted
+production. The current hosted projects are:
+
+- Staging: `hyperquote-staging`, project ref `ybufscsdlhxnxyvzejtd`.
+- Production: `hyperquote`, project ref `oxrwjvtikrnxifcqewwa`.
+
 Cloudflare Workers remain the app runtime and deploy target.
 
 The checked-in `supabase/` directory is the real backend migration surface.
@@ -53,6 +57,11 @@ types, storage policies, RPC contracts, and app code SHA.
   inside explicitly scoped backend work.
 - Do not point staged apps at production Supabase, and do not point production
   apps at staged Supabase.
+- Before hosted Supabase admin work, explicitly confirm the target project ref
+  or pass it to the command; do not rely on a remembered CLI link.
+- Infisical is for local/operator access only. Staging and production runtime
+  config must come from GitHub variables/secrets and Cloudflare Secrets Store,
+  never from Infisical.
 
 ## Core Pins
 
@@ -147,6 +156,16 @@ Root `deploy:*` scripts are explicit local admin tools only. Do not bypass the
 GitHub staging/promotion path with local Wrangler/Infisical deploys unless the
 user explicitly asks.
 
+GitHub variables and Cloudflare Secrets Store bindings must stay
+environment-scoped:
+
+- Staging workers use the staging Supabase project
+  `ybufscsdlhxnxyvzejtd`.
+- Production workers use the production Supabase project
+  `oxrwjvtikrnxifcqewwa`.
+- Project refs, URLs, and publishable/anon keys may be environment config;
+  service-role keys and provider secrets remain secrets.
+
 ## Verification Gates
 
 For broad cleanup, dependency, architecture, or deploy-workflow changes, use
@@ -166,7 +185,8 @@ Classify those manually before abstracting.
 
 - App adapters still need to move gradually from mock/server-function fallbacks
   to the real Supabase contracts.
-- Hosted staged/production Supabase projects still need environment-scoped
-  secrets, migration application, and smoke verification.
+- Keep hosted Supabase project drift checks in the release routine: migrations,
+  generated types, storage buckets/policies, RPC wrappers, and Cloudflare
+  Secrets Store names must match the environment being deployed.
 - Real portal tests replacing skipped/todo coverage.
 - Observability and rollback policy before canary rollout.
