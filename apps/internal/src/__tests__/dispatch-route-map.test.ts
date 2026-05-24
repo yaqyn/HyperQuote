@@ -38,4 +38,19 @@ describe('dispatch route map', () => {
 		expect(source).toContain("const DISPATCH_DELIVERY_ORANGE = '#EA580C'")
 		expect(source).toContain("const DISPATCH_OVERDUE_RED = '#7F1D1D'")
 	})
+
+	it('uses the shared map without a dispatch-only wash filter', () => {
+		const componentSource = readFileSync(
+			join(process.cwd(), 'src/components/dispatch/DispatchMap.tsx'),
+			'utf8',
+		)
+		const stylesheetSource = readFileSync(
+			join(process.cwd(), 'src/styles.css'),
+			'utf8',
+		)
+
+		expect(componentSource).toContain('mapStyle={MAP_STYLE}')
+		expect(componentSource).not.toContain('dispatch-map-wash')
+		expect(stylesheetSource).not.toContain('.dispatch-map-wash')
+	})
 })

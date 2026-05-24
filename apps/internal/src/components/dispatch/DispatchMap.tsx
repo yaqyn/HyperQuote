@@ -1,10 +1,8 @@
 /**
- * Dispatch map — washed terrain under the horizon panel. Near-black ink
- * on muted ochre cartography: warehouse as a hairline ring, destinations
- * as high-contrast orange monograms, roads as thick solid blue highlights,
- * trucks as blue dots, and overdue work as dark red. The terrain is
- * desaturated via the .dispatch-map-wash filter so the panel reads as a
- * composed object over quiet ground.
+ * Dispatch map — the shared street map under the horizon panel. Warehouse
+ * as a hairline ring, destinations as high-contrast orange monograms, roads
+ * as thick solid blue highlights, trucks as blue dots, and overdue work as
+ * dark red.
  *
  * MUST be wrapped in ClientOnly at call site.
  */
@@ -263,7 +261,7 @@ export function DispatchMap({
 					/>
 				</div>
 			)}
-			<div className="dispatch-map-wash h-full w-full">
+			<div className="h-full w-full">
 				<MapGL
 					ref={mapRef}
 					mapStyle={MAP_STYLE}
