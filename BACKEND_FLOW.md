@@ -1,20 +1,22 @@
 # HyperQuote Backend Contract
 
-This is the implementation contract for replacing the mock app boundaries with
-Supabase/Postgres while keeping Cloudflare Workers as the app runtime.
+This is the local backend implementation contract for the HyperQuote apps.
+`STACK.md` remains the source of truth for stack and runtime decisions.
+Supabase/Postgres is the backend source of truth, and app access goes through
+server functions, local API handlers, or server-only helpers.
 
 ## Environments
 
-- Local Supabase is the development and test backend.
-- Hosted `hyperquote-staged` is the staging backend for staging Workers.
-- Hosted `hyperquote-production` is the production backend for real data.
-- Staged and production use the same migrations, RLS, storage policies,
-  generated types, RPC contracts, and app code SHA.
-- Staged apps must never point at production Supabase.
-- Production apps must never point at staged Supabase.
-- Infisical, GitHub, and Cloudflare secrets are environment-scoped. Master or
-  operator credentials must never become app runtime, CI, deploy, or database
-  credentials.
+- Local Supabase is the development, test, and proof backend for this repo.
+- The checked-in migrations, RLS policies, storage policies, generated types,
+  service RPC wrappers, and seed scripts are the reproducible backend surface.
+- There is no active hosted staging, hosted production, Cloudflare Worker,
+  GitHub Actions deploy, or promotion workflow in this repo.
+- Do not wire apps to hosted Supabase projects from this codebase unless the
+  user explicitly reopens hosted architecture.
+- Infisical and local process environment may provide operator/runtime secrets,
+  but master or operator credentials must never become app runtime, CI, deploy,
+  or database credentials.
 
 ## Account Pools
 
@@ -108,14 +110,15 @@ Every reject action requires proof. Reject RPCs must fail without proof.
 - AI can draft and summarize, but writes must go through explicit
   user-confirmed RPCs and audit events.
 
-## Promotion Rule
+## Local Readiness Rule
 
-Backend promotion is migration-first and SHA-pinned:
+Backend proof is migration-first and local-schema-pinned:
 
 1. Apply and test migrations locally.
 2. Generate database types from the same local schema.
 3. Wire app adapters without changing caller contracts.
 4. Smoke all four apps against local Supabase.
-5. Apply the same migrations to `hyperquote-staged`.
-6. Deploy staging apps for the same SHA.
-7. Promote production only after staged smoke passes on that SHA.
+5. Run the API-boundary, tasklist, advisor, scanner, and app verification gates
+   that match the change.
+6. Treat hosted rollout, resource creation, and promotion as a separate
+   architecture task that must be designed before implementation.

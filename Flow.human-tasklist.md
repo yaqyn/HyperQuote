@@ -14,7 +14,7 @@ Status legend: `[ ]` not tested in the final pass, `[x]` passed in the final liv
 - If a problem is found, record it as `[!]`, fix the root cause, run the same scenario again, and only then update the status.
 - If an external provider is required, prove local persistence and fail-closed behavior; leave it `[~]` with the provider/config blocker instead of pretending it passed.
 - Each browser-tested item must answer: what did I see, what happened when I clicked/typed, was the console clean, did the backend record the correct state, and what happened when I tried the wrong thing?
-- Do not stop the final run until the entire `Flow.md` tasklist is complete and the repo plus all active apps are production-ready, except for a true data-safety, external-provider/config, or explicit user-interruption blocker recorded honestly.
+- Do not stop the final run until the entire `Flow.md` tasklist is complete and the repo plus all active apps are locally production-ready, with no hosted rollout implied, except for a true data-safety, external-provider/config, or explicit user-interruption blocker recorded honestly.
 
 ## Coverage Gate
 

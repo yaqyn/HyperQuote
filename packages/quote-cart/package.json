@@ -4,9 +4,11 @@
 	"private": true,
 	"type": "module",
 	"exports": {
-		".": "./src/index.ts"
+		".": "./src/index.ts",
+		"./server": "./src/server.ts"
 	},
 	"dependencies": {
+		"zod": "^4.4.3",
 		"zustand": "^5.0.13"
 	},
 	"peerDependencies": {
