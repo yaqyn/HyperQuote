@@ -37,6 +37,7 @@ if (missingBindings.length > 0) {
 
 for (const [storeId, bindings] of bindingsByStore(configuredBindings)) {
 	const presentNames = listSecretsStoreNames(storeId)
+	if (!presentNames) continue
 	const missingSecretNames = bindings
 		.map((binding) => binding.secret_name)
 		.filter((name) => !presentNames.has(name))
@@ -87,6 +88,12 @@ function listSecretsStoreNames(storeId) {
 	)
 
 	if (result.status !== 0) {
+		if (process.env.CLOUDFLARE_SECRETS_STORE_REMOTE_CHECK === 'optional') {
+			console.warn(
+				`::warning::Unable to list Cloudflare Secrets Store names for store ${storeId}; config bindings were verified and remote store contents must be prechecked separately.`,
+			)
+			return null
+		}
 		console.error(
 			`::error::Unable to list Cloudflare Secrets Store names for store ${storeId}.`,
 		)
