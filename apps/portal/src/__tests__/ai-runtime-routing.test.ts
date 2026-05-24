@@ -70,9 +70,11 @@ describe('AI runtime routing', () => {
 		}
 
 		const wrapper = readRepoFile('scripts/with-dev-secrets.mjs')
-		expect(wrapper).toContain("['run', '--recursive', '--'")
-		expect(wrapper).toContain('GROQ_API_KEY')
-		expect(wrapper).toContain('HQ_GROQ_API_KEY')
+		expect(wrapper).toContain("'run'")
+		expect(wrapper).toContain('--env=dev')
+		expect(wrapper).toContain('--path=')
+		expect(wrapper).toContain('HYPERQUOTE_INFISICAL_PATH')
+		expect(wrapper).toContain("'--recursive'")
 	})
 
 	it('grounds portal order answers in the sales quote site address', () => {

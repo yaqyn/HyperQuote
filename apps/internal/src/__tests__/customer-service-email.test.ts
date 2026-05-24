@@ -9,14 +9,14 @@ import {
 } from '../lib/server/support-email'
 
 const originalFetch = globalThis.fetch
-const originalResendApiKey = process.env.HQ_RESEND_API_KEY
+const originalResendApiKey = process.env.RESEND_API_KEY
 
 afterEach(() => {
 	vi.stubGlobal('fetch', originalFetch)
 	if (originalResendApiKey) {
-		process.env.HQ_RESEND_API_KEY = originalResendApiKey
+		process.env.RESEND_API_KEY = originalResendApiKey
 	} else {
-		delete process.env.HQ_RESEND_API_KEY
+		delete process.env.RESEND_API_KEY
 	}
 })
 
@@ -103,7 +103,7 @@ describe('customer service email rendering', () => {
 	})
 
 	it('sends Resend email with message scoped idempotency and branded payload', async () => {
-		process.env.HQ_RESEND_API_KEY = 'test-resend-key'
+		process.env.RESEND_API_KEY = 'test-resend-key'
 		const fetchMock = vi.fn().mockResolvedValue({
 			json: async () => ({ id: 'email_123' }),
 			ok: true,

@@ -9,10 +9,6 @@ const ENV_KEYS = [
 	'GROQ_API_KEY',
 	'GROQ_MODEL',
 	'GROQ_URL',
-	'HQ_GROQ_API_KEY',
-	'HQ_GROQ_MODEL',
-	'HQ_GROQ_URL',
-	'HQ_USE_AI',
 	'USE_AI',
 	'VITE_USE_AI',
 ] as const
@@ -50,15 +46,6 @@ describe('Groq runtime env', () => {
 		await expect(isAIEnabled()).resolves.toBe(true)
 	})
 
-	it('supports operator HQ-prefixed Groq env in local dev', async () => {
-		delete process.env.GROQ_API_KEY
-		delete process.env.USE_AI
-		process.env.HQ_GROQ_API_KEY = 'operator-key'
-		process.env.HQ_USE_AI = '1'
-
-		await expect(isAIEnabled()).resolves.toBe(true)
-	})
-
 	it('enables AI from installed runtime env', async () => {
 		installRuntimeEnv({
 			GROQ_API_KEY: { get: async () => 'runtime-key' },
@@ -75,12 +62,10 @@ describe('Groq runtime env', () => {
 		await expect(isAIEnabled()).resolves.toBe(false)
 	})
 
-	it('uses HQ-prefixed key and model for completions', async () => {
-		delete process.env.GROQ_API_KEY
-		delete process.env.GROQ_MODEL
-		process.env.HQ_GROQ_API_KEY = 'operator-key'
-		process.env.HQ_GROQ_MODEL = 'openai/gpt-oss-120b'
-		process.env.HQ_GROQ_URL = 'https://groq.test/openai/v1/chat/completions'
+	it('uses configured key and model for completions', async () => {
+		process.env.GROQ_API_KEY = 'operator-key'
+		process.env.GROQ_MODEL = 'openai/gpt-oss-120b'
+		process.env.GROQ_URL = 'https://groq.test/openai/v1/chat/completions'
 
 		const fetchMock = vi.fn<typeof fetch>(async () =>
 			Response.json({

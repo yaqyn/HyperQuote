@@ -118,7 +118,6 @@ async function main() {
 
 	const baseEnv = {
 		...process.env,
-		...localOperatorAiEnv(),
 		SUPABASE_ANON_KEY: localEnv.ANON_KEY,
 		SUPABASE_SERVICE_ROLE_KEY: localEnv.SERVICE_ROLE_KEY,
 		SUPABASE_URL: localEnv.API_URL,
@@ -215,9 +214,8 @@ function writeLocalAppEnv(runtimeEnv = {}, aiProxy = null) {
 }
 
 function localAppAiEnv(aiProxy) {
-	const model = process.env.GROQ_MODEL ?? process.env.HQ_GROQ_MODEL
-	const reasoningEffort =
-		process.env.GROQ_REASONING_EFFORT ?? process.env.HQ_GROQ_REASONING_EFFORT
+	const model = process.env.GROQ_MODEL
+	const reasoningEffort = process.env.GROQ_REASONING_EFFORT
 	const env = {
 		GROQ_MODEL: model ?? 'openai/gpt-oss-120b',
 		USE_AI: aiProxy ? localAiFlag() : '0',
@@ -231,44 +229,19 @@ function localAppAiEnv(aiProxy) {
 
 function localAiFlag() {
 	if (process.env.USE_AI) return process.env.USE_AI
-	if (process.env.HQ_USE_AI) return process.env.HQ_USE_AI
 	return '1'
 }
 
 function localAiRequested() {
-	const flag = process.env.USE_AI ?? process.env.HQ_USE_AI
+	const flag = process.env.USE_AI
 	return flag !== '0' && flag !== 'false'
 }
 
-function localOperatorAiEnv() {
-	const aiEnv = {}
-	if (!process.env.GROQ_API_KEY && process.env.HQ_GROQ_API_KEY) {
-		aiEnv.GROQ_API_KEY = process.env.HQ_GROQ_API_KEY
-	}
-	if (!process.env.GROQ_MODEL && process.env.HQ_GROQ_MODEL) {
-		aiEnv.GROQ_MODEL = process.env.HQ_GROQ_MODEL
-	}
-	if (
-		!process.env.GROQ_REASONING_EFFORT &&
-		process.env.HQ_GROQ_REASONING_EFFORT
-	) {
-		aiEnv.GROQ_REASONING_EFFORT = process.env.HQ_GROQ_REASONING_EFFORT
-	}
-	if (!process.env.GROQ_URL && process.env.HQ_GROQ_URL) {
-		aiEnv.GROQ_URL = process.env.HQ_GROQ_URL
-	}
-	if (!process.env.USE_AI && process.env.HQ_USE_AI) {
-		aiEnv.USE_AI = process.env.HQ_USE_AI
-	}
-	return aiEnv
-}
-
 async function startLocalAiProxy() {
-	const apiKey = process.env.GROQ_API_KEY ?? process.env.HQ_GROQ_API_KEY
+	const apiKey = process.env.GROQ_API_KEY
 	if (!apiKey || !localAiRequested()) return null
 
-	const upstreamUrl =
-		process.env.GROQ_URL ?? process.env.HQ_GROQ_URL ?? DEFAULT_GROQ_URL
+	const upstreamUrl = process.env.GROQ_URL ?? DEFAULT_GROQ_URL
 	const server = createServer(async (request, response) => {
 		if (
 			request.method !== 'POST' ||

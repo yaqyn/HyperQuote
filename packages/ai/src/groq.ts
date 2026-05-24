@@ -28,11 +28,6 @@ const RUNTIME_KEYS = [
 	'GROQ_MODEL',
 	'GROQ_REASONING_EFFORT',
 	'GROQ_URL',
-	'HQ_GROQ_API_KEY',
-	'HQ_GROQ_MODEL',
-	'HQ_GROQ_REASONING_EFFORT',
-	'HQ_GROQ_URL',
-	'HQ_USE_AI',
 	'USE_AI',
 	'VITE_USE_AI',
 	'NODE_ENV',
@@ -85,16 +80,16 @@ async function readRuntimeEnv(): Promise<Record<string, string | undefined>> {
 async function readGroqEnv(): Promise<GroqEnv> {
 	const env = await readRuntimeEnv()
 
-	const model = env.GROQ_MODEL ?? env.HQ_GROQ_MODEL ?? DEFAULT_GROQ_MODEL
+	const model = env.GROQ_MODEL ?? DEFAULT_GROQ_MODEL
 	const supportsReasoningEffort = model.includes('qwen')
 
 	return {
-		apiKey: env.GROQ_API_KEY ?? env.HQ_GROQ_API_KEY ?? '',
+		apiKey: env.GROQ_API_KEY ?? '',
 		model,
 		reasoningEffort: supportsReasoningEffort
-			? (env.GROQ_REASONING_EFFORT ?? env.HQ_GROQ_REASONING_EFFORT ?? 'none')
+			? (env.GROQ_REASONING_EFFORT ?? 'none')
 			: undefined,
-		url: env.GROQ_URL ?? env.HQ_GROQ_URL ?? DEFAULT_GROQ_URL,
+		url: env.GROQ_URL ?? DEFAULT_GROQ_URL,
 	}
 }
 
@@ -104,7 +99,7 @@ async function readGroqEnv(): Promise<GroqEnv> {
  */
 export async function isAIEnabled(): Promise<boolean> {
 	const env = await readRuntimeEnv()
-	const flag = env.USE_AI ?? env.HQ_USE_AI ?? env.VITE_USE_AI
+	const flag = env.USE_AI ?? env.VITE_USE_AI
 	if (flag === '0' || flag === 'false') return false
 	if (!(await readGroqEnv()).apiKey) return false
 	if (flag === '1' || flag === 'true') return true

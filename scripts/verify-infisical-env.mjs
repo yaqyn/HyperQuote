@@ -129,8 +129,8 @@ function requiredSecretGroups(infisicalEnv) {
 function optionalSecretGroups() {
 	return [
 		{
-			label: 'AI provider key (GROQ_API_KEY or HQ_GROQ_API_KEY)',
-			names: ['GROQ_API_KEY', 'HQ_GROQ_API_KEY'],
+			label: 'AI provider key (GROQ_API_KEY)',
+			names: ['GROQ_API_KEY'],
 			isValid: (value) => value.length > 0,
 		},
 	]

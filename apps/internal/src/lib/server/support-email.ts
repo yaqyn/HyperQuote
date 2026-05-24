@@ -91,9 +91,9 @@ export async function buildSupportEmailEnvelope(input: {
 		throw new Error('support_email_body_too_long')
 	}
 	const from =
-		(await readRuntimeEnv('HQ_SUPPORT_EMAIL_FROM')) ?? DEFAULT_SUPPORT_FROM
+		(await readRuntimeEnv('SUPPORT_EMAIL_FROM')) ?? DEFAULT_SUPPORT_FROM
 	const replyTo =
-		(await readRuntimeEnv('HQ_SUPPORT_REPLY_TO')) ?? DEFAULT_SUPPORT_REPLY_TO
+		(await readRuntimeEnv('SUPPORT_REPLY_TO')) ?? DEFAULT_SUPPORT_REPLY_TO
 
 	const envelope: SupportEmailEnvelope = {
 		bcc: parseEmailField(metadataString(metadata, 'bcc'), 'bcc'),
@@ -131,9 +131,7 @@ export async function deliverSupportEmail(
 		throw new Error('support_email_mixed_test_recipients')
 	}
 
-	const apiKey =
-		(await readRuntimeEnv('HQ_RESEND_API_KEY')) ??
-		(await readRuntimeEnv('RESEND_API_KEY'))
+	const apiKey = await readRuntimeEnv('RESEND_API_KEY')
 	if (!apiKey) throw new Error('support_email_provider_not_configured')
 
 	const renderInput = await renderInputForEnvelope(envelope)
@@ -327,11 +325,11 @@ async function renderInputForEnvelope(
 		body: envelope.body,
 		customerName:
 			envelope.ticket.requester_name || envelope.ticket.requester_email,
-		portalUrl: await readRuntimeEnv('HQ_PORTAL_URL'),
+		portalUrl: await readRuntimeEnv('PORTAL_URL'),
 		reference: envelope.ticket.reference,
 		subject: envelope.subject,
-		supportUrl: await readRuntimeEnv('HQ_SUPPORT_URL'),
-		websiteUrl: await readRuntimeEnv('HQ_WEBSITE_URL'),
+		supportUrl: await readRuntimeEnv('SUPPORT_URL'),
+		websiteUrl: await readRuntimeEnv('WEBSITE_URL'),
 	}
 }
 
