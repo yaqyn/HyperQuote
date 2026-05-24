@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import process from 'node:process'
 
 const INFISICAL_DEV_SENTINEL = 'HYPERQUOTE_APP_DEV_INFISICAL_LOADED'
+const HYPERQUOTE_INFISICAL_PATH = '/Projects/HyperQuote'
 
 const [command, ...args] = process.argv.slice(2)
 if (!command) {
@@ -17,6 +18,7 @@ if (shouldLoadInfisical()) {
 		[
 			'run',
 			'--env=dev',
+			`--path=${HYPERQUOTE_INFISICAL_PATH}`,
 			'--recursive',
 			'--',
 			process.execPath,

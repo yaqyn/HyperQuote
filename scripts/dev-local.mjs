@@ -8,6 +8,7 @@ import { hasConfiguredTwilioVerifyEnv } from './supabase-auth-env.mjs'
 const DEFAULT_GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const LOCAL_AI_PROXY_KEY = 'local-groq-proxy'
 const INFISICAL_DEV_SENTINEL = 'HYPERQUOTE_DEV_INFISICAL_LOADED'
+const HYPERQUOTE_INFISICAL_PATH = '/Projects/HyperQuote'
 
 const APPS = [
 	{
@@ -65,6 +66,7 @@ function maybeRelaunchWithInfisical() {
 		[
 			'run',
 			'--env=dev',
+			`--path=${HYPERQUOTE_INFISICAL_PATH}`,
 			'--recursive',
 			'--',
 			process.execPath,

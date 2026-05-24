@@ -4,6 +4,7 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 const VERIFY_SENTINEL = 'HYPERQUOTE_VERIFY_INFISICAL_ENV'
+const HYPERQUOTE_INFISICAL_PATH = '/Projects/HyperQuote'
 
 const ENV_ALIASES = new Map([
 	['dev', { infisicalEnv: 'dev', label: 'local dev' }],
@@ -40,6 +41,7 @@ if (process.env[VERIFY_SENTINEL] !== target.infisicalEnv) {
 		[
 			'run',
 			`--env=${target.infisicalEnv}`,
+			`--path=${HYPERQUOTE_INFISICAL_PATH}`,
 			'--recursive',
 			'--',
 			process.execPath,

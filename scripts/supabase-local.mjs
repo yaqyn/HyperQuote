@@ -7,6 +7,7 @@ import {
 } from './supabase-auth-env.mjs'
 
 const INFISICAL_SENTINEL = 'HYPERQUOTE_SUPABASE_INFISICAL_LOADED'
+const HYPERQUOTE_INFISICAL_PATH = '/Projects/HyperQuote'
 
 const args = process.argv.slice(2)
 const quiet = args.includes('--quiet')
@@ -85,6 +86,7 @@ function maybeRelaunchWithInfisical() {
 		[
 			'run',
 			'--env=dev',
+			`--path=${HYPERQUOTE_INFISICAL_PATH}`,
 			'--recursive',
 			'--',
 			process.execPath,

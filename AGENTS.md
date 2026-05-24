@@ -172,6 +172,10 @@ when grants, wrappers, generated types, or workflow transitions change.
 - Infisical is the source of truth for local dev, staging, and production
   secrets. Local commands use the Infisical `dev` environment explicitly;
   staging uses `staging`; production uses the existing `prod` slug.
+- HyperQuote runtime secrets must be read only from
+  `/Projects/HyperQuote`. The `/MASTER` folder is reserved for operator/admin
+  credentials and must never be injected into app, Supabase, CI, deploy, test,
+  or verification processes.
 - Local Supabase URL, anon key, and service-role key come from local Supabase
   status during local dev. Do not store those generated local values in
   Infisical.
