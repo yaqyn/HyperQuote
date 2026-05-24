@@ -152,18 +152,15 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 			)
 
 			if (route.action === 'chat') {
-				const simpleAnswer = simpleWebsiteChatAnswer(modelMessages)
-				if (simpleAnswer) {
-					for await (const chunk of textOnlyStream(simpleAnswer)) {
-						chunks.push(chunk)
-					}
-				} else if (aiEnabled) {
+				if (aiEnabled) {
 					for await (const chunk of streamChat(modelMessages, LYON_WEBSITE)) {
 						chunks.push(chunk as WebsiteStreamChunk)
 					}
 				} else {
+					const simpleAnswer = simpleWebsiteChatAnswer(modelMessages)
 					for await (const chunk of textOnlyStream(
-						'Ask me about quotes, delivery, payments, the market, or Lyon.',
+						simpleAnswer ??
+							'Ask me about quotes, delivery, payments, the market, or Lyon.',
 					)) {
 						chunks.push(chunk)
 					}

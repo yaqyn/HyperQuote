@@ -168,9 +168,9 @@ async function getInternalAiSource(
 		options.setReadEntities(answer.readEntities)
 		return textStream(answer.text)
 	}
+	if (await isAIEnabled()) return streamChat(messages, OPS_ASSISTANT)
 	const simpleAnswer = simpleEmployeeChatAnswer(options.userText)
 	if (simpleAnswer) return textStream(simpleAnswer)
-	if (await isAIEnabled()) return streamChat(messages, OPS_ASSISTANT)
 	return textStream(employeeFallbackResponse(options.userText))
 }
 

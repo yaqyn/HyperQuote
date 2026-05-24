@@ -1416,12 +1416,19 @@ async function renderPortalCustomerResponse(
 			result.context.message ??
 			simpleAnswer ??
 			"I'm Lyon. What should we build, check, or edit?"
-		return textOnlyChunks(
-			result.route.commandName
-				? commandToolAnswer(result, fallbackText)
-				: fallbackText,
-			customEvents,
-		)
+		if (result.route.commandName) {
+			return textOnlyChunks(
+				commandToolAnswer(result, fallbackText),
+				customEvents,
+			)
+		}
+		if (result.context.message) {
+			return textOnlyChunks(result.context.message, customEvents)
+		}
+		if (await isAIEnabled()) {
+			return streamWithCustomEvents(modelMessages, LYON_PORTAL, customEvents)
+		}
+		return textOnlyChunks(fallbackText, customEvents)
 	}
 
 	if (result.context.type === 'public_docs') {
@@ -4844,11 +4851,12 @@ async function supplierPortalChunks(
 	userText: string,
 	modelMessages: ChatMessageInput[],
 ): Promise<StreamChunk[]> {
+	if (await isAIEnabled())
+		return streamWithCustomEvents(modelMessages, LYON_PORTAL, [])
+
 	const simpleAnswer = simplePortalTextAnswer(userText, 'supplier')
 	if (simpleAnswer) return textOnlyChunks(simpleAnswer, [])
 
-	if (await isAIEnabled())
-		return streamWithCustomEvents(modelMessages, LYON_PORTAL, [])
 	const lower = userText.toLowerCase()
 	const key = lower.includes('cement')
 		? 'cement'
