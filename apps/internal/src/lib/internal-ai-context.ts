@@ -30,7 +30,7 @@ const MAX_ROWS_PER_ENTITY = 6
 const MAX_CONTEXT_LINES = 80
 const MAX_FIELD_VALUE_LENGTH = 160
 
-export const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
+const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 	{
 		entityType: 'order',
 		keywords: ['order', 'orders', 'rfq', 'quote', 'quotes', 'sales'],
@@ -245,7 +245,7 @@ export function internalAiPolicyRefusal(
 	return null
 }
 
-export function readEntitiesForRows({
+function readEntitiesForRows({
 	rows,
 	scope,
 }: {
@@ -258,7 +258,7 @@ export function readEntitiesForRows({
 	})
 }
 
-export function readEntitiesForEntityTypes({
+function readEntitiesForEntityTypes({
 	entityTypes,
 	scope,
 }: {

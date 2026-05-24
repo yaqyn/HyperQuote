@@ -116,7 +116,7 @@ describe('AI runtime routing', () => {
 		expect(websiteChatSource).toContain("href: '/about'")
 		expect(websiteChatSource).toContain('WEBSITE_MARKET_TOPIC_PATTERN')
 		expect(websiteChatSource).toContain('wood|lumber|timber')
-		expect(websitePromptSource).toContain('stay warm and natural')
+		expect(websitePromptSource).toMatch(/stay warm and natural/i)
 		expect(websitePromptSource).toContain(
 			'Never recommend, compare, cite, or name outside businesses',
 		)

@@ -98,7 +98,7 @@ export interface DriverDashboard {
 	openDeliveries: number
 }
 
-export interface CompletionProof {
+interface CompletionProof {
 	capturedAt: string
 	location: DriverLocation
 }

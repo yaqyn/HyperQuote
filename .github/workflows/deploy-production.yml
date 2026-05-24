@@ -250,6 +250,16 @@ jobs:
       - name: Remove local dev vars from build output
         run: find "apps/${{ matrix.app }}/dist" -type f -name ".dev.vars" -delete
 
+      - name: Apply ${{ matrix.label }} Secrets Store bindings
+        run: >
+          bun run deploy:apply-secrets-store --
+          --target production
+          --app "${{ matrix.app }}"
+          --config "apps/${{ matrix.app }}/${{ matrix.deploy_config }}"
+        env:
+          CLOUDFLARE_SECRETS_STORE_ID: ${{ vars.PRODUCTION_CLOUDFLARE_SECRETS_STORE_ID || vars.CLOUDFLARE_SECRETS_STORE_ID }}
+          CLOUDFLARE_SECRETS_STORE_PREFIX: ${{ vars.PRODUCTION_CLOUDFLARE_SECRETS_STORE_PREFIX }}
+
       - name: Verify ${{ matrix.label }} Worker secrets
         run: >
           bun run deploy:check-secrets --

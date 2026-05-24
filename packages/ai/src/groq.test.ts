@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { completeChat, isAIEnabled, streamChat } from './groq'
+import { completeChat, isAIEnabled, runtimeEnvValue, streamChat } from './groq'
 
 const ENV_KEYS = [
 	'GROQ_API_KEY',
@@ -30,6 +30,14 @@ afterEach(() => {
 })
 
 describe('Groq runtime env', () => {
+	it('reads Cloudflare Secrets Store bindings', async () => {
+		await expect(
+			runtimeEnvValue({
+				get: async () => 'store-secret',
+			}),
+		).resolves.toBe('store-secret')
+	})
+
 	it('enables AI from normal runtime Groq env', async () => {
 		process.env.GROQ_API_KEY = 'normal-key'
 		process.env.USE_AI = '1'

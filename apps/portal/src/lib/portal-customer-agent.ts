@@ -700,8 +700,40 @@ export function enforcePortalCustomerToolRequest(
 			searchQuery: userMessage.trim() || 'support docs contact faq',
 		}
 	}
+	if (request.action === 'chat' && isExplicitDraftCreateRequest(userMessage)) {
+		return {
+			action: 'create_draft_from_plan',
+			searchQuery: userMessage.trim(),
+		}
+	}
 
 	return request
+}
+
+function isExplicitDraftCreateRequest(userMessage: string): boolean {
+	const normalized = userMessage.toLowerCase()
+	const wantsDraft =
+		/^\s*draft\b/.test(normalized) ||
+		(/\b(create|make|prepare|start|build)\b/.test(normalized) &&
+			/\b(draft|quote|rfq|order)\b/.test(normalized))
+	if (!wantsDraft) return false
+
+	const hasSpecificMaterial =
+		/\b(cement|concrete|steel|rebar|sand|brick|tile|wood|timber|lumber|flow ai)\b/.test(
+			normalized,
+		) || /اسمنت|أسمنت|خرسانة|حديد|رمل|طوب|سيراميك|خشب/.test(userMessage)
+	const hasQuantityOrProjectContext =
+		/\b\d+(?:[.,]\d+)?\b/.test(normalized) ||
+		/\b(bag|bags|ton|tons|piece|pieces|project|materials?)\b/.test(normalized)
+	const openEndedCatalogDraft =
+		/\b(random|any|available|catalog|catalogue|sample|materials?)\b/.test(
+			normalized,
+		) || /عشوائي|اي حاجه|اي حاجة|متاح|كتالوج/.test(userMessage)
+
+	return (
+		(hasSpecificMaterial && hasQuantityOrProjectContext) ||
+		openEndedCatalogDraft
+	)
 }
 
 export function isDraftWriteAction(action: PortalCustomerAgentAction): boolean {

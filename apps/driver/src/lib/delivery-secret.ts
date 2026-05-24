@@ -1,7 +1,7 @@
 const DELIVERY_SECRET_CODE_PATTERN =
 	/^(?:HQDELIVERY:[0-9A-F]{32}:)?([2-9A-HJ-NP-Z]{8})$/
 
-export function normalizeDeliverySecretInput(value: string): string {
+function normalizeDeliverySecretInput(value: string): string {
 	return value.toUpperCase().replace(/[\s-]+/g, '')
 }
 

@@ -29,6 +29,7 @@ export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
 	const setDraft = useAIChatStore((s) => s.setDraft)
 	const send = useAIChatStore((s) => s.send)
 	const clear = useAIChatStore((s) => s.clear)
+	const isStreaming = useAIChatStore((s) => s.isStreaming)
 
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -182,6 +183,7 @@ export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
 							ref={textareaRef}
 							value={draft}
 							onChange={(e) => setDraft(e.target.value)}
+							disabled={isStreaming}
 							onKeyDown={(e) => {
 								if (e.key === 'Enter' && !e.shiftKey) {
 									e.preventDefault()
@@ -190,7 +192,7 @@ export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
 							}}
 							placeholder="ask lyon anything on screen…"
 							rows={1}
-							className="min-w-0 flex-1 resize-none bg-transparent font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)]"
+							className="min-w-0 flex-1 resize-none bg-transparent font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)] disabled:cursor-wait disabled:opacity-60"
 							style={{
 								fontSize: '13px',
 								lineHeight: 1.55,
@@ -199,7 +201,7 @@ export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
 						/>
 						<button
 							type="submit"
-							disabled={!draft.trim()}
+							disabled={!draft.trim() || isStreaming}
 							aria-label="Send"
 							className="shrink-0 font-[family-name:var(--font-archivo)] italic text-[var(--color-primary)] transition-colors disabled:cursor-not-allowed disabled:text-[var(--color-text-subtle)]"
 							style={{ fontSize: '12px' }}

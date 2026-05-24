@@ -8,6 +8,9 @@
 		"./groq": "./src/groq.ts",
 		"./prompts": "./src/prompts.ts"
 	},
+	"devDependencies": {
+		"vitest": "^4.1.6"
+	},
 	"peerDependencies": {
 		"@tanstack/ai": "^0.9.2"
 	}

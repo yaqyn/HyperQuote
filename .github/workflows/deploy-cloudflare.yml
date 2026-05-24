@@ -213,6 +213,16 @@ jobs:
         working-directory: apps/${{ matrix.app }}
         run: test -f "${{ matrix.deploy_config }}"
 
+      - name: Apply ${{ matrix.label }} Secrets Store bindings
+        run: >
+          bun run deploy:apply-secrets-store --
+          --target staging
+          --app "${{ matrix.app }}"
+          --config "apps/${{ matrix.app }}/${{ matrix.deploy_config }}"
+        env:
+          CLOUDFLARE_SECRETS_STORE_ID: ${{ vars.STAGING_CLOUDFLARE_SECRETS_STORE_ID || vars.CLOUDFLARE_SECRETS_STORE_ID }}
+          CLOUDFLARE_SECRETS_STORE_PREFIX: ${{ vars.STAGING_CLOUDFLARE_SECRETS_STORE_PREFIX }}
+
       - name: Verify ${{ matrix.label }} Worker secrets
         run: >
           bun run deploy:check-secrets --

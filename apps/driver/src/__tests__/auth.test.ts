@@ -1,4 +1,8 @@
 import { readFileSync } from 'node:fs'
+import {
+	resolveSupabaseWorkerServiceRoleConfig,
+	runtimeEnvValue,
+} from '@hyperquote/auth/server'
 import { describe, expect, it } from 'vitest'
 import { loginSchema } from '../lib/auth'
 
@@ -39,5 +43,25 @@ describe('driver login validation', () => {
 		expect(source).toContain('claimDriverApiSession(config)')
 		expect(source).toContain("scope: 'others'")
 		expect(source).toContain("scope: 'local'")
+	})
+
+	it('reads Cloudflare Secrets Store bindings for Worker runtime config', async () => {
+		await expect(
+			runtimeEnvValue({
+				get: async () => 'store-secret',
+			}),
+		).resolves.toBe('store-secret')
+
+		const config = await resolveSupabaseWorkerServiceRoleConfig({
+			SUPABASE_ANON_KEY: { get: async () => 'anon-key' },
+			SUPABASE_SERVICE_ROLE_KEY: { get: async () => 'service-role-key' },
+			SUPABASE_URL: { get: async () => 'https://example.supabase.co' },
+		})
+
+		expect(config).toMatchObject({
+			supabaseAnonKey: 'anon-key',
+			supabaseServiceRoleKey: 'service-role-key',
+			supabaseUrl: 'https://example.supabase.co',
+		})
 	})
 })

@@ -1756,31 +1756,30 @@ function renderEmphasizedActivityText(
 		return <span className="font-light text-white/44">{text}</span>
 	}
 
-	const matcher = new RegExp(
-		`(${values.map((value) => escapeRegExp(value)).join('|')})`,
-		'gi',
-	)
+	const lowerText = text.toLowerCase()
+	const needles = values.map((value) => value.toLowerCase())
 	const nodes: ReactNode[] = []
 	let cursor = 0
 
-	for (const match of text.matchAll(matcher)) {
-		const index = match.index ?? 0
-		if (index > cursor) {
+	while (cursor < text.length) {
+		const match = nextImportantTextMatch(lowerText, needles, cursor)
+		if (!match) break
+		if (match.index > cursor) {
 			nodes.push(
 				<span key={`dim-${cursor}`} className="font-light text-white/44">
-					{text.slice(cursor, index)}
+					{text.slice(cursor, match.index)}
 				</span>,
 			)
 		}
 		nodes.push(
 			<strong
-				key={`important-${index}`}
+				key={`important-${match.index}`}
 				className="font-semibold text-white/94"
 			>
-				{match[0]}
+				{text.slice(match.index, match.index + match.length)}
 			</strong>,
 		)
-		cursor = index + match[0].length
+		cursor = match.index + match.length
 	}
 
 	if (cursor < text.length) {
@@ -1794,8 +1793,24 @@ function renderEmphasizedActivityText(
 	return nodes
 }
 
-function escapeRegExp(value: string): string {
-	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+function nextImportantTextMatch(
+	lowerText: string,
+	needles: string[],
+	cursor: number,
+): { index: number; length: number } | null {
+	let best: { index: number; length: number } | null = null
+	for (const needle of needles) {
+		const index = lowerText.indexOf(needle, cursor)
+		if (index === -1) continue
+		if (
+			!best ||
+			index < best.index ||
+			(index === best.index && needle.length > best.length)
+		) {
+			best = { index, length: needle.length }
+		}
+	}
+	return best
 }
 
 function renderJsonValue(value: JsonValue): ReactNode {

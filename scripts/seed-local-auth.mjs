@@ -21,6 +21,10 @@ const LOCAL_ACCOUNTS = {
 	},
 }
 
+const FLOW_PASSWORD =
+	process.env.HYPERQUOTE_LOCAL_DEV_PASSWORD ??
+	['hyperquote', 'local', 'only', '2026'].join('-')
+
 const PANEL_PERMISSIONS = [
 	'sales',
 	'inventory',
@@ -79,6 +83,113 @@ const MANAGER_ACCOUNT = {
 	],
 }
 
+const FLOW_CUSTOMER_ACCOUNTS = [
+	{
+		companyName: 'Local Customer Company',
+		contactName: 'Local Customer',
+		email: 'local-customer@hyperquote.local',
+		password: FLOW_PASSWORD,
+		phone: '+201000000100',
+	},
+]
+
+const FLOW_EMPLOYEE_ACCOUNTS = [
+	{
+		email: 'local-ceo@hyperquote.local',
+		fullName: 'Local CEO',
+		isCeo: true,
+		panels: PANEL_PERMISSIONS,
+		password: FLOW_PASSWORD,
+		phone: '+201000000101',
+		roles: EMPLOYEE_ROLES,
+	},
+	{
+		email: 'local-admin@hyperquote.local',
+		fullName: 'Local Admin',
+		isCeo: true,
+		panels: PANEL_PERMISSIONS,
+		password: FLOW_PASSWORD,
+		phone: '+201000000102',
+		roles: EMPLOYEE_ROLES,
+	},
+	{
+		email: 'local-panel-admin@hyperquote.local',
+		fullName: 'Local Panel Admin',
+		isCeo: true,
+		panels: PANEL_PERMISSIONS,
+		password: FLOW_PASSWORD,
+		phone: '+201000000103',
+		roles: EMPLOYEE_ROLES,
+	},
+	{
+		email: 'local-manager@hyperquote.local',
+		fullName: 'Local Manager',
+		panels: MANAGER_ACCOUNT.panels,
+		password: FLOW_PASSWORD,
+		phone: '+201000000104',
+		roles: MANAGER_ACCOUNT.roles,
+	},
+	{
+		email: 'local-sales@hyperquote.local',
+		fullName: 'Local Sales',
+		panels: ['sales'],
+		password: FLOW_PASSWORD,
+		phone: '+201000000105',
+		roles: ['sales'],
+	},
+	{
+		email: 'local-inventory@hyperquote.local',
+		fullName: 'Local Inventory',
+		panels: ['inventory'],
+		password: FLOW_PASSWORD,
+		phone: '+201000000106',
+		roles: ['inventory'],
+	},
+	{
+		email: 'local-warehouse@hyperquote.local',
+		fullName: 'Local Warehouse',
+		panels: ['warehouse'],
+		password: FLOW_PASSWORD,
+		phone: '+201000000107',
+		roles: ['warehouse'],
+	},
+	{
+		email: 'local-finance@hyperquote.local',
+		fullName: 'Local Finance',
+		panels: ['finance'],
+		password: FLOW_PASSWORD,
+		phone: '+201000000108',
+		roles: ['finance'],
+	},
+	{
+		email: 'local-dispatch@hyperquote.local',
+		fullName: 'Local Dispatch',
+		panels: ['dispatch'],
+		password: FLOW_PASSWORD,
+		phone: '+201000000109',
+		roles: ['dispatch'],
+	},
+	{
+		email: 'local-customer-service@hyperquote.local',
+		fullName: 'Local Customer Service',
+		panels: ['customer_service'],
+		password: FLOW_PASSWORD,
+		phone: '+201000000110',
+		roles: ['customer_service'],
+	},
+]
+
+const FLOW_DRIVER_ACCOUNTS = [
+	{
+		email: 'local-driver@hyperquote.local',
+		fullName: 'Local Driver',
+		password: FLOW_PASSWORD,
+		phone: '+201000000111',
+		truckPlateNumber: 'LOCAL-DRIVER-1',
+		vehicleLabel: 'Local Truck',
+	},
+]
+
 const quiet = process.argv.includes('--quiet')
 
 main().catch((error) => {
@@ -91,6 +202,7 @@ main().catch((error) => {
 async function main() {
 	debugStep('read-local-env')
 	const { apiUrl, serviceRoleKey } = readLocalSupabaseEnv()
+	let searchRefreshActorUserId = null
 	const supabase = createClient(apiUrl, serviceRoleKey, {
 		auth: {
 			autoRefreshToken: false,
@@ -113,7 +225,38 @@ async function main() {
 	const customer = await upsertCustomer(supabase, customerUser.id)
 	await syncCustomerProfile(supabase, customerUser.id, customer.id)
 
-	for (const account of [ADMIN_ACCOUNT, MANAGER_ACCOUNT]) {
+	for (const account of FLOW_CUSTOMER_ACCOUNTS) {
+		debugStep(`flow-customer-auth:${account.email}`)
+		const flowCustomerUser = await upsertAuthUser(supabase, {
+			app_metadata: { pool: 'external', roles: ['customer'] },
+			email: account.email,
+			password: account.password,
+			phone: account.phone,
+			user_metadata: {
+				company_name: account.companyName,
+				name: account.contactName,
+			},
+		})
+		debugStep(`flow-customer-row:${account.email}`)
+		const flowCustomer = await upsertCustomer(
+			supabase,
+			flowCustomerUser.id,
+			account,
+		)
+		await syncCustomerProfile(
+			supabase,
+			flowCustomerUser.id,
+			flowCustomer.id,
+			account,
+		)
+		await upsertSupportFixture(supabase, flowCustomer.id, account)
+	}
+
+	for (const account of [
+		ADMIN_ACCOUNT,
+		MANAGER_ACCOUNT,
+		...FLOW_EMPLOYEE_ACCOUNTS,
+	]) {
 		debugStep(`role-auth:${account.email}`)
 		const roleEmployeeUser = await upsertAuthUser(supabase, {
 			app_metadata: { pool: 'internal', roles: account.roles },
@@ -122,6 +265,9 @@ async function main() {
 			phone: account.phone,
 			user_metadata: { name: account.fullName },
 		})
+		if (!searchRefreshActorUserId && account.isCeo) {
+			searchRefreshActorUserId = roleEmployeeUser.id
+		}
 		debugStep(`role-row:${account.email}`)
 		const roleEmployee = await upsertRoleEmployee(
 			supabase,
@@ -152,6 +298,27 @@ async function main() {
 	await upsertDriverTruck(supabase, driver.id)
 	await syncDriverProfile(supabase, driverUser.id, driver.id)
 
+	for (const account of FLOW_DRIVER_ACCOUNTS) {
+		debugStep(`flow-driver-auth:${account.email}`)
+		const flowDriverUser = await upsertAuthUser(supabase, {
+			app_metadata: { pool: 'driver', roles: ['driver'] },
+			email: account.email,
+			password: account.password,
+			phone: account.phone,
+			user_metadata: { name: account.fullName },
+		})
+		debugStep(`flow-driver-row:${account.email}`)
+		const flowDriver = await upsertDriver(supabase, flowDriverUser.id, account)
+		debugStep(`flow-driver-online:${account.email}`)
+		await setDriverOnline(supabase, flowDriverUser.id)
+		debugStep(`flow-driver-truck:${account.email}`)
+		await upsertDriverTruck(supabase, flowDriver.id, account)
+		await syncDriverProfile(supabase, flowDriverUser.id, flowDriver.id, account)
+	}
+
+	debugStep('search-index-refresh')
+	await refreshSearchDocuments(supabase, searchRefreshActorUserId)
+
 	if (!quiet) {
 		console.log('Local Supabase auth accounts are seeded.')
 		console.log(
@@ -164,6 +331,7 @@ async function main() {
 		console.log(
 			`Driver: ${LOCAL_ACCOUNTS.driver.email} / ${LOCAL_ACCOUNTS.driver.password}`,
 		)
+		console.log(`Flow accounts: local-*@hyperquote.local / ${FLOW_PASSWORD}`)
 	}
 }
 
@@ -274,15 +442,19 @@ function normalizePhoneForAuth(phone) {
 	return phone.replace(/^\+/, '')
 }
 
-async function upsertCustomer(supabase, userId) {
+async function upsertCustomer(
+	supabase,
+	userId,
+	account = LOCAL_ACCOUNTS.customer,
+) {
 	const { data, error } = await supabase
 		.from('customers')
 		.upsert(
 			{
-				company_name: LOCAL_ACCOUNTS.customer.companyName,
-				contact_name: LOCAL_ACCOUNTS.customer.contactName,
-				email: LOCAL_ACCOUNTS.customer.email,
-				phone: LOCAL_ACCOUNTS.customer.phone,
+				company_name: account.companyName,
+				contact_name: account.contactName,
+				email: account.email,
+				phone: account.phone,
 				status: 'active',
 				user_id: userId,
 			},
@@ -311,7 +483,7 @@ async function upsertCustomer(supabase, userId) {
 		governorate: 'Cairo',
 		is_default: true,
 		label: 'Home',
-		phone: LOCAL_ACCOUNTS.customer.phone,
+		phone: account.phone,
 		street: 'Street',
 	}
 
@@ -362,19 +534,19 @@ async function upsertEmployeeByUserOrEmail(
 	return data
 }
 
-async function upsertDriver(supabase, userId) {
+async function upsertDriver(supabase, userId, account = LOCAL_ACCOUNTS.driver) {
 	const payload = {
-		email: LOCAL_ACCOUNTS.driver.email,
-		full_name: LOCAL_ACCOUNTS.driver.fullName,
-		phone: LOCAL_ACCOUNTS.driver.phone,
+		email: account.email,
+		full_name: account.fullName,
+		phone: account.phone,
 		user_id: userId,
-		vehicle_label: LOCAL_ACCOUNTS.driver.vehicleLabel,
+		vehicle_label: account.vehicleLabel,
 	}
 
 	const { data: existing, error: lookupError } = await supabase
 		.from('drivers')
 		.select('id')
-		.or(`user_id.eq.${userId},phone.eq.${LOCAL_ACCOUNTS.driver.phone}`)
+		.or(`user_id.eq.${userId},phone.eq.${account.phone}`)
 		.maybeSingle()
 
 	if (lookupError) throw new Error(lookupError.message)
@@ -416,13 +588,17 @@ async function setDriverOnline(supabase, userId) {
 	if (error) throw new Error(error.message)
 }
 
-async function upsertDriverTruck(supabase, driverId) {
+async function upsertDriverTruck(
+	supabase,
+	driverId,
+	account = LOCAL_ACCOUNTS.driver,
+) {
 	await must(
 		supabase.from('trucks').upsert(
 			{
 				capacity_tons: 1,
 				driver_id: driverId,
-				plate_number: LOCAL_ACCOUNTS.driver.truckPlateNumber,
+				plate_number: account.truckPlateNumber,
 				status: 'available',
 			},
 			{ onConflict: 'plate_number' },
@@ -477,15 +653,20 @@ async function upsertRoleEmployee(supabase, userId, account) {
 	return data
 }
 
-async function syncCustomerProfile(supabase, userId, customerId) {
+async function syncCustomerProfile(
+	supabase,
+	userId,
+	customerId,
+	account = LOCAL_ACCOUNTS.customer,
+) {
 	await must(
 		supabase.from('profiles').upsert(
 			{
 				account_type: 'customer',
 				auth_user_id: userId,
-				display_name: LOCAL_ACCOUNTS.customer.contactName,
-				email: LOCAL_ACCOUNTS.customer.email,
-				phone: LOCAL_ACCOUNTS.customer.phone,
+				display_name: account.contactName,
+				email: account.email,
+				phone: account.phone,
 				status: 'active',
 			},
 			{ onConflict: 'auth_user_id' },
@@ -493,9 +674,9 @@ async function syncCustomerProfile(supabase, userId, customerId) {
 	)
 	await upsertUserProfile(supabase, {
 		customer_id: customerId,
-		display_name: LOCAL_ACCOUNTS.customer.contactName,
-		email: LOCAL_ACCOUNTS.customer.email,
-		phone: LOCAL_ACCOUNTS.customer.phone,
+		display_name: account.contactName,
+		email: account.email,
+		phone: account.phone,
 		roles: ['customer'],
 		user_id: userId,
 		user_type: 'customer',
@@ -505,6 +686,59 @@ async function syncCustomerProfile(supabase, userId, customerId) {
 		pool: 'external',
 		roles: ['customer'],
 	})
+}
+
+async function upsertSupportFixture(supabase, customerId, account) {
+	const { data: ticket, error } = await supabase
+		.from('support_tickets')
+		.upsert(
+			{
+				customer_id: customerId,
+				reference: 'TK-LOCAL-AI-001',
+				requester_email: account.email,
+				requester_name: account.contactName,
+				requester_phone: account.phone,
+				source: 'portal',
+				status: 'open',
+				subject: 'Local AI support fixture',
+			},
+			{ onConflict: 'reference' },
+		)
+		.select('id')
+		.single()
+
+	if (error || !ticket) {
+		throw new Error(error?.message ?? 'Failed to upsert support fixture')
+	}
+
+	await must(
+		supabase
+			.from('support_messages')
+			.delete()
+			.eq('ticket_id', ticket.id)
+			.eq('body', 'Need help confirming AI draft proof flow.'),
+	)
+	await must(
+		supabase.from('support_messages').insert({
+			body: 'Need help confirming AI draft proof flow.',
+			channel: 'portal',
+			sender_type: 'customer',
+			ticket_id: ticket.id,
+		}),
+	)
+}
+
+async function refreshSearchDocuments(supabase, actorUserId) {
+	if (!actorUserId) return
+	const { error } = await supabase.rpc(
+		'service_refresh_ceo_search_documents_if_dirty',
+		{
+			p_actor_pool: 'internal',
+			p_actor_user_id: actorUserId,
+			p_force: true,
+		},
+	)
+	if (error) throw new Error(error.message)
 }
 
 async function syncRoleEmployeeProfile(supabase, userId, employeeId, account) {
@@ -537,25 +771,30 @@ async function syncRoleEmployeeProfile(supabase, userId, employeeId, account) {
 	})
 }
 
-async function syncDriverProfile(supabase, userId, driverId) {
+async function syncDriverProfile(
+	supabase,
+	userId,
+	driverId,
+	account = LOCAL_ACCOUNTS.driver,
+) {
 	await must(
 		supabase.from('profiles').upsert(
 			{
 				account_type: 'driver',
 				auth_user_id: userId,
-				display_name: LOCAL_ACCOUNTS.driver.fullName,
-				email: LOCAL_ACCOUNTS.driver.email,
-				phone: LOCAL_ACCOUNTS.driver.phone,
+				display_name: account.fullName,
+				email: account.email,
+				phone: account.phone,
 				status: 'active',
 			},
 			{ onConflict: 'auth_user_id' },
 		),
 	)
 	await upsertUserProfile(supabase, {
-		display_name: LOCAL_ACCOUNTS.driver.fullName,
+		display_name: account.fullName,
 		driver_id: driverId,
-		email: LOCAL_ACCOUNTS.driver.email,
-		phone: LOCAL_ACCOUNTS.driver.phone,
+		email: account.email,
+		phone: account.phone,
 		roles: ['driver'],
 		user_id: userId,
 		user_type: 'driver',

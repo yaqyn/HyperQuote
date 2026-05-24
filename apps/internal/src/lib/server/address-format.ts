@@ -13,9 +13,7 @@ function normalizeAddressPart(value: string): string {
 	return value.trim().replace(/\s+/g, ' ').toLowerCase()
 }
 
-export function formatAddressParts(
-	parts: Array<string | null | undefined>,
-): string {
+function formatAddressParts(parts: Array<string | null | undefined>): string {
 	const seen = new Set<string>()
 	const formatted: string[] = []
 	for (const part of parts) {

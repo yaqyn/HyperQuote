@@ -1,17 +1,19 @@
 import {
 	createActorServiceRoleClient,
 	createSupabaseServiceRoleClient,
+	type RuntimeEnvValue,
+	runtimeEnvValue,
 } from '@hyperquote/auth/server'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 
 interface DriverWorkerEnv {
 	ASSETS: { fetch(request: Request): Promise<Response> }
-	COOKIE_DOMAIN?: string
-	SUPABASE_ANON_KEY?: string
-	SUPABASE_COOKIE_NAME?: string
-	SUPABASE_SERVICE_ROLE_KEY?: string
-	SUPABASE_URL?: string
+	COOKIE_DOMAIN?: RuntimeEnvValue
+	SUPABASE_ANON_KEY?: RuntimeEnvValue
+	SUPABASE_COOKIE_NAME?: RuntimeEnvValue
+	SUPABASE_SERVICE_ROLE_KEY?: RuntimeEnvValue
+	SUPABASE_URL?: RuntimeEnvValue
 }
 
 interface DriverContext {
@@ -79,15 +81,17 @@ const locationUpdateInput = z.object({
 const UUID_PATTERN =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-function workerEnvRecord(
+async function workerEnvRecord(
 	env: DriverWorkerEnv,
-): Record<string, string | undefined> {
+): Promise<Record<string, string | undefined>> {
 	return {
-		COOKIE_DOMAIN: env.COOKIE_DOMAIN,
-		SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY,
-		SUPABASE_COOKIE_NAME: env.SUPABASE_COOKIE_NAME,
-		SUPABASE_SERVICE_ROLE_KEY: env.SUPABASE_SERVICE_ROLE_KEY,
-		SUPABASE_URL: env.SUPABASE_URL,
+		COOKIE_DOMAIN: await runtimeEnvValue(env.COOKIE_DOMAIN),
+		SUPABASE_ANON_KEY: await runtimeEnvValue(env.SUPABASE_ANON_KEY),
+		SUPABASE_COOKIE_NAME: await runtimeEnvValue(env.SUPABASE_COOKIE_NAME),
+		SUPABASE_SERVICE_ROLE_KEY: await runtimeEnvValue(
+			env.SUPABASE_SERVICE_ROLE_KEY,
+		),
+		SUPABASE_URL: await runtimeEnvValue(env.SUPABASE_URL),
 	}
 }
 
@@ -120,7 +124,8 @@ async function requireDriverContext(
 ): Promise<DriverContext | Response> {
 	const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
 	if (!token) return errorJson(401, 'driver_session_required')
-	if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
+	const runtimeEnv = await workerEnvRecord(env)
+	if (!runtimeEnv.SUPABASE_URL || !runtimeEnv.SUPABASE_ANON_KEY) {
 		return errorJson(500, 'supabase_env_required')
 	}
 	const sessionId = jwtStringClaim(token, 'session_id')
@@ -128,9 +133,13 @@ async function requireDriverContext(
 		return errorJson(401, 'driver_session_required')
 	}
 
-	const authClient = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
-		auth: { autoRefreshToken: false, persistSession: false },
-	})
+	const authClient = createClient(
+		runtimeEnv.SUPABASE_URL,
+		runtimeEnv.SUPABASE_ANON_KEY,
+		{
+			auth: { autoRefreshToken: false, persistSession: false },
+		},
+	)
 	const {
 		data: { user },
 		error,
@@ -139,9 +148,7 @@ async function requireDriverContext(
 		return errorJson(401, 'driver_session_required')
 	}
 
-	const serviceBase = await createSupabaseServiceRoleClient(
-		workerEnvRecord(env),
-	)
+	const serviceBase = await createSupabaseServiceRoleClient(runtimeEnv)
 	if (!serviceBase) return errorJson(500, 'service_role_required')
 
 	const service = createActorServiceRoleClient({

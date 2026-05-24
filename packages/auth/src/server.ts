@@ -20,6 +20,12 @@ export {
 	type SupabaseServiceRoleRuntimeConfig,
 }
 
+export interface RuntimeSecretBinding {
+	get(): Promise<string | null | undefined> | string | null | undefined
+}
+
+export type RuntimeEnvValue = RuntimeSecretBinding | string | null | undefined
+
 interface ServerClientOptions {
 	request: Request
 	supabaseUrl: string
@@ -278,57 +284,90 @@ export async function getSupabaseServerUser({
 }
 
 export async function resolveSupabaseWorkerConfig(
-	fallbackEnv: Record<string, string | undefined>,
+	fallbackEnv: Record<string, RuntimeEnvValue>,
 ): Promise<SupabaseServerRuntimeConfig | null> {
-	const processConfig = resolveSupabaseServerConfig(fallbackEnv)
-	if (processConfig) return processConfig
+	const runtimeKeys = [
+		'COOKIE_DOMAIN',
+		'SUPABASE_ANON_KEY',
+		'SUPABASE_COOKIE_NAME',
+		'SUPABASE_URL',
+	] as const
+	const fallbackConfig = resolveSupabaseServerConfig(
+		await runtimeEnvRecord(fallbackEnv, runtimeKeys),
+	)
+	if (fallbackConfig) return fallbackConfig
 
 	try {
 		const workersModule = 'cloudflare:workers'
 		const { env } = await import(/* @vite-ignore */ workersModule)
-		return resolveSupabaseServerConfig({
-			COOKIE_DOMAIN: stringEnvValue(env, 'COOKIE_DOMAIN'),
-			SUPABASE_COOKIE_NAME: stringEnvValue(env, 'SUPABASE_COOKIE_NAME'),
-			SUPABASE_ANON_KEY: stringEnvValue(env, 'SUPABASE_ANON_KEY'),
-			SUPABASE_URL: stringEnvValue(env, 'SUPABASE_URL'),
-		})
+		return resolveSupabaseServerConfig(await runtimeEnvRecord(env, runtimeKeys))
 	} catch {
 		return null
 	}
 }
 
-function stringEnvValue(env: unknown, key: string): string | undefined {
+export async function runtimeEnvValue(
+	value: RuntimeEnvValue,
+): Promise<string | undefined> {
+	if (typeof value === 'string') return value
+	if (!value || typeof value !== 'object' || !('get' in value)) return undefined
+	try {
+		const secret = await value.get()
+		return typeof secret === 'string' ? secret : undefined
+	} catch {
+		return undefined
+	}
+}
+
+export async function runtimeStringEnvValue(
+	env: unknown,
+	key: string,
+): Promise<string | undefined> {
 	if (!env || typeof env !== 'object') return undefined
 	const value = (env as Record<string, unknown>)[key]
-	return typeof value === 'string' ? value : undefined
+	return runtimeEnvValue(value as RuntimeEnvValue)
+}
+
+async function runtimeEnvRecord<const TKey extends readonly string[]>(
+	env: unknown,
+	keys: TKey,
+): Promise<Record<TKey[number], string | undefined>> {
+	const entries = await Promise.all(
+		keys.map(
+			async (key) => [key, await runtimeStringEnvValue(env, key)] as const,
+		),
+	)
+	return Object.fromEntries(entries) as Record<TKey[number], string | undefined>
 }
 
 export async function resolveSupabaseWorkerServiceRoleConfig(
-	fallbackEnv: Record<string, string | undefined>,
+	fallbackEnv: Record<string, RuntimeEnvValue>,
 ): Promise<SupabaseServiceRoleRuntimeConfig | null> {
-	const processConfig = resolveSupabaseServiceRoleConfig(fallbackEnv)
-	if (processConfig) return processConfig
+	const runtimeKeys = [
+		'COOKIE_DOMAIN',
+		'SUPABASE_ANON_KEY',
+		'SUPABASE_COOKIE_NAME',
+		'SUPABASE_SERVICE_ROLE_KEY',
+		'SUPABASE_URL',
+	] as const
+	const fallbackConfig = resolveSupabaseServiceRoleConfig(
+		await runtimeEnvRecord(fallbackEnv, runtimeKeys),
+	)
+	if (fallbackConfig) return fallbackConfig
 
 	try {
 		const workersModule = 'cloudflare:workers'
 		const { env } = await import(/* @vite-ignore */ workersModule)
-		return resolveSupabaseServiceRoleConfig({
-			COOKIE_DOMAIN: stringEnvValue(env, 'COOKIE_DOMAIN'),
-			SUPABASE_ANON_KEY: stringEnvValue(env, 'SUPABASE_ANON_KEY'),
-			SUPABASE_COOKIE_NAME: stringEnvValue(env, 'SUPABASE_COOKIE_NAME'),
-			SUPABASE_SERVICE_ROLE_KEY: stringEnvValue(
-				env,
-				'SUPABASE_SERVICE_ROLE_KEY',
-			),
-			SUPABASE_URL: stringEnvValue(env, 'SUPABASE_URL'),
-		})
+		return resolveSupabaseServiceRoleConfig(
+			await runtimeEnvRecord(env, runtimeKeys),
+		)
 	} catch {
 		return null
 	}
 }
 
 export async function createSupabaseServiceRoleClient(
-	fallbackEnv: Record<string, string | undefined>,
+	fallbackEnv: Record<string, RuntimeEnvValue>,
 ) {
 	const config = await resolveSupabaseWorkerServiceRoleConfig(fallbackEnv)
 	if (!config) return null

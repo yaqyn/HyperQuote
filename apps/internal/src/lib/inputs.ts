@@ -10,9 +10,6 @@
 /** Upper safety cap for raw costs — above this we assume fat-finger. */
 const MAX_RAW_COST = 100_000_000
 
-/** Minimum written proof length for supplier price changes. */
-export const PRICE_PROOF_ESSAY_MIN = 80
-
 function normalizeDigitGlyphs(raw: string): string {
 	return String(raw)
 		.replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 0x660))

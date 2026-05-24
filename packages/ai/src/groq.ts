@@ -45,6 +45,12 @@ interface GroqEnv {
 	url: string
 }
 
+interface RuntimeSecretBinding {
+	get(): Promise<string | null | undefined> | string | null | undefined
+}
+
+type RuntimeEnvValue = RuntimeSecretBinding | string | null | undefined
+
 interface ChatCompletionOptions {
 	temperature?: number
 }
@@ -77,10 +83,25 @@ async function readWorkersEnv(): Promise<
 			'VITE_USE_AI',
 			'NODE_ENV',
 		]) {
-			const value = (env as Record<string, unknown>)[key]
-			if (typeof value === 'string') values[key] = value
+			const value = await runtimeEnvValue(
+				(env as Record<string, RuntimeEnvValue>)[key],
+			)
+			if (value !== undefined) values[key] = value
 		}
 		return values
+	} catch {
+		return undefined
+	}
+}
+
+export async function runtimeEnvValue(
+	value: RuntimeEnvValue,
+): Promise<string | undefined> {
+	if (typeof value === 'string') return value
+	if (!value || typeof value !== 'object' || !('get' in value)) return undefined
+	try {
+		const secret = await value.get()
+		return typeof secret === 'string' ? secret : undefined
 	} catch {
 		return undefined
 	}

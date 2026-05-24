@@ -470,6 +470,19 @@ describe('portal customer AI agent', () => {
 		expect(
 			parsePortalCustomerToolRequest(
 				JSON.stringify({
+					final_response: 'Please confirm the delivery details first.',
+					search_query: '',
+					tool: 'chat',
+				}),
+				'Draft 12 bags of Flow AI Cement for my project',
+			),
+		).toMatchObject({
+			action: 'create_draft_from_plan',
+			searchQuery: 'Draft 12 bags of Flow AI Cement for my project',
+		})
+		expect(
+			parsePortalCustomerToolRequest(
+				JSON.stringify({
 					item_query: 'wood',
 					replacement_query: 'cement',
 					search_query: 'replace wood with cement',

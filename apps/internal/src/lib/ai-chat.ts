@@ -242,7 +242,7 @@ async function fetchInternalAiRows(
 		requestedEntityTypes.map(async (entityType) => {
 			if (!allowedByEntityType.has(entityType)) return []
 			let request = client
-				.from('ceo_search_index')
+				.from('ceo_search_documents')
 				.select(INTERNAL_AI_ROW_SELECT)
 				.eq('entity_type', entityType)
 				.order('sort_at', { ascending: false })

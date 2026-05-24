@@ -152,6 +152,29 @@ const SEARCH_TABLES: SearchTableConfig[] = [
 	},
 ]
 
+const SEARCH_DOMAIN_TERMS: Record<string, readonly string[]> = {
+	activity: ['activity', 'activities', 'audit', 'history'],
+	approval: ['approval', 'approvals'],
+	category: ['category', 'categories'],
+	customer: ['customer', 'customers', 'client', 'clients'],
+	dispatch: ['dispatch', 'delivery', 'deliveries'],
+	document: ['document', 'documents', 'proof', 'proofs'],
+	driver: ['driver', 'drivers', 'fleet'],
+	driver_location: ['location', 'locations', 'gps', 'tracking', 'map'],
+	employee: ['employee', 'employees', 'staff', 'team'],
+	inventory: ['inventory', 'stock', 'products', 'materials'],
+	order: ['order', 'orders', 'quote', 'quotes', 'sales'],
+	payment: ['finance', 'payment', 'payments', 'invoice', 'invoices'],
+	pricing: ['price', 'prices', 'pricing', 'cost', 'costs'],
+	sales_history: ['version', 'versions', 'history', 'calls'],
+	supplier: ['supplier', 'suppliers', 'vendor', 'vendors'],
+	support: ['support', 'ticket', 'tickets'],
+	support_message: ['message', 'messages', 'whatsapp', 'reply', 'replies'],
+	warehouse: ['warehouse', 'loading', 'receiving'],
+}
+
+const SEARCH_DOMAIN_STOP_TOKENS = new Set(['all', 'and', 'or', 'plus', 'with'])
+
 const MODULE_TABLES: Record<SearchSummaryModuleId, SearchTableId[]> = {
 	sales: ['orders', 'sales-history', 'customers', 'approvals'],
 	inventory: ['inventory', 'pricing', 'categories', 'suppliers'],
@@ -248,7 +271,7 @@ async function refreshSearchDocumentsIfDirty(client: SearchClient) {
 
 function baseSearchQuery(client: SearchClient) {
 	return client
-		.from('ceo_search_index')
+		.from('ceo_search_documents')
 		.select(SEARCH_ROW_SELECT)
 		.order('sort_at', { ascending: false })
 		.order('title', { ascending: true })
@@ -270,6 +293,22 @@ function filteredSearchQuery(
 		}
 	}
 	return query
+}
+
+function entityTypesForDomainOnlySearch(search: string): string[] {
+	const tokens = searchTokens(search).filter(
+		(token) => !SEARCH_DOMAIN_STOP_TOKENS.has(token),
+	)
+	if (tokens.length < 2) return []
+
+	const allDomainTerms = new Set(Object.values(SEARCH_DOMAIN_TERMS).flat())
+	if (!tokens.every((token) => allDomainTerms.has(token))) return []
+
+	const matches = SEARCH_TABLES.filter((table) => {
+		const terms = SEARCH_DOMAIN_TERMS[table.entityType] ?? []
+		return terms.some((term) => tokens.includes(term))
+	}).map((table) => table.entityType)
+	return matches.length >= 2 ? uniqueEntityTypes(matches) : []
 }
 
 async function fetchSearchRows(
@@ -301,7 +340,7 @@ async function countSearchRows(
 ): Promise<number> {
 	const client = providedClient ?? (await requireSearchClient())
 	let query = client
-		.from('ceo_search_index')
+		.from('ceo_search_documents')
 		.select('entity_id', { count: 'exact', head: true })
 	if (options.entityType) {
 		query = query.eq('entity_type', options.entityType)
@@ -383,20 +422,36 @@ export const searchInternalDb = createServerFn({ method: 'POST' })
 	.handler(async ({ data }): Promise<SearchResponse> => {
 		const query = data.query.trim()
 		const client = await requireSearchClient()
-		const tables = await tableSummariesForSearch(query, client)
+		const broadEntityTypes = entityTypesForDomainOnlySearch(query)
+		const rowSearch = broadEntityTypes.length > 0 ? undefined : query
+		const tables = await tableSummariesForSearch(rowSearch ?? '', client)
 		const lowerQuery = query.toLowerCase()
-		const tableMatches = lowerQuery
-			? tables.filter((table) => table.label.toLowerCase().includes(lowerQuery))
-			: tables
+		const tableMatches =
+			broadEntityTypes.length > 0
+				? tables.filter((table) => {
+						const config = tableConfig(table.tableId)
+						return config ? broadEntityTypes.includes(config.entityType) : false
+					})
+				: lowerQuery
+					? tables.filter((table) =>
+							table.label.toLowerCase().includes(lowerQuery),
+						)
+					: tables
 
 		const resultGroups = await Promise.all(
 			SEARCH_TABLES.map(async (table) => {
+				if (
+					broadEntityTypes.length > 0 &&
+					!broadEntityTypes.includes(table.entityType)
+				) {
+					return null
+				}
 				const rows = query
 					? await fetchSearchRows(
 							{
 								entityType: table.entityType,
 								limit: SEARCH_RESULT_GROUP_LIMIT,
-								search: query,
+								search: rowSearch,
 							},
 							client,
 						)
