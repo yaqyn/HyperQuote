@@ -1,10 +1,10 @@
 /**
  * Dispatch map — washed terrain under the horizon panel. Near-black ink
  * on muted ochre cartography: warehouse as a hairline ring, destinations
- * as serif monograms pinned to off-white paper, trucks as brand-blue dots
- * (or brand-amber if overdue). Selected pin fills brand blue. The terrain
- * is desaturated via the .dispatch-map-wash filter so the panel reads as
- * a composed object over quiet ground.
+ * as high-contrast orange monograms, roads as thick solid blue highlights,
+ * trucks as blue dots, and overdue work as dark red. The terrain is
+ * desaturated via the .dispatch-map-wash filter so the panel reads as a
+ * composed object over quiet ground.
  *
  * MUST be wrapped in ClientOnly at call site.
  */
@@ -62,6 +62,11 @@ interface DispatchRouteFeatureCollection {
 
 const DISPATCH_STATIC_MAP_WIDTH = 1200
 const DISPATCH_STATIC_MAP_HEIGHT = 720
+const DISPATCH_ROUTE_BLUE = '#1D4ED8'
+const DISPATCH_DELIVERY_ORANGE = '#EA580C'
+const DISPATCH_OVERDUE_RED = '#7F1D1D'
+const DISPATCH_MAP_PAPER = '#FAFAFA'
+const DISPATCH_ROUTE_LINE_WIDTH = 5
 
 function canUseInteractiveMap(): boolean {
 	const canvas = document.createElement('canvas')
@@ -274,7 +279,7 @@ export function DispatchMap({
 					minZoom={6}
 					maxZoom={18}
 				>
-					{/* Route lines — graphite dashes */}
+					{/* Route lines — solid brand-blue road highlights */}
 					{mapLoaded && (
 						<Source
 							id="dispatch-routes"
@@ -285,24 +290,23 @@ export function DispatchMap({
 								id="dispatch-route-lines"
 								type="line"
 								paint={{
-									'line-color': '#111111',
-									'line-width': 1.2,
-									'line-opacity': 0.32,
-									'line-dasharray': [3, 4],
+									'line-color': DISPATCH_ROUTE_BLUE,
+									'line-width': DISPATCH_ROUTE_LINE_WIDTH,
+									'line-opacity': 0.86,
 								}}
 							/>
 						</Source>
 					)}
 
-					{/* Delivery pins — paper fill, ink ring, serif monogram */}
+					{/* Delivery pins — high-contrast orange/dark-red monograms */}
 					{routeMarkers.map(({ route: r, destination }) => {
 						const isSelected = selectedQuoteId === r.quoteId
 						const initial = (r.customerName.trim()[0] ?? '•').toUpperCase()
-						const ringColor = isSelected
-							? '#2563EB'
+						const pinFill = isSelected
+							? DISPATCH_ROUTE_BLUE
 							: r.isOverdue
-								? '#D97706'
-								: '#111111'
+								? DISPATCH_OVERDUE_RED
+								: DISPATCH_DELIVERY_ORANGE
 						return (
 							<Marker
 								key={`dest-${r.quoteId}`}
@@ -330,9 +334,9 @@ export function DispatchMap({
 										<div
 											className="flex h-9 w-9 items-center justify-center rounded-full shadow-[0_6px_14px_-4px_rgba(20,15,10,0.35)]"
 											style={{
-												backgroundColor: isSelected ? '#2563EB' : '#FAFAFA',
-												border: `1.5px solid ${ringColor}`,
-												color: isSelected ? '#FFFFFF' : ringColor,
+												backgroundColor: pinFill,
+												border: `2px solid ${DISPATCH_MAP_PAPER}`,
+												color: '#FFFFFF',
 												fontFamily: 'Literata, serif',
 												fontSize: '15px',
 												fontWeight: 500,
@@ -364,10 +368,12 @@ export function DispatchMap({
 						)
 					})}
 
-					{/* Driver dots — brand blue when moving, brand amber when overdue */}
+					{/* Driver dots — blue when moving, dark red when overdue */}
 					{truckMarkers.map(({ route: r, truck, position }) => {
 						const isSelected = selectedQuoteId === r.quoteId
-						const fill = r.isOverdue ? '#D97706' : '#2563EB'
+						const fill = r.isOverdue
+							? DISPATCH_OVERDUE_RED
+							: DISPATCH_ROUTE_BLUE
 						return (
 							<Marker
 								key={`driver-${r.quoteId}-${truck.truckId}`}
@@ -396,7 +402,7 @@ export function DispatchMap({
 											className="relative h-[14px] w-[14px] rounded-full shadow-[0_4px_10px_-3px_rgba(20,15,10,0.4)]"
 											style={{
 												backgroundColor: fill,
-												border: '1.5px solid #F3EEE4',
+												border: `2px solid ${DISPATCH_MAP_PAPER}`,
 												transform: isSelected ? 'scale(1.25)' : 'scale(1)',
 												transition: 'transform 160ms ease',
 											}}
@@ -535,11 +541,10 @@ function DispatchMapFallback({
 						y1={origin.top}
 						x2={destination.left}
 						y2={destination.top}
-						stroke={route.isOverdue ? '#D97706' : '#111111'}
-						strokeDasharray="1.2 1.6"
+						stroke={DISPATCH_ROUTE_BLUE}
 						strokeLinecap="round"
-						strokeOpacity={route.isOverdue ? 0.42 : 0.28}
-						strokeWidth="0.22"
+						strokeOpacity="0.86"
+						strokeWidth={DISPATCH_ROUTE_LINE_WIDTH}
 						vectorEffect="non-scaling-stroke"
 					/>
 				))}
@@ -560,15 +565,13 @@ function DispatchMapFallback({
 						<span
 							className="flex h-9 w-9 items-center justify-center rounded-full font-[family-name:var(--font-literata)] shadow-[0_6px_14px_-4px_rgba(20,15,10,0.28)]"
 							style={{
-								backgroundColor: isSelected ? '#2563EB' : '#FAFAFA',
-								border: `1.5px solid ${
-									isSelected
-										? '#2563EB'
-										: route.isOverdue
-											? '#D97706'
-											: '#111111'
-								}`,
-								color: isSelected ? '#FFFFFF' : '#111111',
+								backgroundColor: isSelected
+									? DISPATCH_ROUTE_BLUE
+									: route.isOverdue
+										? DISPATCH_OVERDUE_RED
+										: DISPATCH_DELIVERY_ORANGE,
+								border: `2px solid ${DISPATCH_MAP_PAPER}`,
+								color: '#FFFFFF',
 								fontSize: '14px',
 								fontWeight: 500,
 								letterSpacing: 0,
@@ -591,7 +594,6 @@ function DispatchMapFallback({
 			})}
 			{truckMarkers.map(
 				({ position, route, routeIndex, truck, truckIndex }) => {
-					const isSelected = selectedQuoteId === route.quoteId
 					const left = `${position.left}%`
 					const top = `${position.top}%`
 					return (
@@ -610,15 +612,11 @@ function DispatchMapFallback({
 							<span
 								className="flex h-10 w-10 items-center justify-center rounded-full font-[family-name:var(--font-literata)] shadow-[0_6px_14px_-4px_rgba(20,15,10,0.35)]"
 								style={{
-									backgroundColor: isSelected ? '#2563EB' : '#FAFAFA',
-									border: `1.5px solid ${
-										isSelected
-											? '#2563EB'
-											: route.isOverdue
-												? '#D97706'
-												: '#111111'
-									}`,
-									color: isSelected ? '#FFFFFF' : '#111111',
+									backgroundColor: route.isOverdue
+										? DISPATCH_OVERDUE_RED
+										: DISPATCH_ROUTE_BLUE,
+									border: `2px solid ${DISPATCH_MAP_PAPER}`,
+									color: '#FFFFFF',
 									fontSize: '15px',
 									fontWeight: 500,
 									letterSpacing: 0,
