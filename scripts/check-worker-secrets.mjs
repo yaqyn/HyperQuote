@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
 import { getRuntimeSecretsForApp, parseArgs } from './deploy-contract.mjs'
+import { parseJsonLikeFile } from './jsonc.mjs'
 
 const args = parseArgs(process.argv.slice(2))
 const app = args.app
@@ -55,7 +55,7 @@ for (const [storeId, bindings] of bindingsByStore(configuredBindings)) {
 console.log(`Cloudflare Secrets Store contract satisfied for ${worker}.`)
 
 function secretsStoreBindingsFromConfig(configPath) {
-	const configJson = JSON.parse(readJsonLikeFile(configPath))
+	const configJson = parseJsonLikeFile(configPath)
 	return Array.isArray(configJson.secrets_store_secrets)
 		? configJson.secrets_store_secrets.filter(
 				(binding) =>
@@ -132,10 +132,4 @@ function bindingsByStore(bindings) {
 function stripAnsi(value) {
 	const escapeCharacter = String.fromCharCode(27)
 	return value.replace(new RegExp(`${escapeCharacter}\\[[0-9;]*m`, 'g'), '')
-}
-
-function readJsonLikeFile(path) {
-	return readFileSync(path, 'utf8')
-		.replace(/\/\*[\s\S]*?\*\//g, '')
-		.replace(/^\s*\/\/.*$/gm, '')
 }

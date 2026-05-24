@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { getRuntimeSecretsForApp, parseArgs } from './deploy-contract.mjs'
+import { parseJsonLikeFile } from './jsonc.mjs'
 
 const args = parseArgs(process.argv.slice(2))
 const target = args.target
@@ -39,7 +40,7 @@ const prefix =
 	nonEmptyEnv('CLOUDFLARE_SECRETS_STORE_PREFIX') ??
 	`HYPERQUOTE_${targetEnvPrefix}_${app.toUpperCase()}_`
 
-const config = JSON.parse(readJsonLikeFile(configPath))
+const config = parseJsonLikeFile(configPath)
 const existingBindings = Array.isArray(config.secrets_store_secrets)
 	? config.secrets_store_secrets.filter(
 			(binding) =>
@@ -63,12 +64,6 @@ writeFileSync(configPath, `${JSON.stringify(config, null, '\t')}\n`)
 console.log(
 	`Applied ${requiredSecrets.length} Secrets Store bindings to ${configPath} for ${target} ${app}.`,
 )
-
-function readJsonLikeFile(path) {
-	return readFileSync(path, 'utf8')
-		.replace(/\/\*[\s\S]*?\*\//g, '')
-		.replace(/^\s*\/\/.*$/gm, '')
-}
 
 function nonEmptyEnv(name) {
 	const value = process.env[name]?.trim()
