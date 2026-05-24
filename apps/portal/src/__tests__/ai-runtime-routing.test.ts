@@ -103,7 +103,17 @@ describe('AI runtime routing', () => {
 		expect(websiteChatSource).not.toContain('label: `Open ')
 		expect(websiteChatSource).toContain('WEBSITE_DOCS_NAV_PATTERN')
 		expect(websiteChatSource).toContain('learn|learning')
-		expect(websiteChatSource).toContain("href: '/docs/support/faq'")
+		expect(websiteChatSource).toContain('websiteDirectNavigationButtons')
+		expect(websiteChatSource).toContain('websiteNavigationDirectAnswer')
+		expect(
+			websiteChatSource.indexOf('websiteDirectNavigationButtons(userText)'),
+		).toBeLessThan(websiteChatSource.indexOf('routeWebsitePublicChat'))
+		expect(websiteChatSource).toContain("href: '/support#faq'")
+		expect(websiteChatSource).toContain("href: '/support#contact'")
+		expect(websiteChatSource).toContain("href: '/legal/terms'")
+		expect(websiteChatSource).toContain("href: '/legal/privacy'")
+		expect(websiteChatSource).toContain("href: '/careers'")
+		expect(websiteChatSource).toContain("href: '/about'")
 		expect(websiteChatSource).toContain('WEBSITE_MARKET_TOPIC_PATTERN')
 		expect(websiteChatSource).toContain('wood|lumber|timber')
 		expect(websitePromptSource).toContain('stay warm and natural')

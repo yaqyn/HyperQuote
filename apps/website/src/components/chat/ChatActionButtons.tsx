@@ -1,6 +1,9 @@
 import {
 	BookOpen,
+	BriefcaseBusiness,
+	Building2,
 	ExternalLink,
+	FileText,
 	LifeBuoy,
 	LogIn,
 	PackageSearch,
@@ -15,6 +18,9 @@ interface ChatActionButtonsProps {
 
 const ACTION_ICONS = {
 	book: BookOpen,
+	briefcase: BriefcaseBusiness,
+	building: Building2,
+	file: FileText,
 	login: LogIn,
 	market: PackageSearch,
 	quote: ShoppingCart,

@@ -50,7 +50,15 @@ type WebsiteLifecycleChunk =
 
 export interface WebsiteActionButtonData {
 	href: string
-	icon: 'book' | 'login' | 'market' | 'quote' | 'support'
+	icon:
+		| 'book'
+		| 'briefcase'
+		| 'building'
+		| 'file'
+		| 'login'
+		| 'market'
+		| 'quote'
+		| 'support'
 	label: string
 	labelAr: string
 }
@@ -164,77 +172,93 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 				chunks.push(chunk)
 			}
 		} else {
-			const aiEnabled = await isAIEnabled()
-			const route = enforceDocsRoute(
-				aiEnabled
-					? await routeWebsitePublicChat(modelMessages, userText)
-					: fallbackWebsitePublicChatRoute(userText),
-				userText,
-			)
-
-			if (route.action === 'chat') {
-				if (aiEnabled) {
-					for await (const chunk of streamChat(modelMessages, LYON_WEBSITE)) {
-						chunks.push(chunk as WebsiteStreamChunk)
-					}
-				} else {
-					const simpleAnswer = simpleWebsiteChatAnswer(modelMessages)
-					for await (const chunk of textOnlyStream(
-						simpleAnswer ??
-							'Ask me about quotes, delivery, payments, the market, or Lyon.',
-					)) {
-						chunks.push(chunk)
-					}
-				}
-				appendWebsiteActionButtons(
-					chunks,
-					websiteNavigationButtons(userText, route),
-				)
-			} else if (aiEnabled) {
-				readEntities = ['public_docs']
-				const docs = retrieveRoutedDocs(route, userText)
-				if (!docs.hasHighConfidence) {
-					for await (const chunk of textOnlyStream(
-						publicDocsNoAnswerResponse(docs.locale),
-					)) {
-						chunks.push(chunk)
-					}
-					appendWebsiteActionButtons(
-						chunks,
-						websiteNavigationButtons(userText, route, docs),
-					)
-				} else {
-					const groundedPrompt = buildWebsiteDocsPrompt(
-						LYON_WEBSITE,
-						buildPublicDocsContext(docs.chunks),
-					)
-					for await (const chunk of streamChat(modelMessages, groundedPrompt)) {
-						chunks.push(chunk as WebsiteStreamChunk)
-					}
-					appendDocsSourcesIfMissing(
-						chunks,
-						publicDocsSourceLinks(docs.chunks, docs.locale),
-						docs.locale,
-					)
-					appendWebsiteActionButtons(
-						chunks,
-						websiteNavigationButtons(userText, route, docs),
-					)
-				}
-			} else {
-				readEntities = ['public_docs']
-				const docs = retrieveRoutedDocs(route, userText)
+			const directNavigationButtons = websiteDirectNavigationButtons(userText)
+			if (
+				directNavigationButtons.length > 0 &&
+				isWebsiteNavigationRequest(userText)
+			) {
 				for await (const chunk of textOnlyStream(
-					docs.hasHighConfidence
-						? publicDocsExtractiveResponse(docs.chunks, docs.locale)
-						: publicDocsNoAnswerResponse(docs.locale),
+					websiteNavigationDirectAnswer(userText, directNavigationButtons),
 				)) {
 					chunks.push(chunk)
 				}
-				appendWebsiteActionButtons(
-					chunks,
-					websiteNavigationButtons(userText, route, docs),
+				appendWebsiteActionButtons(chunks, directNavigationButtons)
+			} else {
+				const aiEnabled = await isAIEnabled()
+				const route = enforceDocsRoute(
+					aiEnabled
+						? await routeWebsitePublicChat(modelMessages, userText)
+						: fallbackWebsitePublicChatRoute(userText),
+					userText,
 				)
+
+				if (route.action === 'chat') {
+					if (aiEnabled) {
+						for await (const chunk of streamChat(modelMessages, LYON_WEBSITE)) {
+							chunks.push(chunk as WebsiteStreamChunk)
+						}
+					} else {
+						const simpleAnswer = simpleWebsiteChatAnswer(modelMessages)
+						for await (const chunk of textOnlyStream(
+							simpleAnswer ??
+								'Ask me about quotes, delivery, payments, the market, or Lyon.',
+						)) {
+							chunks.push(chunk)
+						}
+					}
+					appendWebsiteActionButtons(
+						chunks,
+						websiteNavigationButtons(userText, route),
+					)
+				} else if (aiEnabled) {
+					readEntities = ['public_docs']
+					const docs = retrieveRoutedDocs(route, userText)
+					if (!docs.hasHighConfidence) {
+						for await (const chunk of textOnlyStream(
+							publicDocsNoAnswerResponse(docs.locale),
+						)) {
+							chunks.push(chunk)
+						}
+						appendWebsiteActionButtons(
+							chunks,
+							websiteNavigationButtons(userText, route, docs),
+						)
+					} else {
+						const groundedPrompt = buildWebsiteDocsPrompt(
+							LYON_WEBSITE,
+							buildPublicDocsContext(docs.chunks),
+						)
+						for await (const chunk of streamChat(
+							modelMessages,
+							groundedPrompt,
+						)) {
+							chunks.push(chunk as WebsiteStreamChunk)
+						}
+						appendDocsSourcesIfMissing(
+							chunks,
+							publicDocsSourceLinks(docs.chunks, docs.locale),
+							docs.locale,
+						)
+						appendWebsiteActionButtons(
+							chunks,
+							websiteNavigationButtons(userText, route, docs),
+						)
+					}
+				} else {
+					readEntities = ['public_docs']
+					const docs = retrieveRoutedDocs(route, userText)
+					for await (const chunk of textOnlyStream(
+						docs.hasHighConfidence
+							? publicDocsExtractiveResponse(docs.chunks, docs.locale)
+							: publicDocsNoAnswerResponse(docs.locale),
+					)) {
+						chunks.push(chunk)
+					}
+					appendWebsiteActionButtons(
+						chunks,
+						websiteNavigationButtons(userText, route, docs),
+					)
+				}
 			}
 		}
 
@@ -322,6 +346,18 @@ const WEBSITE_DOCS_NAV_PATTERN =
 const AR_WEBSITE_DOCS_NAV_PATTERN =
 	/(وثائق|دليل|ادله|تعلم|اتعلم|شرح|ازاي|كيف|خطوات|بدايه|مساعده|اعرف|علمني|فهمني)/
 
+const WEBSITE_NAVIGATION_REQUEST_PATTERN =
+	/\b(where|find|open|go|take|show|send|link|links|page|pages|menu|navigate|navigation|visit|access|locate|scroll|section)\b|\bwhere\s+(?:is|are|to)\b|\bhow\s+(?:do|can)\s+i\s+(?:find|open|go|access|reach)\b/
+
+const AR_WEBSITE_NAVIGATION_REQUEST_PATTERN =
+	/(فين|اين|أين|افتح|روح|وديني|لينك|رابط|صفحه|صفحة|منيو|القائمه|القائمة|اوصل|اروح|انزل|سكرول)/
+
+const WEBSITE_DIRECT_PAGE_TARGET_PATTERN =
+	/\b(market|catalog|support|contact|faq|faqs|docs?|documentation|portal|login|about|team|employees?|staff|careers?|jobs?|terms|privacy|policy|policies|home|homepage)\b/
+
+const AR_WEBSITE_DIRECT_PAGE_TARGET_PATTERN =
+	/(السوق|كتالوج|دعم|تواصل|اسئله|أسئلة|وثائق|بوابة|دخول|عن|الفريق|الموظفين|وظائف|شروط|خصوصية|خصوصيه|سياسة|الرئيسية)/
+
 const WEBSITE_MARKET_TOPIC_PATTERN =
 	/\b(market|catalog|catalogue|products?|materials?|browse|availability|available|stock|wood|lumber|timber|plywood|cement|concrete|rebar|steel|sand|aggregate|bricks?|blocks?|paint|pipes?|plumbing|electrical|hardware|fixtures?|roofing|drywall)\b/
 
@@ -351,6 +387,244 @@ const WEBSITE_SUPPORT_NAV_PATTERN =
 
 const AR_WEBSITE_SUPPORT_NAV_PATTERN =
 	/(دعم|تواصل|ساعد|مشكله|تالف|ضرر|واتساب|تليفون|ايميل|كلم|انسان)/
+
+const WEBSITE_ABOUT_NAV_PATTERN =
+	/\b(about|company|team|teams|employees?|staff|people|who are you|who is hyperquote)\b/
+
+const AR_WEBSITE_ABOUT_NAV_PATTERN =
+	/(عن|الشركه|الشركة|الفريق|الموظفين|مين انتو|من انتم)/
+
+const WEBSITE_CAREERS_NAV_PATTERN =
+	/\b(careers?|jobs?|hiring|hire|work with|work at|apply|application|vacancies|roles?|positions?)\b/
+
+const AR_WEBSITE_CAREERS_NAV_PATTERN = /(وظائف|توظيف|شغل|اشتغل|اقدم|تقديم|فرص)/
+
+const WEBSITE_TERMS_NAV_PATTERN =
+	/\b(terms|terms of use|terms of service|conditions|tos|legal|rules|agreement)\b/
+
+const AR_WEBSITE_TERMS_NAV_PATTERN = /(الشروط|شروط|قانوني|اتفاقيه|اتفاقية)/
+
+const WEBSITE_PRIVACY_NAV_PATTERN =
+	/\b(privacy|privacy policy|policy|policies|data policy|data protection|personal data)\b/
+
+const AR_WEBSITE_PRIVACY_NAV_PATTERN =
+	/(خصوصيه|خصوصية|سياسة|سياسه|بيانات|حماية البيانات)/
+
+const WEBSITE_HOME_NAV_PATTERN = /\b(home|homepage|main page|start page)\b/
+
+const AR_WEBSITE_HOME_NAV_PATTERN = /(الرئيسيه|الرئيسية|البدايه|البداية)/
+
+function hasMaterialBuyingIntent(normalized: string): boolean {
+	return (
+		WEBSITE_MARKET_ACTION_PATTERN.test(normalized) &&
+		WEBSITE_MATERIAL_PATTERN.test(normalized)
+	)
+}
+
+function isWebsiteNavigationRequest(userText: string): boolean {
+	const normalized = normalizeForSimpleChat(userText)
+	const isShortDirectTarget = normalized.split(/\s+/).length <= 5
+	return (
+		WEBSITE_NAVIGATION_REQUEST_PATTERN.test(normalized) ||
+		AR_WEBSITE_NAVIGATION_REQUEST_PATTERN.test(normalized) ||
+		hasMaterialBuyingIntent(normalized) ||
+		(isShortDirectTarget &&
+			(WEBSITE_DIRECT_PAGE_TARGET_PATTERN.test(normalized) ||
+				AR_WEBSITE_DIRECT_PAGE_TARGET_PATTERN.test(normalized)))
+	)
+}
+
+function websiteNavigationDirectAnswer(
+	userText: string,
+	buttons: WebsiteActionButtonData[],
+): string {
+	const isArabic = detectDocsQueryLocale(userText) === 'ar'
+	if (isArabic) return 'أكيد. دي روابط هايبركوت المناسبة:'
+
+	return buttons.length === 1
+		? 'Here is the right HyperQuote link:'
+		: 'Here are the right HyperQuote links:'
+}
+
+function websiteDirectNavigationButtons(
+	userText: string,
+): WebsiteActionButtonData[] {
+	const normalized = normalizeForSimpleChat(userText)
+	const buttons: WebsiteActionButtonData[] = []
+	const add = (button: WebsiteActionButtonData) => {
+		if (
+			buttons.some(
+				(existing) =>
+					existing.href === button.href && existing.label === button.label,
+			)
+		) {
+			return
+		}
+		buttons.push(button)
+	}
+	const materialBuyingIntent = hasMaterialBuyingIntent(normalized)
+
+	if (
+		WEBSITE_HOME_NAV_PATTERN.test(normalized) ||
+		AR_WEBSITE_HOME_NAV_PATTERN.test(normalized)
+	) {
+		add({
+			href: '/',
+			icon: 'building',
+			label: 'Home',
+			labelAr: 'الرئيسية',
+		})
+	}
+
+	if (
+		WEBSITE_MARKET_TOPIC_PATTERN.test(normalized) ||
+		materialBuyingIntent ||
+		AR_WEBSITE_MARKET_NAV_PATTERN.test(normalized)
+	) {
+		add({
+			href: '/market',
+			icon: 'market',
+			label: 'Market',
+			labelAr: 'السوق',
+		})
+	}
+
+	if (
+		WEBSITE_QUOTE_NAV_PATTERN.test(normalized) ||
+		materialBuyingIntent ||
+		AR_WEBSITE_QUOTE_NAV_PATTERN.test(normalized)
+	) {
+		add({
+			href: '/market',
+			icon: 'quote',
+			label: 'Start quote',
+			labelAr: 'ابدأ عرض سعر',
+		})
+	}
+
+	if (
+		WEBSITE_PORTAL_NAV_PATTERN.test(normalized) ||
+		AR_WEBSITE_PORTAL_NAV_PATTERN.test(normalized)
+	) {
+		add({
+			href: '/login',
+			icon: 'login',
+			label: 'Portal',
+			labelAr: 'البوابة',
+		})
+	}
+
+	if (
+		WEBSITE_SUPPORT_NAV_PATTERN.test(normalized) ||
+		AR_WEBSITE_SUPPORT_NAV_PATTERN.test(normalized)
+	) {
+		add({
+			href: '/support',
+			icon: 'support',
+			label: 'Support',
+			labelAr: 'الدعم',
+		})
+	}
+
+	if (
+		/\b(faqs?|frequently asked|questions?)\b/.test(normalized) ||
+		/اسئله|أسئله|اسئلة|أسئلة/.test(normalized)
+	) {
+		add({
+			href: '/support#faq',
+			icon: 'book',
+			label: 'FAQ',
+			labelAr: 'الأسئلة',
+		})
+	}
+
+	if (
+		/\b(contact|reach|email|phone|call|whatsapp|message|talk|human)\b/.test(
+			normalized,
+		) ||
+		/تواصل|واتساب|تليفون|ايميل|كلم|انسان/.test(normalized)
+	) {
+		add({
+			href: '/support#contact',
+			icon: 'support',
+			label: 'Contact',
+			labelAr: 'التواصل',
+		})
+	}
+
+	if (
+		WEBSITE_DOCS_NAV_PATTERN.test(normalized) ||
+		AR_WEBSITE_DOCS_NAV_PATTERN.test(normalized)
+	) {
+		add({
+			href: '/docs',
+			icon: 'book',
+			label: 'Docs',
+			labelAr: 'الوثائق',
+		})
+		if (/\b(learn|learning|how|help center|questions?)\b/.test(normalized)) {
+			add({
+				href: '/support#faq',
+				icon: 'book',
+				label: 'FAQ',
+				labelAr: 'الأسئلة',
+			})
+		}
+	}
+
+	if (
+		WEBSITE_ABOUT_NAV_PATTERN.test(normalized) ||
+		AR_WEBSITE_ABOUT_NAV_PATTERN.test(normalized)
+	) {
+		const wantsTeam =
+			/\b(team|teams|employees?|staff|people)\b/.test(normalized) ||
+			/الفريق|الموظفين/.test(normalized)
+		add({
+			href: '/about',
+			icon: 'building',
+			label: wantsTeam ? 'Team' : 'About',
+			labelAr: wantsTeam ? 'الفريق' : 'عن هايبركوت',
+		})
+	}
+
+	if (
+		WEBSITE_CAREERS_NAV_PATTERN.test(normalized) ||
+		AR_WEBSITE_CAREERS_NAV_PATTERN.test(normalized)
+	) {
+		add({
+			href: '/careers',
+			icon: 'briefcase',
+			label: 'Careers',
+			labelAr: 'التوظيف',
+		})
+	}
+
+	if (
+		WEBSITE_TERMS_NAV_PATTERN.test(normalized) ||
+		AR_WEBSITE_TERMS_NAV_PATTERN.test(normalized)
+	) {
+		add({
+			href: '/legal/terms',
+			icon: 'file',
+			label: 'Terms',
+			labelAr: 'الشروط',
+		})
+	}
+
+	if (
+		WEBSITE_PRIVACY_NAV_PATTERN.test(normalized) ||
+		AR_WEBSITE_PRIVACY_NAV_PATTERN.test(normalized)
+	) {
+		add({
+			href: '/legal/privacy',
+			icon: 'file',
+			label: 'Privacy',
+			labelAr: 'الخصوصية',
+		})
+	}
+
+	return buttons.slice(0, 4)
+}
 
 function fallbackWebsitePublicChatRoute(
 	userText: string,
@@ -398,9 +672,6 @@ function websiteNavigationButtons(
 		}
 		buttons.push(button)
 	}
-	const materialBuyingIntent =
-		WEBSITE_MARKET_ACTION_PATTERN.test(normalized) &&
-		WEBSITE_MATERIAL_PATTERN.test(normalized)
 	const wantsDocs =
 		route.action === 'retrieve_public_docs' ||
 		WEBSITE_DOCS_NAV_PATTERN.test(normalized) ||
@@ -409,43 +680,7 @@ function websiteNavigationButtons(
 		WEBSITE_DOCS_NAV_PATTERN.test(normalized) ||
 		AR_WEBSITE_DOCS_NAV_PATTERN.test(normalized)
 
-	if (
-		WEBSITE_MARKET_TOPIC_PATTERN.test(normalized) ||
-		materialBuyingIntent ||
-		AR_WEBSITE_MARKET_NAV_PATTERN.test(normalized)
-	) {
-		add({
-			href: '/market',
-			icon: 'market',
-			label: 'Browse market',
-			labelAr: 'تصفح السوق',
-		})
-	}
-
-	if (
-		WEBSITE_QUOTE_NAV_PATTERN.test(normalized) ||
-		materialBuyingIntent ||
-		AR_WEBSITE_QUOTE_NAV_PATTERN.test(normalized)
-	) {
-		add({
-			href: '/market',
-			icon: 'quote',
-			label: 'Start quote',
-			labelAr: 'ابدأ عرض سعر',
-		})
-	}
-
-	if (
-		WEBSITE_PORTAL_NAV_PATTERN.test(normalized) ||
-		AR_WEBSITE_PORTAL_NAV_PATTERN.test(normalized)
-	) {
-		add({
-			href: '/login',
-			icon: 'login',
-			label: 'Portal',
-			labelAr: 'البوابة',
-		})
-	}
+	for (const button of websiteDirectNavigationButtons(userText)) add(button)
 
 	if (wantsDocs) {
 		add({
@@ -456,7 +691,7 @@ function websiteNavigationButtons(
 		})
 		if (wantsLearning) {
 			add({
-				href: '/docs/support/faq',
+				href: '/support#faq',
 				icon: 'book',
 				label: 'FAQ',
 				labelAr: 'الأسئلة',
@@ -473,19 +708,7 @@ function websiteNavigationButtons(
 		}
 	}
 
-	if (
-		WEBSITE_SUPPORT_NAV_PATTERN.test(normalized) ||
-		AR_WEBSITE_SUPPORT_NAV_PATTERN.test(normalized)
-	) {
-		add({
-			href: '/support',
-			icon: 'support',
-			label: 'Contact support',
-			labelAr: 'تواصل مع الدعم',
-		})
-	}
-
-	return buttons.slice(0, 3)
+	return buttons.slice(0, 4)
 }
 
 function appendWebsiteActionButtons(

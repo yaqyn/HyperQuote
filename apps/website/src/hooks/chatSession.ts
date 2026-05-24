@@ -9,7 +9,15 @@ export interface ChatMessage {
 
 export interface WebsiteChatAction {
 	href: string
-	icon: 'book' | 'login' | 'market' | 'quote' | 'support'
+	icon:
+		| 'book'
+		| 'briefcase'
+		| 'building'
+		| 'file'
+		| 'login'
+		| 'market'
+		| 'quote'
+		| 'support'
 	label: string
 	labelAr: string
 }
