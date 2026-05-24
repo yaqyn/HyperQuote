@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
-import { PackagePlus } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Ban, CheckCircle2, PackagePlus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
 	INTERNAL_LIVE_REFETCH_MS,
@@ -9,6 +9,7 @@ import {
 	getStockOverview,
 	type StockProductView,
 	type StockStatus,
+	setStockProductAvailability,
 } from '../../../lib/server/stock'
 import { useProcurementStore } from '../../../stores/procurement'
 import {
@@ -42,6 +43,7 @@ const STATUS_WEIGHT: Record<StockStatus, number> = {
 
 export function StockView() {
 	const activeCategory = useProcurementStore((s) => s.activeCategory)
+	const queryClient = useQueryClient()
 
 	const { data, isLoading, isError } = useQuery({
 		queryKey: ['stock-overview'],
@@ -54,6 +56,31 @@ export function StockView() {
 
 	const [search, setSearch] = useState('')
 	const [refillSlug, setRefillSlug] = useState<string | null>(null)
+	const [availabilityError, setAvailabilityError] = useState<string | null>(
+		null,
+	)
+
+	const availabilityMutation = useMutation({
+		mutationFn: setStockProductAvailability,
+		onMutate: () => {
+			setAvailabilityError(null)
+		},
+		onSuccess: (result) => {
+			if (!result.success) {
+				setAvailabilityError(result.error)
+				return
+			}
+			queryClient.invalidateQueries({ queryKey: ['stock-overview'] })
+			queryClient.invalidateQueries({ queryKey: ['inventory-overview'] })
+			queryClient.invalidateQueries({ queryKey: ['product-catalog'] })
+			queryClient.invalidateQueries({ queryKey: ['quote-builder-data'] })
+		},
+		onError: () => {
+			setAvailabilityError(
+				'Availability could not be changed. Refresh and try again.',
+			)
+		},
+	})
 
 	const filtered = useMemo(() => {
 		if (!data) return []
@@ -110,6 +137,11 @@ export function StockView() {
 		<div className="animate-folio-turn relative h-full overflow-y-auto">
 			<div className="mx-auto flex max-w-[1040px] flex-col px-4 pt-4 pb-16 sm:px-6 lg:px-8">
 				<DeskToolbar search={search} setSearch={setSearch} />
+				{availabilityError && (
+					<div className="mt-3 rounded-md border border-red-600/20 bg-red-600/[0.04] px-3 py-2 font-[family-name:var(--font-archivo)] text-[12px] text-red-700 dark:text-red-300">
+						{availabilityError}
+					</div>
+				)}
 
 				{filtered.length > 0 ? (
 					<ol className="-mx-4 mt-4 overflow-hidden border-y border-[var(--rule-soft)] bg-[var(--folio)] sm:mx-0 sm:rounded-md sm:border">
@@ -119,6 +151,13 @@ export function StockView() {
 								index={idx}
 								product={product}
 								onRefill={setRefillSlug}
+								onToggleAvailability={(slug, availability) =>
+									availabilityMutation.mutate({ data: { availability, slug } })
+								}
+								availabilityPending={
+									availabilityMutation.isPending &&
+									availabilityMutation.variables?.data.slug === product.slug
+								}
 							/>
 						))}
 					</ol>
@@ -163,15 +202,24 @@ function StockPlate({
 	index,
 	product,
 	onRefill,
+	onToggleAvailability,
+	availabilityPending,
 }: {
 	index: number
 	product: StockProductView
 	onRefill: (slug: string) => void
+	onToggleAvailability: (
+		slug: string,
+		availability: 'available' | 'out_of_stock',
+	) => void
+	availabilityPending: boolean
 }) {
 	const accent = STATUS_ACCENT[product.status]
 	const hasAttention = product.status !== 'healthy'
 	const gaugePct = Math.min(product.stockRatio / 2, 1) * 100
 	const rowTone = index % 2 === 0 ? 'bg-[var(--folio)]' : 'bg-black/[0.018]'
+	const isAvailable = !['hidden', 'out_of_stock'].includes(product.availability)
+	const nextAvailability = isAvailable ? 'out_of_stock' : 'available'
 
 	return (
 		<li
@@ -232,7 +280,33 @@ function StockPlate({
 				</div>
 			</div>
 
-			<div className="flex items-center justify-end">
+			<div className="flex flex-col items-stretch justify-end gap-2 sm:flex-row sm:items-center">
+				<EmployeeActionButton
+					size="sm"
+					tone={isAvailable ? 'success' : 'danger'}
+					leading={
+						isAvailable ? (
+							<CheckCircle2 size={13} strokeWidth={2.4} />
+						) : (
+							<Ban size={13} strokeWidth={2.4} />
+						)
+					}
+					onClick={() => onToggleAvailability(product.slug, nextAvailability)}
+					disabled={availabilityPending}
+					aria-pressed={isAvailable}
+					aria-label={`Switch ${product.name} to ${
+						isAvailable ? 'unavailable' : 'available'
+					}`}
+					title={`Switch to ${isAvailable ? 'unavailable' : 'available'}`}
+					fullWidthOnMobile
+					className="md:w-auto"
+				>
+					{availabilityPending
+						? 'Saving'
+						: isAvailable
+							? 'Available'
+							: 'Unavailable'}
+				</EmployeeActionButton>
 				<EmployeeActionButton
 					size="sm"
 					tone={hasAttention ? 'primary' : 'neutral'}

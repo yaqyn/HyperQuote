@@ -160,6 +160,8 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 			qc.invalidateQueries({ queryKey: ['inventory-overview'] })
 			qc.invalidateQueries({ queryKey: ['inventory-top-suppliers'] })
 			qc.invalidateQueries({ queryKey: ['sales-outdated-prices'] })
+			qc.invalidateQueries({ queryKey: ['product-catalog'] })
+			qc.invalidateQueries({ queryKey: ['quote-builder-data'] })
 			resetProof()
 			setPanelStep('price')
 			onClose()
@@ -179,12 +181,18 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 		!!selectedSupplier &&
 		parsedDraft !== null &&
 		parsedDraft !== selectedSupplier.rawCost
+	const priceReconfirmed =
+		!!data &&
+		data.priceStatus === 'outdated' &&
+		!!selectedSupplier &&
+		parsedDraft !== null &&
+		parsedDraft === selectedSupplier.rawCost
 	const canContinueToProof =
 		!!data &&
 		!!selectedSupplier &&
 		parsedDraft !== null &&
 		parsedDraft > 0 &&
-		priceChanged &&
+		(priceChanged || priceReconfirmed) &&
 		!quoteMutation.isPending
 	const proofEssayLength = proofEssay.trim().length
 	const proofEssayOk = proofEssayLength >= PRICE_PROOF_ESSAY_MIN
@@ -195,7 +203,7 @@ export function ProductDetailModal({ slug, onClose }: ProductDetailModalProps) {
 		? 'Choose a supplier first.'
 		: parsedDraft === null || parsedDraft <= 0
 			? 'Enter a supplier cost greater than zero.'
-			: !priceChanged
+			: !(priceChanged || priceReconfirmed)
 				? 'Change the supplier cost before saving.'
 				: panelStep === 'proof' && !proofOk
 					? proofMethod === 'pdf'

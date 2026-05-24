@@ -5233,6 +5233,70 @@ export type Database = {
 					order_id: string
 				}[]
 			}
+			inventory_mark_price_outdated: {
+				Args: { p_product_id: string }
+				Returns: {
+					created_at: string
+					id: string
+					is_primary: boolean
+					last_quoted_at: string | null
+					lead_time_days: number
+					min_order_qty: number
+					notes: string | null
+					product_id: string
+					raw_cost: number
+					supplier_id: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'supplier_product_links'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			inventory_set_product_availability: {
+				Args: {
+					p_availability: Database['public']['Enums']['catalog_availability_status']
+					p_product_id: string
+				}
+				Returns: {
+					availability_status: Database['public']['Enums']['catalog_availability_status']
+					brand: string | null
+					category: string
+					created_at: string
+					description: string | null
+					description_ar: string | null
+					id: string
+					image_urls: string[]
+					is_active: boolean
+					is_stockable: boolean
+					manufacturer: string | null
+					name: string
+					name_ar: string
+					price_range_max: number | null
+					price_range_min: number | null
+					price_tier: Database['public']['Enums']['price_tier'] | null
+					search_vector: unknown
+					sku: string
+					slug: string
+					specifications: Json
+					specifications_ar: Json
+					subcategory: string | null
+					subcategory_ar: string
+					tags: string[]
+					unit_of_measure: string
+					unit_of_measure_ar: string
+					updated_at: string
+					weight_kg: number | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'products'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			inventory_update_price: {
 				Args: {
 					p_new_price: number
@@ -6714,6 +6778,76 @@ export type Database = {
 					order_id: string
 				}[]
 			}
+			service_inventory_mark_price_outdated: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_product_id: string
+				}
+				Returns: {
+					created_at: string
+					id: string
+					is_primary: boolean
+					last_quoted_at: string | null
+					lead_time_days: number
+					min_order_qty: number
+					notes: string | null
+					product_id: string
+					raw_cost: number
+					supplier_id: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'supplier_product_links'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_inventory_set_product_availability: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_availability: Database['public']['Enums']['catalog_availability_status']
+					p_product_id: string
+				}
+				Returns: {
+					availability_status: Database['public']['Enums']['catalog_availability_status']
+					brand: string | null
+					category: string
+					created_at: string
+					description: string | null
+					description_ar: string | null
+					id: string
+					image_urls: string[]
+					is_active: boolean
+					is_stockable: boolean
+					manufacturer: string | null
+					name: string
+					name_ar: string
+					price_range_max: number | null
+					price_range_min: number | null
+					price_tier: Database['public']['Enums']['price_tier'] | null
+					search_vector: unknown
+					sku: string
+					slug: string
+					specifications: Json
+					specifications_ar: Json
+					subcategory: string | null
+					subcategory_ar: string
+					tags: string[]
+					unit_of_measure: string
+					unit_of_measure_ar: string
+					updated_at: string
+					weight_kg: number | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'products'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			service_inventory_update_price: {
 				Args: {
 					p_actor_pool: string
@@ -8075,6 +8209,8 @@ export type Database = {
 				| 'inventory_stock_released'
 				| 'inventory_stock_consumed'
 				| 'driver_delivery_route_reopened'
+				| 'inventory_availability_updated'
+				| 'inventory_price_marked_outdated'
 			catalog_availability_status:
 				| 'available'
 				| 'low_stock'
@@ -8481,6 +8617,8 @@ export const Constants = {
 				'inventory_stock_released',
 				'inventory_stock_consumed',
 				'driver_delivery_route_reopened',
+				'inventory_availability_updated',
+				'inventory_price_marked_outdated',
 			],
 			catalog_availability_status: [
 				'available',

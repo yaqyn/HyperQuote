@@ -849,6 +849,9 @@ async function getSupabaseInventoryProductDetail(slug: string) {
 		currentSupplierCost: bufferCost(rawCost),
 		lastUpdatedAt:
 			primary?.lastQuotedAt ?? product.updated_at ?? new Date(0).toISOString(),
+		priceStatus: productFreshnessFor(
+			primary?.lastQuotedAt ?? product.updated_at ?? new Date(0).toISOString(),
+		).priceStatus,
 		suppliers,
 	}
 }
@@ -1044,6 +1047,29 @@ export const updateSupplierQuoteBatch = createServerFn({ method: 'POST' })
 		)
 		if (error) throw new Error(error.message)
 		return { success: true, updatedCount: data.updates.length }
+	})
+
+export const markProductPriceOutdated = createServerFn({ method: 'POST' })
+	.inputValidator(z.object({ slug: z.string() }))
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		const { data: product, error: productError } = await auth.client
+			.from('products')
+			.select('id')
+			.eq('slug', data.slug)
+			.eq('is_active', true)
+			.maybeSingle()
+		if (productError) throw new Error(productError.message)
+		if (!product?.id) {
+			return { success: false as const, error: 'Unknown product row' }
+		}
+
+		const { error } = await auth.client.rpc('inventory_mark_price_outdated', {
+			p_product_id: product.id,
+		})
+		if (error) throw new Error(error.message)
+
+		return { success: true as const }
 	})
 
 /** Update a supplier quote from the product-detail modal. */

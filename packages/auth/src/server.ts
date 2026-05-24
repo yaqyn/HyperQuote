@@ -393,6 +393,8 @@ const ACTOR_RPC_NAMES = new Set([
 	'find_claimable_customer_profile',
 	'inventory_finance_cleared_order_ids',
 	'inventory_evaluate_order',
+	'inventory_mark_price_outdated',
+	'inventory_set_product_availability',
 	'inventory_update_price',
 	'inventory_update_supplier_prices',
 	'link_support_conversation_to_customer',
