@@ -167,15 +167,11 @@ export const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 
 export function resolveInternalAiScope({
 	panelId,
-	userText,
 }: {
 	panelId?: string | null
-	userText: string
 }): InternalAiScope {
 	if (panelId === 'search') return 'search'
-	return userText.toLowerCase().startsWith('search internal database for:')
-		? 'search'
-		: 'employee'
+	return 'employee'
 }
 
 export function searchQueryFromPrompt(userText: string): string {
@@ -217,6 +213,34 @@ export function normalPanelExcludedRequest(userText: string): string | null {
 	}
 	if (/\b(employee|employees|staff|salary|salaries)\b/.test(lower)) {
 		return 'Normal panel AI cannot read employee information. Open the Search panel for employee-aware analysis.'
+	}
+	return null
+}
+
+export function internalAiPolicyRefusal(
+	userText: string,
+	scope: InternalAiScope,
+): string | null {
+	const lower = userText.toLowerCase()
+	const asksWrite =
+		/\b(approve|assign|cancel|delete|reject)\b/.test(lower) ||
+		/\b(update|change)\s+(?:the\s+)?(?:status|price)\b/.test(lower) ||
+		/\bmark\s+(?:as\s+)?delivered\b/.test(lower)
+	if (asksWrite) {
+		return scope === 'search'
+			? 'Search AI is read-only. Use the normal authorized panel action for workflow changes.'
+			: 'Normal panel AI is read-only. Use the authorized panel action so the backend can enforce role checks, proof requirements, and activity history.'
+	}
+	if (
+		lower.includes('raw export') ||
+		lower.includes('secret') ||
+		lower.includes('token') ||
+		lower.includes('api key')
+	) {
+		return 'I cannot reveal raw exports, secrets, tokens, or credentials.'
+	}
+	if (scope === 'employee') {
+		return normalPanelExcludedRequest(userText)
 	}
 	return null
 }

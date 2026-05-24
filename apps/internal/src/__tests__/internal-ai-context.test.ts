@@ -3,6 +3,7 @@ import {
 	allowedInternalAiVtables,
 	buildInternalAiContextPackage,
 	buildInternalAiSystemPrompt,
+	internalAiPolicyRefusal,
 	normalPanelExcludedRequest,
 	resolveInternalAiScope,
 } from '../lib/internal-ai-context'
@@ -29,21 +30,18 @@ describe('internal AI vtable context', () => {
 		expect(
 			resolveInternalAiScope({
 				panelId: 'search',
-				userText: 'show employees and activities',
 			}),
 		).toBe('search')
 		expect(
 			resolveInternalAiScope({
 				panelId: 'finance',
-				userText: 'show payments',
 			}),
 		).toBe('employee')
 		expect(
 			resolveInternalAiScope({
 				panelId: 'sales',
-				userText: 'Search internal database for: employee activity',
 			}),
-		).toBe('search')
+		).toBe('employee')
 	})
 
 	it('blocks employee and activity requests in normal panel mode', () => {
@@ -54,6 +52,21 @@ describe('internal AI vtable context', () => {
 			'activity history',
 		)
 		expect(normalPanelExcludedRequest('show overdue payments')).toBeNull()
+	})
+
+	it('blocks workflow writes without blocking read-only status questions', () => {
+		expect(internalAiPolicyRefusal('approve this order', 'employee')).toContain(
+			'read-only',
+		)
+		expect(
+			internalAiPolicyRefusal('change status to delivered', 'search'),
+		).toContain('read-only')
+		expect(
+			internalAiPolicyRefusal('show approved orders', 'employee'),
+		).toBeNull()
+		expect(
+			internalAiPolicyRefusal('summarize rejected orders', 'search'),
+		).toBeNull()
 	})
 
 	it('builds business context and audit entities from allowed vtable rows', () => {

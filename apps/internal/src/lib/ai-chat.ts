@@ -18,7 +18,7 @@ import {
 	buildInternalAiSystemPrompt,
 	type InternalAiScope,
 	type InternalAiVtable,
-	normalPanelExcludedRequest,
+	internalAiPolicyRefusal,
 	queryTokensForAi,
 	requestedInternalAiEntityTypes,
 	resolveInternalAiScope,
@@ -109,7 +109,6 @@ export const internalChatFn = createServerFn({ method: 'POST' })
 		const userText = lastMessage?.content ?? ''
 		const scope = resolveInternalAiScope({
 			panelId: input.panelId,
-			userText,
 		})
 		if (scope === 'search') {
 			const { data: canSearch, error } = await auth.client.rpc(
@@ -187,35 +186,7 @@ function internalPolicyRefusal(
 	userText: string,
 	scope: InternalAiScope,
 ): string | null {
-	const lower = userText.toLowerCase()
-	const asksWrite =
-		lower.includes('approve') ||
-		lower.includes('assign') ||
-		lower.includes('cancel') ||
-		lower.includes('delete') ||
-		lower.includes('update status') ||
-		lower.includes('mark delivered') ||
-		lower.includes('mark as delivered') ||
-		lower.includes('reject') ||
-		lower.includes('change price') ||
-		lower.includes('change status')
-	if (asksWrite) {
-		return scope === 'search'
-			? 'Search AI is read-only. Use the normal authorized panel action for workflow changes.'
-			: 'Normal panel AI is read-only. Use the authorized panel action so the backend can enforce role checks, proof requirements, and activity history.'
-	}
-	if (
-		lower.includes('raw export') ||
-		lower.includes('secret') ||
-		lower.includes('token') ||
-		lower.includes('api key')
-	) {
-		return 'I cannot reveal raw exports, secrets, tokens, or credentials.'
-	}
-	if (scope === 'employee') {
-		return normalPanelExcludedRequest(userText)
-	}
-	return null
+	return internalAiPolicyRefusal(userText, scope)
 }
 
 async function refreshSearchDocumentsIfDirty(client: InternalSupabaseClient) {
