@@ -2,13 +2,12 @@ import jsQR from 'jsqr'
 import {
 	ArrowLeft,
 	ClipboardList,
-	MapPinned,
 	Navigation,
 	OctagonX,
 	QrCode,
 	ScanLine,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { Button } from 'react-aria-components/Button'
 import { Input } from 'react-aria-components/Input'
 import { Label } from 'react-aria-components/Label'
@@ -33,8 +32,6 @@ interface ActiveDeliveryFlowProps {
 	language: DriverLanguage
 	nextDelivery: DriverDelivery | null
 	onAccept: (deliveryId: string) => void
-	onArrival: (deliveryId: string, secretCode: string) => void
-	onBackToRoute: (deliveryId: string) => void
 	onReject: (deliveryId: string, reason: string, evidenceText: string) => void
 	onStart: (deliveryId: string) => void
 	rejectError?: string | null
@@ -51,8 +48,6 @@ export function ActiveDeliveryFlow({
 	language,
 	nextDelivery,
 	onAccept,
-	onArrival,
-	onBackToRoute,
 	onReject,
 	onStart,
 	rejectError,
@@ -114,27 +109,21 @@ export function ActiveDeliveryFlow({
 					{actionError}
 				</p>
 			)}
-			{delivery.status === 'in_transit' && (
-				<ArrivalVerificationForm
-					deliveryId={delivery.id}
-					isMutating={isMutating}
-					isRejecting={isRejecting}
-					onArrival={onArrival}
-					onReject={onReject}
-					rejectError={rejectError}
-				/>
-			)}
-			{delivery.status === 'arrived' && (
-				<VerificationForm
+			{(delivery.status === 'in_transit' || delivery.status === 'arrived') && (
+				<CompletionVerificationForm
+					allowReject={delivery.status === 'in_transit'}
 					deliveryId={delivery.id}
 					errorMessage={completeError}
 					isCompleting={isCompleting}
 					isMutating={isMutating}
-					onBackToRoute={onBackToRoute}
+					isRejecting={isRejecting}
+					key={delivery.id}
 					onComplete={completeDelivery}
+					onReject={onReject}
+					rejectError={rejectError}
 				/>
 			)}
-			{['assigned', 'accepted', 'arrived'].includes(delivery.status) && (
+			{['assigned', 'accepted'].includes(delivery.status) && (
 				<RejectionForm
 					deliveryId={delivery.id}
 					errorMessage={rejectError}
@@ -364,27 +353,60 @@ function QrSecretScanner({
 	)
 }
 
-function ArrivalVerificationForm({
+function CompletionVerificationForm({
+	allowReject,
 	deliveryId,
+	errorMessage,
+	isCompleting,
 	isMutating,
 	isRejecting,
-	onArrival,
+	onComplete,
 	onReject,
 	rejectError,
 }: {
+	allowReject: boolean
 	deliveryId: string
+	errorMessage?: string | null
+	isCompleting: boolean
 	isMutating: boolean
 	isRejecting: boolean
-	onArrival: (deliveryId: string, secretCode: string) => void
+	onComplete: (deliveryId: string, secretCode: string) => void
 	onReject: (deliveryId: string, reason: string, evidenceText: string) => void
 	rejectError?: string | null
 }) {
 	const { t } = useTranslation('driver')
 	const [mode, setMode] = useState<'secret' | 'reject'>('secret')
 	const [secretCode, setSecretCode] = useState('')
-	const canSubmit = isDeliverySecretCodeReady(secretCode) && !isMutating
+	const [submitted, setSubmitted] = useState(false)
+	const isSubmitting = submitted || isCompleting
+	const canSubmit =
+		isDeliverySecretCodeReady(secretCode) && !isSubmitting && !isMutating
 
-	if (mode === 'reject') {
+	useEffect(() => {
+		if (errorMessage) setSubmitted(false)
+	}, [errorMessage])
+
+	const submitSecret = useCallback(
+		(value: string) => {
+			if (isSubmitting || isMutating) return
+			const code = extractDeliverySecretCode(value)
+			if (!code) return
+			setSubmitted(true)
+			setMode('secret')
+			onComplete(deliveryId, code)
+		},
+		[deliveryId, isMutating, isSubmitting, onComplete],
+	)
+
+	if (isSubmitting) {
+		return (
+			<div className="mt-3 border border-[#047857]/25 bg-[#047857]/10 px-3 py-2 text-sm font-semibold text-[#047857]">
+				<p role="status">{t('verification.completing')}</p>
+			</div>
+		)
+	}
+
+	if (allowReject && mode === 'reject') {
 		return (
 			<div className="mt-2">
 				<RejectionFields
@@ -399,7 +421,13 @@ function ArrivalVerificationForm({
 	}
 
 	return (
-		<div className="mt-2 space-y-2 sm:space-y-3">
+		<form
+			className="mt-2 space-y-2 sm:space-y-3"
+			onSubmit={(event: FormEvent<HTMLFormElement>) => {
+				event.preventDefault()
+				submitSecret(secretCode)
+			}}
+		>
 			<TextField>
 				<Label className="mb-1.5 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-[var(--color-text-muted)]">
 					{t('arrival.secretCode')}
@@ -416,103 +444,36 @@ function ArrivalVerificationForm({
 			</TextField>
 
 			<QrSecretScanner
-				isDisabled={isMutating}
-				onSecretScanned={setSecretCode}
+				isDisabled={isSubmitting || isMutating}
+				onSecretScanned={submitSecret}
 			/>
 
-			<div className="grid grid-cols-[minmax(0,1fr)_3rem] gap-2">
+			<div
+				className={[
+					'grid gap-2',
+					allowReject ? 'grid-cols-[minmax(0,1fr)_3rem]' : '',
+				].join(' ')}
+			>
 				<Button
-					type="button"
+					type="submit"
 					isDisabled={!canSubmit}
-					onPress={() => {
-						const code = extractDeliverySecretCode(secretCode)
-						if (code) onArrival(deliveryId, code)
-					}}
 					className="driver-action-button flex h-10 w-full items-center justify-between border px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
 				>
-					<span>{t('arrival.confirm')}</span>
-					<MapPinned aria-hidden="true" size={17} />
+					<span>{t('verification.complete')}</span>
+					<ClipboardList aria-hidden="true" size={17} />
 				</Button>
-				<Button
-					type="button"
-					aria-label={t('rejection.submit')}
-					isDisabled={isRejecting}
-					onPress={() => setMode('reject')}
-					className="grid h-10 w-12 place-items-center border border-[#B91C1C]/35 bg-[#B91C1C]/8 text-[#B91C1C] outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/30 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
-				>
-					<OctagonX aria-hidden="true" size={18} />
-				</Button>
+				{allowReject && (
+					<Button
+						type="button"
+						aria-label={t('rejection.submit')}
+						isDisabled={isRejecting}
+						onPress={() => setMode('reject')}
+						className="grid h-10 w-12 place-items-center border border-[#B91C1C]/35 bg-[#B91C1C]/8 text-[#B91C1C] outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/30 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
+					>
+						<OctagonX aria-hidden="true" size={18} />
+					</Button>
+				)}
 			</div>
-		</div>
-	)
-}
-
-function VerificationForm({
-	deliveryId,
-	errorMessage,
-	isCompleting,
-	isMutating,
-	onBackToRoute,
-	onComplete,
-}: {
-	deliveryId: string
-	errorMessage?: string | null
-	isCompleting: boolean
-	isMutating: boolean
-	onBackToRoute: (deliveryId: string) => void
-	onComplete: (deliveryId: string, secretCode: string) => void
-}) {
-	const { t } = useTranslation('driver')
-	const [completionCode, setCompletionCode] = useState('')
-	const canComplete =
-		isDeliverySecretCodeReady(completionCode) && !isCompleting && !isMutating
-
-	return (
-		<div className="mt-3 space-y-2 sm:space-y-3">
-			<p className="border border-[#047857]/25 bg-[#047857]/10 px-3 py-2 text-xs font-semibold text-[#047857] sm:text-sm">
-				{t('verification.secretVerified')}
-			</p>
-			<TextField>
-				<Label className="mb-1.5 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-[var(--color-text-muted)]">
-					{t('verification.completionCode')}
-				</Label>
-				<Input
-					value={completionCode}
-					inputMode="text"
-					autoComplete="one-time-code"
-					autoCapitalize="characters"
-					placeholder={t('verification.completionPlaceholder')}
-					onChange={(event) =>
-						setCompletionCode(event.target.value.toUpperCase())
-					}
-					className="h-10 w-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15 sm:h-12 sm:text-base"
-				/>
-			</TextField>
-			<QrSecretScanner
-				isDisabled={isCompleting || isMutating}
-				onSecretScanned={setCompletionCode}
-			/>
-			<Button
-				type="button"
-				isDisabled={isCompleting || isMutating}
-				onPress={() => onBackToRoute(deliveryId)}
-				className="flex h-10 w-full items-center justify-between border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
-			>
-				<span>{t('arrival.backToRoute')}</span>
-				<ArrowLeft aria-hidden="true" size={17} />
-			</Button>
-			<Button
-				type="button"
-				isDisabled={!canComplete}
-				onPress={() => {
-					const code = extractDeliverySecretCode(completionCode)
-					if (code) onComplete(deliveryId, code)
-				}}
-				className="driver-action-button flex h-10 w-full items-center justify-between border px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:h-12"
-			>
-				<span>{t('verification.complete')}</span>
-				<ClipboardList aria-hidden="true" size={17} />
-			</Button>
 			{errorMessage && (
 				<p
 					role="alert"
@@ -521,7 +482,7 @@ function VerificationForm({
 					{errorMessage}
 				</p>
 			)}
-		</div>
+		</form>
 	)
 }
 

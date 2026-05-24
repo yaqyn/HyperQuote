@@ -119,28 +119,6 @@ export function DriverShell({ session }: DriverShellProps) {
 			invalidateDriverQueries()
 		},
 	})
-	const confirmArrival = useMutation({
-		mutationFn: ({
-			deliveryId,
-			secretCode,
-		}: {
-			deliveryId: string
-			secretCode: string
-		}) =>
-			driverRepository.confirmArrival(deliveryId, session.driverId, secretCode),
-		onSuccess: () => {
-			setRecentOutcomeDelivery(null)
-			invalidateDriverQueries()
-		},
-	})
-	const reopenRoute = useMutation({
-		mutationFn: (deliveryId: string) =>
-			driverRepository.reopenRoute(deliveryId, session.driverId),
-		onSuccess: () => {
-			setRecentOutcomeDelivery(null)
-			invalidateDriverQueries()
-		},
-	})
 	const completeDelivery = useMutation({
 		mutationFn: async ({
 			deliveryId,
@@ -453,8 +431,6 @@ export function DriverShell({ session }: DriverShellProps) {
 							actionError={driverMutationError(
 								acceptDelivery.error ??
 									startDelivery.error ??
-									confirmArrival.error ??
-									reopenRoute.error ??
 									refreshLocation.error ??
 									setOnline.error,
 							)}
@@ -467,17 +443,12 @@ export function DriverShell({ session }: DriverShellProps) {
 							isMutating={
 								acceptDelivery.isPending ||
 								startDelivery.isPending ||
-								confirmArrival.isPending ||
-								reopenRoute.isPending
+								completeDelivery.isPending
 							}
 							isRejecting={rejectDelivery.isPending}
 							language={language}
 							nextDelivery={nextDelivery}
 							onAccept={(deliveryId) => acceptDelivery.mutate(deliveryId)}
-							onArrival={(deliveryId, secretCode) =>
-								confirmArrival.mutate({ deliveryId, secretCode })
-							}
-							onBackToRoute={(deliveryId) => reopenRoute.mutate(deliveryId)}
 							onReject={(deliveryId, reason, evidenceText) =>
 								rejectDelivery.mutate({ deliveryId, evidenceText, reason })
 							}

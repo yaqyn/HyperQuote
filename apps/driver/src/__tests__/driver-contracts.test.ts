@@ -137,15 +137,32 @@ describe('driver app contracts', () => {
 		expect(isDeliverySecretCodeReady('00000000')).toBe(false)
 	})
 
-	it('keeps scanned customer codes as input until the driver confirms', () => {
+	it('submits scanned customer codes as delivery completion proof', () => {
 		const source = readFileSync(
 			new URL('../components/ActiveDeliveryFlow.tsx', import.meta.url),
 			'utf8',
 		)
 
-		expect(source).toContain('onSecretScanned={setSecretCode}')
-		expect(source).toContain('onSecretScanned={setCompletionCode}')
-		expect(source).not.toContain('onArrival(deliveryId, value)')
+		expect(source).toContain('onSecretScanned={submitSecret}')
+		expect(source).toContain("delivery.status === 'in_transit'")
+		expect(source).toContain("delivery.status === 'arrived'")
+		expect(source).not.toContain('onSecretScanned={setSecretCode}')
+		expect(source).not.toContain('onSecretScanned={setCompletionCode}')
+		expect(source).not.toContain('onBackToRoute')
+	})
+
+	it('allows a valid customer code to complete an in-transit delivery directly', () => {
+		const source = latestMigrationFunctionSource(
+			'public.driver_confirm_delivery',
+		)
+
+		expect(source).toContain(
+			"target_delivery.status not in ('in_transit', 'arrived')",
+		)
+		expect(source).toContain("set status = 'completed'")
+		expect(source).toContain('arrived_at = coalesce(arrived_at, now())')
+		expect(source).toContain('verified_delivery_id = p_delivery_id')
+		expect(source).not.toContain("target_delivery.status <> 'arrived'")
 	})
 
 	it('decodes QR camera frames without relying only on BarcodeDetector', () => {
