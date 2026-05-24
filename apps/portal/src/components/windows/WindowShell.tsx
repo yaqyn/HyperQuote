@@ -10,7 +10,7 @@ import { PortalTitleRow } from '../shell/PortalTitleRow'
 interface WindowShellProps {
 	title: string
 	subtitle?: string
-	/** Max content width on desktop. Default 720px — comfortable reading width like claude.ai */
+	/** Max content width on desktop. Default 720px for comfortable reading. */
 	maxWidth?: string
 	children: ReactNode
 }

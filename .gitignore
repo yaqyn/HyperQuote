@@ -18,7 +18,11 @@ dist
 
 # Runtime / local
 .dev.vars
-.claude/worktrees/
+
+# Agent-local config
+.claude/
+.gsd/
+.codex/
 
 # Environment files — never commit real secrets
 .env
