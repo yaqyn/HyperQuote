@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import type { UploadedProofDocument } from '../../../lib/server/proofs'
 import { cancelRFQ } from '../../../lib/server/sales-rfq'
 import {
 	DispatchAction,
@@ -8,6 +9,7 @@ import {
 	DispatchFooter,
 	DispatchInputClass,
 } from '../../shared/DispatchDialog'
+import { ProofUploadField } from '../../shared/ProofUploadField'
 
 interface CancelRFQDialogProps {
 	rfqId: string
@@ -25,18 +27,27 @@ export function CancelRFQDialog({
 	const queryClient = useQueryClient()
 	const [reason, setReason] = useState('')
 	const [note, setNote] = useState('')
+	const [proofDocument, setProofDocument] =
+		useState<UploadedProofDocument | null>(null)
 	const [showConfirm, setShowConfirm] = useState(false)
 
 	const reasonOk = reason.trim().length >= 3
+	const proofOk = proofDocument !== null
 	const mutation = useMutation({
-		mutationFn: () =>
-			cancelRFQ({
+		mutationFn: () => {
+			if (!proofDocument) throw new Error('Proof required')
+			return cancelRFQ({
 				data: {
 					rfqId,
 					reason: reason.trim(),
 					note: note.trim() || undefined,
+					proof: {
+						fileName: proofDocument.fileName,
+						proofPath: proofDocument.proofPath,
+					},
 				},
-			}),
+			})
+		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['rfq-queue'] })
 			queryClient.invalidateQueries({ queryKey: ['sales-rfq-list'] })
@@ -50,6 +61,7 @@ export function CancelRFQDialog({
 	function reset() {
 		setReason('')
 		setNote('')
+		setProofDocument(null)
 		setShowConfirm(false)
 	}
 
@@ -100,6 +112,17 @@ export function CancelRFQDialog({
 								className={`${DispatchInputClass()} mt-1.5 resize-none`}
 							/>
 						</label>
+						<ProofUploadField
+							label="Cancel proof"
+							note="Upload customer message, supplier evidence, or internal approval under 1 MB."
+							value={proofDocument}
+							onChange={setProofDocument}
+							panel="sales"
+							proofType="sales_evaluation"
+							relatedEntityId={rfqId}
+							relatedEntityType="sales_cancel"
+							title={`Sales cancel proof · ${rfqId.toUpperCase()}`}
+						/>
 					</div>
 				) : (
 					<div className="space-y-3 font-[family-name:var(--font-archivo)] text-[13.5px] text-[var(--color-text-muted)]">
@@ -119,6 +142,14 @@ export function CancelRFQDialog({
 								<span className="italic">{note.trim()}</span>
 							</p>
 						)}
+						<p>
+							<span className="mb-0.5 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
+								Proof
+							</span>
+							<span className="font-medium text-[var(--color-text)]">
+								{proofDocument?.fileName ?? 'Missing proof'}
+							</span>
+						</p>
 					</div>
 				)}
 				{mutation.isError && (
@@ -138,8 +169,8 @@ export function CancelRFQDialog({
 						</DispatchAction>
 						<DispatchAction
 							tone="danger"
-							onPress={() => reasonOk && setShowConfirm(true)}
-							isDisabled={!reasonOk}
+							onPress={() => reasonOk && proofOk && setShowConfirm(true)}
+							isDisabled={!reasonOk || !proofOk}
 						>
 							Cancel quote
 						</DispatchAction>

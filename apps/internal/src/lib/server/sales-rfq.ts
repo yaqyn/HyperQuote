@@ -279,6 +279,10 @@ export const declineRFQ = createServerFn({ method: 'POST' })
 				'customer_blacklisted',
 			]),
 			note: z.string().optional(),
+			proof: z.object({
+				fileName: z.string().trim().min(1),
+				proofPath: z.string().trim().min(1),
+			}),
 		}),
 	)
 	.handler(async ({ data }) => {
@@ -289,7 +293,11 @@ export const declineRFQ = createServerFn({ method: 'POST' })
 		const { error } = await auth.client.rpc('sales_reject_order', {
 			p_order_id: data.rfqId,
 			p_reason: data.reason,
-			p_proof: data.note?.trim() ? { note: data.note.trim() } : {},
+			p_proof: {
+				file_name: data.proof.fileName,
+				note: data.note?.trim() || null,
+				proof_path: data.proof.proofPath,
+			},
 		})
 		if (error) throw new Error(error.message)
 		return {
@@ -308,6 +316,10 @@ export const cancelRFQ = createServerFn({ method: 'POST' })
 			rfqId: z.string(),
 			reason: z.string().trim().min(3),
 			note: z.string().optional(),
+			proof: z.object({
+				fileName: z.string().trim().min(1),
+				proofPath: z.string().trim().min(1),
+			}),
 		}),
 	)
 	.handler(async ({ data }) => {
@@ -320,7 +332,11 @@ export const cancelRFQ = createServerFn({ method: 'POST' })
 		const { error } = await auth.client.rpc('sales_cancel_order', {
 			p_order_id: data.rfqId,
 			p_reason: reason,
-			p_proof: note ? { note } : {},
+			p_proof: {
+				file_name: data.proof.fileName,
+				note: note ?? null,
+				proof_path: data.proof.proofPath,
+			},
 		})
 		if (error) throw new Error(error.message)
 		return {

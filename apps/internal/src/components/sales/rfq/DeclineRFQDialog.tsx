@@ -5,6 +5,7 @@ import { Label } from 'react-aria-components/Label'
 import { ListBox, ListBoxItem } from 'react-aria-components/ListBox'
 import { Popover } from 'react-aria-components/Popover'
 import { Select, SelectValue } from 'react-aria-components/Select'
+import type { UploadedProofDocument } from '../../../lib/server/proofs'
 import { declineRFQ } from '../../../lib/server/sales-rfq'
 import {
 	DispatchAction,
@@ -13,6 +14,7 @@ import {
 	DispatchFooter,
 	DispatchInputClass,
 } from '../../shared/DispatchDialog'
+import { ProofUploadField } from '../../shared/ProofUploadField'
 
 type DeclineReason =
 	| 'outside_service_area'
@@ -41,13 +43,24 @@ export function DeclineRFQDialog({
 	const queryClient = useQueryClient()
 	const [reason, setReason] = useState<DeclineReason | null>(null)
 	const [note, setNote] = useState('')
+	const [proofDocument, setProofDocument] =
+		useState<UploadedProofDocument | null>(null)
 	const [showConfirm, setShowConfirm] = useState(false)
 
 	const mutation = useMutation({
 		mutationFn: () => {
 			if (!reason) throw new Error('Reason required')
+			if (!proofDocument) throw new Error('Proof required')
 			return declineRFQ({
-				data: { rfqId, reason, note: note.trim() || undefined },
+				data: {
+					rfqId,
+					reason,
+					note: note.trim() || undefined,
+					proof: {
+						fileName: proofDocument.fileName,
+						proofPath: proofDocument.proofPath,
+					},
+				},
 			})
 		},
 		onSuccess: () => {
@@ -63,6 +76,7 @@ export function DeclineRFQDialog({
 	function reset() {
 		setReason(null)
 		setNote('')
+		setProofDocument(null)
 		setShowConfirm(false)
 	}
 
@@ -147,6 +161,18 @@ export function DeclineRFQDialog({
 								className={`${DispatchInputClass()} mt-1.5 resize-none`}
 							/>
 						</div>
+
+						<ProofUploadField
+							label="Decline proof"
+							note="Upload supplier reply, customer evidence, or internal approval under 1 MB."
+							value={proofDocument}
+							onChange={setProofDocument}
+							panel="sales"
+							proofType="rejection"
+							relatedEntityId={rfqId}
+							relatedEntityType="sales_decline"
+							title={`Sales decline proof · ${rfqId.toUpperCase()}`}
+						/>
 					</div>
 				) : (
 					<div className="space-y-3 font-[family-name:var(--font-archivo)] text-[13.5px] text-[var(--color-text-muted)]">
@@ -166,6 +192,14 @@ export function DeclineRFQDialog({
 								<span className="italic">{note.trim()}</span>
 							</p>
 						)}
+						<p>
+							<span className="mb-0.5 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
+								Proof
+							</span>
+							<span className="font-medium text-[var(--color-text)]">
+								{proofDocument?.fileName ?? 'Missing proof'}
+							</span>
+						</p>
 					</div>
 				)}
 				{mutation.isError && (
@@ -185,8 +219,8 @@ export function DeclineRFQDialog({
 						</DispatchAction>
 						<DispatchAction
 							tone="danger"
-							onPress={() => reason && setShowConfirm(true)}
-							isDisabled={!reason}
+							onPress={() => reason && proofDocument && setShowConfirm(true)}
+							isDisabled={!reason || !proofDocument}
 						>
 							Decline
 						</DispatchAction>
