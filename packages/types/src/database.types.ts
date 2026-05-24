@@ -4035,6 +4035,30 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			ceo_search_approval_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_category_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
 			ceo_search_customer_vtable: {
 				Row: {
 					entity_id: string | null
@@ -4048,6 +4072,30 @@ export type Database = {
 				Relationships: []
 			}
 			ceo_search_dispatch_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_document_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_driver_location_vtable: {
 				Row: {
 					entity_id: string | null
 					entity_type: string | null
@@ -4149,6 +4197,18 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			ceo_search_pricing_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
 			ceo_search_quote_request_vtable: {
 				Row: {
 					entity_id: string | null
@@ -4173,7 +4233,31 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			ceo_search_sales_history_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
 			ceo_search_supplier_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_support_message_vtable: {
 				Row: {
 					entity_id: string | null
 					entity_type: string | null

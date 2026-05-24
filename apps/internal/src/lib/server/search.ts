@@ -67,10 +67,28 @@ const SEARCH_TABLES: SearchTableConfig[] = [
 		accent: '#DDD6FE',
 	},
 	{
+		tableId: 'approvals',
+		entityType: 'approval',
+		label: 'Approvals',
+		accent: '#E5E7EB',
+	},
+	{
 		tableId: 'inventory',
 		entityType: 'inventory',
 		label: 'Inventory',
 		accent: '#A7F3D0',
+	},
+	{
+		tableId: 'pricing',
+		entityType: 'pricing',
+		label: 'Pricing',
+		accent: '#D1D5DB',
+	},
+	{
+		tableId: 'categories',
+		entityType: 'category',
+		label: 'Categories',
+		accent: '#E5E7EB',
 	},
 	{
 		tableId: 'warehouse',
@@ -91,15 +109,39 @@ const SEARCH_TABLES: SearchTableConfig[] = [
 		accent: '#BFDBFE',
 	},
 	{
+		tableId: 'driver-locations',
+		entityType: 'driver_location',
+		label: 'Driver locations',
+		accent: '#DBEAFE',
+	},
+	{
 		tableId: 'support',
 		entityType: 'support',
 		label: 'Support',
 		accent: '#FBCFE8',
 	},
 	{
+		tableId: 'support-messages',
+		entityType: 'support_message',
+		label: 'Support messages',
+		accent: '#FCE7F3',
+	},
+	{
 		tableId: 'suppliers',
 		entityType: 'supplier',
 		label: 'Suppliers',
+		accent: '#E5E7EB',
+	},
+	{
+		tableId: 'sales-history',
+		entityType: 'sales_history',
+		label: 'Sales history',
+		accent: '#F5F5F5',
+	},
+	{
+		tableId: 'documents',
+		entityType: 'document',
+		label: 'Documents',
 		accent: '#E5E7EB',
 	},
 	{
@@ -111,12 +153,12 @@ const SEARCH_TABLES: SearchTableConfig[] = [
 ]
 
 const MODULE_TABLES: Record<SearchSummaryModuleId, SearchTableId[]> = {
-	sales: ['orders', 'customers'],
-	inventory: ['inventory', 'suppliers'],
-	warehouse: ['warehouse', 'inventory'],
-	finance: ['payments', 'orders'],
-	dispatch: ['dispatch', 'drivers'],
-	'customer-service': ['support', 'customers'],
+	sales: ['orders', 'sales-history', 'customers', 'approvals'],
+	inventory: ['inventory', 'pricing', 'categories', 'suppliers'],
+	warehouse: ['warehouse', 'inventory', 'documents'],
+	finance: ['payments', 'orders', 'approvals', 'documents'],
+	dispatch: ['dispatch', 'drivers', 'driver-locations', 'documents'],
+	'customer-service': ['support', 'support-messages', 'customers', 'documents'],
 }
 
 const MODULE_LABELS: Record<SearchSummaryModuleId, string> = {
@@ -139,12 +181,12 @@ const SEARCH_SUMMARY_MODULES = Object.keys(
 	MODULE_TABLES,
 ) as SearchSummaryModuleId[]
 const SUMMARY_ENTITY_TYPES: Record<SearchSummaryModuleId, string[]> = {
-	sales: ['order', 'customer'],
-	inventory: ['inventory', 'order', 'supplier'],
-	warehouse: ['warehouse', 'inventory'],
-	finance: ['payment', 'order'],
-	dispatch: ['dispatch', 'driver'],
-	'customer-service': ['support', 'customer'],
+	sales: ['order', 'sales_history', 'customer', 'approval'],
+	inventory: ['inventory', 'pricing', 'category', 'order', 'supplier'],
+	warehouse: ['warehouse', 'inventory', 'document'],
+	finance: ['payment', 'order', 'approval', 'document'],
+	dispatch: ['dispatch', 'driver', 'driver_location', 'document'],
+	'customer-service': ['support', 'support_message', 'customer', 'document'],
 }
 
 const ACTIVITY_DOMAINS = [

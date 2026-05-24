@@ -87,12 +87,24 @@ const statusLabels: Record<string, string> = {
 }
 
 const sourceLabels: Record<string, string> = {
+	approval: 'Approval',
 	conversation: 'Conversation',
 	customer_order: 'Customer order',
 	customer_payment: 'Customer receipt',
+	delivery_proof: 'Delivery proof',
+	document: 'Document',
+	price_update: 'Price update',
+	price_update_request: 'Price request',
+	pricing_rule: 'Pricing rule',
+	quote_counter_offer: 'Counter offer',
 	quote_request: 'Quote request',
+	quote_version: 'Quote version',
 	receiving_task: 'Warehouse receiving',
+	sales_call_note: 'Sales call',
+	sales_quote_version: 'Sales quote version',
 	supplier_payment: 'Supplier payment',
+	support_attachment: 'Support attachment',
+	support_message: 'Support message',
 	ticket: 'Support ticket',
 }
 
@@ -158,6 +170,8 @@ function formatSource(value: string | null | undefined): string | null {
 
 function formatActivityTitle(row: SearchDisplayIndexRow): string {
 	const metadata = metadataObject(row.metadata)
+	const sentence = stringValue(metadata, 'activity_sentence')
+	if (sentence) return sentence
 	const headline = stringValue(metadata, 'headline')
 	if (headline) return headline
 	if (row.title.includes('_') && !row.title.includes(' ')) {
@@ -191,6 +205,19 @@ function activityAmount(metadata: JsonObject): string | null {
 		formatMoney(numberValue(metadata, 'amount')) ??
 		formatMoney(numberValue(metadata, 'total_amount'))
 	)
+}
+
+function activityWhen(metadata: JsonObject): string | null {
+	return stringValue(metadata, 'when') ?? formatDateTime(metadata.created_at)
+}
+
+function activityChange(metadata: JsonObject): string | null {
+	const field = stringValue(metadata, 'changed_field')
+	const from = stringValue(metadata, 'from_value')
+	const to = stringValue(metadata, 'to_value')
+	if (field && from && to) return `${field}: ${from} to ${to}`
+	if (from && to) return `${from} to ${to}`
+	return statusChange(metadata)
 }
 
 function formatDateTime(value: JsonValue | undefined): string | null {
@@ -308,13 +335,21 @@ function humanLabel(key: string): string {
 	const labels: Record<string, string> = {
 		amount: 'Amount',
 		action_label: 'Action',
+		active_panel: 'Active panel',
 		actor: 'Who',
 		area: 'Area',
 		assigned_employee: 'Assigned to',
 		assigned_sales_rep: 'Sales rep',
+		assigned_to: 'Assigned to',
+		attachment_count: 'Attachments',
 		available_quantity: 'Available',
+		absolute_min_margin: 'Absolute min margin',
 		base_salary: 'Base salary',
+		bonus_margin: 'Bonus margin',
 		brand: 'Brand',
+		category: 'Category',
+		category_slug: 'Category slug',
+		channel: 'Channel',
 		company_name: 'Customer',
 		contact: 'Contact',
 		contact_channel: 'Channel',
@@ -331,6 +366,7 @@ function humanLabel(key: string): string {
 		driver_status: 'Driver status',
 		draft_name: 'Draft name',
 		email: 'Email',
+		floor_margin: 'Floor margin',
 		follow_up_notes: 'Follow-up notes',
 		follow_up_outcome: 'Follow-up outcome',
 		follow_up_due_at: 'Follow-up due',
@@ -338,32 +374,49 @@ function humanLabel(key: string): string {
 		good_quantity: 'Good from',
 		hire_date: 'Hire date',
 		is_ceo: 'CEO access',
+		is_active: 'Active',
 		item_count: 'Items',
 		item_summary: 'Items',
 		items: 'Items',
+		last_payment_at: 'Last payment',
 		last_seen_at: 'Last seen',
+		latitude: 'Latitude',
 		lifetime_value: 'Lifetime value',
+		location_source: 'Location source',
+		longitude: 'Longitude',
 		minimum_quantity: 'Minimum',
+		message_body: 'Message',
 		on_hand_quantity: 'On hand',
 		order_number: 'Order',
 		order_status: 'Order status',
 		amount_paid: 'Paid',
+		old_price: 'Old price',
+		new_price: 'New price',
 		payment_fraction: 'Payment portion',
 		payment_status: 'Payment status',
 		payment_terms: 'Payment terms',
+		panels: 'Panels',
+		parent_category: 'Parent category',
 		phone: 'Phone',
 		plate_number: 'Truck',
+		presence_status: 'Presence',
 		preferred_suppliers: 'Suppliers',
 		product_sku: 'SKU',
 		product_name: 'Product',
+		product_slug: 'Product slug',
 		products: 'Products',
+		proof_path: 'Proof',
+		proof_type: 'Proof type',
 		project_name: 'Project',
 		quote_items: 'Quoted items',
 		quote_number: 'Quote',
 		quantity: 'Quantity',
 		rating: 'Rating',
 		receiving_status: 'Receiving status',
+		recorded_at: 'Recorded',
 		request_items: 'Requested items',
+		requested_by: 'Requested by',
+		requested_item: 'Requested item',
 		rejection_reason: 'Rejection reason',
 		remaining_due: 'Remaining',
 		refill_status: 'Refill status',
@@ -376,15 +429,19 @@ function humanLabel(key: string): string {
 		scope: 'Scope',
 		sku: 'SKU',
 		source: 'Source',
+		speed_kmh: 'Speed',
 		social_insurance_salary: 'Insurance salary',
 		specialties: 'Specialties',
 		status: 'Status',
+		storage_path: 'File',
 		subject: 'Subject',
 		submitted_by: 'Submitted by',
 		submitted_at: 'Submitted',
 		support_reference: 'Support case',
 		support_subject: 'Support subject',
 		target: 'Target',
+		target_margin: 'Target margin',
+		target_type: 'Target type',
 		tier: 'Tier',
 		title: 'Title',
 		total_due: 'Total due',
@@ -551,6 +608,16 @@ export function buildSearchPreviewFields(
 					formatNumber(numberValue(metadata, 'order_count')),
 				),
 			)
+		case 'category':
+			return fields(
+				previewField('Stage', stage(row)),
+				previewField('Slug', stringValue(metadata, 'slug')),
+				previewField('Parent', stringValue(metadata, 'parent_category')),
+				previewField(
+					'Products',
+					formatNumber(numberValue(metadata, 'product_count')),
+				),
+			)
 		case 'payment':
 			return fields(
 				previewField('Side', financeSide(row)),
@@ -606,6 +673,25 @@ export function buildSearchPreviewFields(
 				previewField('Suppliers', stringValue(metadata, 'preferred_suppliers')),
 			)
 		}
+		case 'pricing':
+			return fields(
+				previewField('Type', formatSource(stringValue(metadata, 'source'))),
+				previewField(
+					'Product',
+					stringValue(metadata, 'product_name') ??
+						stringValue(metadata, 'category'),
+				),
+				previewField('Stage', stage(row)),
+				previewField('Assigned to', stringValue(metadata, 'assigned_to')),
+				previewField(
+					'New price',
+					formatMoney(numberValue(metadata, 'new_price')),
+				),
+				previewField(
+					'Target margin',
+					formatPercent(numberValue(metadata, 'target_margin')),
+				),
+			)
 		case 'warehouse':
 			if (stringValue(metadata, 'source') === 'receiving_task') {
 				return fields(
@@ -644,12 +730,35 @@ export function buildSearchPreviewFields(
 				previewField('Last seen', formatDateTime(metadata.last_seen_at)),
 				previewField('Phone', stringValue(metadata, 'phone')),
 			)
+		case 'driver_location':
+			return fields(
+				previewField('Driver', stringValue(metadata, 'driver_name')),
+				previewField('Delivery', stringValue(metadata, 'delivery_number')),
+				previewField('Customer', stringValue(metadata, 'company_name')),
+				previewField('Recorded', formatDateTime(metadata.recorded_at)),
+				previewField(
+					'Speed',
+					quantityWithUnit(numberValue(metadata, 'speed_kmh'), 'km/h'),
+				),
+			)
 		case 'support':
 			return fields(
 				previewField('Stage', stage(row)),
 				previewField('Channel', formatSource(stringValue(metadata, 'source'))),
 				previewField('Requester', stringValue(metadata, 'requester')),
 				previewField('Subject', stringValue(metadata, 'subject')),
+			)
+		case 'support_message':
+			return fields(
+				previewField('Channel', formatSource(stringValue(metadata, 'channel'))),
+				previewField('Sender', stringValue(metadata, 'sender')),
+				previewField(
+					'Case',
+					stringValue(metadata, 'ticket_reference') ??
+						stringValue(metadata, 'conversation_reference'),
+				),
+				previewField('Message', stringValue(metadata, 'message_body')),
+				previewField('Sent', formatDateTime(metadata.created_at)),
 			)
 		case 'supplier':
 			return fields(
@@ -680,18 +789,70 @@ export function buildSearchPreviewFields(
 							: 'No',
 				),
 			)
+		case 'sales_history':
+			return fields(
+				previewField('Type', formatSource(stringValue(metadata, 'source'))),
+				previewField('Customer', stringValue(metadata, 'company_name')),
+				previewField('Stage', stage(row)),
+				previewField('Total', formatMoney(numberValue(metadata, 'total'))),
+				previewField('By', stringValue(metadata, 'created_by')),
+			)
+		case 'approval':
+			return fields(
+				previewField(
+					'Type',
+					formatStatus(stringValue(metadata, 'approval_type')),
+				),
+				previewField('Stage', stage(row)),
+				previewField('Target', stringValue(metadata, 'target')),
+				previewField('Requested by', stringValue(metadata, 'requested_by')),
+				previewField('Assigned to', stringValue(metadata, 'assigned_to')),
+			)
+		case 'document':
+			return fields(
+				previewField('Type', formatSource(stringValue(metadata, 'source'))),
+				previewField(
+					'Document',
+					formatStatus(stringValue(metadata, 'document_type')) ??
+						formatStatus(stringValue(metadata, 'proof_type')),
+				),
+				previewField(
+					'Related',
+					stringValue(metadata, 'related_order_ref') ??
+						stringValue(metadata, 'delivery_number') ??
+						stringValue(metadata, 'ticket_reference'),
+				),
+				previewField(
+					'Customer',
+					stringValue(metadata, 'customer_name') ??
+						stringValue(metadata, 'company_name'),
+				),
+				previewField(
+					'Created',
+					formatDateTime(jsonValue(metadata, 'created_at')),
+				),
+			)
 		case 'activity':
 			return fields(
-				previewField('Area', stringValue(metadata, 'area') ?? stage(row)),
-				previewField('Action', activityLabel(metadata, row)),
-				previewField('Who', stringValue(metadata, 'actor')),
-				previewField('Source', stringValue(metadata, 'source')),
+				previewField(
+					'Who',
+					stringValue(metadata, 'who') ?? stringValue(metadata, 'actor'),
+				),
+				previewField(
+					'Panel',
+					stringValue(metadata, 'department') ??
+						stringValue(metadata, 'area') ??
+						stage(row),
+				),
+				previewField(
+					'What',
+					stringValue(metadata, 'what') ?? activityLabel(metadata, row),
+				),
+				previewField('Changed', activityChange(metadata)),
 				previewField('Customer', stringValue(metadata, 'customer')),
 				previewField('Target', stringValue(metadata, 'target')),
-				previewField('Items', stringValue(metadata, 'items')),
 				previewField('Amount', activityAmount(metadata)),
-				previewField('Where', stringValue(metadata, 'delivery_address')),
-				previewField('When', formatDateTime(metadata.created_at)),
+				previewField('When', activityWhen(metadata)),
 			)
 		default:
 			return genericPreviewFields(row)
@@ -816,6 +977,23 @@ export function buildSearchDetailFields(
 					formatMoney(numberValue(metadata, 'current_exposure')),
 				),
 			)
+		case 'category':
+			return details(
+				detailField('Category', row.title),
+				detailField('Arabic name', stringValue(metadata, 'name_ar')),
+				detailField('Stage', stage(row)),
+				detailField('Slug', stringValue(metadata, 'slug')),
+				detailField(
+					'Parent category',
+					stringValue(metadata, 'parent_category'),
+				),
+				detailField(
+					'Products',
+					formatNumber(numberValue(metadata, 'product_count')),
+				),
+				detailField('Description', stringValue(metadata, 'description')),
+				detailField('Last update', formatDateTime(metadata.updated_at)),
+			)
 		case 'payment':
 			return details(
 				detailField('Finance side', financeSide(row)),
@@ -895,6 +1073,52 @@ export function buildSearchDetailFields(
 				detailField('Last stock update', formatDateTime(metadata.updated_at)),
 			)
 		}
+		case 'pricing':
+			return details(
+				detailField(
+					'Record type',
+					formatSource(stringValue(metadata, 'source')),
+				),
+				detailField('Stage', stage(row)),
+				detailField('Product', stringValue(metadata, 'product_name')),
+				detailField('SKU', stringValue(metadata, 'product_sku')),
+				detailField('Category', stringValue(metadata, 'category')),
+				detailField('Request', stringValue(metadata, 'request_number')),
+				detailField('Requested item', stringValue(metadata, 'requested_item')),
+				detailField('Requested by', stringValue(metadata, 'requested_by')),
+				detailField('Assigned to', stringValue(metadata, 'assigned_to')),
+				detailField('Updated by', stringValue(metadata, 'updated_by')),
+				detailField('Supplier', stringValue(metadata, 'supplier_name')),
+				detailField(
+					'Old price',
+					formatMoney(numberValue(metadata, 'old_price')),
+				),
+				detailField(
+					'New price',
+					formatMoney(numberValue(metadata, 'new_price')),
+				),
+				detailField(
+					'Bonus margin',
+					formatPercent(numberValue(metadata, 'bonus_margin')),
+				),
+				detailField(
+					'Target margin',
+					formatPercent(numberValue(metadata, 'target_margin')),
+				),
+				detailField(
+					'Floor margin',
+					formatPercent(numberValue(metadata, 'floor_margin')),
+				),
+				detailField(
+					'Absolute min margin',
+					formatPercent(numberValue(metadata, 'absolute_min_margin')),
+				),
+				detailField('Reason', stringValue(metadata, 'reason')),
+				detailField('Notes', stringValue(metadata, 'notes')),
+				detailField('Proof', stringValue(metadata, 'proof_path')),
+				detailField('Resolved', formatDateTime(metadata.resolved_at)),
+				detailField('Last update', formatDateTime(metadata.updated_at)),
+			)
 		case 'warehouse':
 			if (stringValue(metadata, 'source') === 'receiving_task') {
 				return details(
@@ -979,6 +1203,39 @@ export function buildSearchDetailFields(
 				detailField('Last seen', formatDateTime(metadata.last_seen_at)),
 				detailField('Last profile update', formatDateTime(metadata.updated_at)),
 			)
+		case 'driver_location':
+			return details(
+				detailField('Driver', stringValue(metadata, 'driver_name')),
+				detailField('Driver phone', stringValue(metadata, 'driver_phone')),
+				detailField('Driver status', metadataStatus(row, 'driver_status')),
+				detailField('Online status', metadataStatus(row, 'online_status')),
+				detailField('Delivery', stringValue(metadata, 'delivery_number')),
+				detailField('Order', stringValue(metadata, 'order_number')),
+				detailField('Customer', stringValue(metadata, 'company_name')),
+				detailField(
+					'Latitude',
+					formatNumber(numberValue(metadata, 'latitude')),
+				),
+				detailField(
+					'Longitude',
+					formatNumber(numberValue(metadata, 'longitude')),
+				),
+				detailField(
+					'Accuracy',
+					quantityWithUnit(numberValue(metadata, 'accuracy_meters'), 'm'),
+				),
+				detailField(
+					'Speed',
+					quantityWithUnit(numberValue(metadata, 'speed_kmh'), 'km/h'),
+				),
+				detailField('Heading', formatNumber(numberValue(metadata, 'heading'))),
+				detailField(
+					'Source',
+					formatSource(stringValue(metadata, 'location_source')),
+				),
+				detailField('Recorded', formatDateTime(metadata.recorded_at)),
+				detailField('Last seen', formatDateTime(metadata.last_seen_at)),
+			)
 		case 'support':
 			return details(
 				detailField('Case', row.title),
@@ -991,6 +1248,34 @@ export function buildSearchDetailFields(
 				detailField('Email', stringValue(metadata, 'email')),
 				detailField('Phone', stringValue(metadata, 'phone')),
 				detailField('Last update', formatDateTime(metadata.updated_at)),
+			)
+		case 'support_message':
+			return details(
+				detailField('Support message', row.title),
+				detailField('Channel', formatSource(stringValue(metadata, 'channel'))),
+				detailField(
+					'Sender type',
+					formatStatus(stringValue(metadata, 'sender_type')),
+				),
+				detailField('Sender', stringValue(metadata, 'sender')),
+				detailField('Customer', stringValue(metadata, 'customer_name')),
+				detailField('Ticket', stringValue(metadata, 'ticket_reference')),
+				detailField('Subject', stringValue(metadata, 'ticket_subject')),
+				detailField(
+					'Conversation',
+					stringValue(metadata, 'conversation_reference'),
+				),
+				detailField('Message', stringValue(metadata, 'message_body')),
+				detailField(
+					'Attachments',
+					formatNumber(numberValue(metadata, 'attachment_count')),
+				),
+				detailField(
+					'Provider status',
+					stringValue(metadata, 'provider_status'),
+				),
+				detailField('Provider error', stringValue(metadata, 'provider_error')),
+				detailField('Sent', formatDateTime(metadata.created_at)),
 			)
 		case 'supplier':
 			return details(
@@ -1040,19 +1325,124 @@ export function buildSearchDetailFields(
 				),
 				detailField('Last update', formatDateTime(metadata.updated_at)),
 			)
+		case 'sales_history':
+			return details(
+				detailField(
+					'Record type',
+					formatSource(stringValue(metadata, 'source')),
+				),
+				detailField('Stage', stage(row)),
+				detailField('Customer', stringValue(metadata, 'company_name')),
+				detailField('Request', stringValue(metadata, 'request_number')),
+				detailField('Quote', stringValue(metadata, 'quote_number')),
+				detailField(
+					'Version',
+					formatNumber(numberValue(metadata, 'version_number')),
+				),
+				detailField('Created by', stringValue(metadata, 'created_by')),
+				detailField('Outcome', stringValue(metadata, 'outcome')),
+				detailField('Subtotal', formatMoney(numberValue(metadata, 'subtotal'))),
+				detailField('Tax', formatMoney(numberValue(metadata, 'tax_amount'))),
+				detailField(
+					'Delivery fee',
+					formatMoney(numberValue(metadata, 'delivery_fee')),
+				),
+				detailField(
+					'Discount',
+					formatMoney(numberValue(metadata, 'discount_amount')),
+				),
+				detailField('Total', formatMoney(numberValue(metadata, 'total'))),
+				detailField(
+					'Counter type',
+					formatStatus(stringValue(metadata, 'counter_type')),
+				),
+				detailField(
+					'Self pickup',
+					booleanValue(metadata, 'self_pickup') === null
+						? null
+						: booleanValue(metadata, 'self_pickup')
+							? 'Yes'
+							: 'No',
+				),
+				detailField('Notes', stringValue(metadata, 'notes')),
+				detailField('Created', formatDateTime(metadata.created_at)),
+			)
+		case 'approval':
+			return details(
+				detailField('Approval', row.title),
+				detailField(
+					'Type',
+					formatStatus(stringValue(metadata, 'approval_type')),
+				),
+				detailField('Stage', stage(row)),
+				detailField(
+					'Target type',
+					formatStatus(stringValue(metadata, 'target_type')),
+				),
+				detailField('Target', stringValue(metadata, 'target')),
+				detailField('Requested by', stringValue(metadata, 'requested_by')),
+				detailField('Assigned to', stringValue(metadata, 'assigned_to')),
+				detailField('Context', contextSummary(jsonValue(metadata, 'context'))),
+				detailField('Decided', formatDateTime(metadata.decided_at)),
+				detailField('Created', formatDateTime(metadata.created_at)),
+				detailField('Last update', formatDateTime(metadata.updated_at)),
+			)
+		case 'document':
+			return details(
+				detailField('Document', row.title),
+				detailField(
+					'Record type',
+					formatSource(stringValue(metadata, 'source')),
+				),
+				detailField(
+					'Document type',
+					formatStatus(stringValue(metadata, 'document_type')) ??
+						formatStatus(stringValue(metadata, 'proof_type')),
+				),
+				detailField('Reference', stringValue(metadata, 'reference')),
+				detailField(
+					'Related order',
+					stringValue(metadata, 'related_order_ref') ??
+						stringValue(metadata, 'order_number'),
+				),
+				detailField('Delivery', stringValue(metadata, 'delivery_number')),
+				detailField('Customer', stringValue(metadata, 'customer_name')),
+				detailField('Driver', stringValue(metadata, 'driver_name')),
+				detailField('Signer', stringValue(metadata, 'signer_name')),
+				detailField('File size', stringValue(metadata, 'file_size')),
+				detailField('File', stringValue(metadata, 'storage_path')),
+				detailField('Proof', stringValue(metadata, 'proof_path')),
+				detailField('Content type', stringValue(metadata, 'content_type')),
+				detailField('Subject', stringValue(metadata, 'ticket_subject')),
+				detailField('Created', formatDateTime(metadata.created_at)),
+				detailField('Last update', formatDateTime(metadata.updated_at)),
+			)
 		case 'activity':
 			return details(
-				detailField('Activity', formatActivityTitle(row)),
-				detailField('Area', stringValue(metadata, 'area') ?? stage(row)),
-				detailField('Action', activityLabel(metadata, row)),
-				detailField('Who', stringValue(metadata, 'actor')),
-				detailField('Actor type', stringValue(metadata, 'actor_type')),
-				detailField('Source', stringValue(metadata, 'source')),
+				detailField('Story', formatActivityTitle(row)),
+				detailField(
+					'Who',
+					stringValue(metadata, 'who') ?? stringValue(metadata, 'actor'),
+				),
+				detailField(
+					'Panel',
+					stringValue(metadata, 'department') ??
+						stringValue(metadata, 'area') ??
+						stage(row),
+				),
+				detailField(
+					'What happened',
+					stringValue(metadata, 'what') ?? activityLabel(metadata, row),
+				),
+				detailField('When', activityWhen(metadata)),
+				detailField('Target', stringValue(metadata, 'target')),
+				detailField('Changed', stringValue(metadata, 'changed_field')),
+				detailField('From', stringValue(metadata, 'from_value')),
+				detailField('To', stringValue(metadata, 'to_value')),
 				detailField('Customer', stringValue(metadata, 'customer')),
 				detailField('Contact', stringValue(metadata, 'contact')),
 				detailField('Phone', stringValue(metadata, 'phone')),
 				detailField('Email', stringValue(metadata, 'email')),
-				detailField('Target', stringValue(metadata, 'target')),
 				detailField('Order', stringValue(metadata, 'order_number')),
 				detailField('Quote request', stringValue(metadata, 'request_number')),
 				detailField('Quote', stringValue(metadata, 'quote_number')),
@@ -1081,7 +1471,10 @@ export function buildSearchDetailFields(
 				detailField('Role', formatStatus(stringValue(metadata, 'role'))),
 				detailField(
 					'Channel',
-					formatSource(stringValue(metadata, 'contact_channel')),
+					formatSource(
+						stringValue(metadata, 'contact_channel') ??
+							stringValue(metadata, 'source'),
+					),
 				),
 				detailField('Amount', formatMoney(numberValue(metadata, 'amount'))),
 				detailField(
@@ -1103,7 +1496,6 @@ export function buildSearchDetailFields(
 				detailField('Reason', stringValue(metadata, 'reason')),
 				detailField('Outcome', stringValue(metadata, 'outcome')),
 				detailField('Notes', stringValue(metadata, 'notes')),
-				detailField('When', formatDateTime(metadata.created_at)),
 			)
 		default:
 			return genericDetails(row)
@@ -1156,6 +1548,27 @@ export function buildSearchSummaryNote(
 				.filter(Boolean)
 				.join(' - ')
 		}
+		case 'pricing':
+			return [
+				formatSource(stringValue(metadata, 'source')),
+				stringValue(metadata, 'product_name') ??
+					stringValue(metadata, 'category'),
+				stage(row),
+				formatMoney(numberValue(metadata, 'new_price')) ??
+					formatPercent(numberValue(metadata, 'target_margin')),
+			]
+				.filter(Boolean)
+				.join(' - ')
+		case 'category':
+			return [
+				stage(row),
+				stringValue(metadata, 'parent_category'),
+				formatNumber(numberValue(metadata, 'product_count'))
+					? `${formatNumber(numberValue(metadata, 'product_count'))} products`
+					: null,
+			]
+				.filter(Boolean)
+				.join(' - ')
 		case 'warehouse':
 			if (stringValue(metadata, 'source') === 'receiving_task') {
 				return [
@@ -1177,8 +1590,51 @@ export function buildSearchSummaryNote(
 			return [stage(row), stringValue(metadata, 'vehicle_label')]
 				.filter(Boolean)
 				.join(' - ')
+		case 'driver_location':
+			return [
+				stringValue(metadata, 'driver_name'),
+				stringValue(metadata, 'delivery_number'),
+				formatDateTime(metadata.recorded_at),
+			]
+				.filter(Boolean)
+				.join(' - ')
 		case 'support':
 			return [stage(row), stringValue(metadata, 'requester')]
+				.filter(Boolean)
+				.join(' - ')
+		case 'support_message':
+			return [
+				formatSource(stringValue(metadata, 'channel')),
+				stringValue(metadata, 'sender'),
+				stringValue(metadata, 'message_body'),
+			]
+				.filter(Boolean)
+				.join(' - ')
+		case 'sales_history':
+			return [
+				formatSource(stringValue(metadata, 'source')),
+				stringValue(metadata, 'company_name'),
+				stage(row),
+				formatMoney(numberValue(metadata, 'total')),
+			]
+				.filter(Boolean)
+				.join(' - ')
+		case 'approval':
+			return [
+				stage(row),
+				stringValue(metadata, 'target'),
+				stringValue(metadata, 'assigned_to'),
+			]
+				.filter(Boolean)
+				.join(' - ')
+		case 'document':
+			return [
+				formatSource(stringValue(metadata, 'source')),
+				stringValue(metadata, 'customer_name'),
+				stringValue(metadata, 'related_order_ref') ??
+					stringValue(metadata, 'delivery_number') ??
+					stringValue(metadata, 'ticket_reference'),
+			]
 				.filter(Boolean)
 				.join(' - ')
 		case 'activity':
@@ -1312,11 +1768,15 @@ export function buildSearchSummarySections(
 		case 'sales':
 			return [
 				entitySection('sales-orders', 'Orders', rows, 'order'),
+				entitySection('sales-history', 'Sales history', rows, 'sales_history'),
+				entitySection('sales-approvals', 'Approvals', rows, 'approval'),
 				entitySection('sales-customers', 'Customers', rows, 'customer'),
 			]
 		case 'inventory':
 			return [
 				entitySection('inventory-items', 'Inventory items', rows, 'inventory'),
+				entitySection('inventory-pricing', 'Price work', rows, 'pricing'),
+				entitySection('inventory-categories', 'Categories', rows, 'category'),
 				bucket('inventory-orders', 'Inventory orders', rows, isInventoryOrder),
 				entitySection('inventory-suppliers', 'Suppliers', rows, 'supplier'),
 			]
@@ -1329,6 +1789,7 @@ export function buildSearchSummarySections(
 					rows,
 					'inventory',
 				),
+				entitySection('warehouse-documents', 'Documents', rows, 'document'),
 			]
 		case 'finance':
 			return [
@@ -1339,16 +1800,31 @@ export function buildSearchSummarySections(
 					rows,
 					isFinanceOrder,
 				),
+				entitySection('finance-approvals', 'Approvals', rows, 'approval'),
+				entitySection('finance-documents', 'Documents', rows, 'document'),
 			]
 		case 'dispatch':
 			return [
 				entitySection('dispatch-deliveries', 'Deliveries', rows, 'dispatch'),
 				entitySection('dispatch-fleet', 'Fleet', rows, 'driver'),
+				entitySection(
+					'dispatch-locations',
+					'Driver locations',
+					rows,
+					'driver_location',
+				),
 			]
 		case 'customer-service':
 			return [
 				entitySection('support-cases', 'Support cases', rows, 'support'),
+				entitySection(
+					'support-messages',
+					'Support messages',
+					rows,
+					'support_message',
+				),
 				entitySection('support-customers', 'Customers', rows, 'customer'),
+				entitySection('support-documents', 'Documents', rows, 'document'),
 			]
 	}
 }
@@ -1441,6 +1917,14 @@ function isInventoryOrder(row: SearchDisplayIndexRow): boolean {
 }
 
 function isStaleStock(row: SearchDisplayIndexRow): boolean {
+	if (
+		row.entity_type === 'pricing' &&
+		rowMetadataSourceKey(row) === 'price_update_request'
+	) {
+		return !['completed', 'done', 'recorded', 'resolved'].includes(
+			rowStatusKey(row),
+		)
+	}
 	if (row.entity_type !== 'inventory') return false
 	const updatedAt = metadataObject(row.metadata).updated_at
 	if (typeof updatedAt !== 'string') return true
@@ -1548,7 +2032,13 @@ function isResolvedSupport(row: SearchDisplayIndexRow): boolean {
 }
 
 function supportSource(row: SearchDisplayIndexRow): string {
-	return normalizeToken(stringValue(metadataObject(row.metadata), 'source'))
+	const metadata = metadataObject(row.metadata)
+	if (row.entity_type === 'support_message') {
+		return normalizeToken(stringValue(metadata, 'channel'))
+	}
+	return normalizeToken(
+		stringValue(metadata, 'source') ?? stringValue(metadata, 'channel'),
+	)
 }
 
 function supportSubject(row: SearchDisplayIndexRow): string {
@@ -1556,11 +2046,13 @@ function supportSubject(row: SearchDisplayIndexRow): string {
 }
 
 function isOpenEmail(row: SearchDisplayIndexRow): boolean {
-	if (row.entity_type !== 'support' || isResolvedSupport(row)) return false
+	if (!['support', 'support_message'].includes(row.entity_type)) return false
+	if (isResolvedSupport(row)) return false
 	return supportSource(row) === 'ticket' || supportSubject(row) === 'email'
 }
 
 function isOpenMessage(row: SearchDisplayIndexRow): boolean {
-	if (row.entity_type !== 'support' || isResolvedSupport(row)) return false
+	if (!['support', 'support_message'].includes(row.entity_type)) return false
+	if (isResolvedSupport(row)) return false
 	return !isOpenEmail(row)
 }

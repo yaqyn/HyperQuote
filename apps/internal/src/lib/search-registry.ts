@@ -6,11 +6,18 @@ type SearchTableId =
 	| 'payments'
 	| 'employees'
 	| 'inventory'
+	| 'pricing'
+	| 'categories'
 	| 'warehouse'
 	| 'dispatch'
 	| 'drivers'
+	| 'driver-locations'
 	| 'support'
+	| 'support-messages'
 	| 'suppliers'
+	| 'sales-history'
+	| 'approvals'
+	| 'documents'
 	| 'activity'
 
 type SearchScalar = string | number | boolean | null

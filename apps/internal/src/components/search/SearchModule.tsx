@@ -58,19 +58,27 @@ const activityTimestampFormatter = new Intl.DateTimeFormat('en-EG', {
 
 const SOURCE_PANEL_BY_TABLE: Record<string, string> = {
 	activity: 'search',
+	approvals: 'search',
+	categories: 'admin',
 	customers: 'sales',
 	dispatch: 'dispatch',
+	documents: 'search',
 	drivers: 'dispatch',
+	'driver-locations': 'dispatch',
 	employees: 'admin',
 	inventory: 'inventory',
 	orders: 'sales',
 	payments: 'finance',
+	pricing: 'inventory',
+	'sales-history': 'sales',
 	support: 'customer-service',
+	'support-messages': 'customer-service',
 	suppliers: 'inventory',
 	warehouse: 'warehouse',
 }
 
 const SOURCE_PANEL_LABELS: Record<string, string> = {
+	admin: 'Admin',
 	'customer-service': 'Customer service',
 	dispatch: 'Dispatch',
 	finance: 'Finance',
@@ -1314,7 +1322,12 @@ function RowDetailPanel({
 									</p>
 								</div>
 								<h2 className="mt-2 font-[family-name:var(--font-bricolage)] text-[22px] font-semibold leading-tight text-white/92">
-									{row.title}
+									{row.tableId === 'activity'
+										? renderEmphasizedActivityText(
+												row.title,
+												activityStoryHighlights(row),
+											)
+										: row.title}
 								</h2>
 								<p className="mt-2 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/28">
 									{row.tableLabel} summary
@@ -1329,6 +1342,7 @@ function RowDetailPanel({
 								<DetailField
 									key={`${row.tableId}-${row.rowId}-${field.label}`}
 									field={field}
+									row={row}
 								/>
 							))}
 						</div>
@@ -1373,17 +1387,140 @@ function PreviewStrip({ row }: { row: SearchRow }) {
 
 function DetailField({
 	field,
+	row,
 }: {
 	field: { label: string; value: JsonValue }
+	row: SearchRow
 }) {
+	const activityStoryValue =
+		row.tableId === 'activity' &&
+		field.label === 'Story' &&
+		typeof field.value === 'string'
+			? field.value
+			: null
+
 	return (
 		<div className="grid gap-2 py-3 sm:grid-cols-[142px_minmax(0,1fr)] sm:gap-4">
 			<p className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/31">
 				{field.label}
 			</p>
-			<div className="min-w-0">{renderJsonValue(field.value)}</div>
+			<div className="min-w-0">
+				{activityStoryValue ? (
+					<ActivityStoryValue row={row} value={activityStoryValue} />
+				) : (
+					renderJsonValue(field.value)
+				)}
+			</div>
 		</div>
 	)
+}
+
+function ActivityStoryValue({ row, value }: { row: SearchRow; value: string }) {
+	return (
+		<p className="break-words font-[family-name:var(--font-archivo)] text-[15px] leading-7">
+			{renderEmphasizedActivityText(value, activityStoryHighlights(row))}
+		</p>
+	)
+}
+
+const activityStoryHighlightLabels = new Set([
+	'Who',
+	'Panel',
+	'Target',
+	'Customer',
+	'Contact',
+	'Order',
+	'Quote request',
+	'Quote',
+	'Delivery',
+	'Items',
+	'Product',
+	'Product SKU',
+	'Product category',
+	'Supplier',
+	'Driver',
+	'Truck',
+	'Support case',
+	'Role',
+	'Changed',
+	'From',
+	'To',
+	'Amount',
+	'Payment portion',
+	'Total',
+	'Status change',
+	'Follow-up state',
+	'Follow-up due',
+	'When',
+])
+
+function activityStoryHighlights(row: SearchRow): string[] {
+	const values = row.details
+		.filter((field) => activityStoryHighlightLabels.has(field.label))
+		.flatMap((field) => {
+			if (
+				typeof field.value === 'string' ||
+				typeof field.value === 'number' ||
+				typeof field.value === 'boolean'
+			) {
+				return [String(field.value)]
+			}
+			return []
+		})
+	return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+}
+
+function renderEmphasizedActivityText(
+	text: string,
+	importantValues: string[],
+): ReactNode {
+	const values = importantValues
+		.filter((value) => value.length > 0)
+		.sort((a, b) => b.length - a.length)
+	if (values.length === 0) {
+		return <span className="font-light text-white/44">{text}</span>
+	}
+
+	const matcher = new RegExp(
+		`(${values.map((value) => escapeRegExp(value)).join('|')})`,
+		'gi',
+	)
+	const nodes: ReactNode[] = []
+	let cursor = 0
+
+	for (const match of text.matchAll(matcher)) {
+		const index = match.index ?? 0
+		if (index > cursor) {
+			nodes.push(
+				<span key={`dim-${cursor}`} className="font-light text-white/44">
+					{text.slice(cursor, index)}
+				</span>,
+			)
+		}
+		nodes.push(
+			<strong
+				key={`important-${index}`}
+				className="font-semibold text-white/94"
+			>
+				{match[0]}
+			</strong>,
+		)
+		cursor = index + match[0].length
+	}
+
+	if (cursor < text.length) {
+		nodes.push(
+			<span key={`dim-${cursor}`} className="font-light text-white/44">
+				{text.slice(cursor)}
+			</span>,
+		)
+	}
+
+	return nodes
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 function renderJsonValue(value: JsonValue): ReactNode {

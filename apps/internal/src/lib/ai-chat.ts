@@ -44,23 +44,34 @@ interface SearchAiAnswer {
 
 const SEARCH_ENTITY_READ_ENTITIES: Record<string, string> = {
 	activity: 'ceo_activity_summary',
+	approval: 'ceo_search_approval_vtable',
+	category: 'ceo_search_category_vtable',
 	customer: 'ceo_customer_summary',
 	dispatch: 'ceo_dispatch_summary',
+	document: 'ceo_search_document_vtable',
 	driver: 'ceo_driver_summary',
+	driver_location: 'ceo_search_driver_location_vtable',
 	employee: 'ceo_employee_summary',
 	inventory: 'ceo_inventory_summary',
 	order: 'ceo_order_summary',
 	payment: 'ceo_finance_summary',
+	pricing: 'ceo_search_pricing_vtable',
+	sales_history: 'ceo_search_sales_history_vtable',
 	supplier: 'ceo_supplier_summary',
 	support: 'ceo_support_summary',
+	support_message: 'ceo_search_support_message_vtable',
 	warehouse: 'ceo_warehouse_summary',
 }
 
 const SEARCH_ENTITY_KEYWORDS: Record<string, string[]> = {
 	activity: ['activity', 'audit', 'event', 'history'],
+	approval: ['approval', 'approvals', 'approve', 'pending approval'],
+	category: ['category', 'categories'],
 	customer: ['customer', 'customers', 'client', 'contractor'],
 	dispatch: ['dispatch', 'delivery', 'deliveries'],
+	document: ['document', 'documents', 'proof', 'proofs', 'attachment'],
 	driver: ['driver', 'drivers'],
+	driver_location: ['location', 'gps', 'map', 'driver location', 'tracking'],
 	employee: ['employee', 'employees', 'staff', 'team'],
 	inventory: ['inventory', 'stock', 'material', 'materials', 'product'],
 	order: ['order', 'orders', 'rfq', 'quote', 'sales'],
@@ -72,8 +83,11 @@ const SEARCH_ENTITY_KEYWORDS: Record<string, string[]> = {
 		'paid',
 		'supplier paid',
 	],
+	pricing: ['price', 'pricing', 'margin', 'price update', 'outdated price'],
+	sales_history: ['version', 'versions', 'call note', 'sales history'],
 	supplier: ['supplier', 'suppliers', 'vendor', 'vendors'],
 	support: ['support', 'ticket', 'tickets', 'customer service'],
+	support_message: ['message', 'messages', 'reply', 'replies', 'whatsapp'],
 	warehouse: ['warehouse', 'loading', 'receiving'],
 }
 const SEARCH_AI_ENTITY_LIMIT = 8

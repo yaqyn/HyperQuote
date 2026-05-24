@@ -292,19 +292,76 @@ describe('Search display formatting', () => {
 		expect(preview).toEqual(
 			expect.arrayContaining([
 				{ label: 'Who', value: 'Local Cairo Contractors' },
-				{ label: 'Source', value: 'Portal' },
-				{ label: 'Items', value: '20 Wood ton, 20 Metal ton' },
-				{ label: 'Where', value: 'New Cairo, Cairo' },
+				{ label: 'Panel', value: 'Sales' },
+				{ label: 'What', value: 'Order submitted' },
+				{ label: 'Changed', value: 'Now Submitted' },
 			]),
 		)
 		expect(details).toEqual(
 			expect.arrayContaining([
-				{ label: 'Activity', value: row.title },
+				{ label: 'Story', value: row.title },
+				{ label: 'Panel', value: 'Sales' },
+				{ label: 'What happened', value: 'Order submitted' },
 				{ label: 'Quote request', value: 'QR-2026-00221' },
 				{ label: 'Status change', value: 'Now Submitted' },
 			]),
 		)
 		expect(details.map((field) => field.label)).not.toContain('Context')
+		expect(details.map((field) => field.label)).not.toContain('Actor type')
+	})
+
+	it('projects activity price changes as detailed human business stories', () => {
+		const row: SearchDisplayIndexRow = {
+			entity_type: 'activity',
+			entity_id: 'activity-price-1',
+			title: 'Inventory price updated',
+			subtitle: 'Inventory',
+			metadata: {
+				activity_sentence:
+					'Ahmed Hassan from Inventory changed price of Portland Cement from 1,200.00 LE to 1,350.00 LE on May 21, 2026, 12:20 PM',
+				actor: 'Ahmed Hassan',
+				area: 'Inventory',
+				changed_field: 'Price',
+				from_value: '1,200.00 LE',
+				target: 'Portland Cement',
+				to_value: '1,350.00 LE',
+				what: 'Changed price of Portland Cement from 1,200.00 LE to 1,350.00 LE',
+				when: 'May 21, 2026, 12:20 PM',
+			},
+		}
+
+		const preview = buildSearchPreviewFields(row)
+		const details = buildSearchDetailFields(row)
+		const labels = details.map((field) => field.label)
+
+		expect(buildSearchDisplayTitle(row)).toBe(
+			'Ahmed Hassan from Inventory changed price of Portland Cement from 1,200.00 LE to 1,350.00 LE on May 21, 2026, 12:20 PM',
+		)
+		expect(preview).toEqual(
+			expect.arrayContaining([
+				{ label: 'Who', value: 'Ahmed Hassan' },
+				{ label: 'Panel', value: 'Inventory' },
+				{
+					label: 'Changed',
+					value: 'Price: 1,200.00 LE to 1,350.00 LE',
+				},
+				{ label: 'When', value: 'May 21, 2026, 12:20 PM' },
+			]),
+		)
+		expect(details).toEqual(
+			expect.arrayContaining([
+				{ label: 'Story', value: row.metadata?.activity_sentence },
+				{ label: 'Who', value: 'Ahmed Hassan' },
+				{ label: 'Panel', value: 'Inventory' },
+				{ label: 'Changed', value: 'Price' },
+				{ label: 'From', value: '1,200.00 LE' },
+				{ label: 'To', value: '1,350.00 LE' },
+				{ label: 'When', value: 'May 21, 2026, 12:20 PM' },
+			]),
+		)
+		expect(labels).not.toContain('Actor type')
+		expect(labels).not.toContain('Source')
+		expect(labels).not.toContain('Context')
 	})
 
 	it('builds business summary buckets for the Search dashboard', () => {
@@ -320,6 +377,10 @@ describe('Search display formatting', () => {
 				available_quantity: 4,
 				minimum_quantity: 10,
 				updated_at: '2026-05-01T08:00:00Z',
+			}),
+			row('pricing', 'Price request - Cement', 'pending', {
+				product_name: 'Cement',
+				source: 'price_update_request',
 			}),
 			row('warehouse', 'ORD-LOADING', 'loading'),
 			row('warehouse', 'ORD-APPROVED', 'approved', {
@@ -348,6 +409,11 @@ describe('Search display formatting', () => {
 				source: 'conversation',
 				subject: 'whatsapp',
 			}),
+			row('support_message', 'Support message - Thread 1', 'whatsapp', {
+				channel: 'whatsapp',
+				message_body: 'Customer asked for delivery ETA',
+				source: 'support_message',
+			}),
 			row('support', 'Ticket 2', 'resolved', {
 				source: 'ticket',
 				subject: 'Delivery ETA',
@@ -361,7 +427,7 @@ describe('Search display formatting', () => {
 		])
 		expect(counts('inventory', rows)).toEqual([
 			['Inventory orders', 0],
-			['Needs update', 1],
+			['Needs update', 2],
 			['Low stock', 1],
 		])
 		expect(counts('warehouse', rows)).toEqual([
@@ -380,7 +446,7 @@ describe('Search display formatting', () => {
 			['Fleet unavailable', 1],
 		])
 		expect(counts('customer-service', rows)).toEqual([
-			['Messages', 1],
+			['Messages', 2],
 			['Email', 1],
 			['Resolved', 1],
 		])
@@ -404,33 +470,138 @@ describe('Search display formatting', () => {
 			row('dispatch', 'DEL-1', 'assigned'),
 			row('driver', 'Mina Farid', 'available'),
 			row('support', 'Ticket 1', 'open', { source: 'ticket' }),
+			row('support_message', 'Support message - Ticket 1', 'email', {
+				channel: 'email',
+				message_body: 'Invoice copy requested',
+				source: 'support_message',
+			}),
+			row('pricing', 'Price request - Wood', 'pending', {
+				product_name: 'Wood',
+				source: 'price_update_request',
+			}),
+			row('category', 'Building materials', 'active', {
+				product_count: 12,
+				source: 'category',
+			}),
+			row('sales_history', 'Sales quote v1 - QR-1', 'draft', {
+				company_name: 'Local Cairo Contractors',
+				source: 'sales_quote_version',
+				total: 1200,
+			}),
+			row('approval', 'Approval - ORD-1', 'pending', {
+				source: 'approval',
+				target: 'ORD-1',
+			}),
+			row('driver_location', 'Driver location - Mina Farid', 'online', {
+				driver_name: 'Mina Farid',
+				recorded_at: '2026-05-21T10:20:00+00:00',
+				source: 'driver_location',
+			}),
+			row('document', 'Delivery proof - DEL-1', 'signature', {
+				delivery_number: 'DEL-1',
+				source: 'delivery_proof',
+			}),
 		]
 
 		expect(sectionCounts('sales', rows)).toEqual([
 			['Orders', 2],
+			['Sales history', 1],
+			['Approvals', 1],
 			['Customers', 1],
 		])
 		expect(sectionCounts('inventory', rows)).toEqual([
 			['Inventory items', 1],
+			['Price work', 1],
+			['Categories', 1],
 			['Inventory orders', 0],
 			['Suppliers', 1],
 		])
 		expect(sectionCounts('warehouse', rows)).toEqual([
 			['Warehouse tasks', 1],
 			['Stock levels', 1],
+			['Documents', 1],
 		])
 		expect(sectionCounts('finance', rows)).toEqual([
 			['Finance inbox', 1],
 			['Customer orders', 1],
+			['Approvals', 1],
+			['Documents', 1],
 		])
 		expect(sectionCounts('dispatch', rows)).toEqual([
 			['Deliveries', 1],
 			['Fleet', 1],
+			['Driver locations', 1],
 		])
 		expect(sectionCounts('customer-service', rows)).toEqual([
 			['Support cases', 1],
+			['Support messages', 1],
 			['Customers', 1],
+			['Documents', 1],
 		])
+	})
+
+	it('projects upgraded operational rows without raw vtable field leakage', () => {
+		const pricing = row('pricing', 'Price request - Cement', 'pending', {
+			assigned_to: 'Mona Inventory',
+			product_name: 'Cement',
+			reason: 'Live order needs fresh supplier price',
+			source: 'price_update_request',
+		})
+		const supportMessage = row(
+			'support_message',
+			'Support message - SUP-1',
+			'whatsapp',
+			{
+				channel: 'whatsapp',
+				message_body: 'Please send the delivery ETA',
+				sender: 'Local Cairo Contractors',
+				source: 'support_message',
+				ticket_reference: 'SUP-1',
+			},
+		)
+		const location = row(
+			'driver_location',
+			'Driver location - Mina Farid',
+			'online',
+			{
+				company_name: 'Local Cairo Contractors',
+				delivery_number: 'DEL-1',
+				driver_name: 'Mina Farid',
+				recorded_at: '2026-05-21T10:20:00+00:00',
+				speed_kmh: 42,
+			},
+		)
+
+		expect(buildSearchPreviewFields(pricing)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Type', value: 'Price request' },
+				{ label: 'Product', value: 'Cement' },
+				{ label: 'Assigned to', value: 'Mona Inventory' },
+			]),
+		)
+		expect(buildSearchDetailFields(pricing)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Reason', value: 'Live order needs fresh supplier price' },
+			]),
+		)
+		expect(buildSearchPreviewFields(supportMessage)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Channel', value: 'Whatsapp' },
+				{ label: 'Sender', value: 'Local Cairo Contractors' },
+				{ label: 'Message', value: 'Please send the delivery ETA' },
+			]),
+		)
+		expect(buildSearchPreviewFields(location)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Driver', value: 'Mina Farid' },
+				{ label: 'Delivery', value: 'DEL-1' },
+				{ label: 'Customer', value: 'Local Cairo Contractors' },
+				{ label: 'Speed', value: '42 km/h' },
+			]),
+		)
+		expect(
+			buildSearchDetailFields(pricing).map((field) => field.label),
+		).not.toContain('entity_id')
 	})
 })
 
