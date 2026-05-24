@@ -87,11 +87,24 @@ const assertions = [
 ]
 
 function scalar(sql) {
-	return execFileSync(
-		'psql',
-		[dbUrl, '-X', '-v', 'ON_ERROR_STOP=1', '-Atqc', sql],
-		{ encoding: 'utf8' },
-	).trim()
+	try {
+		return execFileSync(
+			'psql',
+			[dbUrl, '-X', '-v', 'ON_ERROR_STOP=1', '-Atqc', sql],
+			{ encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+		).trim()
+	} catch (error) {
+		throw new Error(
+			`Postgres assertion query failed: ${redactPsqlError(error)}`,
+		)
+	}
+}
+
+function redactPsqlError(error) {
+	const stderr = error?.stderr?.toString?.().trim()
+	const message =
+		error instanceof Error ? error.message : String(error ?? 'unknown error')
+	return (stderr || message).replaceAll(dbUrl, '[redacted-db-url]')
 }
 
 function actorRpcNames() {

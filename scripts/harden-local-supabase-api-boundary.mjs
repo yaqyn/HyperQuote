@@ -20,8 +20,19 @@ alter default privileges for role supabase_admin in schema public
 	grant execute on functions to service_role;
 `
 
-execFileSync('psql', [dbUrl, '-X', '-v', 'ON_ERROR_STOP=1', '-Atqc', sql], {
-	stdio: 'pipe',
-})
+try {
+	execFileSync('psql', [dbUrl, '-X', '-v', 'ON_ERROR_STOP=1', '-Atqc', sql], {
+		stdio: 'pipe',
+	})
+} catch (error) {
+	const stderr = error?.stderr?.toString?.().trim()
+	const message =
+		error instanceof Error ? error.message : String(error ?? 'unknown error')
+	throw new Error(
+		`Failed to harden local Supabase API privileges: ${(
+			stderr || message
+		).replaceAll(dbUrl, '[redacted-db-url]')}`,
+	)
+}
 
 console.log('Hardened local supabase_admin default API privileges')
