@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { Loader2, RefreshCw, X } from 'lucide-react'
 import { Button } from 'react-aria-components/Button'
 import { Tooltip, TooltipTrigger } from 'react-aria-components/Tooltip'
 import { useTranslation } from 'react-i18next'
@@ -34,6 +34,13 @@ export function WindowHeader({
 	const isAIOpen = useAIChatStore((s) => s.isOpen)
 	const requestNewQuote = useSalesStore((s) => s.requestNewQuote)
 	const requestStatusDialog = useSalesStore((s) => s.requestStatusDialog)
+	const quotePriceRefreshHandler = useSalesStore(
+		(s) => s.quotePriceRefreshHandler,
+	)
+	const quotePriceRefreshAvailable = useSalesStore(
+		(s) => s.quotePriceRefreshAvailable,
+	)
+	const quotePriceRefreshing = useSalesStore((s) => s.quotePriceRefreshing)
 
 	const mod = MODULES.find((m) => m.id === moduleId)
 	if (!mod) return null
@@ -116,6 +123,39 @@ export function WindowHeader({
 							>
 								Status
 							</Button>
+							{quotePriceRefreshHandler && (
+								<TooltipTrigger delay={600}>
+									<Button
+										onPress={quotePriceRefreshHandler}
+										aria-label="Refresh quote prices"
+										isDisabled={
+											!quotePriceRefreshAvailable || quotePriceRefreshing
+										}
+										className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-black/[0.08] text-[var(--color-text-muted)] outline-none transition-colors hover:border-[var(--color-primary)]/35 hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/[0.1]"
+									>
+										{quotePriceRefreshing ? (
+											<Loader2
+												size={14}
+												strokeWidth={2.25}
+												aria-hidden="true"
+												className="animate-spin"
+											/>
+										) : (
+											<RefreshCw
+												size={14}
+												strokeWidth={2.25}
+												aria-hidden="true"
+											/>
+										)}
+									</Button>
+									<Tooltip
+										offset={6}
+										className="rounded-md bg-black/90 px-2 py-1 text-[10px] font-medium text-white shadow-lg dark:bg-white/90 dark:text-black"
+									>
+										Refresh quote prices
+									</Tooltip>
+								</TooltipTrigger>
+							)}
 							<Button
 								onPress={requestNewQuote}
 								aria-label="Start a new quote"

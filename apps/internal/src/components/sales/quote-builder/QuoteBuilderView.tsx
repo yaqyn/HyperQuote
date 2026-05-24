@@ -41,6 +41,7 @@ import {
 	requestInventoryPriceUpdate,
 	saveQuoteDraft,
 } from '../../../lib/server/sales-quotes'
+import { useSalesStore } from '../../../stores/sales'
 import type {
 	FreshnessIndicator,
 	MarginThresholds,
@@ -118,6 +119,10 @@ interface PriceUpdateNoticeState {
 
 const DELIVERY_DATE_REQUIRED_MESSAGE = 'Please select a delivery date'
 const DELIVERY_ATTENTION_DURATION_MS = 1400
+const PRICE_REFRESH_INTERVAL_MS = 10_000
+const PRICE_REFRESH_MATCH_ERROR =
+	'Prices could not match the current quote items. Reopen item search and try again.'
+const PRICE_REFRESH_FAILED_ERROR = 'Prices could not refresh. Try again.'
 const MINIMUM_MARGIN_PERCENT = 0
 
 function toNationalEgyptianMobile(value: string): string {
@@ -3012,6 +3017,12 @@ export function QuoteBuilderView({
 }: QuoteBuilderViewProps) {
 	const reduceMotion = useReducedMotion()
 	const auth = useInternalAuth()
+	const setQuotePriceRefreshHandler = useSalesStore(
+		(s) => s.setQuotePriceRefreshHandler,
+	)
+	const setQuotePriceRefreshStatus = useSalesStore(
+		(s) => s.setQuotePriceRefreshStatus,
+	)
 	const authName = auth?.user?.user_metadata?.name
 	const authEmail = auth?.user?.email
 	const preparedByName =
@@ -3299,61 +3310,72 @@ export function QuoteBuilderView({
 	)
 	const [validationErrors, setValidationErrors] = useState<string[]>([])
 
-	const handleRefreshQuotePrices = useCallback(async () => {
-		if (isRefreshingPrices) return
-		setIsRefreshingPrices(true)
-		try {
-			const catalog = await getProductCatalog({ data: {} })
-			queryClient.setQueryData(['product-catalog'], catalog)
-			const productsByKey = new Map<string, CatalogProduct>()
-			const productsByName = new Map<string, CatalogProduct>()
-			for (const product of catalog.products) {
-				productsByKey.set(product.slug, product)
-				productsByKey.set(product.id, product)
-				productsByName.set(product.name.trim().toLowerCase(), product)
-			}
-
-			const currentItems = methods.getValues('lineItems')
-			let matchedItems = 0
-			const refreshedItems = currentItems.map((item) => {
-				const product =
-					productsByKey.get(lineProductKey(item)) ??
-					productsByKey.get(item.id) ??
-					productsByName.get(item.productName.trim().toLowerCase())
-				if (!product) return item
-				matchedItems += 1
-				return refreshQuoteLineFromCatalog(item, product, marginThresholds)
-			})
-
-			if (matchedItems === 0 && currentItems.length > 0) {
-				setValidationErrors([
-					'Prices could not match the current quote items. Reopen item search and try again.',
-				])
-				return
-			}
-
-			replaceItems(refreshedItems)
-			setRequestedPriceIds((previous) => {
-				if (previous.size === 0) return previous
-				const next = new Set(previous)
-				for (const item of refreshedItems) {
-					if (item.priceStatus === 'updated') next.delete(lineProductKey(item))
+	const handleRefreshQuotePrices = useCallback(
+		async ({ silent = false } = {}) => {
+			if (isRefreshingPrices || requestUpdateMutation.isPending) return
+			setIsRefreshingPrices(true)
+			try {
+				const catalog = await getProductCatalog({ data: {} })
+				queryClient.setQueryData(['product-catalog'], catalog)
+				const productsByKey = new Map<string, CatalogProduct>()
+				const productsByName = new Map<string, CatalogProduct>()
+				for (const product of catalog.products) {
+					productsByKey.set(product.slug, product)
+					productsByKey.set(product.id, product)
+					productsByName.set(product.name.trim().toLowerCase(), product)
 				}
-				return next.size === previous.size ? previous : next
-			})
-			await Promise.all([
-				queryClient.invalidateQueries({ queryKey: ['sales-outdated-prices'] }),
-				queryClient.invalidateQueries({ queryKey: ['quote-builder-data'] }),
-				queryClient.invalidateQueries({ queryKey: ['sales-rfq-list'] }),
-				queryClient.invalidateQueries({ queryKey: ['rfq-queue'] }),
-			])
-		} catch (err) {
-			console.error('Failed to refresh quote prices:', err)
-			setValidationErrors(['Prices could not refresh. Try again.'])
-		} finally {
-			setIsRefreshingPrices(false)
-		}
-	}, [isRefreshingPrices, marginThresholds, methods, queryClient, replaceItems])
+
+				const currentItems = methods.getValues('lineItems')
+				let matchedItems = 0
+				const refreshedItems = currentItems.map((item) => {
+					const product =
+						productsByKey.get(lineProductKey(item)) ??
+						productsByKey.get(item.id) ??
+						productsByName.get(item.productName.trim().toLowerCase())
+					if (!product) return item
+					matchedItems += 1
+					return refreshQuoteLineFromCatalog(item, product, marginThresholds)
+				})
+
+				if (matchedItems === 0 && currentItems.length > 0) {
+					if (!silent) setValidationErrors([PRICE_REFRESH_MATCH_ERROR])
+					return
+				}
+
+				replaceItems(refreshedItems)
+				setRequestedPriceIds((previous) => {
+					if (previous.size === 0) return previous
+					const next = new Set(previous)
+					for (const item of refreshedItems) {
+						if (item.priceStatus === 'updated')
+							next.delete(lineProductKey(item))
+					}
+					return next.size === previous.size ? previous : next
+				})
+				await Promise.all([
+					queryClient.invalidateQueries({
+						queryKey: ['sales-outdated-prices'],
+					}),
+					queryClient.invalidateQueries({ queryKey: ['quote-builder-data'] }),
+					queryClient.invalidateQueries({ queryKey: ['sales-rfq-list'] }),
+					queryClient.invalidateQueries({ queryKey: ['rfq-queue'] }),
+				])
+			} catch (err) {
+				console.error('Failed to refresh quote prices:', err)
+				if (!silent) setValidationErrors([PRICE_REFRESH_FAILED_ERROR])
+			} finally {
+				setIsRefreshingPrices(false)
+			}
+		},
+		[
+			isRefreshingPrices,
+			marginThresholds,
+			methods,
+			queryClient,
+			replaceItems,
+			requestUpdateMutation.isPending,
+		],
+	)
 
 	const handleManualDeliveryAddressChange = useCallback((address: string) => {
 		setDeliveryAddress(address)
@@ -3922,6 +3944,40 @@ export function QuoteBuilderView({
 	const hasQuoteItems = reviewItemCount > 0
 	const canRefreshQuotePrices =
 		hasQuoteItems && !isRefreshingPrices && !requestUpdateMutation.isPending
+
+	const handleManualQuotePriceRefresh = useCallback(() => {
+		void handleRefreshQuotePrices()
+	}, [handleRefreshQuotePrices])
+
+	useEffect(() => {
+		if (!hasQuoteItems) return
+		const interval = window.setInterval(() => {
+			void handleRefreshQuotePrices({ silent: true })
+		}, PRICE_REFRESH_INTERVAL_MS)
+		return () => window.clearInterval(interval)
+	}, [handleRefreshQuotePrices, hasQuoteItems])
+
+	useEffect(() => {
+		setQuotePriceRefreshHandler(
+			hasQuoteItems ? handleManualQuotePriceRefresh : null,
+		)
+		setQuotePriceRefreshStatus({
+			available: canRefreshQuotePrices,
+			refreshing: isRefreshingPrices,
+		})
+		return () => {
+			setQuotePriceRefreshHandler(null)
+			setQuotePriceRefreshStatus({ available: false, refreshing: false })
+		}
+	}, [
+		canRefreshQuotePrices,
+		handleManualQuotePriceRefresh,
+		hasQuoteItems,
+		isRefreshingPrices,
+		setQuotePriceRefreshHandler,
+		setQuotePriceRefreshStatus,
+	])
+
 	const hasDeliveryAddress = isValidText(deliveryAddress, 4, 300)
 	const hasDeliveryDateTime = Boolean(watchedDeliveryDate)
 	const step2PrimaryAction:
@@ -4646,13 +4702,7 @@ export function QuoteBuilderView({
 							</div>
 						</div>
 
-						<div
-							className={`relative grid gap-2 lg:flex lg:items-center lg:justify-end ${
-								hasQuoteItems
-									? 'grid-cols-[auto_auto_minmax(0,1fr)]'
-									: 'grid-cols-[auto_minmax(0,1fr)]'
-							}`}
-						>
+						<div className="relative grid grid-cols-[auto_minmax(0,1fr)] gap-2 lg:flex lg:items-center lg:justify-end">
 							<AnimatePresence>
 								{priceUpdateNotice && (
 									<PriceUpdateNotice
@@ -4672,36 +4722,6 @@ export function QuoteBuilderView({
 							>
 								<span className="sr-only lg:not-sr-only">Customer</span>
 							</EmployeeActionButton>
-							{hasQuoteItems && (
-								<EmployeeActionButton
-									type="button"
-									tone="neutral"
-									size="sm"
-									onClick={handleRefreshQuotePrices}
-									disabled={!canRefreshQuotePrices}
-									aria-disabled={!canRefreshQuotePrices}
-									aria-busy={isRefreshingPrices}
-									leading={
-										isRefreshingPrices ? (
-											<Loader2
-												size={14}
-												strokeWidth={2.25}
-												aria-hidden="true"
-												className="animate-spin"
-											/>
-										) : (
-											<RefreshCw
-												size={14}
-												strokeWidth={2.25}
-												aria-hidden="true"
-											/>
-										)
-									}
-									className="h-full max-lg:min-h-11 max-lg:px-3"
-								>
-									{isRefreshingPrices ? 'Refreshing' : 'Refresh prices'}
-								</EmployeeActionButton>
-							)}
 							<button
 								type="button"
 								onClick={handleStep2PrimaryPress}
@@ -4760,13 +4780,7 @@ export function QuoteBuilderView({
 
 			{currentStep === 3 && (
 				<footer className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 shadow-[0_-14px_30px_-26px_rgba(0,0,0,0.55)] sm:px-6 lg:px-8">
-					<div
-						className={`relative grid gap-2 xl:flex xl:items-center xl:justify-end ${
-							hasQuoteItems
-								? 'grid-cols-[auto_auto_minmax(0,1fr)]'
-								: 'grid-cols-[auto_minmax(0,1fr)]'
-						}`}
-					>
+					<div className="relative grid grid-cols-[auto_minmax(0,1fr)] gap-2 xl:flex xl:items-center xl:justify-end">
 						<AnimatePresence>
 							{priceUpdateNotice && (
 								<PriceUpdateNotice
@@ -4785,36 +4799,6 @@ export function QuoteBuilderView({
 							<span aria-hidden="true">←</span>
 							<span className="sr-only xl:not-sr-only xl:ms-2">Quote</span>
 						</button>
-						{hasQuoteItems && (
-							<EmployeeActionButton
-								type="button"
-								tone="neutral"
-								size="sm"
-								onClick={handleRefreshQuotePrices}
-								disabled={!canRefreshQuotePrices}
-								aria-disabled={!canRefreshQuotePrices}
-								aria-busy={isRefreshingPrices}
-								leading={
-									isRefreshingPrices ? (
-										<Loader2
-											size={14}
-											strokeWidth={2.25}
-											aria-hidden="true"
-											className="animate-spin"
-										/>
-									) : (
-										<RefreshCw
-											size={14}
-											strokeWidth={2.25}
-											aria-hidden="true"
-										/>
-									)
-								}
-								className="min-h-11"
-							>
-								{isRefreshingPrices ? 'Refreshing' : 'Refresh prices'}
-							</EmployeeActionButton>
-						)}
 						<button
 							type="button"
 							onClick={handleReviewPrimaryPress}

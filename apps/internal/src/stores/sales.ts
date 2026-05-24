@@ -15,10 +15,18 @@ interface SalesStore {
 	newQuoteCustomer: SalesNewQuoteCustomer | null
 	newQuoteRequestId: number
 	statusDialogRequestId: number
+	quotePriceRefreshHandler: (() => void) | null
+	quotePriceRefreshAvailable: boolean
+	quotePriceRefreshing: boolean
 	setEditingRfqId: (id: string | null) => void
 	setNewQuoteCustomer: (c: SalesNewQuoteCustomer | null) => void
 	requestNewQuote: () => void
 	requestStatusDialog: () => void
+	setQuotePriceRefreshHandler: (fn: (() => void) | null) => void
+	setQuotePriceRefreshStatus: (status: {
+		available: boolean
+		refreshing: boolean
+	}) => void
 	// True when the quote builder is showing (either editing an RFQ or creating a new quote).
 	// Used by ModuleWindow so clicking the X / backdrop closes the builder first, then the panel.
 	isQuoteBuilderOpen: () => boolean
@@ -37,12 +45,21 @@ export const useSalesStore = create<SalesStore>()(
 		newQuoteCustomer: null,
 		newQuoteRequestId: 0,
 		statusDialogRequestId: 0,
+		quotePriceRefreshHandler: null,
+		quotePriceRefreshAvailable: false,
+		quotePriceRefreshing: false,
 		setEditingRfqId: (id) => set({ editingRfqId: id }),
 		setNewQuoteCustomer: (c) => set({ newQuoteCustomer: c }),
 		requestNewQuote: () =>
 			set((s) => ({ newQuoteRequestId: s.newQuoteRequestId + 1 })),
 		requestStatusDialog: () =>
 			set((s) => ({ statusDialogRequestId: s.statusDialogRequestId + 1 })),
+		setQuotePriceRefreshHandler: (fn) => set({ quotePriceRefreshHandler: fn }),
+		setQuotePriceRefreshStatus: ({ available, refreshing }) =>
+			set({
+				quotePriceRefreshAvailable: available,
+				quotePriceRefreshing: refreshing,
+			}),
 		isQuoteBuilderOpen: () => {
 			const s = (
 				useSalesStore as unknown as { getState: () => SalesStore }
