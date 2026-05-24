@@ -1,8 +1,18 @@
 import type { RFQ } from '../types/sales'
 
+const EVALUATABLE_SALES_RFQ_STATUSES = new Set([
+	'submitted',
+	'assigned',
+	'saved',
+])
+
 type SupabaseSalesRfqStatusRow = {
 	status: string
 	eligible_at: string
+}
+
+export function isSalesRfqStatusEvaluatable(status: string): boolean {
+	return EVALUATABLE_SALES_RFQ_STATUSES.has(status)
 }
 
 export function mapSupabaseRfqStatusForSales(

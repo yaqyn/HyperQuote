@@ -32,6 +32,7 @@ import {
 } from '../../../lib/inputs'
 import { useInternalAuth } from '../../../lib/internal-auth'
 import { computeSellPriceFromMargin } from '../../../lib/pricing-math'
+import { isSalesRfqStatusEvaluatable } from '../../../lib/sales-rfq-status'
 import { addCustomer } from '../../../lib/server/sales-customers'
 import { markAsWon } from '../../../lib/server/sales-pipeline'
 import {
@@ -87,6 +88,7 @@ interface QuoteBuilderViewProps {
 	initialCustomerPhone?: string
 	initialDeliveryAddress?: string
 	onBack?: () => void
+	onCompleted?: (rfqId: string) => void | Promise<void>
 	onSave?: () => void
 }
 
@@ -2969,6 +2971,7 @@ export function QuoteBuilderView({
 	initialCustomerPhone,
 	initialDeliveryAddress,
 	onBack,
+	onCompleted,
 	onSave,
 }: QuoteBuilderViewProps) {
 	const reduceMotion = useReducedMotion()
@@ -3148,16 +3151,15 @@ export function QuoteBuilderView({
 	const canEvaluateByStatus =
 		status !== 'accepted' &&
 		status !== 'declined' &&
-		rfqStatus !== 'declined' &&
-		rfqStatus !== 'expired'
+		isSalesRfqStatusEvaluatable(rfqStatus)
+	const isAlreadyEvaluated =
+		status === 'accepted' || rfqStatus === 'approved' || rfqStatus === 'quoted'
 	const hasOutdatedPrices = outdatedItems.length > 0
 	const canEvaluate =
 		canEvaluateByStatus && !approvalBlocked && !hasOutdatedPrices
 
 	// Evaluate = phone-confirmed order. Saves the draft so a quote row
-	// exists, flips quote.status → 'accepted', freezes totalDue, seeds
-	// payment state as unpaid. The order then shows up in the Finance
-	// inbox for partial payment collection.
+	// exists, approves the RFQ, and creates the downstream order for Finance.
 	const [isEvaluating, setIsEvaluating] = useState(false)
 	const handleEvaluate = async () => {
 		if (!canEvaluate || isEvaluating) return
@@ -3170,20 +3172,26 @@ export function QuoteBuilderView({
 				setIsEvaluating(false)
 				return
 			}
-			// 2. Commit to Finance. markAsWon flips quote.status='accepted',
-			//    freezes totalDue, seeds payment state unpaid, walks rfq to
-			//    'quoted'. Everything downstream (Finance inbox, inventory
-			//    gate, living report) derives from those writes.
-			await markAsWon({ data: { quoteId: savedId } })
+			// 2. Commit to Finance. Everything downstream (Finance inbox,
+			//    inventory gate, living report) derives from that DB transition.
+			const result = await markAsWon({ data: { quoteId: savedId } })
+			if (!result.success) throw new Error(result.error)
+			setStatus('accepted')
+			setRfqStatus('approved')
 			// 3. Refresh every affected query so the inbox, pipeline, and
 			//    finance inbox all see the new state immediately.
+			queryClient.invalidateQueries({ queryKey: ['sales-rfq-list'] })
 			queryClient.invalidateQueries({ queryKey: ['rfq-queue'] })
 			queryClient.invalidateQueries({ queryKey: ['sales-pipeline'] })
 			queryClient.invalidateQueries({ queryKey: ['sales-pipeline-summary'] })
 			queryClient.invalidateQueries({ queryKey: ['finance-inbox'] })
 			queryClient.invalidateQueries({ queryKey: ['customer-orders'] })
 			// 4. Back to inbox — the order is Finance's problem now.
-			onBack?.()
+			if (onCompleted) {
+				await onCompleted(result.quoteRequestId)
+			} else {
+				await onBack?.()
+			}
 		} catch (err) {
 			console.error('Failed to evaluate:', err)
 			const message = err instanceof Error ? err.message : ''
@@ -3224,9 +3232,9 @@ export function QuoteBuilderView({
 			// was refreshed in the background flip from 'outdated' back to
 			// 'updated' — the banner and outdated-items list derive from this.
 			queryClient.invalidateQueries({ queryKey: ['quote-builder-data', rfqId] })
-			// Pipeline ribbon reads hasOutdatedPrices off the rfq-queue
-			// projection — without this the badge stays "outdated" even after
-			// procurement refreshes the supplier price.
+			// Pipeline ribbons read hasOutdatedPrices from sales RFQ projections;
+			// refresh both current and legacy keys after price changes.
+			queryClient.invalidateQueries({ queryKey: ['sales-rfq-list'] })
 			queryClient.invalidateQueries({ queryKey: ['rfq-queue'] })
 		},
 	})
@@ -3610,9 +3618,9 @@ export function QuoteBuilderView({
 			if (result.quoteId && result.quoteId !== quoteId) {
 				setQuoteId(result.quoteId)
 			}
-			// Pipeline ribbon's outdated badge derives from the saved draft's
-			// line items. Removing or re-adding items here changes that set, so
-			// nudge rfq-queue to re-project.
+			// Pipeline ribbons derive the outdated badge from saved draft items.
+			// Removing or re-adding items here changes that projection.
+			queryClient.invalidateQueries({ queryKey: ['sales-rfq-list'] })
 			queryClient.invalidateQueries({ queryKey: ['rfq-queue'] })
 		} catch (err) {
 			console.error('Save failed:', err)
@@ -3870,11 +3878,15 @@ export function QuoteBuilderView({
 	const reviewPrimaryNeedsApproval = approvalBlocked && canEvaluateByStatus
 	const reviewPrimaryNeedsPrices = hasOutdatedPrices && canEvaluateByStatus
 	const canUseReviewPrimary =
-		canEvaluate || reviewPrimaryNeedsApproval || reviewPrimaryNeedsPrices
+		canEvaluate ||
+		reviewPrimaryNeedsApproval ||
+		reviewPrimaryNeedsPrices ||
+		isAlreadyEvaluated
 	const isReviewPrimaryBusy =
 		isEvaluating ||
 		(reviewPrimaryNeedsPrices && requestUpdateMutation.isPending)
 	const handleReviewPrimaryPress = () => {
+		if (isAlreadyEvaluated) return
 		if (reviewPrimaryNeedsPrices) {
 			handleRequestPriceUpdate(outdatedItems)
 			return
@@ -4637,9 +4649,17 @@ export function QuoteBuilderView({
 						<button
 							type="button"
 							onClick={handleReviewPrimaryPress}
-							disabled={!canUseReviewPrimary || isReviewPrimaryBusy}
+							disabled={
+								!canUseReviewPrimary ||
+								isReviewPrimaryBusy ||
+								isAlreadyEvaluated
+							}
 							aria-busy={isReviewPrimaryBusy}
-							aria-disabled={!canUseReviewPrimary || isReviewPrimaryBusy}
+							aria-disabled={
+								!canUseReviewPrimary ||
+								isReviewPrimaryBusy ||
+								isAlreadyEvaluated
+							}
 							className={`inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-md border px-3 py-2 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.1em] outline-none transition-colors focus-visible:ring-2 xl:min-w-[280px] ${
 								canEvaluate
 									? 'border-transparent bg-[var(--color-primary)] text-white hover:bg-blue-700 focus-visible:ring-[var(--color-primary)]/40'
@@ -4675,11 +4695,13 @@ export function QuoteBuilderView({
 									? isEvaluating
 										? 'Sending to finance'
 										: `Send to finance · ${totalLabel}`
-									: reviewPrimaryNeedsPrices
-										? outdatedPriceLabel
-										: reviewPrimaryNeedsApproval
-											? `Approve manager · ${totalLabel}`
-											: (approvalBlockReason ?? 'Evaluation blocked')}
+									: isAlreadyEvaluated
+										? 'Already sent to finance'
+										: reviewPrimaryNeedsPrices
+											? outdatedPriceLabel
+											: reviewPrimaryNeedsApproval
+												? `Approve manager · ${totalLabel}`
+												: (approvalBlockReason ?? 'Evaluation blocked')}
 							</span>
 							{canEvaluate && !isEvaluating && (
 								<ArrowRight
@@ -4802,13 +4824,19 @@ export function QuoteBuilderView({
 				rfqId={rfqId}
 				isOpen={declineOpen}
 				onClose={() => setDeclineOpen(false)}
-				onDeclined={() => onBack?.()}
+				onDeclined={() => {
+					if (onCompleted) void onCompleted(rfqId)
+					else onBack?.()
+				}}
 			/>
 			<CancelRFQDialog
 				rfqId={rfqId}
 				isOpen={cancelOpen}
 				onClose={() => setCancelOpen(false)}
-				onCanceled={() => onBack?.()}
+				onCanceled={() => {
+					if (onCompleted) void onCompleted(rfqId)
+					else onBack?.()
+				}}
 			/>
 			<CallRFQDialog
 				rfqId={rfqId}

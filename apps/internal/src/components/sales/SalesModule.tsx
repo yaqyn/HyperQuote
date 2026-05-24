@@ -73,6 +73,9 @@ export function SalesModule() {
 	const autoClaimingRef = useRef(false)
 	const [claimingRfqId, setClaimingRfqId] = useState<string | null>(null)
 	const [claimError, setClaimError] = useState<string | null>(null)
+	const [completedRfqIds, setCompletedRfqIds] = useState<Set<string>>(
+		() => new Set(),
+	)
 
 	// Working on a saved order (not from main pipeline)
 	const [workingSavedOrder, setWorkingSavedOrder] = useState(false)
@@ -90,9 +93,13 @@ export function SalesModule() {
 	const rfqs = rfqData?.rfqs ?? []
 
 	// Pipeline: submitted work plus claimed work that is still being handled.
-	const pipeline = useMemo(() => {
+	const rawPipeline = useMemo(() => {
 		return rfqs.filter(isSalesPipelineRfq).sort(compareSalesQueuePosition)
 	}, [rfqs])
+	const pipeline = useMemo(
+		() => rawPipeline.filter((rfq) => !completedRfqIds.has(rfq.id)),
+		[completedRfqIds, rawPipeline],
+	)
 
 	const saved = useMemo(() => rfqs.filter((r) => r.status === 'saved'), [rfqs])
 	const activePipeline = pipeline
@@ -107,6 +114,34 @@ export function SalesModule() {
 	const rejected = useMemo(
 		() => rfqs.filter((r) => r.status === 'declined' || r.status === 'expired'),
 		[rfqs],
+	)
+
+	useEffect(() => {
+		if (completedRfqIds.size === 0) return
+		setCompletedRfqIds((prev) => {
+			let changed = false
+			const next = new Set(prev)
+			for (const id of prev) {
+				if (!rawPipeline.some((rfq) => rfq.id === id)) {
+					next.delete(id)
+					changed = true
+				}
+			}
+			return changed ? next : prev
+		})
+	}, [completedRfqIds.size, rawPipeline])
+
+	const rememberCompletedRfq = useCallback(
+		(rfqId: string | null | undefined) => {
+			if (!rfqId || rfqId.startsWith('new-')) return
+			setCompletedRfqIds((prev) => {
+				if (prev.has(rfqId)) return prev
+				const next = new Set(prev)
+				next.add(rfqId)
+				return next
+			})
+		},
+		[],
 	)
 
 	useEffect(() => {
@@ -220,13 +255,24 @@ export function SalesModule() {
 
 	// After an action (reject/evaluate), clear editingRfqId.
 	// The auto-load effect will pick the next submitted order from the refetched pipeline.
-	const handleActionComplete = useCallback(async () => {
-		if (workingSavedOrder) {
-			setWorkingSavedOrder(false)
-		}
-		await qc.invalidateQueries({ queryKey: ['sales-rfq-list'] })
-		setEditingRfqId(null)
-	}, [workingSavedOrder, setEditingRfqId, qc])
+	const handleActionComplete = useCallback(
+		async (completedRfqId?: string) => {
+			rememberCompletedRfq(completedRfqId)
+			if (workingSavedOrder) {
+				setWorkingSavedOrder(false)
+			}
+			setNewQuoteCustomer(null)
+			await qc.invalidateQueries({ queryKey: ['sales-rfq-list'] })
+			setEditingRfqId(null)
+		},
+		[
+			rememberCompletedRfq,
+			workingSavedOrder,
+			setNewQuoteCustomer,
+			qc,
+			setEditingRfqId,
+		],
+	)
 
 	// Save: open timer dialog (does NOT advance — status change removes it from pipeline)
 	const handleSaveRequest = useCallback(() => {
@@ -418,6 +464,7 @@ export function SalesModule() {
 								initialCustomerName={newQuoteCustomer.name}
 								initialCustomerPhone={newQuoteCustomer.phone}
 								onBack={() => setNewQuoteCustomer(null)}
+								onCompleted={handleActionComplete}
 								onSave={handleSaveRequest}
 							/>
 						</motion.div>
@@ -432,6 +479,7 @@ export function SalesModule() {
 							<QuoteBuilderView
 								rfqId={editingRfqId}
 								onBack={handleActionComplete}
+								onCompleted={handleActionComplete}
 								onSave={handleSaveRequest}
 							/>
 						</motion.div>

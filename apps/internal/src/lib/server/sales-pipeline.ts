@@ -34,6 +34,8 @@ export const markAsWon = createServerFn({ method: 'POST' })
 			orderId: order?.id ?? supabaseQuoteVersion.quoteRequestId,
 			orderNumber:
 				order?.order_number ?? order?.id ?? supabaseQuoteVersion.quoteRequestId,
+			quoteRequestId: supabaseQuoteVersion.quoteRequestId,
+			quoteVersionId: supabaseQuoteVersion.quoteVersionId,
 		}
 	})
 

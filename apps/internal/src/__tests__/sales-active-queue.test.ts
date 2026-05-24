@@ -28,6 +28,7 @@ describe('sales active queue', () => {
 		expect(isSalesPipelineRfq(rfq({ status: 'submitted' }))).toBe(true)
 		expect(isSalesPipelineRfq(rfq({ status: 'assigned' }))).toBe(true)
 		expect(isSalesPipelineRfq(rfq({ status: 'saved' }))).toBe(false)
+		expect(isSalesPipelineRfq(rfq({ status: 'quoted' }))).toBe(false)
 	})
 
 	it('only treats Supabase submitted orders as claimable', () => {
