@@ -153,6 +153,7 @@ export class DriverRepositoryError extends Error {
 		readonly code:
 			| 'delivery_not_found'
 			| 'driver_not_found'
+			| 'driver_session_replaced'
 			| 'delivery_unavailable'
 			| 'invalid_transition'
 			| 'invalid_proof'

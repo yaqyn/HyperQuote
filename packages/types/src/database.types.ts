@@ -790,6 +790,48 @@ export type Database = {
 					},
 				]
 			}
+			driver_app_sessions: {
+				Row: {
+					claimed_at: string
+					driver_id: string
+					last_seen_at: string
+					session_id: string
+					source: string
+					user_id: string
+				}
+				Insert: {
+					claimed_at?: string
+					driver_id: string
+					last_seen_at?: string
+					session_id: string
+					source?: string
+					user_id: string
+				}
+				Update: {
+					claimed_at?: string
+					driver_id?: string
+					last_seen_at?: string
+					session_id?: string
+					source?: string
+					user_id?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'driver_app_sessions_driver_id_fkey'
+						columns: ['driver_id']
+						isOneToOne: true
+						referencedRelation: 'ceo_driver_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'driver_app_sessions_driver_id_fkey'
+						columns: ['driver_id']
+						isOneToOne: true
+						referencedRelation: 'drivers'
+						referencedColumns: ['id']
+					},
+				]
+			}
 			driver_location_place_cache: {
 				Row: {
 					expires_at: string

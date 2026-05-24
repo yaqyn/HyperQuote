@@ -98,10 +98,10 @@ export function DriverShell({ session }: DriverShellProps) {
 		queryClient.invalidateQueries({ queryKey: ['driver'] })
 	}, [queryClient])
 
-	async function handleSignOut() {
+	const handleSignOut = useCallback(async () => {
 		await signOutDriver()
 		signOut()
-	}
+	}, [signOut])
 
 	const acceptDelivery = useMutation({
 		mutationFn: (deliveryId: string) =>
@@ -278,6 +278,11 @@ export function DriverShell({ session }: DriverShellProps) {
 			setRecentOutcomeDelivery(null)
 		}
 	}, [activeDelivery, nextDelivery, recentOutcomeDelivery])
+
+	useEffect(() => {
+		if (!isDriverSessionReplacedError(dashboard.error)) return
+		void handleSignOut()
+	}, [dashboard.error, handleSignOut])
 
 	useEffect(() => {
 		if (!currentDriver || setOnline.isPending) return
@@ -559,6 +564,13 @@ function driverMutationError(error: unknown): string | null {
 	if (error instanceof DriverRepositoryError) return error.message
 	if (error instanceof Error) return error.message
 	return 'Driver action could not be completed.'
+}
+
+function isDriverSessionReplacedError(error: unknown): boolean {
+	return (
+		error instanceof DriverRepositoryError &&
+		error.code === 'driver_session_replaced'
+	)
 }
 
 function freshDriverLocation(

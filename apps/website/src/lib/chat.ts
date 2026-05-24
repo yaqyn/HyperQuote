@@ -41,12 +41,33 @@ type LifecycleType =
 	| 'TEXT_MESSAGE_CONTENT'
 	| 'TEXT_MESSAGE_END'
 
-type WebsiteStreamChunk =
+type WebsiteLifecycleChunk =
 	Extract<StreamChunk, { type: LifecycleType }> extends infer E
 		? E extends { rawEvent?: unknown }
 			? Omit<E, 'rawEvent'>
 			: E
 		: never
+
+export interface WebsiteActionButtonData {
+	href: string
+	icon: 'book' | 'login' | 'market' | 'quote' | 'support'
+	label: string
+	labelAr: string
+}
+
+export type WebsiteRichContent = {
+	type: 'action_button'
+	data: WebsiteActionButtonData
+}
+
+interface WebsiteCustomChunk {
+	type: 'CUSTOM'
+	timestamp: number
+	name: 'rich_message'
+	value: WebsiteRichContent
+}
+
+type WebsiteStreamChunk = WebsiteLifecycleChunk | WebsiteCustomChunk
 
 // ============================================================================
 // Input Schema
@@ -165,6 +186,10 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 						chunks.push(chunk)
 					}
 				}
+				appendWebsiteActionButtons(
+					chunks,
+					websiteNavigationButtons(userText, route),
+				)
 			} else if (aiEnabled) {
 				readEntities = ['public_docs']
 				const docs = retrieveRoutedDocs(route, userText)
@@ -174,6 +199,10 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 					)) {
 						chunks.push(chunk)
 					}
+					appendWebsiteActionButtons(
+						chunks,
+						websiteNavigationButtons(userText, route, docs),
+					)
 				} else {
 					const groundedPrompt = buildWebsiteDocsPrompt(
 						LYON_WEBSITE,
@@ -187,6 +216,10 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 						publicDocsSourceLinks(docs.chunks, docs.locale),
 						docs.locale,
 					)
+					appendWebsiteActionButtons(
+						chunks,
+						websiteNavigationButtons(userText, route, docs),
+					)
 				}
 			} else {
 				readEntities = ['public_docs']
@@ -198,6 +231,10 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 				)) {
 					chunks.push(chunk)
 				}
+				appendWebsiteActionButtons(
+					chunks,
+					websiteNavigationButtons(userText, route, docs),
+				)
 			}
 		}
 
@@ -305,6 +342,105 @@ function retrieveRoutedDocs(route: WebsitePublicChatRoute, userText: string) {
 
 	const fallbackDocs = retrieveWebsiteDocs(userText)
 	return fallbackDocs.hasHighConfidence ? fallbackDocs : docs
+}
+
+function websiteNavigationButtons(
+	userText: string,
+	route: WebsitePublicChatRoute,
+	docs?: ReturnType<typeof retrieveRoutedDocs>,
+): WebsiteActionButtonData[] {
+	const normalized = normalizeForSimpleChat(userText)
+	const buttons: WebsiteActionButtonData[] = []
+	const add = (button: WebsiteActionButtonData) => {
+		if (buttons.some((existing) => existing.href === button.href)) return
+		buttons.push(button)
+	}
+
+	if (route.action === 'retrieve_public_docs' || /\bdocs?\b/.test(normalized)) {
+		add({
+			href: '/docs',
+			icon: 'book',
+			label: 'Open docs',
+			labelAr: 'افتح الوثائق',
+		})
+		for (const chunk of docs?.chunks ?? []) {
+			add({
+				href: chunk.href,
+				icon: 'book',
+				label: `Open ${chunk.title}`,
+				labelAr: 'افتح المقال',
+			})
+			if (buttons.length >= 3) break
+		}
+	}
+
+	if (
+		/\b(market|catalog|catalogue|product|products|material|materials)\b/.test(
+			normalized,
+		)
+	) {
+		add({
+			href: '/market',
+			icon: 'market',
+			label: 'Browse market',
+			labelAr: 'تصفح السوق',
+		})
+	}
+
+	if (/\b(quote|quotes|rfq|price|pricing|estimate|order)\b/.test(normalized)) {
+		add({
+			href: '/market',
+			icon: 'quote',
+			label: 'Start quote',
+			labelAr: 'ابدأ عرض سعر',
+		})
+	}
+
+	if (/\b(portal|login|sign in|account|track|tracking)\b/.test(normalized)) {
+		add({
+			href: '/login',
+			icon: 'login',
+			label: 'Open portal',
+			labelAr: 'افتح البوابة',
+		})
+	}
+
+	if (/\b(support|contact|help|problem|issue|damaged)\b/.test(normalized)) {
+		add({
+			href: '/support',
+			icon: 'support',
+			label: 'Contact support',
+			labelAr: 'تواصل مع الدعم',
+		})
+	}
+
+	return buttons.slice(0, 3)
+}
+
+function appendWebsiteActionButtons(
+	chunks: WebsiteStreamChunk[],
+	buttons: WebsiteActionButtonData[],
+) {
+	if (buttons.length === 0) return
+	const events = buttons.map(actionButtonEvent)
+	const finishIndex = chunks.findIndex((chunk) => chunk.type === 'RUN_FINISHED')
+	if (finishIndex >= 0) {
+		chunks.splice(finishIndex, 0, ...events)
+		return
+	}
+	chunks.push(...events)
+}
+
+function actionButtonEvent(data: WebsiteActionButtonData): WebsiteCustomChunk {
+	return {
+		type: 'CUSTOM',
+		timestamp: Date.now(),
+		name: 'rich_message',
+		value: {
+			type: 'action_button',
+			data,
+		},
+	}
 }
 
 async function checkWebsiteChatRateLimit() {

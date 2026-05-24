@@ -74,4 +74,34 @@ describe('AI runtime routing', () => {
 		expect(wrapper).toContain('GROQ_API_KEY')
 		expect(wrapper).toContain('HQ_GROQ_API_KEY')
 	})
+
+	it('grounds portal order answers in the sales quote site address', () => {
+		const source = readRepoFile('apps/portal/src/lib/chat.ts')
+
+		expect(source).toContain("SALES_QUOTE_ADDRESS_LABEL = 'Sales quote site'")
+		expect(source).toContain('customer_addresses (')
+		expect(source).toContain('Site / Dropoff')
+		expect(source).toContain('do not substitute profile/default addresses')
+	})
+
+	it('emits website AI navigation buttons that both website chat surfaces render', () => {
+		const websiteChatSource = readRepoFile('apps/website/src/lib/chat.ts')
+		const websiteHookSource = readRepoFile(
+			'apps/website/src/hooks/useAIChat.ts',
+		)
+		const bubbleSource = readRepoFile(
+			'apps/website/src/components/chat/ChatMessages.tsx',
+		)
+		const heroSource = readRepoFile(
+			'apps/website/src/components/home/LyonHeroChat.tsx',
+		)
+
+		expect(websiteChatSource).toContain('websiteNavigationButtons')
+		expect(websiteChatSource).toContain("type: 'action_button'")
+		expect(websiteHookSource).toContain('websiteActionsFromChunks')
+		expect(bubbleSource).toContain(
+			'<ChatActionButtons actions={msg.actions} />',
+		)
+		expect(heroSource).toContain('<ChatActionButtons actions={msg.actions} />')
+	})
 })

@@ -99,6 +99,7 @@ const SUPPORT_EMAIL =
 	import.meta.env.VITE_SUPPORT_EMAIL ?? 'support@hyperquote.net'
 const SUPPORT_PHONE_E164 = import.meta.env.VITE_SUPPORT_PHONE_E164 ?? ''
 const PRODUCT_CATALOG_RESULT_COUNT = 12
+const SALES_QUOTE_ADDRESS_LABEL = 'Sales quote site'
 
 const activeDraftInput = z
 	.object({
@@ -224,6 +225,18 @@ interface QuoteRequestItemProduct {
 	name_ar: string | null
 }
 
+interface QuoteRequestAddressRow {
+	area: string | null
+	city: string
+	governorate: string
+	id: string
+	label: string | null
+	landmark: string | null
+	latitude: number | string | null
+	longitude: number | string | null
+	street: string
+}
+
 interface LinkedOrderRow {
 	created_at: string
 	delivered_at: string | null
@@ -244,6 +257,7 @@ interface QuoteRequestRow {
 	notes: string | null
 	orders: LinkedOrderRow | LinkedOrderRow[] | null
 	project_id: string | null
+	customer_addresses: QuoteRequestAddressRow | QuoteRequestAddressRow[] | null
 	quote_request_items: QuoteRequestItemRow[] | null
 	request_number: string
 	status: string
@@ -288,6 +302,7 @@ interface CustomerOrderSummary {
 	requestReference: string
 	status: string
 	type: 'draft' | 'submitted' | 'confirmed'
+	siteAddress: CustomerOrderSiteAddress | null
 }
 
 interface DraftMaterialItem {
@@ -299,6 +314,13 @@ interface DraftMaterialItem {
 	qty: number
 	unit: string
 	unitAr: string
+}
+
+interface CustomerOrderSiteAddress {
+	fullAddress: string
+	latitude: number | null
+	longitude: number | null
+	source: 'sales_quote_site'
 }
 
 interface DeliveryTrackingContext {
@@ -760,7 +782,11 @@ async function executePortalCustomerToolRequest(
 			return {
 				context: { type: 'orders', orderScope, orders },
 				invalidatesOrders: false,
-				readEntities: ['customer_quote_requests', 'customer_orders'],
+				readEntities: [
+					'customer_quote_requests',
+					'customer_orders',
+					'customer_addresses',
+				],
 				route,
 				writeEntityId: null,
 				writeEntityType: null,
@@ -780,7 +806,7 @@ async function executePortalCustomerToolRequest(
 					type: 'order_detail',
 				},
 				invalidatesOrders: false,
-				readEntities: ['customer_quote_requests'],
+				readEntities: ['customer_quote_requests', 'customer_addresses'],
 				route,
 				writeEntityId: null,
 				writeEntityType: null,
@@ -794,6 +820,7 @@ async function executePortalCustomerToolRequest(
 				readEntities: [
 					'customer_quote_requests',
 					'customer_orders',
+					'customer_addresses',
 					'customer_documents',
 				],
 				route,
@@ -813,6 +840,7 @@ async function executePortalCustomerToolRequest(
 				readEntities: [
 					'customer_quote_requests',
 					'customer_orders',
+					'customer_addresses',
 					'activity_events',
 				],
 				route,
@@ -832,7 +860,11 @@ async function executePortalCustomerToolRequest(
 									type: 'delivery_tracking',
 								},
 					invalidatesOrders: false,
-					readEntities: ['customer_orders', 'customer_delivery_tracking'],
+					readEntities: [
+						'customer_orders',
+						'customer_addresses',
+						'customer_delivery_tracking',
+					],
 					route,
 					writeEntityId: null,
 					writeEntityType: null,
@@ -846,7 +878,11 @@ async function executePortalCustomerToolRequest(
 			return {
 				context: { type: 'delivery_tracking', tracking },
 				invalidatesOrders: false,
-				readEntities: ['customer_orders', 'customer_delivery_tracking'],
+				readEntities: [
+					'customer_orders',
+					'customer_addresses',
+					'customer_delivery_tracking',
+				],
 				route,
 				writeEntityId: null,
 				writeEntityType: null,
@@ -857,7 +893,11 @@ async function executePortalCustomerToolRequest(
 			return {
 				context: { deliveries, type: 'delivery_list' },
 				invalidatesOrders: false,
-				readEntities: ['customer_orders', 'customer_delivery_tracking'],
+				readEntities: [
+					'customer_orders',
+					'customer_addresses',
+					'customer_delivery_tracking',
+				],
 				route,
 				writeEntityId: null,
 				writeEntityType: null,
@@ -1533,9 +1573,9 @@ function toolAnswerStyleInstructions(
 		case 'profile':
 			return 'Profile: compact account snapshot with only useful notes.'
 		case 'orders':
-			return 'Orders: summarize only the supplied records. Use customer references, not internal scope/tool names.'
+			return 'Orders: summarize only the supplied records. Use customer references and the supplied sales quote site/dropoff address when relevant; do not substitute profile/default addresses.'
 		case 'order_detail':
-			return 'Order detail: status, items, dates, and one next step.'
+			return 'Order detail: status, items, dates, sales quote site/dropoff address, and one next step.'
 		case 'delivery_tracking':
 			return 'Delivery: use the live driver place label from tracking. Never use raw coordinates or the delivery address as the driver location.'
 		case 'delivery_list':
@@ -1766,15 +1806,15 @@ function ordersCommandAnswer(
 	}
 	const visibleOrders = orders.slice(0, 20)
 	const rows = visibleOrders.map((order) => {
-		return `| ${markdownTableCell(order.reference)} | ${markdownTableCell(formatPlainStatus(order.status))} | ${order.date.slice(0, 10)} | ${markdownTableCell(order.name ?? 'Not named')} | ${markdownTableCell(orderItemsSummary(order))} | ${order.amount === null ? 'Not set' : markdownTableCell(formatCurrency(order.amount))} |`
+		return `| ${markdownTableCell(order.reference)} | ${markdownTableCell(formatPlainStatus(order.status))} | ${order.date.slice(0, 10)} | ${markdownTableCell(orderSiteAddressText(order))} | ${markdownTableCell(order.name ?? 'Not named')} | ${markdownTableCell(orderItemsSummary(order))} | ${order.amount === null ? 'Not set' : markdownTableCell(formatCurrency(order.amount))} |`
 	})
 	return [
 		`## ${title}`,
 		'',
 		`Showing ${visibleOrders.length} of ${orders.length} visible ${orderScope === 'drafts' ? 'drafts' : 'records'}.`,
 		'',
-		'| Reference | Status | Date | Name | Items | Amount |',
-		'| --- | --- | --- | --- | --- | --- |',
+		'| Reference | Status | Date | Site / Dropoff | Name | Items | Amount |',
+		'| --- | --- | --- | --- | --- | --- | --- |',
 		...rows,
 	].join('\n')
 }
@@ -1789,6 +1829,7 @@ function orderDetailCommandAnswer(
 		`| Quote request | ${markdownTableCell(order.requestReference)} |`,
 		`| Status | ${markdownTableCell(formatPlainStatus(order.status))} |`,
 		`| Date | ${order.date.slice(0, 10)} |`,
+		`| Site / dropoff | ${markdownTableCell(orderSiteAddressText(order))} |`,
 		`| Name | ${markdownTableCell(order.name ?? 'Not named')} |`,
 		`| Amount | ${order.amount === null ? 'Not set' : markdownTableCell(formatCurrency(order.amount))} |`,
 	]
@@ -1904,6 +1945,10 @@ function orderItemsSummary(order: CustomerOrderSummary): string {
 	return hidden > 0
 		? `${visible.join(', ')} +${hidden} more`
 		: visible.join(', ')
+}
+
+function orderSiteAddressText(order: CustomerOrderSummary): string {
+	return order.siteAddress?.fullAddress || 'No sales quote site set'
 }
 
 function markdownTableCell(value: string): string {
@@ -2323,6 +2368,17 @@ async function loadCustomerOrders(
 			delivery_address_id,
 			delivery_date,
 			attachment_urls,
+			customer_addresses (
+				id,
+				label,
+				street,
+				area,
+				city,
+				governorate,
+				landmark,
+				latitude,
+				longitude
+			),
 			quote_request_items (
 				id,
 				product_id,
@@ -4028,6 +4084,17 @@ async function loadQuoteRequestRows(
 			delivery_address_id,
 			delivery_date,
 			attachment_urls,
+			customer_addresses (
+				id,
+				label,
+				street,
+				area,
+				city,
+				governorate,
+				landmark,
+				latitude,
+				longitude
+			),
 			quote_request_items (
 				id,
 				product_id,
@@ -4125,6 +4192,7 @@ function toCustomerOrderSummary(row: QuoteRequestRow): CustomerOrderSummary {
 		name: row.draft_name,
 		reference,
 		requestReference: row.request_number,
+		siteAddress: toCustomerOrderSiteAddress(row),
 		status,
 		type: order
 			? 'confirmed'
@@ -4132,6 +4200,47 @@ function toCustomerOrderSummary(row: QuoteRequestRow): CustomerOrderSummary {
 				? 'draft'
 				: 'submitted',
 	}
+}
+
+function toCustomerOrderSiteAddress(
+	row: QuoteRequestRow,
+): CustomerOrderSiteAddress | null {
+	const address = firstRelation(row.customer_addresses)
+	if (address?.label !== SALES_QUOTE_ADDRESS_LABEL) return null
+	const fullAddress = formatAddressParts([
+		address.street,
+		address.area,
+		address.city,
+		address.governorate,
+		address.landmark,
+	])
+	if (!fullAddress) return null
+	return {
+		fullAddress,
+		latitude: nullableNumber(address.latitude),
+		longitude: nullableNumber(address.longitude),
+		source: 'sales_quote_site',
+	}
+}
+
+function formatAddressParts(parts: Array<string | null | undefined>): string {
+	const seen = new Set<string>()
+	const formatted: string[] = []
+	for (const part of parts) {
+		const cleaned = part?.trim().replace(/\s+/g, ' ')
+		if (!cleaned) continue
+		const key = cleaned.toLowerCase()
+		if (seen.has(key)) continue
+		seen.add(key)
+		formatted.push(cleaned)
+	}
+	return formatted.join(', ')
+}
+
+function nullableNumber(value: number | string | null): number | null {
+	if (value === null || value === '') return null
+	const numeric = typeof value === 'number' ? value : Number(value)
+	return Number.isFinite(numeric) ? numeric : null
 }
 
 function toDraftMaterialItem(item: QuoteRequestItemRow): DraftMaterialItem {

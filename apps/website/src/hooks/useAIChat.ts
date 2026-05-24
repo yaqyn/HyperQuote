@@ -12,9 +12,13 @@
 import type { StreamChunk } from '@tanstack/ai'
 import type { UIMessage, UseChatReturn } from '@tanstack/ai-react'
 import { stream, useChat } from '@tanstack/ai-react'
-import { useMemo } from 'react'
-import { chatStreamFn } from '../lib/chat'
-import type { ChatMessage } from './chatSession'
+import { useMemo, useState } from 'react'
+import {
+	chatStreamFn,
+	type WebsiteActionButtonData,
+	type WebsiteRichContent,
+} from '../lib/chat'
+import type { ChatMessage, WebsiteChatAction } from './chatSession'
 
 const SERVER_CHAT_HISTORY_MESSAGES = 12
 const SERVER_CHAT_MESSAGE_CHARACTERS = 4000
@@ -35,7 +39,42 @@ async function* arrayToAsyncIterable(
 	}
 }
 
+function assistantMessageIdFromChunks(chunks: StreamChunk[]): string | null {
+	for (const chunk of chunks) {
+		if (chunk.type !== 'TEXT_MESSAGE_START' || chunk.role !== 'assistant') {
+			continue
+		}
+		return chunk.messageId
+	}
+	return null
+}
+
+function websiteActionsFromChunks(chunks: StreamChunk[]): WebsiteChatAction[] {
+	const actions: WebsiteChatAction[] = []
+	for (const chunk of chunks) {
+		if (chunk.type !== 'CUSTOM' || chunk.name !== 'rich_message') continue
+		const content = chunk.value as WebsiteRichContent | undefined
+		if (content?.type !== 'action_button') continue
+		actions.push(websiteChatActionFromButton(content.data))
+	}
+	return actions
+}
+
+function websiteChatActionFromButton(
+	button: WebsiteActionButtonData,
+): WebsiteChatAction {
+	return {
+		href: button.href,
+		icon: button.icon,
+		label: button.label,
+		labelAr: button.labelAr,
+	}
+}
+
 export function useAIChat(options?: ChatOptions) {
+	const [actionsByMessageId, setActionsByMessageId] = useState<
+		Map<string, WebsiteChatAction[]>
+	>(() => new Map())
 	const chat: UseChatReturn = useChat({
 		connection: stream(async function* (messages) {
 			// Convert UIMessage[] to simple format for server function
@@ -58,6 +97,15 @@ export function useAIChat(options?: ChatOptions) {
 			const chunks = (await chatStreamFn({
 				data: { messages: simpleMessages },
 			})) as StreamChunk[]
+			const assistantMessageId = assistantMessageIdFromChunks(chunks)
+			const actions = websiteActionsFromChunks(chunks)
+			if (assistantMessageId && actions.length > 0) {
+				setActionsByMessageId((current) => {
+					const next = new Map(current)
+					next.set(assistantMessageId, actions)
+					return next
+				})
+			}
 			yield* arrayToAsyncIterable(chunks)
 		}),
 		onError: options?.onError,
@@ -102,12 +150,13 @@ export function useAIChat(options?: ChatOptions) {
 				}
 
 				return {
+					actions: actionsByMessageId.get(msg.id),
 					id: msg.id,
 					role: msg.role as 'user' | 'assistant',
 					content,
 				}
 			}),
-		[chat.messages],
+		[actionsByMessageId, chat.messages],
 	)
 
 	return {

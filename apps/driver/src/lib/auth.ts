@@ -1,7 +1,11 @@
 import { createSupabaseBrowserClient } from '@hyperquote/auth'
 import { z } from 'zod'
 import { resolveDriverSupabaseConfig } from './supabase-config'
-import { fetchDriverApiSession } from './supabase-driver-repository'
+import {
+	claimDriverApiSession,
+	fetchDriverApiSession,
+	releaseDriverApiSession,
+} from './supabase-driver-repository'
 
 export const loginSchema = z.object({
 	email: z.string().trim().email(),
@@ -52,15 +56,16 @@ export async function authenticateDriver(
 		}
 
 		if (data.user.app_metadata?.pool !== 'driver') {
-			await client.auth.signOut()
+			await client.auth.signOut({ scope: 'local' })
 			return { ok: false, error: 'wrong_pool' }
 		}
 
-		const session = await fetchDriverApiSession(config)
+		const session = await claimDriverApiSession(config)
 		if (!session) {
-			await client.auth.signOut()
+			await client.auth.signOut({ scope: 'local' })
 			return { ok: false, error: 'profile_missing' }
 		}
+		await client.auth.signOut({ scope: 'others' }).catch(() => undefined)
 
 		return { ok: true, session }
 	} catch {
@@ -94,5 +99,6 @@ export async function signOutDriver(): Promise<void> {
 		config.supabaseAnonKey,
 		config.cookieName,
 	)
-	await client.auth.signOut()
+	await releaseDriverApiSession(config)
+	await client.auth.signOut({ scope: 'local' })
 }

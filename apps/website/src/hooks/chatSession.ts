@@ -1,9 +1,17 @@
 import { create } from 'zustand'
 
 export interface ChatMessage {
+	actions?: WebsiteChatAction[]
 	id: string
 	role: 'user' | 'assistant'
 	content: string
+}
+
+export interface WebsiteChatAction {
+	href: string
+	icon: 'book' | 'login' | 'market' | 'quote' | 'support'
+	label: string
+	labelAr: string
 }
 
 type SendMessage = (content: string) => Promise<void>

@@ -15,14 +15,25 @@ interface DriverWorkerEnv {
 }
 
 interface DriverContext {
+	activeSessionClaimedAt: string
 	driverId: string
 	service: NonNullable<
 		Awaited<ReturnType<typeof createSupabaseServiceRoleClient>>
 	>
+	sessionId: string
 	user: {
 		email?: string | null
 		id: string
 	}
+}
+
+interface DriverContextOptions {
+	enforceActiveSession?: boolean
+}
+
+interface DriverAppSessionRecord {
+	claimed_at: string
+	session_id: string
 }
 
 const locationInput = z.object({
@@ -65,6 +76,9 @@ const locationUpdateInput = z.object({
 	location: locationInput,
 })
 
+const UUID_PATTERN =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 function workerEnvRecord(
 	env: DriverWorkerEnv,
 ): Record<string, string | undefined> {
@@ -102,11 +116,16 @@ async function requestBody<T>(request: Request, schema: z.ZodType<T>) {
 async function requireDriverContext(
 	request: Request,
 	env: DriverWorkerEnv,
+	options: DriverContextOptions = {},
 ): Promise<DriverContext | Response> {
 	const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
 	if (!token) return errorJson(401, 'driver_session_required')
 	if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) {
 		return errorJson(500, 'supabase_env_required')
+	}
+	const sessionId = jwtStringClaim(token, 'session_id')
+	if (!sessionId || !UUID_PATTERN.test(sessionId)) {
+		return errorJson(401, 'driver_session_required')
 	}
 
 	const authClient = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
@@ -153,11 +172,107 @@ async function requireDriverContext(
 		return errorJson(403, 'driver_profile_required')
 	}
 
+	let activeSessionClaimedAt = new Date().toISOString()
+	if (options.enforceActiveSession !== false) {
+		const activeSession = await loadActiveDriverAppSession(service, driver.id)
+		if (!activeSession || activeSession.session_id !== sessionId) {
+			return errorJson(409, 'driver_session_replaced')
+		}
+		activeSessionClaimedAt = activeSession.claimed_at
+		await touchActiveDriverAppSession(service, driver.id, sessionId)
+	}
+
 	return {
+		activeSessionClaimedAt,
 		driverId: driver.id,
 		service,
+		sessionId,
 		user: { email: user.email, id: user.id },
 	}
+}
+
+function jwtStringClaim(token: string, claim: string): string | null {
+	const [, payload] = token.split('.')
+	if (!payload) return null
+	try {
+		const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
+		const padded = normalized.padEnd(
+			normalized.length + ((4 - (normalized.length % 4)) % 4),
+			'=',
+		)
+		const parsed: unknown = JSON.parse(atob(padded))
+		if (!parsed || typeof parsed !== 'object') return null
+		const value = (parsed as Record<string, unknown>)[claim]
+		return typeof value === 'string' ? value : null
+	} catch {
+		return null
+	}
+}
+
+function driverAppSessionFromUnknown(
+	value: unknown,
+): DriverAppSessionRecord | null {
+	if (!value || typeof value !== 'object') return null
+	const record = value as Record<string, unknown>
+	return typeof record.session_id === 'string' &&
+		typeof record.claimed_at === 'string'
+		? {
+				claimed_at: record.claimed_at,
+				session_id: record.session_id,
+			}
+		: null
+}
+
+async function loadActiveDriverAppSession(
+	service: DriverContext['service'],
+	driverId: string,
+): Promise<DriverAppSessionRecord | null> {
+	const { data, error } = await service
+		.from('driver_app_sessions')
+		.select('session_id, claimed_at')
+		.eq('driver_id', driverId)
+		.maybeSingle()
+	if (error) throw error
+	return driverAppSessionFromUnknown(data)
+}
+
+async function claimDriverAppSession(ctx: DriverContext) {
+	const now = new Date().toISOString()
+	const { error } = await ctx.service.from('driver_app_sessions').upsert(
+		{
+			claimed_at: now,
+			driver_id: ctx.driverId,
+			last_seen_at: now,
+			session_id: ctx.sessionId,
+			source: 'driver_app',
+			user_id: ctx.user.id,
+		},
+		{ onConflict: 'driver_id' },
+	)
+	if (error) throw error
+	return now
+}
+
+async function releaseDriverAppSession(ctx: DriverContext) {
+	const { error } = await ctx.service
+		.from('driver_app_sessions')
+		.delete()
+		.eq('driver_id', ctx.driverId)
+		.eq('session_id', ctx.sessionId)
+	if (error) throw error
+}
+
+async function touchActiveDriverAppSession(
+	service: DriverContext['service'],
+	driverId: string,
+	sessionId: string,
+) {
+	const { error } = await service
+		.from('driver_app_sessions')
+		.update({ last_seen_at: new Date().toISOString() })
+		.eq('driver_id', driverId)
+		.eq('session_id', sessionId)
+	if (error) throw error
 }
 
 async function dashboard(ctx: DriverContext) {
@@ -184,16 +299,43 @@ async function deliveryAfterMutation(ctx: DriverContext, deliveryId: string) {
 
 async function handleDriverApi(request: Request, env: DriverWorkerEnv) {
 	const url = new URL(request.url)
-	const ctx = await requireDriverContext(request, env)
+	const isSessionClaimOrRelease =
+		request.method === 'POST' &&
+		(url.pathname === '/api/driver/session/claim' ||
+			url.pathname === '/api/driver/session/release')
+	const ctx = await requireDriverContext(request, env, {
+		enforceActiveSession: !isSessionClaimOrRelease,
+	})
 	if (ctx instanceof Response) return ctx
 
 	try {
+		if (
+			request.method === 'POST' &&
+			url.pathname === '/api/driver/session/claim'
+		) {
+			const startedAt = await claimDriverAppSession(ctx)
+			return json({
+				driverId: ctx.driverId,
+				email: ctx.user.email ?? '',
+				source: 'supabase',
+				startedAt,
+			})
+		}
+
+		if (
+			request.method === 'POST' &&
+			url.pathname === '/api/driver/session/release'
+		) {
+			await releaseDriverAppSession(ctx)
+			return json({ ok: true })
+		}
+
 		if (request.method === 'GET' && url.pathname === '/api/driver/session') {
 			return json({
 				driverId: ctx.driverId,
 				email: ctx.user.email ?? '',
 				source: 'supabase',
-				startedAt: new Date().toISOString(),
+				startedAt: ctx.activeSessionClaimedAt,
 			})
 		}
 

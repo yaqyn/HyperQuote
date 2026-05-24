@@ -2,6 +2,7 @@ import { ArrowUp } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useChatSession } from '../../hooks/chatSession'
+import { ChatActionButtons } from '../chat/ChatActionButtons'
 import { ChatMarkdown } from '../chat/ChatMarkdown'
 
 const MAX_CHAT_INPUT_CHARACTERS = 4000
@@ -88,6 +89,7 @@ export function LyonHeroChat({
 											messageRole="assistant"
 											className="text-[15px] leading-[1.8] text-[var(--color-text)]"
 										/>
+										<ChatActionButtons actions={msg.actions} />
 									</div>
 								)}
 							</div>

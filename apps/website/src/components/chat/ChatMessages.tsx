@@ -1,6 +1,7 @@
 import { motion } from 'motion/react'
 import { useEffect, useRef } from 'react'
 import type { ChatMessage } from '../../hooks/chatSession'
+import { ChatActionButtons } from './ChatActionButtons'
 import { ChatMarkdown } from './ChatMarkdown'
 import { TypingIndicator } from './TypingIndicator'
 
@@ -45,6 +46,7 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 								messageRole="assistant"
 								className="text-[14px] leading-[1.7] text-[var(--color-text-muted)]"
 							/>
+							<ChatActionButtons actions={msg.actions} />
 						</motion.div>
 					),
 				)}

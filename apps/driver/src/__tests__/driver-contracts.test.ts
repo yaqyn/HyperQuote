@@ -50,6 +50,19 @@ describe('driver app contracts', () => {
 		expect(source).not.toContain('mutateAsync(routeCandidate.id)')
 	})
 
+	it('enforces a single active driver app session at the Worker API boundary', () => {
+		const workerSource = readFileSync(
+			new URL('../worker.ts', import.meta.url),
+			'utf8',
+		)
+
+		expect(workerSource).toContain('driver_app_sessions')
+		expect(workerSource).toContain(
+			"url.pathname === '/api/driver/session/claim'",
+		)
+		expect(workerSource).toContain("'driver_session_replaced'")
+	})
+
 	it('normalizes delivery secret input before workflow transitions', () => {
 		expect(
 			extractDeliverySecretCode(

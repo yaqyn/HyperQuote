@@ -465,6 +465,39 @@ export function createSupabaseDriverRepository(
 export async function fetchDriverApiSession(
 	config: SupabaseBrowserRuntimeConfig,
 ): Promise<DriverApiSession | null> {
+	return driverApiSessionRequest(config, '/api/driver/session', 'GET')
+}
+
+export async function claimDriverApiSession(
+	config: SupabaseBrowserRuntimeConfig,
+): Promise<DriverApiSession | null> {
+	return driverApiSessionRequest(config, '/api/driver/session/claim', 'POST')
+}
+
+export async function releaseDriverApiSession(
+	config: SupabaseBrowserRuntimeConfig,
+): Promise<void> {
+	const client = createSupabaseBrowserClient(
+		config.supabaseUrl,
+		config.supabaseAnonKey,
+		config.cookieName,
+	)
+	const {
+		data: { session },
+	} = await client.auth.getSession()
+	if (!session?.access_token) return
+
+	await fetch(`${config.driverApiBase ?? ''}/api/driver/session/release`, {
+		headers: { authorization: `Bearer ${session.access_token}` },
+		method: 'POST',
+	}).catch(() => undefined)
+}
+
+async function driverApiSessionRequest(
+	config: SupabaseBrowserRuntimeConfig,
+	path: string,
+	method: 'GET' | 'POST',
+): Promise<DriverApiSession | null> {
 	const client = createSupabaseBrowserClient(
 		config.supabaseUrl,
 		config.supabaseAnonKey,
@@ -475,18 +508,22 @@ export async function fetchDriverApiSession(
 	} = await client.auth.getSession()
 	if (!session?.access_token) return null
 
-	const response = await fetch(
-		`${config.driverApiBase ?? ''}/api/driver/session`,
-		{
-			headers: { authorization: `Bearer ${session.access_token}` },
-		},
-	)
+	const response = await fetch(`${config.driverApiBase ?? ''}${path}`, {
+		headers: { authorization: `Bearer ${session.access_token}` },
+		method,
+	})
 	if (!response.ok) return null
 	return driverApiSessionSchema.parse(await response.json())
 }
 
 function toRepositoryError(error: { message: string }) {
 	const message = error.message
+	if (message.includes('driver_session_replaced')) {
+		return new DriverRepositoryError(
+			'driver_session_replaced',
+			'This driver account is now signed in from another device.',
+		)
+	}
 	if (
 		message.includes('not_found') ||
 		message.includes('not_assigned') ||
