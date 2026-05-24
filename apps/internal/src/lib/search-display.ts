@@ -864,6 +864,7 @@ export function buildSearchPreviewFields(
 				),
 				previewField('Changed', activityChange(metadata)),
 				previewField('Advisor', stringValue(metadata, 'advisor')),
+				previewField('Manager', stringValue(metadata, 'manager')),
 				previewField(
 					'Proofs',
 					stringValue(metadata, 'proofs') ??
@@ -1464,6 +1465,7 @@ export function buildSearchDetailFields(
 				detailField('From', stringValue(metadata, 'from_value')),
 				detailField('To', stringValue(metadata, 'to_value')),
 				detailField('Advisor', stringValue(metadata, 'advisor')),
+				detailField('Manager', stringValue(metadata, 'manager')),
 				detailField('Proofs', stringValue(metadata, 'proofs')),
 				detailField('Proof types', stringValue(metadata, 'proof_types')),
 				detailField('Customer', stringValue(metadata, 'customer')),

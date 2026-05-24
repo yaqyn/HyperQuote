@@ -5912,7 +5912,11 @@ export type Database = {
 				}
 			}
 			sales_confirm_order: {
-				Args: { p_order_id: string; p_quote_version_id?: string }
+				Args: {
+					p_approval?: Json
+					p_order_id: string
+					p_quote_version_id?: string
+				}
 				Returns: {
 					created_at: string
 					customer_id: string | null
@@ -7500,6 +7504,7 @@ export type Database = {
 				Args: {
 					p_actor_pool: string
 					p_actor_user_id: string
+					p_approval?: Json
 					p_order_id: string
 					p_quote_version_id?: string
 				}

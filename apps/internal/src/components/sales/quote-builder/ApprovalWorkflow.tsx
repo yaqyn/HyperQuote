@@ -19,6 +19,7 @@ interface ApprovalWorkflowProps {
 }
 
 export interface ApprovalSignatureState {
+	managerId?: string
 	needsApproval: boolean
 	managerName?: string
 	managerSigned: boolean
@@ -296,17 +297,19 @@ export function ApprovalWorkflow({
 		)
 	}, [sendBlocked, summaryLabel, onSendBlockedChange])
 
+	const managerId = selectedApprover?.id
 	const managerName = selectedApprover?.name
 	const managerSigned = needsApproval && status === 'approved'
 	const approvalRoleLabel = chain[chain.length - 1]?.label ?? 'Manager'
 
 	useEffect(() => {
 		onSignatureChange?.({
+			managerId,
 			needsApproval,
 			managerName,
 			managerSigned,
 		})
-	}, [managerName, managerSigned, needsApproval, onSignatureChange])
+	}, [managerId, managerName, managerSigned, needsApproval, onSignatureChange])
 
 	if (!needsApproval) return null
 

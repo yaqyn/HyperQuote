@@ -9,7 +9,17 @@ import { getInternalSupabaseClient } from './_supabase'
 
 export const markAsWon = createServerFn({ method: 'POST' })
 	.inputValidator(
-		z.object({ quoteId: z.string(), customerPONumber: z.string().optional() }),
+		z.object({
+			quoteId: z.string(),
+			customerPONumber: z.string().optional(),
+			managerApproval: z
+				.object({
+					managerId: z.string().min(1),
+					managerName: z.string().nullable().optional(),
+				})
+				.nullable()
+				.optional(),
+		}),
 	)
 	.handler(async ({ data }) => {
 		const supabaseQuoteVersion = decodeSupabaseQuoteVersionId(data.quoteId)
@@ -25,6 +35,12 @@ export const markAsWon = createServerFn({ method: 'POST' })
 			'sales_confirm_order',
 			{
 				p_order_id: supabaseQuoteVersion.quoteRequestId,
+				p_approval: data.managerApproval
+					? {
+							manager_employee_id: data.managerApproval.managerId,
+							manager_name: data.managerApproval.managerName ?? null,
+						}
+					: {},
 				p_quote_version_id: supabaseQuoteVersion.quoteVersionId,
 			},
 		)

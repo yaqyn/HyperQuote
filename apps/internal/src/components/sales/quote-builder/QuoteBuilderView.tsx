@@ -3188,6 +3188,7 @@ export function QuoteBuilderView({
 		(next: ApprovalSignatureState) => {
 			setApprovalSignature((prev) =>
 				prev.needsApproval === next.needsApproval &&
+				prev.managerId === next.managerId &&
 				prev.managerName === next.managerName &&
 				prev.managerSigned === next.managerSigned
 					? prev
@@ -3222,7 +3223,18 @@ export function QuoteBuilderView({
 			}
 			// 2. Commit to Finance. Everything downstream (Finance inbox,
 			//    inventory gate, living report) derives from that DB transition.
-			const result = await markAsWon({ data: { quoteId: savedId } })
+			const result = await markAsWon({
+				data: {
+					quoteId: savedId,
+					managerApproval:
+						approvalSignature.managerSigned && approvalSignature.managerId
+							? {
+									managerId: approvalSignature.managerId,
+									managerName: approvalSignature.managerName ?? null,
+								}
+							: null,
+				},
+			})
 			if (!result.success) throw new Error(result.error)
 			setStatus('accepted')
 			setRfqStatus('approved')

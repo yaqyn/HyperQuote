@@ -72,6 +72,7 @@ export interface ActivityProofDocument {
 	mimeType: string
 	panel: ProofPanel
 	proofType: ProofType
+	reference: string | null
 	sizeBytes: number
 	title: string
 	uploadedAt: string
@@ -79,10 +80,76 @@ export interface ActivityProofDocument {
 	url: string | null
 }
 
+type JsonRecord = Record<string, unknown>
+
 function assertAllowedProofMimeType(mimeType: string) {
 	if (mimeType === 'application/pdf') return
 	if (mimeType.startsWith('image/')) return
 	throw new Error('Proof must be a PDF or image file')
+}
+
+function isRecord(value: unknown): value is JsonRecord {
+	return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function cleanString(value: unknown): string | null {
+	if (typeof value !== 'string') return null
+	const trimmed = value.trim()
+	return trimmed.length > 0 ? trimmed : null
+}
+
+function pushProofReference(values: string[], value: unknown) {
+	const cleaned = cleanString(value)
+	if (cleaned) values.push(cleaned)
+}
+
+function collectProofReferences(details: unknown): string[] {
+	if (!isRecord(details)) return []
+	const values: string[] = []
+	for (const key of ['proof_document_id', 'proof_path', 'proof_url']) {
+		pushProofReference(values, details[key])
+	}
+
+	const proof = details.proof
+	if (isRecord(proof)) {
+		for (const key of ['proof_document_id', 'proof_path', 'proof_url']) {
+			pushProofReference(values, proof[key])
+		}
+	}
+
+	const proofIds = details.proof_document_ids
+	if (Array.isArray(proofIds)) {
+		for (const item of proofIds) pushProofReference(values, item)
+	}
+
+	const proofs = details.proofs
+	if (Array.isArray(proofs)) {
+		for (const item of proofs) {
+			if (!isRecord(item)) continue
+			for (const key of [
+				'proof_document_id',
+				'proof_path',
+				'proof_url',
+				'storage_path',
+			]) {
+				pushProofReference(values, item[key])
+			}
+		}
+	}
+
+	return [...new Set(values)]
+}
+
+function normalizeProofReference(value: string): string {
+	return value
+		.trim()
+		.replace(/^storage:\/\/proofs\//i, '')
+		.replace(/^proofs\//i, '')
+}
+
+function proofReferenceFileName(value: string): string {
+	const normalized = normalizeProofReference(value)
+	return normalized.split('/').filter(Boolean).pop() ?? normalized
 }
 
 function sanitizeFileName(value: string): string {
@@ -172,8 +239,10 @@ export const uploadProofDocument = createServerFn({ method: 'POST' })
 				p_title: input.title ?? input.fileName,
 			},
 		)
-		if (registerError) throw new Error(registerError.message)
-		if (!registered) throw new Error('Proof registration failed')
+		if (registerError || !registered) {
+			await auth.client.storage.from(PROOF_BUCKET).remove([storagePath])
+			throw new Error(registerError?.message ?? 'Proof registration failed')
+		}
 
 		const row = registered as {
 			file_name: string
@@ -215,6 +284,13 @@ export const getActivityProofDocuments = createServerFn({ method: 'POST' })
 			.eq('activity_event_id', data.activityId)
 		if (linkError) throw new Error(linkError.message)
 
+		const { data: activity, error: activityError } = await auth.client
+			.from('activity_events')
+			.select('details, created_at')
+			.eq('id', data.activityId)
+			.maybeSingle()
+		if (activityError) throw new Error(activityError.message)
+
 		const proofIds = [
 			...new Set(
 				(proofLinks ?? [])
@@ -222,20 +298,24 @@ export const getActivityProofDocuments = createServerFn({ method: 'POST' })
 					.filter((id): id is string => typeof id === 'string'),
 			),
 		]
-		if (proofIds.length === 0) return []
+		const legacyReferences = collectProofReferences(activity?.details)
+		if (proofIds.length === 0 && legacyReferences.length === 0) return []
 
-		const { data: proofRows, error: proofError } = await auth.client
-			.from('proof_documents')
-			.select(
-				'id, storage_path, file_name, mime_type, file_size_bytes, panel, proof_type, title, uploaded_by_employee_id, created_at',
-			)
-			.in('id', proofIds)
-			.order('created_at', { ascending: false })
-		if (proofError) throw new Error(proofError.message)
+		const proofRows =
+			proofIds.length > 0
+				? await auth.client
+						.from('proof_documents')
+						.select(
+							'id, storage_path, file_name, mime_type, file_size_bytes, panel, proof_type, title, uploaded_by_employee_id, created_at',
+						)
+						.in('id', proofIds)
+						.order('created_at', { ascending: false })
+				: { data: [], error: null }
+		if (proofRows.error) throw new Error(proofRows.error.message)
 
 		const uploaderIds = [
 			...new Set(
-				(proofRows ?? [])
+				(proofRows.data ?? [])
 					.map((row) => row.uploaded_by_employee_id)
 					.filter((id): id is string => typeof id === 'string'),
 			),
@@ -253,25 +333,50 @@ export const getActivityProofDocuments = createServerFn({ method: 'POST' })
 		}
 
 		const docs: ActivityProofDocument[] = []
-		for (const row of proofRows ?? []) {
+		const linkedReferences = new Set<string>()
+		for (const row of proofRows.data ?? []) {
+			linkedReferences.add(row.id)
+			linkedReferences.add(normalizeProofReference(row.storage_path))
 			const { data: signed, error: signedError } = await auth.client.storage
 				.from(PROOF_BUCKET)
 				.createSignedUrl(row.storage_path, 300)
-			if (signedError) throw new Error(signedError.message)
 			docs.push({
 				id: row.id,
 				fileName: row.file_name,
 				mimeType: row.mime_type,
 				panel: row.panel as ProofPanel,
 				proofType: row.proof_type as ProofType,
+				reference: null,
 				sizeBytes: row.file_size_bytes,
 				title: row.title ?? row.file_name,
 				uploadedAt: row.created_at,
 				uploadedBy: row.uploaded_by_employee_id
 					? (uploaderById.get(row.uploaded_by_employee_id) ?? null)
 					: null,
-				url: signed.signedUrl ?? null,
+				url: signedError ? null : (signed.signedUrl ?? null),
 			})
+		}
+		for (const reference of legacyReferences) {
+			const normalized = normalizeProofReference(reference)
+			if (linkedReferences.has(reference) || linkedReferences.has(normalized)) {
+				continue
+			}
+			const fileName = proofReferenceFileName(reference)
+			docs.push({
+				id: `legacy-${normalized}`,
+				fileName,
+				mimeType: 'application/octet-stream',
+				panel: 'search',
+				proofType: 'other',
+				reference,
+				sizeBytes: 0,
+				title: `Legacy proof reference - ${fileName}`,
+				uploadedAt: activity?.created_at ?? new Date(0).toISOString(),
+				uploadedBy: null,
+				url: null,
+			})
+			linkedReferences.add(reference)
+			linkedReferences.add(normalized)
 		}
 		return docs
 	})

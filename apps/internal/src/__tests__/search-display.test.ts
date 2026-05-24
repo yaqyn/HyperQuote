@@ -413,6 +413,42 @@ describe('Search display formatting', () => {
 		expect(labels).not.toContain('To')
 	})
 
+	it('projects activity manager approval as a business-facing person field', () => {
+		const row: SearchDisplayIndexRow = {
+			entity_type: 'activity',
+			entity_id: 'activity-manager-1',
+			title:
+				'Ahmed Hassan from Sales confirmed QR-2026-00221 with Mona Saleh as manager on May 24, 2026, 01:15 PM',
+			subtitle: 'Sales',
+			metadata: {
+				activity_sentence:
+					'Ahmed Hassan from Sales confirmed QR-2026-00221 with Mona Saleh as manager on May 24, 2026, 01:15 PM',
+				actor: 'Ahmed Hassan',
+				area: 'Sales',
+				manager: 'Mona Saleh',
+				request_number: 'QR-2026-00221',
+				target: 'QR-2026-00221',
+				what: 'Confirmed QR-2026-00221',
+				when: 'May 24, 2026, 01:15 PM',
+			},
+		}
+
+		expect(buildSearchPreviewFields(row)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Who', value: 'Ahmed Hassan' },
+				{ label: 'Panel', value: 'Sales' },
+				{ label: 'Manager', value: 'Mona Saleh' },
+			]),
+		)
+		expect(buildSearchDetailFields(row)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Story', value: row.title },
+				{ label: 'Manager', value: 'Mona Saleh' },
+				{ label: 'Quote request', value: 'QR-2026-00221' },
+			]),
+		)
+	})
+
 	it('builds business summary buckets for the Search dashboard', () => {
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date('2026-05-21T12:00:00Z'))

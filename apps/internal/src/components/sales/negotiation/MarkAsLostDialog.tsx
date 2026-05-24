@@ -19,6 +19,8 @@ const LOSS_REASONS = [
 	'no_response',
 	'other',
 ] as const
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 type LossReason = (typeof LOSS_REASONS)[number]
 
@@ -43,6 +45,9 @@ export function MarkAsLostDialog({
 		useState<UploadedProofDocument | null>(null)
 	const [error, setError] = useState<string | null>(null)
 	const [isSubmitting, setIsSubmitting] = useState(false)
+	const relatedQuoteRequestId = quoteId.startsWith('sb:')
+		? (quoteId.split(':')[1] ?? '')
+		: quoteId
 
 	useEffect(() => {
 		if (isOpen) return
@@ -156,6 +161,11 @@ export function MarkAsLostDialog({
 						onChange={setProofDocument}
 						panel="sales"
 						proofType="sales_evaluation"
+						relatedEntityId={
+							UUID_RE.test(relatedQuoteRequestId)
+								? relatedQuoteRequestId
+								: undefined
+						}
 						relatedEntityType="sales_lost"
 						title={`Sales lost proof · ${quoteId.toUpperCase()}`}
 					/>

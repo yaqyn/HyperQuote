@@ -4,17 +4,53 @@ import { createRoot, type Root } from 'react-dom/client'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SearchModule } from '../components/search/SearchModule'
+import type {
+	SearchActivityFeed,
+	SearchExecutiveBrief,
+	SearchResponse,
+} from '../lib/search-registry'
+import type { ActivityProofDocument } from '../lib/server/proofs'
 
-vi.mock('../lib/server/search', () => ({
-	getSearchActivityFeed: vi.fn(async () => ({
-		domains: [{ count: 0, id: 'all', label: 'All', rows: [] }],
-		loadedRowCount: 0,
-		totalCount: 0,
-	})),
-	getSearchExecutiveBrief: vi.fn(async () => ({ modules: [] })),
+const serverSearchMocks = vi.hoisted(() => ({
+	getSearchActivityFeed: vi.fn(
+		async (): Promise<SearchActivityFeed> => ({
+			domains: [
+				{ count: 0, id: 'all', label: 'All', latestAt: null, rows: [] },
+			],
+			generatedAt: '2026-05-24T09:00:00Z',
+			loadedRowCount: 0,
+			rowLimit: 50,
+			totalCount: 0,
+		}),
+	),
+	getSearchExecutiveBrief: vi.fn(
+		async (): Promise<SearchExecutiveBrief> => ({
+			generatedAt: '2026-05-24T09:00:00Z',
+			modules: [],
+		}),
+	),
 	getSearchModuleSummary: vi.fn(async () => undefined),
 	listSearchTable: vi.fn(async () => undefined),
-	searchInternalDb: vi.fn(async () => ({ results: [], tableMatches: [] })),
+	searchInternalDb: vi.fn(
+		async (): Promise<SearchResponse> => ({
+			query: '',
+			results: [],
+			tableMatches: [],
+			tables: [],
+		}),
+	),
+}))
+
+const proofMocks = vi.hoisted(() => ({
+	getActivityProofDocuments: vi.fn(
+		async (): Promise<ActivityProofDocument[]> => [],
+	),
+}))
+
+vi.mock('../lib/server/search', () => serverSearchMocks)
+
+vi.mock('../lib/server/proofs', () => ({
+	getActivityProofDocuments: proofMocks.getActivityProofDocuments,
 }))
 
 let activeRoot: Root | null = null
@@ -23,10 +59,10 @@ let activeContainer: HTMLDivElement | null = null
 async function waitForSearchModuleUpdate(
 	matches: () => boolean,
 ): Promise<void> {
-	for (let attempt = 0; attempt < 10; attempt += 1) {
+	for (let attempt = 0; attempt < 25; attempt += 1) {
 		if (matches()) return
 		await act(async () => {
-			await new Promise((resolve) => window.setTimeout(resolve, 0))
+			await new Promise((resolve) => window.setTimeout(resolve, 10))
 		})
 	}
 }
@@ -56,6 +92,19 @@ afterEach(() => {
 	}
 	activeContainer?.remove()
 	activeContainer = null
+	document.body
+		.querySelectorAll('[role="dialog"][aria-label="Activity proof documents"]')
+		.forEach((node) => {
+			node.remove()
+		})
+	serverSearchMocks.searchInternalDb.mockResolvedValue({
+		query: '',
+		results: [],
+		tableMatches: [],
+		tables: [],
+	})
+	proofMocks.getActivityProofDocuments.mockResolvedValue([])
+	vi.clearAllMocks()
 })
 
 describe('SearchModule first render', () => {
@@ -265,5 +314,168 @@ describe('SearchModule first render', () => {
 		expect(summaryMenu?.className).toContain('fixed')
 		expect(summaryMenu?.className).toContain('top-1/2')
 		expect(summaryMenu?.className).toContain('left-1/2')
+	})
+
+	it('previews activity proof documents inside the app window', async () => {
+		const activityRow = {
+			accent: '#8b5cf6',
+			details: [
+				{
+					label: 'Story',
+					value:
+						'Ahmed from Finance recorded a customer payment with Mona as manager and 2 proof documents',
+				},
+				{ label: 'Who', value: 'Ahmed' },
+				{ label: 'Panel', value: 'Finance' },
+				{ label: 'Manager', value: 'Mona' },
+				{ label: 'Proofs', value: 'Payment slip, legacy-proof.txt' },
+			],
+			preview: [
+				{ label: 'Who', value: 'Ahmed' },
+				{ label: 'Panel', value: 'Finance' },
+				{ label: 'Proofs', value: 'Payment slip, legacy-proof.txt' },
+			],
+			rowId: '11111111-1111-4111-8111-111111111111',
+			tableId: 'activity' as const,
+			tableLabel: 'Activity',
+			title:
+				'Ahmed from Finance recorded a customer payment with Mona as manager and 2 proof documents',
+		}
+		serverSearchMocks.searchInternalDb.mockResolvedValue({
+			query: 'proof',
+			results: [
+				{
+					accent: '#8b5cf6',
+					label: 'Activity',
+					rowCount: 1,
+					rows: [{ ...activityRow, matchedFields: ['Proofs'] }],
+					tableId: 'activity',
+				},
+			],
+			tableMatches: [],
+			tables: [
+				{
+					accent: '#8b5cf6',
+					label: 'Activity',
+					rowCount: 1,
+					tableId: 'activity',
+				},
+			],
+		})
+		proofMocks.getActivityProofDocuments.mockResolvedValue([
+			{
+				fileName: 'payment-slip.pdf',
+				id: '22222222-2222-4222-8222-222222222222',
+				mimeType: 'application/pdf',
+				panel: 'finance',
+				proofType: 'finance_in',
+				reference: null,
+				sizeBytes: 512_000,
+				title: 'Payment slip',
+				uploadedAt: '2026-05-24T09:05:00Z',
+				uploadedBy: 'Mona Finance',
+				url: 'https://example.test/payment-slip.pdf',
+			},
+			{
+				fileName: 'legacy-proof.txt',
+				id: 'legacy-refill-proofs-legacy-proof.txt',
+				mimeType: 'application/octet-stream',
+				panel: 'search',
+				proofType: 'other',
+				reference: 'refill-proofs/legacy-proof.txt',
+				sizeBytes: 0,
+				title: 'Legacy proof reference - legacy-proof.txt',
+				uploadedAt: '2026-05-24T09:04:00Z',
+				uploadedBy: null,
+				url: null,
+			},
+		])
+
+		const queryClient = new QueryClient({
+			defaultOptions: { queries: { retry: false } },
+		})
+		activeContainer = document.createElement('div')
+		document.body.appendChild(activeContainer)
+		activeRoot = createRoot(activeContainer)
+
+		await act(async () => {
+			activeRoot?.render(
+				<QueryClientProvider client={queryClient}>
+					<SearchModule />
+				</QueryClientProvider>,
+			)
+		})
+
+		await setSearchQuery('proof')
+		await waitForSearchModuleUpdate(() =>
+			Boolean(activeContainer?.textContent?.includes(activityRow.title)),
+		)
+
+		const resultButton = Array.from(
+			activeContainer.querySelectorAll('button'),
+		).find((button) => button.textContent?.includes(activityRow.title))
+		expect(resultButton).toBeInTheDocument()
+
+		await act(async () => {
+			resultButton?.click()
+		})
+
+		const showDocsButton = Array.from(
+			activeContainer.querySelectorAll('button'),
+		).find((button) => button.textContent?.includes('Show Docs'))
+		expect(showDocsButton).toBeInTheDocument()
+
+		await act(async () => {
+			showDocsButton?.click()
+		})
+
+		await waitForSearchModuleUpdate(() =>
+			Boolean(
+				document.body.querySelector(
+					'[role="dialog"][aria-label="Activity proof documents"]',
+				),
+			),
+		)
+		await waitForSearchModuleUpdate(() =>
+			Boolean(document.body.textContent?.includes('Mona Finance')),
+		)
+
+		const dialog = document.body.querySelector<HTMLElement>(
+			'[role="dialog"][aria-label="Activity proof documents"]',
+		)
+		expect(dialog).toBeInTheDocument()
+		const paymentButton = Array.from(
+			dialog?.querySelectorAll('button') ?? [],
+		).find((button) => button.textContent?.includes('Payment slip'))
+		expect(paymentButton).toBeInTheDocument()
+
+		await act(async () => {
+			paymentButton?.click()
+		})
+
+		await waitForSearchModuleUpdate(() =>
+			Boolean(dialog?.querySelector('iframe[title="Payment slip"]')),
+		)
+		expect(
+			dialog?.querySelector('iframe[title="Payment slip"]'),
+		).toBeInTheDocument()
+		expect(dialog?.querySelector('a[target="_blank"]')).not.toBeInTheDocument()
+
+		const legacyButton = Array.from(
+			dialog?.querySelectorAll('button') ?? [],
+		).find((button) => button.textContent?.includes('legacy-proof.txt'))
+		expect(legacyButton).toBeInTheDocument()
+
+		await act(async () => {
+			legacyButton?.click()
+		})
+
+		await waitForSearchModuleUpdate(() =>
+			Boolean(
+				dialog?.textContent?.includes('Preview unavailable for this document.'),
+			),
+		)
+
+		expect(dialog?.textContent).toContain('refill-proofs/legacy-proof.txt')
 	})
 })

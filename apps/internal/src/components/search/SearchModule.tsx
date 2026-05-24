@@ -1556,6 +1556,11 @@ function ActivityProofCard({
 						{doc.uploadedBy ? `${doc.uploadedBy} uploaded it` : 'Uploaded'} on{' '}
 						{formatActivityTimestamp(doc.uploadedAt)}
 					</p>
+					{doc.reference && (
+						<p className="mt-2 break-all font-[family-name:var(--font-plex-mono)] text-[10px] text-white/30">
+							{doc.reference}
+						</p>
+					)}
 				</div>
 			</div>
 		</button>
@@ -1585,6 +1590,11 @@ function ActivityProofPreview({ doc }: { doc: ActivityProofDocument | null }) {
 				<p className="mt-1 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/36">
 					{proofTypeLabel(doc.proofType)} · {formatProofSize(doc.sizeBytes)}
 				</p>
+				{doc.reference && (
+					<p className="mt-1 break-all font-[family-name:var(--font-plex-mono)] text-[10px] text-white/30">
+						{doc.reference}
+					</p>
+				)}
 			</div>
 			<div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
 				{!doc.url ? (
@@ -1704,6 +1714,12 @@ const activityStoryHighlightLabels = new Set([
 	'Changed',
 	'From',
 	'To',
+	'Advisor',
+	'Manager',
+	'Proofs',
+	'Proof types',
+	'Quantity',
+	'Unit cost',
 	'Amount',
 	'Payment portion',
 	'Total',
