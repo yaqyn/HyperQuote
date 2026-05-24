@@ -459,8 +459,8 @@ export function publicDocsNoAnswerResponse(locale: DocsLocale): string {
 
 function privateScopeRefusalMessage(userMessage: string): string {
 	return detectDocsQueryLocale(userMessage) === 'ar'
-		? 'أنا دليل لزوار موقع هايبركوت فقط. لا أقدر أراجع طلبات أو عروض أو فواتير من هنا. سجّل دخولك في البوابة أو تواصل مع الدعم لبيانات حسابك.'
-		: 'I am only a guide for visitors on the public HyperQuote website. I cannot check orders, quotes, invoices, deliveries, or account data here. Sign in to the portal or contact support for account-specific help.'
+		? 'أنا مساعد موقع هايبركوت العام فقط. لا أقدر أراجع طلبات أو عروض أو فواتير من هنا. استخدم Lyon AI at Portal App للمساعدة المرتبطة بحسابك.'
+		: 'I am only the public website assistant for HyperQuote. I cannot check orders, quotes, invoices, deliveries, or account data here. Use Lyon AI at Portal App for account-specific help.'
 }
 
 function isPrivateAccountScope(userMessage: string): boolean {
@@ -662,6 +662,7 @@ If the docs do not answer the question, say it is not in the public docs.
 Do not write a separate sources line or raw /docs paths; the app appends exact source links.
 Do not add adjacent tax, legal, finance, supplier, or accounting topics unless the user directly asks and the retrieved docs support them.
 For VAT, tax, legal, and compliance questions, avoid absolute advice; mention eligibility, registration, and valid documentation when relevant.
+Current product rule: all account-specific AI is Lyon inside the signed-in portal app. Do not describe WhatsApp, phone, email, support, or public website chat as AI order lookup channels, even if older public wording suggests that.
 
 Public docs context:
 ${publicDocsContext}`

@@ -1,9 +1,9 @@
-Before reaching out to support, you may find your answer here. These are the questions we hear most frequently from customers, suppliers, and new users exploring the platform.
+Before reaching out to support, you may find your answer here. These are the questions we hear most frequently from customers, suppliers, and companies evaluating the platform.
 
 ## Account and registration
 
 **Do I need an account to browse products?**
-No. The full product catalog, specifications, and datasheets are available to guest visitors without registration. You only need to register when you are ready to submit a quote request.
+No. The full product catalog, specifications, and datasheets are available without registration. Account access is required when submitting a quote request.
 
 **What do I need to register?**
 Stage 1 registration requires four fields: phone number, company name, full name, and an OTP verification. That is enough to browse and submit quote requests. Stage 2 (trade license and company email) is requested later when your first quote progresses toward an order.
@@ -45,10 +45,10 @@ Report damage immediately with photos via WhatsApp or the portal. Accept undamag
 ## Platform and support
 
 **What languages does the platform support?**
-Arabic and English. The platform is bilingual throughout — product names, documents, and the AI assistant all work in both languages. Tax invoices are generated in Arabic as required by ETA e-invoicing regulations.
+Arabic and English. The platform is bilingual throughout — product names, documents, and Lyon AI in the portal app work in both languages. Tax invoices are generated in Arabic as required by ETA e-invoicing regulations.
 
 **Is the platform available on mobile?**
 The customer and supplier portals are Progressive Web Apps (PWAs) that work on any device and can be installed to your home screen. The driver app is a native mobile application.
 
 **How do I contact support?**
-WhatsApp (fastest, AI-assisted), phone (for urgent matters), in-app chat, or email. Support operates Sunday through Thursday during Egyptian business hours.
+WhatsApp, phone, portal chat, or email. Support operates Sunday through Thursday during Egyptian business hours. For account-specific AI help, use Lyon AI in the signed-in portal app.

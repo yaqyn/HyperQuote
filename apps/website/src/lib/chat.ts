@@ -171,6 +171,10 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 			for await (const chunk of textOnlyStream(refusal)) {
 				chunks.push(chunk)
 			}
+			appendWebsiteActionButtons(
+				chunks,
+				websiteUnsupportedHelpButtons(userText),
+			)
 		} else {
 			const directNavigationButtons = websiteDirectNavigationButtons(userText)
 			if (
@@ -443,6 +447,20 @@ export function shouldShowWebsiteChatActionButtons(userText: string): boolean {
 		WEBSITE_ACTION_BUTTON_REQUEST_PATTERN.test(normalized) ||
 		AR_WEBSITE_ACTION_BUTTON_REQUEST_PATTERN.test(userText)
 	)
+}
+
+export function websiteUnsupportedHelpButtons(
+	userText: string,
+): WebsiteActionButtonData[] {
+	if (!publicDocsPolicyRefusal(userText)) return []
+	return [
+		{
+			href: '/login',
+			icon: 'login',
+			label: 'Portal App',
+			labelAr: 'تطبيق البوابة',
+		},
+	]
 }
 
 function isWebsiteNavigationRequest(userText: string): boolean {

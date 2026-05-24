@@ -26,7 +26,7 @@ These indicators reflect supplier-reported inventory across HyperQuote's network
 
 ## Browsing without an account
 
-Guest visitors can browse the full catalog, view all product specifications and datasheets, and use search and filters freely. Registration is only required when you are ready to submit a quote request — and even then, the first stage requires just four fields: phone number, company name, full name, and OTP verification.
+Buyers can browse the full catalog, view all product specifications and datasheets, and use search and filters freely. Registration is required when submitting a quote request, with the first stage limited to phone number, company name, full name, and OTP verification.
 
 ## Adding items to a quote
 

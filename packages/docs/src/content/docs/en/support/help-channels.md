@@ -1,12 +1,12 @@
-Getting help on HyperQuote works through the channels Egyptian businesses actually use — WhatsApp first, phone for urgent matters, and in-app chat for everything in between. Support operates on the Egyptian business week: Sunday through Thursday.
+Getting help on HyperQuote works through the channels Egyptian businesses actually use — WhatsApp for quick messages, phone for urgent matters, and portal chat for account-specific conversations. Support operates on the Egyptian business week: Sunday through Thursday.
 
 ## WhatsApp support
 
-WhatsApp is the **primary support channel** because it is how construction professionals in Egypt communicate. Send a message to the HyperQuote support number and the AI assistant handles the first response — instant order lookups ("Where is my delivery?"), invoice requests, and stock availability checks resolve automatically.
+WhatsApp is a **support contact channel** because it is how construction professionals in Egypt communicate. Send a message to the HyperQuote support number for delivery coordination, quote questions, document requests, and damage reports with photo attachments.
 
-For questions that need a human, your message routes to a support representative within 15 minutes during business hours. The AI provides the representative with your account context, order history, and the nature of your question before they respond, so you do not need to repeat yourself.
+WhatsApp does not run Lyon and does not perform automated order, quote, invoice, or delivery lookups. For account-specific AI, sign in to the portal app and use Lyon there.
 
-WhatsApp support handles: order status inquiries, delivery coordination, quote questions, general platform questions, and damage reports (with photo attachments).
+The support team responds during business hours. Share only the context needed for the request.
 
 ## Phone support
 
@@ -16,9 +16,9 @@ Phone is the recommended channel for: delivery emergencies (truck breakdown, sit
 
 ## In-app chat
 
-The customer portal and supplier portal both include in-app chat accessible from any screen. Chat conversations are attached to your account with full context — the support representative sees your open orders, recent deliveries, and account status without asking.
+The customer portal and supplier portal both include in-app chat accessible from any screen. Portal chat is attached to your account context, which makes it the right channel for order modifications, quote inquiries, delivery details, and account questions.
 
-In-app chat is best for: order modifications, general questions about the platform, quote inquiries, and non-urgent requests. Response time target is under 30 minutes during business hours.
+Lyon AI for account-specific help lives in the signed-in portal app. Website chat is limited to public website guidance.
 
 ## Email support
 
@@ -32,7 +32,7 @@ Support operates **Sunday through Thursday**, aligned with the Egyptian work wee
 
 | Channel | Response Target | Best For |
 |---------|----------------|----------|
-| WhatsApp | AI instant, human in 15 min | Order status, delivery coordination, quick questions |
+| WhatsApp | Business-hours support | Delivery coordination, quick questions, document requests |
 | Phone | Immediate | Emergencies, disputes, complex issues |
 | In-app chat | 30 minutes | Modifications, platform questions |
 | Email | 4 hours | Formal requests, documentation |
@@ -41,4 +41,4 @@ During **Ramadan**, business hours shift to accommodate the reduced 6-hour workd
 
 ## After-hours support
 
-Outside business hours, the AI assistant on WhatsApp continues to handle automated queries — order status, delivery tracking, and invoice lookups work 24/7. Messages requiring human attention are queued and addressed first thing the next business day, with a confirmation message so you know your request was received.
+Outside business hours, WhatsApp, portal chat, and email messages are queued for the next business day. For account-specific AI guidance, sign in to the portal app and use Lyon.

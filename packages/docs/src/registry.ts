@@ -36,9 +36,9 @@ interface DocCategoryDef {
 
 const DISPLAY_NAMES: Record<string, string> = {
 	// Wizards
-	'docs.wizard.gettingStarted.title': 'Getting Started',
+	'docs.wizard.gettingStarted.title': 'Platform Guide',
 	'docs.wizard.gettingStarted.description':
-		'Sign up, browse the market, and place your first quote request in under 5 minutes.',
+		'Understand the market, portal, support channels, and quote request workflow.',
 	'docs.wizard.for-customers.title': 'For Customers',
 	'docs.wizard.for-customers.description':
 		'Learn how to manage projects, request quotes, and track deliveries through the portal.',
@@ -165,7 +165,7 @@ const DISPLAY_NAMES: Record<string, string> = {
 		'AI product recommendations and alternative material suggestions.',
 
 	// Articles — driver-app
-	'docs.article.getting-started-driver.title': 'Getting Started',
+	'docs.article.getting-started-driver.title': 'Driver App Setup',
 	'docs.article.getting-started-driver.description':
 		'Installing the driver app, login, and initial setup.',
 	'docs.article.delivery-operations.title': 'Delivery Operations',

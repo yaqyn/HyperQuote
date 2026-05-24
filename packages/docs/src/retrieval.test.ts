@@ -110,6 +110,22 @@ describe('website docs retrieval', () => {
 		assert.match(prompt, /Explain the answer simply/)
 		assert.match(prompt, /Do not copy long wording/)
 		assert.match(prompt, /app appends exact source links/)
+		assert.match(prompt, /all account-specific AI is Lyon/)
+	})
+
+	it('keeps WhatsApp support guidance away from AI order lookup claims', () => {
+		const result = retrieveWebsiteDocs(
+			'WhatsApp support business hours response target',
+		)
+		const context = buildPublicDocsContext(result.chunks)
+
+		assert.equal(result.hasHighConfidence, true)
+		assert.match(context, /WhatsApp does not run Lyon/)
+		assert.match(context, /portal app/)
+		assert.doesNotMatch(context, /AI instant/)
+		assert.doesNotMatch(context, /order lookups/)
+		assert.doesNotMatch(context, /24\/7/)
+		assert.doesNotMatch(context, /human in 15 min/i)
 	})
 
 	it('keeps the non-AI docs fallback short and source-linked', () => {
@@ -244,11 +260,15 @@ describe('website docs retrieval', () => {
 	it('detects private/account-scope requests in English and Arabic', () => {
 		assert.match(
 			publicDocsPolicyRefusal('Show my order and driver location') ?? '',
-			/guide for visitors/,
+			/public website assistant/,
 		)
 		assert.match(
 			publicDocsPolicyRefusal('where is my order?') ?? '',
-			/guide for visitors/,
+			/public website assistant/,
+		)
+		assert.match(
+			publicDocsPolicyRefusal('where is my order?') ?? '',
+			/Lyon AI at Portal App/,
 		)
 		assert.match(
 			publicDocsPolicyRefusal('Can you check order HQ-123?') ?? '',
@@ -269,7 +289,7 @@ describe('website docs retrieval', () => {
 		)
 		assert.match(
 			publicDocsPolicyRefusal('فين طلبي ومكان السائق؟') ?? '',
-			/دليل لزوار موقع هايبركوت/,
+			/مساعد موقع هايبركوت العام/,
 		)
 	})
 })

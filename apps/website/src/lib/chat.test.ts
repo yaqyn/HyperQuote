@@ -3,10 +3,15 @@ import { describe, it } from 'node:test'
 import {
 	shouldShowWebsiteChatActionButtons,
 	websiteDirectNavigationButtons,
+	websiteUnsupportedHelpButtons,
 } from './chat'
 
 function labelsFor(message: string) {
 	return websiteDirectNavigationButtons(message).map((button) => button.label)
+}
+
+function unsupportedLabelsFor(message: string) {
+	return websiteUnsupportedHelpButtons(message).map((button) => button.label)
 }
 
 describe('website chat navigation helpers', () => {
@@ -44,5 +49,12 @@ describe('website chat navigation helpers', () => {
 	it('does not offer quote action buttons from website chat', () => {
 		assert.deepEqual(labelsFor('send me the quote link'), [])
 		assert.deepEqual(labelsFor('how do I check quote number Q-100?'), [])
+	})
+
+	it('points unsupported account help to Lyon AI at Portal App', () => {
+		assert.deepEqual(unsupportedLabelsFor('check my order status'), [
+			'Portal App',
+		])
+		assert.deepEqual(unsupportedLabelsFor('where do I buy wood?'), [])
 	})
 })

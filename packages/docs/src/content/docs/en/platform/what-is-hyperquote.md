@@ -1,10 +1,10 @@
 HyperQuote is a B2B building materials platform built for Egypt's construction industry. We connect contractors with verified suppliers through a single branded experience — one quote request, multiple supplier bids, delivered to your site.
 
-The Egyptian construction market runs on relationships, phone calls, and handshake deals. Contractors spend days chasing quotes from multiple suppliers, comparing prices on paper, and coordinating deliveries with no visibility. HyperQuote replaces that chaos with a structured, transparent system — without removing the human element that makes Egyptian business work.
+The Egyptian construction market runs on relationships, phone calls, and handshake deals. Contractors spend days chasing quotes from multiple suppliers, comparing prices on paper, and coordinating deliveries with no visibility. HyperQuote replaces that chaos with a structured, transparent system while keeping the communication patterns Egyptian businesses already use.
 
 ## How the platform works
 
-You submit a material list — either through the website, the customer portal, or via WhatsApp. Our team and AI system match your request to verified suppliers in our network. Within 4 hours during business days (Sunday through Thursday), you receive a consolidated quote with unit pricing, delivery timelines, and payment terms.
+You submit a material list through HyperQuote, and the team matches your request to verified suppliers in our network. Lyon AI for account-specific help lives in the signed-in portal app. Within 4 hours during business days (Sunday through Thursday), you receive a consolidated quote with unit pricing, delivery timelines, and payment terms.
 
 You can accept the quote as-is, negotiate quantities, swap materials for alternatives, or request changes. Once you confirm, we handle procurement, coordinate delivery logistics, and manage supplier payments — all from your dashboard.
 

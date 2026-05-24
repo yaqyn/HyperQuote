@@ -69,8 +69,8 @@
 			"description": "See the range upfront. No hidden fees. No surprises after delivery."
 		},
 		"whatsapp": {
-			"title": "Talk to a human",
-			"description": "Real support on WhatsApp. Not a chatbot. Not a ticket queue."
+			"title": "Contact support",
+			"description": "Reach the team on WhatsApp for coordination, documents, and support."
 		}
 	},
 	"marketPreview": {
@@ -89,8 +89,8 @@
 			"label": "Our Story",
 			"heading": "The problem",
 			"p1": "Egyptian construction runs on relationships, phone calls, and handshake deals. Contractors spend days calling suppliers for prices, comparing quotes on paper, and coordinating deliveries with no visibility. There's no standard platform, no price transparency, and no way to track an order once it's placed.",
-			"p2": "HyperQuote replaces that chaos with a structured, transparent system — without removing the human element that makes Egyptian business work. We source from multiple suppliers, consolidate pricing, handle logistics, and give every stakeholder real-time visibility into the process.",
-			"p3": "We're based in Cairo. We work with suppliers across Egypt. And we're just getting started."
+			"p2": "HyperQuote replaces that chaos with a structured, transparent system while preserving the relationship-driven way Egyptian business works. We source from multiple suppliers, consolidate pricing, handle logistics, and give every stakeholder real-time visibility into the process.",
+			"p3": "Based in Cairo, HyperQuote works with supplier networks across Egypt and supports professional procurement teams from sourcing through delivery."
 		},
 		"mission": {
 			"label": "Values",
@@ -528,7 +528,7 @@
 			"items": {
 				"1": {
 					"question": "How long does it take to receive a quote?",
-					"answer": "Submit your material list through the platform or via WhatsApp. We source pricing from multiple suppliers in parallel during business hours (Sunday–Thursday, 8 AM–6 PM). Each quote includes unit pricing, delivery timeline, and payment terms. You can accept, negotiate quantities, swap materials, or request changes — all from your dashboard.",
+					"answer": "Submit your material list through the platform. We source pricing from multiple suppliers in parallel during business hours (Sunday–Thursday, 8 AM–6 PM). Each quote includes unit pricing, delivery timeline, and payment terms. You can accept, negotiate quantities, swap materials, or request changes from your dashboard.",
 					"tag": "quotes"
 				},
 				"2": {
@@ -685,7 +685,7 @@
 	},
 	"docs": {
 		"sidebar": {
-			"gettingStarted": "Getting Started",
+			"gettingStarted": "Platform Guide",
 			"whatIsHyperquote": "What is HyperQuote?",
 			"creatingAccount": "Creating an Account",
 			"yourFirstQuote": "Your First Quote",
