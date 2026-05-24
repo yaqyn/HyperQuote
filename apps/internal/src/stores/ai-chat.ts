@@ -14,9 +14,11 @@ interface AIChatStore {
 	messages: AIChatMessage[]
 	draft: string
 	isStreaming: boolean
+	panelId: string | null
 	open: () => void
 	close: () => void
 	toggle: () => void
+	setPanelId: (panelId: string | null) => void
 	setDraft: (text: string) => void
 	/** Append a user message, call the ops-assistant backend, stream reply. */
 	send: () => void
@@ -34,9 +36,11 @@ export const useAIChatStore = create<AIChatStore>()((set, get) => ({
 	messages: [],
 	draft: '',
 	isStreaming: false,
+	panelId: null,
 	open: () => set({ isOpen: true }),
 	close: () => set({ isOpen: false }),
 	toggle: () => set((s) => ({ isOpen: !s.isOpen })),
+	setPanelId: (panelId) => set({ panelId }),
 	setDraft: (text) => set({ draft: text }),
 	send: () => {
 		const state = get()
@@ -72,7 +76,12 @@ export const useAIChatStore = create<AIChatStore>()((set, get) => ({
 					role: m.role,
 					content: m.content,
 				}))
-				const raw = await internalChatFn({ data: { messages: history } })
+				const raw = await internalChatFn({
+					data: {
+						messages: history,
+						panelId: state.panelId ?? undefined,
+					},
+				})
 				const chunks = raw as unknown as StreamChunk[]
 
 				let accumulated = ''

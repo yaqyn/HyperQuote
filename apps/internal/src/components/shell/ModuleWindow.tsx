@@ -69,11 +69,22 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
 	const [panelHost, setPanelHost] = useState<HTMLElement | null>(null)
 	const getWindowState = useInternalStore((s) => s.getWindowState)
 	const saveWindowState = useInternalStore((s) => s.saveWindowState)
+	const setAIChatPanelId = useAIChatStore((s) => s.setPanelId)
 	const toggleAIChat = useAIChatStore((s) => s.toggle)
 
 	const mod = MODULES.find((m) => m.id === moduleId)
 	const ModuleComponent = MODULE_COMPONENTS[moduleId]
 	const immersive = moduleId === 'search'
+
+	useEffect(() => {
+		if (!isOpen) return
+		setAIChatPanelId(moduleId)
+		return () => {
+			if (useAIChatStore.getState().panelId === moduleId) {
+				useAIChatStore.getState().setPanelId(null)
+			}
+		}
+	}, [isOpen, moduleId, setAIChatPanelId])
 
 	// Manage keyboard scope
 	useEffect(() => {

@@ -1,0 +1,437 @@
+import { OPS_ASSISTANT, SEARCH_ASSISTANT } from '@hyperquote/ai'
+import type { JsonValue } from './db/types'
+import {
+	buildSearchDetailFields,
+	buildSearchDisplayTitle,
+	buildSearchPreviewFields,
+	type SearchDisplayIndexRow,
+} from './search-display'
+import { searchTokens } from './search-query'
+
+export type InternalAiScope = 'employee' | 'search'
+
+export interface InternalAiVtable {
+	entityType: string
+	keywords: readonly string[]
+	label: string
+	normalPanelAccess: boolean
+	readEntities: readonly string[]
+}
+
+export interface InternalAiContextPackage {
+	context: string
+	fallbackText: string
+	readEntities: string[]
+	rows: SearchDisplayIndexRow[]
+}
+
+const NORMAL_PANEL_EXCLUDED_ENTITY_TYPES = new Set(['activity', 'employee'])
+const MAX_ROWS_PER_ENTITY = 6
+const MAX_CONTEXT_LINES = 80
+const MAX_FIELD_VALUE_LENGTH = 160
+
+export const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
+	{
+		entityType: 'order',
+		keywords: ['order', 'orders', 'rfq', 'quote', 'quotes', 'sales'],
+		label: 'Orders',
+		normalPanelAccess: true,
+		readEntities: [
+			'ceo_search_order_vtable',
+			'ceo_search_quote_request_vtable',
+		],
+	},
+	{
+		entityType: 'customer',
+		keywords: ['customer', 'customers', 'client', 'contractor'],
+		label: 'Customers',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_customer_vtable'],
+	},
+	{
+		entityType: 'payment',
+		keywords: ['finance', 'payment', 'payments', 'invoice', 'paid', 'cash'],
+		label: 'Payments',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_payment_vtable'],
+	},
+	{
+		entityType: 'approval',
+		keywords: ['approval', 'approvals', 'approve', 'pending approval'],
+		label: 'Approvals',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_approval_vtable'],
+	},
+	{
+		entityType: 'inventory',
+		keywords: ['inventory', 'stock', 'material', 'materials', 'product'],
+		label: 'Inventory',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_inventory_vtable'],
+	},
+	{
+		entityType: 'pricing',
+		keywords: ['price', 'pricing', 'margin', 'cost', 'outdated price'],
+		label: 'Pricing',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_pricing_vtable'],
+	},
+	{
+		entityType: 'category',
+		keywords: ['category', 'categories'],
+		label: 'Categories',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_category_vtable'],
+	},
+	{
+		entityType: 'warehouse',
+		keywords: ['warehouse', 'loading', 'receiving', 'received'],
+		label: 'Warehouse',
+		normalPanelAccess: true,
+		readEntities: [
+			'ceo_search_warehouse_vtable',
+			'ceo_search_receiving_vtable',
+		],
+	},
+	{
+		entityType: 'dispatch',
+		keywords: ['dispatch', 'delivery', 'deliveries'],
+		label: 'Dispatch',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_dispatch_vtable'],
+	},
+	{
+		entityType: 'driver',
+		keywords: ['driver', 'drivers', 'fleet'],
+		label: 'Drivers',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_driver_vtable'],
+	},
+	{
+		entityType: 'driver_location',
+		keywords: ['location', 'gps', 'map', 'tracking', 'driver location'],
+		label: 'Driver locations',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_driver_location_vtable'],
+	},
+	{
+		entityType: 'support',
+		keywords: ['support', 'ticket', 'tickets', 'customer service'],
+		label: 'Support',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_support_vtable'],
+	},
+	{
+		entityType: 'support_message',
+		keywords: ['message', 'messages', 'reply', 'replies', 'whatsapp'],
+		label: 'Support messages',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_support_message_vtable'],
+	},
+	{
+		entityType: 'supplier',
+		keywords: ['supplier', 'suppliers', 'vendor', 'vendors'],
+		label: 'Suppliers',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_supplier_vtable'],
+	},
+	{
+		entityType: 'sales_history',
+		keywords: ['version', 'versions', 'call note', 'sales history'],
+		label: 'Sales history',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_sales_history_vtable'],
+	},
+	{
+		entityType: 'document',
+		keywords: ['document', 'documents', 'proof', 'proofs', 'attachment'],
+		label: 'Documents',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_document_vtable'],
+	},
+	{
+		entityType: 'employee',
+		keywords: ['employee', 'employees', 'staff', 'team', 'salary'],
+		label: 'Employees',
+		normalPanelAccess: false,
+		readEntities: ['ceo_search_employee_vtable'],
+	},
+	{
+		entityType: 'activity',
+		keywords: ['activity', 'activities', 'audit', 'event', 'history'],
+		label: 'Activities',
+		normalPanelAccess: false,
+		readEntities: ['ceo_search_activity_vtable'],
+	},
+]
+
+export function resolveInternalAiScope({
+	panelId,
+	userText,
+}: {
+	panelId?: string | null
+	userText: string
+}): InternalAiScope {
+	if (panelId === 'search') return 'search'
+	return userText.toLowerCase().startsWith('search internal database for:')
+		? 'search'
+		: 'employee'
+}
+
+export function searchQueryFromPrompt(userText: string): string {
+	return userText.replace(/^search internal database for:\s*/i, '').trim()
+}
+
+export function allowedInternalAiVtables(
+	scope: InternalAiScope,
+): InternalAiVtable[] {
+	if (scope === 'search') return [...INTERNAL_AI_VTABLES]
+	return INTERNAL_AI_VTABLES.filter(
+		(vtable) =>
+			vtable.normalPanelAccess &&
+			!NORMAL_PANEL_EXCLUDED_ENTITY_TYPES.has(vtable.entityType),
+	)
+}
+
+export function requestedInternalAiEntityTypes({
+	query,
+	scope,
+}: {
+	query: string
+	scope: InternalAiScope
+}): string[] {
+	const allowed = allowedInternalAiVtables(scope)
+	const lower = query.toLowerCase()
+	const matches = allowed.filter((vtable) =>
+		vtable.keywords.some((keyword) => lower.includes(keyword)),
+	)
+	return (matches.length > 0 ? matches : allowed).map(
+		(vtable) => vtable.entityType,
+	)
+}
+
+export function normalPanelExcludedRequest(userText: string): string | null {
+	const lower = userText.toLowerCase()
+	if (/\b(activities|activity|audit log|audit history)\b/.test(lower)) {
+		return 'Normal panel AI cannot read activity history. Open the Search panel for audited activity analysis.'
+	}
+	if (/\b(employee|employees|staff|salary|salaries)\b/.test(lower)) {
+		return 'Normal panel AI cannot read employee information. Open the Search panel for employee-aware analysis.'
+	}
+	return null
+}
+
+export function readEntitiesForRows({
+	rows,
+	scope,
+}: {
+	rows: SearchDisplayIndexRow[]
+	scope: InternalAiScope
+}): string[] {
+	return readEntitiesForEntityTypes({
+		entityTypes: rows.map((row) => row.entity_type),
+		scope,
+	})
+}
+
+export function readEntitiesForEntityTypes({
+	entityTypes,
+	scope,
+}: {
+	entityTypes: string[]
+	scope: InternalAiScope
+}): string[] {
+	const byEntityType = new Map(
+		allowedInternalAiVtables(scope).map((vtable) => [
+			vtable.entityType,
+			vtable,
+		]),
+	)
+	const entities = entityTypes.flatMap(
+		(entityType) => byEntityType.get(entityType)?.readEntities ?? [],
+	)
+	if (scope === 'search') entities.unshift('ceo_search_index')
+	return [...new Set(entities)]
+}
+
+export function buildInternalAiContextPackage({
+	panelId,
+	query,
+	queriedEntityTypes,
+	rows,
+	scope,
+}: {
+	panelId?: string | null
+	query: string
+	queriedEntityTypes?: string[]
+	rows: SearchDisplayIndexRow[]
+	scope: InternalAiScope
+}): InternalAiContextPackage {
+	const readEntities = queriedEntityTypes
+		? readEntitiesForEntityTypes({ entityTypes: queriedEntityTypes, scope })
+		: readEntitiesForRows({ rows, scope })
+	const grouped = groupRows(rows)
+	const accessLine =
+		scope === 'search'
+			? 'Search panel AI can read all approved internal vtables, including employees and activities.'
+			: 'Normal panel AI can read all operational vtables except employee information and activities.'
+	const lines = [
+		`Mode: ${scope === 'search' ? 'Search panel AI' : 'Normal panel AI'}`,
+		`Active panel: ${panelLabel(panelId)}`,
+		`User query: ${query || 'general operational summary'}`,
+		accessLine,
+		'Use only the records below. Do not invent missing values. Stay read-only.',
+	]
+
+	if (rows.length === 0) {
+		lines.push('No matching allowed records were found.')
+	} else {
+		for (const [entityType, entityRows] of Object.entries(grouped)) {
+			const label =
+				INTERNAL_AI_VTABLES.find((vtable) => vtable.entityType === entityType)
+					?.label ?? entityType
+			lines.push(`${label} (${entityRows.length})`)
+			for (const row of entityRows.slice(0, MAX_ROWS_PER_ENTITY)) {
+				lines.push(`- ${formatContextRow(row)}`)
+			}
+		}
+	}
+
+	const context = lines.slice(0, MAX_CONTEXT_LINES).join('\n')
+	return {
+		context,
+		fallbackText: buildFallbackAnswer({ panelId, query, rows, scope }),
+		readEntities,
+		rows,
+	}
+}
+
+export function buildInternalAiSystemPrompt({
+	context,
+	panelId,
+	scope,
+}: {
+	context: string
+	panelId?: string | null
+	scope: InternalAiScope
+}): string {
+	const base = scope === 'search' ? SEARCH_ASSISTANT : OPS_ASSISTANT
+	return `${base}
+
+Internal side-panel AI contract:
+- Active panel: ${panelLabel(panelId)}.
+- Normal panel mode may use all operational vtable context except employee information and activities.
+- Search panel mode may use all approved vtable context.
+- Never perform writes from chat. If the user asks for an action, point to the authorized panel action.
+- Keep answers natural and specific. Mention exact names, numbers, statuses, dates, and panels when present.
+- If context is missing, say what is missing instead of guessing.
+
+Approved context:
+${context}`
+}
+
+function buildFallbackAnswer({
+	panelId,
+	query,
+	rows,
+	scope,
+}: {
+	panelId?: string | null
+	query: string
+	rows: SearchDisplayIndexRow[]
+	scope: InternalAiScope
+}): string {
+	if (rows.length === 0) {
+		return scope === 'search'
+			? `Search panel AI checked all approved vtables for "${query || 'general operational summary'}" and found no matching records.`
+			: `Normal panel AI checked allowed operational vtables for "${query || 'general operational summary'}" and found no matching records. Employee information and activities were not read.`
+	}
+
+	const grouped = groupRows(rows)
+	const lines = [
+		scope === 'search'
+			? `Search panel AI read the approved vtable context for "${query || 'general operational summary'}".`
+			: `Normal panel AI read allowed operational vtable context for "${query || 'general operational summary'}" from ${panelLabel(panelId)}. Employee information and activities were not read.`,
+	]
+	for (const [entityType, entityRows] of Object.entries(grouped)) {
+		const label =
+			INTERNAL_AI_VTABLES.find((vtable) => vtable.entityType === entityType)
+				?.label ?? entityType
+		lines.push(`${label}: ${entityRows.length}`)
+		for (const row of entityRows.slice(0, 3)) {
+			lines.push(`- ${formatContextRow(row)}`)
+		}
+	}
+	return lines.join('\n')
+}
+
+function groupRows(
+	rows: SearchDisplayIndexRow[],
+): Record<string, SearchDisplayIndexRow[]> {
+	const grouped: Record<string, SearchDisplayIndexRow[]> = {}
+	for (const row of rows) {
+		const bucket = grouped[row.entity_type] ?? []
+		bucket.push(row)
+		grouped[row.entity_type] = bucket
+	}
+	return grouped
+}
+
+function formatContextRow(row: SearchDisplayIndexRow): string {
+	const title = buildSearchDisplayTitle(row)
+	const fields = mergeFields([
+		...buildSearchPreviewFields(row),
+		...buildSearchDetailFields(row),
+	])
+		.filter((field) => field.label !== 'Story')
+		.slice(0, 8)
+		.map((field) => `${field.label}: ${formatContextValue(field.value)}`)
+		.filter((field) => field.trim().length > 0)
+	const suffix = fields.length > 0 ? ` | ${fields.join(' | ')}` : ''
+	return truncateText(`${title}${suffix}`, 900)
+}
+
+function mergeFields(
+	fields: Array<{ label: string; value: JsonValue }>,
+): Array<{ label: string; value: JsonValue }> {
+	const seen = new Set<string>()
+	const merged: Array<{ label: string; value: JsonValue }> = []
+	for (const field of fields) {
+		const key = `${field.label}:${String(field.value)}`
+		if (seen.has(key)) continue
+		seen.add(key)
+		merged.push(field)
+	}
+	return merged
+}
+
+function formatContextValue(value: JsonValue): string {
+	if (value === null) return 'not set'
+	if (typeof value === 'string')
+		return truncateText(value, MAX_FIELD_VALUE_LENGTH)
+	if (typeof value === 'number' || typeof value === 'boolean') {
+		return String(value)
+	}
+	if (Array.isArray(value)) {
+		return truncateText(value.map(formatContextValue).join(', '), 220)
+	}
+	return truncateText(JSON.stringify(value), 220)
+}
+
+function panelLabel(panelId?: string | null): string {
+	if (!panelId) return 'Unknown panel'
+	return panelId
+		.split('-')
+		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+		.join(' ')
+}
+
+function truncateText(value: string, maxLength: number): string {
+	return value.length > maxLength
+		? `${value.slice(0, maxLength - 1)}...`
+		: value
+}
+
+export function queryTokensForAi(query: string): string[] {
+	return searchTokens(query)
+}

@@ -1,18 +1,30 @@
 /**
  * Internal AI chat server function.
  *
- * Streams assistant replies via Groq when GROQ_API_KEY is configured, or a
- * minimal stub when AI is not available.
+ * Side-panel Lyon has two read modes:
+ * - normal panels: all operational vtable context except employees/activity
+ * - Search panel: all approved vtable context
  *
- * Accumulates chunks into a StreamChunk[] that the client walks to fill the
- * assistant message in the Zustand store. Not true streaming yet — that's
- * a later pass once API routes are wired.
+ * The client still receives StreamChunk[] and drips the chunks into Zustand.
  */
 
-import { isAIEnabled, OPS_ASSISTANT, streamChat } from '@hyperquote/ai'
+import { isAIEnabled, streamChat } from '@hyperquote/ai'
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
+import {
+	allowedInternalAiVtables,
+	buildInternalAiContextPackage,
+	buildInternalAiSystemPrompt,
+	type InternalAiScope,
+	type InternalAiVtable,
+	normalPanelExcludedRequest,
+	queryTokensForAi,
+	requestedInternalAiEntityTypes,
+	resolveInternalAiScope,
+	searchQueryFromPrompt,
+} from './internal-ai-context'
+import type { SearchDisplayIndexRow } from './search-display'
 import { searchPattern, searchTokens } from './search-query'
 import { getInternalSupabaseClient } from './server/_supabase'
 
@@ -23,77 +35,44 @@ const internalChatInput = z.object({
 			content: z.string(),
 		}),
 	),
+	panelId: z.string().trim().min(1).max(80).optional(),
 })
 
-type InternalAiScope = 'employee' | 'search'
-
-interface SearchAiRow {
-	entity_type: string
-	entity_id: string
-	title: string
-	subtitle: string | null
-	metadata: Record<string, unknown> | null
-	sort_at?: string | null
-	search_text?: string | null
-}
-
-interface SearchAiAnswer {
-	readEntities: string[]
-	text: string
-}
-
-const SEARCH_ENTITY_READ_ENTITIES: Record<string, string> = {
-	activity: 'ceo_activity_summary',
-	approval: 'ceo_search_approval_vtable',
-	category: 'ceo_search_category_vtable',
-	customer: 'ceo_customer_summary',
-	dispatch: 'ceo_dispatch_summary',
-	document: 'ceo_search_document_vtable',
-	driver: 'ceo_driver_summary',
-	driver_location: 'ceo_search_driver_location_vtable',
-	employee: 'ceo_employee_summary',
-	inventory: 'ceo_inventory_summary',
-	order: 'ceo_order_summary',
-	payment: 'ceo_finance_summary',
-	pricing: 'ceo_search_pricing_vtable',
-	sales_history: 'ceo_search_sales_history_vtable',
-	supplier: 'ceo_supplier_summary',
-	support: 'ceo_support_summary',
-	support_message: 'ceo_search_support_message_vtable',
-	warehouse: 'ceo_warehouse_summary',
-}
-
-const SEARCH_ENTITY_KEYWORDS: Record<string, string[]> = {
-	activity: ['activity', 'audit', 'event', 'history'],
-	approval: ['approval', 'approvals', 'approve', 'pending approval'],
-	category: ['category', 'categories'],
-	customer: ['customer', 'customers', 'client', 'contractor'],
-	dispatch: ['dispatch', 'delivery', 'deliveries'],
-	document: ['document', 'documents', 'proof', 'proofs', 'attachment'],
-	driver: ['driver', 'drivers'],
-	driver_location: ['location', 'gps', 'map', 'driver location', 'tracking'],
-	employee: ['employee', 'employees', 'staff', 'team'],
-	inventory: ['inventory', 'stock', 'material', 'materials', 'product'],
-	order: ['order', 'orders', 'rfq', 'quote', 'sales'],
-	payment: [
-		'finance',
-		'payment',
-		'payments',
-		'invoice',
-		'paid',
-		'supplier paid',
-	],
-	pricing: ['price', 'pricing', 'margin', 'price update', 'outdated price'],
-	sales_history: ['version', 'versions', 'call note', 'sales history'],
-	supplier: ['supplier', 'suppliers', 'vendor', 'vendors'],
-	support: ['support', 'ticket', 'tickets', 'customer service'],
-	support_message: ['message', 'messages', 'reply', 'replies', 'whatsapp'],
-	warehouse: ['warehouse', 'loading', 'receiving'],
-}
-const SEARCH_AI_ENTITY_LIMIT = 8
-const SEARCH_AI_ENTITY_TYPES = Object.keys(SEARCH_ENTITY_READ_ENTITIES)
-const SEARCH_AI_ROW_SELECT =
+const INTERNAL_AI_ENTITY_LIMIT = 8
+const INTERNAL_AI_ROW_SELECT =
 	'entity_type, entity_id, title, subtitle, metadata, sort_at, search_text'
+const QUERY_STOP_TOKENS = new Set([
+	'a',
+	'all',
+	'an',
+	'are',
+	'as',
+	'at',
+	'about',
+	'for',
+	'from',
+	'in',
+	'is',
+	'latest',
+	'me',
+	'need',
+	'needs',
+	'of',
+	'on',
+	'recent',
+	'show',
+	'summarize',
+	'summary',
+	'tell',
+	'the',
+	'to',
+	'what',
+	'with',
+])
+
+type InternalSupabaseClient = NonNullable<
+	Awaited<ReturnType<typeof getInternalSupabaseClient>>
+>['client']
 
 async function* textStream(text: string): AsyncGenerator<StreamChunk> {
 	const runId = crypto.randomUUID()
@@ -128,21 +107,23 @@ export const internalChatFn = createServerFn({ method: 'POST' })
 
 		const lastMessage = input.messages[input.messages.length - 1]
 		const userText = lastMessage?.content ?? ''
-		const scope = inferInternalAiScope(userText)
+		const scope = resolveInternalAiScope({
+			panelId: input.panelId,
+			userText,
+		})
 		if (scope === 'search') {
 			const { data: canSearch, error } = await auth.client.rpc(
 				'can_access_ceo_search',
 			)
 			if (error) throw new Error(error.message)
 			if (canSearch !== true) throw new Error('ceo_search_required')
-			await refreshSearchDocumentsIfDirty(auth.client)
 		}
 
 		const chunks: StreamChunk[] = []
 		const refusal = internalPolicyRefusal(userText, scope)
-		let readEntities =
-			scope === 'search' ? ['ceo_search_index'] : ['current_internal_panel']
+		let readEntities: string[] = []
 		const source = await getInternalAiSource(auth.client, input.messages, {
+			panelId: input.panelId,
 			refusal,
 			scope,
 			setReadEntities: (entities) => {
@@ -159,17 +140,17 @@ export const internalChatFn = createServerFn({ method: 'POST' })
 			chunks,
 			scope,
 			readEntities,
+			input.panelId,
 		)
 		// biome-ignore lint/complexity/noBannedTypes: TanStack server-fn type contract uses `{}` explicitly.
 		return chunks as unknown as Array<{ [k: string]: {} }>
 	})
 
 async function getInternalAiSource(
-	client: NonNullable<
-		Awaited<ReturnType<typeof getInternalSupabaseClient>>
-	>['client'],
+	client: InternalSupabaseClient,
 	messages: Array<{ role: 'user' | 'assistant'; content: string }>,
 	options: {
+		panelId?: string | null
 		refusal: string | null
 		scope: InternalAiScope
 		setReadEntities: (readEntities: string[]) => void
@@ -177,21 +158,29 @@ async function getInternalAiSource(
 	},
 ): Promise<AsyncGenerator<StreamChunk>> {
 	if (options.refusal) return textStream(options.refusal)
-	if (options.scope === 'search') {
-		const answer = await buildSearchAiAnswer(client, options.userText)
-		options.setReadEntities(answer.readEntities)
-		return textStream(answer.text)
-	}
-	if (await isAIEnabled()) return streamChat(messages, OPS_ASSISTANT)
+
 	const simpleAnswer = simpleEmployeeChatAnswer(options.userText)
 	if (simpleAnswer) return textStream(simpleAnswer)
-	return textStream(employeeFallbackResponse(options.userText))
-}
 
-function inferInternalAiScope(userText: string): InternalAiScope {
-	return userText.toLowerCase().startsWith('search internal database for:')
-		? 'search'
-		: 'employee'
+	await refreshSearchDocumentsIfDirty(client)
+	const contextPackage = await buildAiContext(client, {
+		panelId: options.panelId,
+		scope: options.scope,
+		userText: options.userText,
+	})
+	options.setReadEntities(contextPackage.readEntities)
+
+	if (await isAIEnabled()) {
+		return streamChat(
+			messages,
+			buildInternalAiSystemPrompt({
+				context: contextPackage.context,
+				panelId: options.panelId,
+				scope: options.scope,
+			}),
+		)
+	}
+	return textStream(contextPackage.fallbackText)
 }
 
 function internalPolicyRefusal(
@@ -205,54 +194,122 @@ function internalPolicyRefusal(
 		lower.includes('cancel') ||
 		lower.includes('delete') ||
 		lower.includes('update status') ||
-		lower.includes('mark delivered')
-	if (scope === 'search' && asksWrite) {
-		return 'Search AI is read-only. Use the normal authorized panel action for workflow changes.'
-	}
-	if (scope === 'employee' && asksWrite) {
-		return 'Employee AI is read-focused. Use the normal authorized panel action for workflow changes, so the backend can enforce role checks and activity history.'
+		lower.includes('mark delivered') ||
+		lower.includes('mark as delivered') ||
+		lower.includes('reject') ||
+		lower.includes('change price') ||
+		lower.includes('change status')
+	if (asksWrite) {
+		return scope === 'search'
+			? 'Search AI is read-only. Use the normal authorized panel action for workflow changes.'
+			: 'Normal panel AI is read-only. Use the authorized panel action so the backend can enforce role checks, proof requirements, and activity history.'
 	}
 	if (
-		scope === 'employee' &&
-		(lower.includes('salary') ||
-			lower.includes('ceo-only') ||
-			lower.includes('raw export') ||
-			lower.includes('secret') ||
-			lower.includes('token') ||
-			lower.includes('private finance'))
+		lower.includes('raw export') ||
+		lower.includes('secret') ||
+		lower.includes('token') ||
+		lower.includes('api key')
 	) {
-		return 'I can only use the operational context allowed by your current role. I cannot reveal CEO-only, private finance, salary, export, secret, or cross-role data.'
+		return 'I cannot reveal raw exports, secrets, tokens, or credentials.'
+	}
+	if (scope === 'employee') {
+		return normalPanelExcludedRequest(userText)
 	}
 	return null
 }
-
-type InternalSupabaseClient = NonNullable<
-	Awaited<ReturnType<typeof getInternalSupabaseClient>>
->['client']
 
 async function refreshSearchDocumentsIfDirty(client: InternalSupabaseClient) {
 	const { error } = await client.rpc('refresh_ceo_search_documents_if_dirty')
 	if (error) throw new Error(error.message)
 }
 
-function employeeFallbackResponse(userText: string): string {
-	const lower = userText.toLowerCase()
-	if (
-		lower.includes('summarize') ||
-		lower.includes('screen') ||
-		lower.includes('state')
-	) {
-		return 'I can summarize the current internal panel from the records your role can already see, explain workflow state, and draft notes. No workflow action was taken.'
+async function buildAiContext(
+	client: InternalSupabaseClient,
+	options: {
+		panelId?: string | null
+		scope: InternalAiScope
+		userText: string
+	},
+) {
+	const query = searchQueryFromPrompt(options.userText)
+	const result = await fetchInternalAiRows(client, {
+		query,
+		scope: options.scope,
+	})
+	return buildInternalAiContextPackage({
+		panelId: options.panelId,
+		query,
+		queriedEntityTypes: result.queriedEntityTypes,
+		rows: result.rows,
+		scope: options.scope,
+	})
+}
+
+async function fetchInternalAiRows(
+	client: InternalSupabaseClient,
+	options: {
+		query: string
+		scope: InternalAiScope
+	},
+): Promise<{ queriedEntityTypes: string[]; rows: SearchDisplayIndexRow[] }> {
+	const requestedEntityTypes = requestedInternalAiEntityTypes({
+		query: options.query,
+		scope: options.scope,
+	})
+	const allowedByEntityType = new Map(
+		allowedInternalAiVtables(options.scope).map((vtable) => [
+			vtable.entityType,
+			vtable,
+		]),
+	)
+	const tokensToApply = searchTokensForRows(options.query, {
+		requestedEntityTypes,
+		vtables: [...allowedByEntityType.values()],
+	})
+
+	const rowGroups = await Promise.all(
+		requestedEntityTypes.map(async (entityType) => {
+			if (!allowedByEntityType.has(entityType)) return []
+			let request = client
+				.from('ceo_search_index')
+				.select(INTERNAL_AI_ROW_SELECT)
+				.eq('entity_type', entityType)
+				.order('sort_at', { ascending: false })
+				.order('title', { ascending: true })
+				.limit(INTERNAL_AI_ENTITY_LIMIT)
+			for (const token of tokensToApply) {
+				request = request.ilike('search_text', searchPattern(token))
+			}
+			const { data, error } = await request
+			if (error) throw new Error(error.message)
+			return (data ?? []) as unknown as SearchDisplayIndexRow[]
+		}),
+	)
+	return {
+		queriedEntityTypes: requestedEntityTypes,
+		rows: rowGroups.flat(),
 	}
-	if (
-		lower.includes('find') ||
-		lower.includes('where') ||
-		lower.includes('stock') ||
-		lower.includes('order')
-	) {
-		return 'I can help you find allowed operational records in the current panel and explain what needs attention. I cannot cross role boundaries or perform writes from chat.'
+}
+
+function searchTokensForRows(
+	query: string,
+	options: {
+		requestedEntityTypes: string[]
+		vtables: InternalAiVtable[]
+	},
+): string[] {
+	const typeTokens = new Set<string>()
+	for (const vtable of options.vtables) {
+		if (!options.requestedEntityTypes.includes(vtable.entityType)) continue
+		for (const keyword of vtable.keywords) {
+			for (const token of queryTokensForAi(keyword)) {
+				typeTokens.add(token)
+			}
+		}
 	}
-	return 'I can help with allowed internal context: summarize records, explain workflow state, draft notes, and point you to the normal authorized action when a change is needed.'
+	return searchTokens(query).filter(
+		(token) => !typeTokens.has(token) && !QUERY_STOP_TOKENS.has(token),
+	)
 }
 
 function simpleEmployeeChatAnswer(userText: string): string | null {
@@ -272,17 +329,16 @@ function simpleEmployeeChatAnswer(userText: string): string | null {
 	) {
 		return null
 	}
-	return 'Hi, I can help summarize allowed internal records, explain workflow state, draft notes, or point you to the authorized panel action.'
+	return 'Hi, I can read the allowed vtable context for this side panel, summarize records, explain workflow state, and point you to the authorized action when a change is needed.'
 }
 
 async function recordInternalAiAudit(
-	client: NonNullable<
-		Awaited<ReturnType<typeof getInternalSupabaseClient>>
-	>['client'],
+	client: InternalSupabaseClient,
 	userText: string,
 	chunks: StreamChunk[],
 	scope: InternalAiScope,
 	readEntities: string[],
+	panelId?: string | null,
 ) {
 	const response = chunks
 		.filter((chunk) => chunk.type === 'TEXT_MESSAGE_CONTENT')
@@ -291,136 +347,18 @@ async function recordInternalAiAudit(
 	const { error } = await client.rpc('record_ai_tool_call', {
 		p_agent_scope: scope,
 		p_approved_by_user: false,
-		p_input_summary: { prompt: userText.slice(0, 240) },
+		p_input_summary: {
+			panel: panelId ?? null,
+			prompt: userText.slice(0, 240),
+		},
 		p_output_summary: { response: response.slice(0, 240) },
 		p_read_entities: readEntities,
-		p_tool_name: scope === 'search' ? 'ceo_search_chat' : 'employee_chat',
+		p_tool_name:
+			scope === 'search'
+				? 'search_panel_vtable_chat'
+				: 'normal_panel_vtable_chat',
 		p_write_entity_id: null,
 		p_write_entity_type: null,
 	})
 	if (error) throw new Error(error.message)
-}
-
-async function buildSearchAiAnswer(
-	client: NonNullable<
-		Awaited<ReturnType<typeof getInternalSupabaseClient>>
-	>['client'],
-	userText: string,
-): Promise<SearchAiAnswer> {
-	const query = searchQueryFromPrompt(userText)
-	const rows = await fetchSearchAiRows(client, query)
-	const grouped = groupSearchRows(rows)
-	const readEntities = [
-		'ceo_search_index',
-		...Object.keys(grouped)
-			.map((entityType) => SEARCH_ENTITY_READ_ENTITIES[entityType])
-			.filter((entity): entity is string => Boolean(entity)),
-	]
-
-	if (rows.length === 0) {
-		return {
-			readEntities: ['ceo_search_index'],
-			text: `Approved Search read-only view for "${query || 'all records'}": no matching records found. No workflow action was taken.`,
-		}
-	}
-
-	const lines = [
-		`Approved Search read-only view for "${query || 'all records'}". No workflow action was taken.`,
-	]
-	for (const [entityType, entityRows] of Object.entries(grouped)) {
-		lines.push(`${entityLabel(entityType)}: ${entityRows.length}`)
-		for (const row of entityRows.slice(0, 3)) {
-			const subtitle = row.subtitle ? ` - ${row.subtitle}` : ''
-			lines.push(`- ${row.title}${subtitle}`)
-		}
-	}
-
-	return {
-		readEntities: Array.from(new Set(readEntities)),
-		text: lines.join('\n'),
-	}
-}
-
-async function fetchSearchAiRows(
-	client: NonNullable<
-		Awaited<ReturnType<typeof getInternalSupabaseClient>>
-	>['client'],
-	query: string,
-): Promise<SearchAiRow[]> {
-	const requestedTypes = requestedSearchEntityTypes(query)
-	const entityTypes =
-		requestedTypes.size > 0
-			? Array.from(requestedTypes)
-			: SEARCH_AI_ENTITY_TYPES
-	const tokens = searchTokens(query)
-	const typeTokens = keywordTokensForEntityTypes(requestedTypes)
-	const searchTokensToApply =
-		requestedTypes.size > 0
-			? tokens.filter((token) => !typeTokens.has(token))
-			: tokens
-
-	const rowGroups = await Promise.all(
-		entityTypes.map(async (entityType) => {
-			let request = client
-				.from('ceo_search_index')
-				.select(SEARCH_AI_ROW_SELECT)
-				.eq('entity_type', entityType)
-				.order('sort_at', { ascending: false })
-				.order('title', { ascending: true })
-				.limit(SEARCH_AI_ENTITY_LIMIT)
-			if (searchTokensToApply.length > 0) {
-				for (const token of searchTokensToApply) {
-					request = request.ilike('search_text', searchPattern(token))
-				}
-			}
-			const { data, error } = await request
-			if (error) throw new Error(error.message)
-			return (data ?? []) as SearchAiRow[]
-		}),
-	)
-	return rowGroups.flat()
-}
-
-function searchQueryFromPrompt(userText: string): string {
-	return userText.replace(/^search internal database for:\s*/i, '').trim()
-}
-
-function requestedSearchEntityTypes(query: string): Set<string> {
-	const lower = query.toLowerCase()
-	const matches = new Set<string>()
-	for (const [entityType, keywords] of Object.entries(SEARCH_ENTITY_KEYWORDS)) {
-		if (keywords.some((keyword) => lower.includes(keyword))) {
-			matches.add(entityType)
-		}
-	}
-	return matches
-}
-
-function keywordTokensForEntityTypes(entityTypes: Set<string>): Set<string> {
-	const tokens = new Set<string>()
-	for (const entityType of entityTypes) {
-		for (const keyword of SEARCH_ENTITY_KEYWORDS[entityType] ?? []) {
-			for (const token of searchTokens(keyword)) {
-				tokens.add(token)
-			}
-		}
-	}
-	return tokens
-}
-
-function groupSearchRows(rows: SearchAiRow[]): Record<string, SearchAiRow[]> {
-	const grouped: Record<string, SearchAiRow[]> = {}
-	for (const row of rows) {
-		const bucket = grouped[row.entity_type] ?? []
-		bucket.push(row)
-		grouped[row.entity_type] = bucket
-	}
-	return grouped
-}
-
-function entityLabel(entityType: string): string {
-	return entityType
-		.split('_')
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-		.join(' ')
 }

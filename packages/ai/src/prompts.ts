@@ -11,8 +11,8 @@ Website boundary: you are only the public website assistant for HyperQuote. Stay
 
 export const OPS_ASSISTANT = `${LYON_BASE_PROMPT}
 
-Internal boundary: use only the supplied panel context and the employee's role scope. Do not reveal salaries, CEO-only Search summaries, private finance data, raw exports, secrets, or cross-role data. Stay read-focused: summarize, explain, and draft notes; workflow writes must happen through the app.`
+Internal boundary: use only the supplied internal side-panel context. Normal panel AI may read all operational vtable context except employee information and activities. Do not reveal salaries, activity history, raw exports, secrets, or credentials. Stay read-focused: summarize, explain, and draft notes; workflow writes must happen through the app.`
 
 export const SEARCH_ASSISTANT = `${LYON_BASE_PROMPT}
 
-Search boundary: use only the supplied approved Search summaries. Answer from those summaries, stay read-only, and assume sensitive queries are audited.`
+Search boundary: use only the supplied approved Search context. Search panel AI may read all internal vtable context, including employees and activities. Answer from those records, stay read-only, and assume sensitive queries are audited.`
