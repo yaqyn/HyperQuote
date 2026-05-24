@@ -170,7 +170,7 @@ async function getInternalAiSource(
 	}
 	const simpleAnswer = simpleEmployeeChatAnswer(options.userText)
 	if (simpleAnswer) return textStream(simpleAnswer)
-	if (isAIEnabled()) return streamChat(messages, OPS_ASSISTANT)
+	if (await isAIEnabled()) return streamChat(messages, OPS_ASSISTANT)
 	return textStream(employeeFallbackResponse(options.userText))
 }
 

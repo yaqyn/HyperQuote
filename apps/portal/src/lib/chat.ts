@@ -471,7 +471,7 @@ async function requestPortalCustomerTool(
 	const safeFallback = fallbackPortalCustomerToolRequest(userText)
 	if (safeFallback.action === 'refuse') return safeFallback
 
-	if (!isAIEnabled()) return safeFallback
+	if (!(await isAIEnabled())) return safeFallback
 
 	try {
 		const rawRoute = await completeChat(
@@ -1453,7 +1453,7 @@ async function renderPortalCustomerResponse(
 	) {
 		return textOnlyChunks(fallbackText, customEvents)
 	}
-	if (!isAIEnabled()) return textOnlyChunks(fallbackText, customEvents)
+	if (!(await isAIEnabled())) return textOnlyChunks(fallbackText, customEvents)
 
 	try {
 		const answer = await completeChat(
@@ -1472,7 +1472,7 @@ async function publicDocsAnswer(
 	docs: DocsRetrievalResult,
 ): Promise<string> {
 	if (!docs.hasHighConfidence) return publicDocsNoAnswerResponse(docs.locale)
-	if (!isAIEnabled()) {
+	if (!(await isAIEnabled())) {
 		return publicDocsExtractiveResponse(docs.chunks, docs.locale)
 	}
 
@@ -4847,7 +4847,7 @@ async function supplierPortalChunks(
 	const simpleAnswer = simplePortalTextAnswer(userText, 'supplier')
 	if (simpleAnswer) return textOnlyChunks(simpleAnswer, [])
 
-	if (isAIEnabled())
+	if (await isAIEnabled())
 		return streamWithCustomEvents(modelMessages, LYON_PORTAL, [])
 	const lower = userText.toLowerCase()
 	const key = lower.includes('cement')

@@ -49,22 +49,63 @@ interface ChatCompletionOptions {
 	temperature?: number
 }
 
-function readGroqEnv(): GroqEnv {
-	const env =
-		typeof process !== 'undefined'
-			? (process.env as Record<string, string | undefined>)
-			: undefined
+function processEnvRecord(): Record<string, string | undefined> | undefined {
+	return typeof process !== 'undefined'
+		? (process.env as Record<string, string | undefined>)
+		: undefined
+}
 
-	const model = env?.GROQ_MODEL ?? DEFAULT_GROQ_MODEL
+async function readWorkersEnv(): Promise<
+	Record<string, string | undefined> | undefined
+> {
+	try {
+		const workersModule = 'cloudflare:workers'
+		const { env } = await import(/* @vite-ignore */ workersModule)
+		if (!env || typeof env !== 'object') return undefined
+		const values: Record<string, string | undefined> = {}
+		for (const key of [
+			'GROQ_API_KEY',
+			'GROQ_MODEL',
+			'GROQ_REASONING_EFFORT',
+			'GROQ_URL',
+			'HQ_GROQ_API_KEY',
+			'HQ_GROQ_MODEL',
+			'HQ_GROQ_REASONING_EFFORT',
+			'HQ_GROQ_URL',
+			'HQ_USE_AI',
+			'USE_AI',
+			'VITE_USE_AI',
+			'NODE_ENV',
+		]) {
+			const value = (env as Record<string, unknown>)[key]
+			if (typeof value === 'string') values[key] = value
+		}
+		return values
+	} catch {
+		return undefined
+	}
+}
+
+async function readRuntimeEnv(): Promise<Record<string, string | undefined>> {
+	return {
+		...((await readWorkersEnv()) ?? {}),
+		...(processEnvRecord() ?? {}),
+	}
+}
+
+async function readGroqEnv(): Promise<GroqEnv> {
+	const env = await readRuntimeEnv()
+
+	const model = env.GROQ_MODEL ?? env.HQ_GROQ_MODEL ?? DEFAULT_GROQ_MODEL
 	const supportsReasoningEffort = model.includes('qwen')
 
 	return {
-		apiKey: env?.GROQ_API_KEY ?? '',
+		apiKey: env.GROQ_API_KEY ?? env.HQ_GROQ_API_KEY ?? '',
 		model,
 		reasoningEffort: supportsReasoningEffort
-			? (env?.GROQ_REASONING_EFFORT ?? 'none')
+			? (env.GROQ_REASONING_EFFORT ?? env.HQ_GROQ_REASONING_EFFORT ?? 'none')
 			: undefined,
-		url: env?.GROQ_URL ?? DEFAULT_GROQ_URL,
+		url: env.GROQ_URL ?? env.HQ_GROQ_URL ?? DEFAULT_GROQ_URL,
 	}
 }
 
@@ -72,15 +113,11 @@ function readGroqEnv(): GroqEnv {
  * Returns true when the server should call Groq. Default: on in
  * dev, off in prod. Override with USE_AI=1 / USE_AI=0.
  */
-export function isAIEnabled(): boolean {
-	const env =
-		typeof process !== 'undefined'
-			? (process.env as Record<string, string | undefined>)
-			: undefined
-	if (!env) return false
-	const flag = env.USE_AI ?? env.VITE_USE_AI
+export async function isAIEnabled(): Promise<boolean> {
+	const env = await readRuntimeEnv()
+	const flag = env.USE_AI ?? env.HQ_USE_AI ?? env.VITE_USE_AI
 	if (flag === '0' || flag === 'false') return false
-	if (!readGroqEnv().apiKey) return false
+	if (!(await readGroqEnv()).apiKey) return false
 	if (flag === '1' || flag === 'true') return true
 	return env.NODE_ENV !== 'production'
 }
@@ -96,7 +133,7 @@ export async function* streamChat(
 ): AsyncGenerator<StreamChunk> {
 	const runId = crypto.randomUUID()
 	const messageId = crypto.randomUUID()
-	const groq = readGroqEnv()
+	const groq = await readGroqEnv()
 
 	yield { type: 'RUN_STARTED' as const, timestamp: Date.now(), runId }
 	yield {
@@ -252,7 +289,7 @@ export async function completeChat(
 	systemPrompt: string,
 	options: ChatCompletionOptions = {},
 ): Promise<string> {
-	const groq = readGroqEnv()
+	const groq = await readGroqEnv()
 	if (!groq.apiKey) {
 		throw new Error('GROQ_API_KEY is not set')
 	}

@@ -143,7 +143,7 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 				chunks.push(chunk)
 			}
 		} else {
-			const aiEnabled = isAIEnabled()
+			const aiEnabled = await isAIEnabled()
 			const route = enforceDocsRoute(
 				aiEnabled
 					? await routeWebsitePublicChat(modelMessages, userText)

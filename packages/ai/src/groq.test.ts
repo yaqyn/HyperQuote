@@ -1,0 +1,80 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { completeChat, isAIEnabled } from './groq'
+
+const ENV_KEYS = [
+	'GROQ_API_KEY',
+	'GROQ_MODEL',
+	'GROQ_URL',
+	'HQ_GROQ_API_KEY',
+	'HQ_GROQ_MODEL',
+	'HQ_GROQ_URL',
+	'HQ_USE_AI',
+	'USE_AI',
+	'VITE_USE_AI',
+] as const
+
+const originalEnv = new Map(
+	ENV_KEYS.map((key) => [key, process.env[key]] as const),
+)
+
+afterEach(() => {
+	vi.restoreAllMocks()
+	for (const key of ENV_KEYS) {
+		const value = originalEnv.get(key)
+		if (value === undefined) {
+			delete process.env[key]
+		} else {
+			process.env[key] = value
+		}
+	}
+})
+
+describe('Groq runtime env', () => {
+	it('enables AI from normal runtime Groq env', async () => {
+		process.env.GROQ_API_KEY = 'normal-key'
+		process.env.USE_AI = '1'
+
+		await expect(isAIEnabled()).resolves.toBe(true)
+	})
+
+	it('supports operator HQ-prefixed Groq env in local dev', async () => {
+		delete process.env.GROQ_API_KEY
+		delete process.env.USE_AI
+		process.env.HQ_GROQ_API_KEY = 'operator-key'
+		process.env.HQ_USE_AI = '1'
+
+		await expect(isAIEnabled()).resolves.toBe(true)
+	})
+
+	it('keeps explicit AI disable stronger than configured keys', async () => {
+		process.env.GROQ_API_KEY = 'normal-key'
+		process.env.USE_AI = '0'
+
+		await expect(isAIEnabled()).resolves.toBe(false)
+	})
+
+	it('uses HQ-prefixed key and model for completions', async () => {
+		delete process.env.GROQ_API_KEY
+		delete process.env.GROQ_MODEL
+		process.env.HQ_GROQ_API_KEY = 'operator-key'
+		process.env.HQ_GROQ_MODEL = 'openai/gpt-oss-120b'
+		process.env.HQ_GROQ_URL = 'https://groq.test/openai/v1/chat/completions'
+
+		const fetchMock = vi.fn<typeof fetch>(async () =>
+			Response.json({
+				choices: [{ message: { content: 'ok' } }],
+			}),
+		)
+		vi.stubGlobal('fetch', fetchMock)
+
+		await expect(completeChat([], 'system')).resolves.toBe('ok')
+		expect(fetchMock).toHaveBeenCalledWith(
+			'https://groq.test/openai/v1/chat/completions',
+			expect.objectContaining({
+				headers: expect.objectContaining({
+					Authorization: 'Bearer operator-key',
+				}),
+			}),
+		)
+	})
+})
