@@ -207,6 +207,20 @@ function activityAmount(metadata: JsonObject): string | null {
 	)
 }
 
+function activityQuantity(metadata: JsonObject): string | null {
+	return (
+		formatNumber(numberValue(metadata, 'quantity')) ??
+		stringValue(metadata, 'quantity')
+	)
+}
+
+function activityUnitCost(metadata: JsonObject): string | null {
+	return (
+		stringValue(metadata, 'unit_cost_label') ??
+		formatMoney(numberValue(metadata, 'unit_cost'))
+	)
+}
+
 function activityWhen(metadata: JsonObject): string | null {
 	return stringValue(metadata, 'when') ?? formatDateTime(metadata.created_at)
 }
@@ -857,6 +871,8 @@ export function buildSearchPreviewFields(
 				),
 				previewField('Customer', stringValue(metadata, 'customer')),
 				previewField('Target', stringValue(metadata, 'target')),
+				previewField('Quantity', activityQuantity(metadata)),
+				previewField('Unit cost', activityUnitCost(metadata)),
 				previewField('Amount', activityAmount(metadata)),
 				previewField('When', activityWhen(metadata)),
 			)
@@ -1442,6 +1458,8 @@ export function buildSearchDetailFields(
 				),
 				detailField('When', activityWhen(metadata)),
 				detailField('Target', stringValue(metadata, 'target')),
+				detailField('Quantity', activityQuantity(metadata)),
+				detailField('Unit cost', activityUnitCost(metadata)),
 				detailField('Changed', stringValue(metadata, 'changed_field')),
 				detailField('From', stringValue(metadata, 'from_value')),
 				detailField('To', stringValue(metadata, 'to_value')),

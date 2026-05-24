@@ -4,9 +4,9 @@ import {
 	ArrowLeft,
 	ChevronDown,
 	Database,
-	ExternalLink,
 	FileText,
 	Table2,
+	X,
 } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
@@ -466,7 +466,7 @@ export function SearchModule() {
 				onOpenSourcePanel={openSourcePanel}
 				onOpenProofs={setProofRow}
 			/>
-			<ActivityProofDrawer row={proofRow} onClose={() => setProofRow(null)} />
+			<ActivityProofWindow row={proofRow} onClose={() => setProofRow(null)} />
 		</div>
 	)
 }
@@ -1383,13 +1383,15 @@ function RowDetailPanel({
 	)
 }
 
-function ActivityProofDrawer({
+function ActivityProofWindow({
 	row,
 	onClose,
 }: {
 	row: SearchRow | null
 	onClose: () => void
 }) {
+	const [isClient, setIsClient] = useState(false)
+	const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
 	const proofQuery = useQuery({
 		queryKey: ['activity-proof-documents', row?.rowId],
 		queryFn: () => {
@@ -1400,57 +1402,142 @@ function ActivityProofDrawer({
 		staleTime: 30_000,
 	})
 	const docs = proofQuery.data ?? []
+	const selectedDoc =
+		docs.find((doc) => doc.id === selectedDocId) ?? docs.at(0) ?? null
 
-	return (
-		<SlidePanel
-			isOpen={row !== null}
-			onClose={onClose}
-			maxWidth={440}
-			ariaLabel="Activity proof documents"
-			panelKey="activity-proof-documents"
-			scope="search"
-			tone="dark"
-			mobileTitle="Proof documents"
-			mobileSubtitle={row?.title}
-		>
-			<div className="flex h-full min-h-0 flex-col bg-[#050505] text-white">
-				<header className="shrink-0 border-b border-white/[0.075] px-5 py-5">
-					<p className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/36">
-						Activity proof
-					</p>
-					<h2 className="mt-2 font-[family-name:var(--font-bricolage)] text-[20px] font-semibold text-white/92">
-						Show Docs
-					</h2>
+	useEffect(() => {
+		setIsClient(true)
+	}, [])
+
+	useEffect(() => {
+		if (!row || docs.length === 0) return
+		if (selectedDocId && docs.some((doc) => doc.id === selectedDocId)) return
+		setSelectedDocId(docs[0]?.id ?? null)
+	}, [docs, row, selectedDocId])
+
+	useEffect(() => {
+		if (!row) return
+
+		function closeOnEscape(event: KeyboardEvent) {
+			if (event.key === 'Escape') onClose()
+		}
+
+		window.addEventListener('keydown', closeOnEscape)
+		return () => window.removeEventListener('keydown', closeOnEscape)
+	}, [onClose, row])
+
+	if (row === null || !isClient || typeof document === 'undefined') return null
+
+	return createPortal(
+		<div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-3 text-white backdrop-blur-sm sm:p-5">
+			<button
+				type="button"
+				aria-label="Close proof documents"
+				className="absolute inset-0 cursor-default"
+				onClick={onClose}
+			/>
+			<section
+				role="dialog"
+				aria-modal="true"
+				aria-label="Activity proof documents"
+				className="relative flex h-[min(760px,calc(100dvh-24px))] w-[min(1120px,calc(100vw-24px))] min-w-0 flex-col border border-white/[0.09] bg-[#050505] shadow-2xl shadow-black/70 sm:h-[min(760px,calc(100dvh-40px))] sm:w-[min(1120px,calc(100vw-40px))]"
+			>
+				<header className="flex shrink-0 items-start justify-between gap-4 border-b border-white/[0.075] px-4 py-4 sm:px-5">
+					<div className="min-w-0">
+						<p className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/36">
+							Activity proof
+						</p>
+						<h2 className="mt-1 truncate font-[family-name:var(--font-bricolage)] text-[20px] font-semibold text-white/92">
+							Show Docs
+						</h2>
+						<p className="mt-1 line-clamp-2 font-[family-name:var(--font-archivo)] text-[12px] text-white/46">
+							{row.title}
+						</p>
+					</div>
+					<button
+						type="button"
+						onClick={onClose}
+						aria-label="Close proof documents"
+						className="inline-flex h-9 w-9 shrink-0 items-center justify-center border border-white/[0.08] text-white/54 outline-none transition-colors hover:border-white/[0.16] hover:text-white focus-visible:border-white/28 focus-visible:text-white"
+					>
+						<X aria-hidden="true" size={16} strokeWidth={1.8} />
+					</button>
 				</header>
-				<div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-					{proofQuery.isLoading ? (
-						<p className="font-[family-name:var(--font-archivo)] text-[13px] text-white/44">
-							Loading documents...
-						</p>
-					) : proofQuery.isError ? (
-						<p className="font-[family-name:var(--font-archivo)] text-[13px] text-[#ffb4a6]">
-							Proof documents could not be loaded.
-						</p>
-					) : docs.length === 0 ? (
-						<p className="font-[family-name:var(--font-archivo)] text-[13px] text-white/44">
-							No proof documents are linked to this activity yet.
-						</p>
-					) : (
-						<div className="space-y-3">
-							{docs.map((doc) => (
-								<ActivityProofCard key={doc.id} doc={doc} />
-							))}
-						</div>
-					)}
+				<div className="grid min-h-0 flex-1 grid-rows-[minmax(0,220px)_minmax(0,1fr)] lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-1">
+					<aside className="min-h-0 border-b border-white/[0.075] lg:border-r lg:border-b-0">
+						{proofQuery.isLoading ? (
+							<ProofWindowState>Loading documents...</ProofWindowState>
+						) : proofQuery.isError ? (
+							<ProofWindowState tone="danger">
+								Proof documents could not be loaded.
+							</ProofWindowState>
+						) : docs.length === 0 ? (
+							<ProofWindowState>
+								No proof documents are linked to this activity yet.
+							</ProofWindowState>
+						) : (
+							<div className="h-full overflow-y-auto p-3">
+								<div className="space-y-2">
+									{docs.map((doc) => (
+										<ActivityProofCard
+											key={doc.id}
+											doc={doc}
+											isSelected={selectedDoc?.id === doc.id}
+											onSelect={() => setSelectedDocId(doc.id)}
+										/>
+									))}
+								</div>
+							</div>
+						)}
+					</aside>
+					<ActivityProofPreview doc={selectedDoc} />
 				</div>
-			</div>
-		</SlidePanel>
+			</section>
+		</div>,
+		document.body,
 	)
 }
 
-function ActivityProofCard({ doc }: { doc: ActivityProofDocument }) {
+function ProofWindowState({
+	children,
+	tone = 'muted',
+}: {
+	children: ReactNode
+	tone?: 'muted' | 'danger'
+}) {
 	return (
-		<article className="border border-white/[0.08] bg-white/[0.03] p-3">
+		<div className="flex h-full items-center px-5 py-5">
+			<p
+				className={`font-[family-name:var(--font-archivo)] text-[13px] ${
+					tone === 'danger' ? 'text-[#ffb4a6]' : 'text-white/44'
+				}`}
+			>
+				{children}
+			</p>
+		</div>
+	)
+}
+
+function ActivityProofCard({
+	doc,
+	isSelected,
+	onSelect,
+}: {
+	doc: ActivityProofDocument
+	isSelected: boolean
+	onSelect: () => void
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onSelect}
+			aria-pressed={isSelected}
+			className={`w-full border p-3 text-left outline-none transition-colors ${
+				isSelected
+					? 'border-white/[0.2] bg-white/[0.08]'
+					: 'border-white/[0.08] bg-white/[0.03] hover:border-white/[0.14] hover:bg-white/[0.055]'
+			} focus-visible:border-white/30`}
+		>
 			<div className="flex items-start gap-3">
 				<FileText
 					aria-hidden="true"
@@ -1471,18 +1558,66 @@ function ActivityProofCard({ doc }: { doc: ActivityProofDocument }) {
 					</p>
 				</div>
 			</div>
-			{doc.url && (
-				<a
-					href={doc.url}
-					target="_blank"
-					rel="noreferrer"
-					className="mt-3 inline-flex min-h-9 items-center gap-2 border border-white/[0.1] px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-white/70 transition-colors hover:border-white/[0.2] hover:text-white"
-				>
-					<ExternalLink aria-hidden="true" size={13} strokeWidth={1.8} />
-					Open document
-				</a>
-			)}
-		</article>
+		</button>
+	)
+}
+
+function ActivityProofPreview({ doc }: { doc: ActivityProofDocument | null }) {
+	if (!doc) {
+		return (
+			<div className="flex min-h-0 items-center justify-center bg-white/[0.018] px-5 py-5">
+				<p className="font-[family-name:var(--font-archivo)] text-[13px] text-white/44">
+					Select a proof document to preview it.
+				</p>
+			</div>
+		)
+	}
+
+	const isImage = doc.mimeType.startsWith('image/')
+	const isPdf = doc.mimeType === 'application/pdf'
+
+	return (
+		<div className="flex min-h-0 flex-col bg-white/[0.018]">
+			<div className="shrink-0 border-b border-white/[0.06] px-4 py-3 sm:px-5">
+				<h3 className="break-words font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-white/86">
+					{doc.title}
+				</h3>
+				<p className="mt-1 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/36">
+					{proofTypeLabel(doc.proofType)} · {formatProofSize(doc.sizeBytes)}
+				</p>
+			</div>
+			<div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
+				{!doc.url ? (
+					<ProofPreviewUnavailable />
+				) : isImage ? (
+					<div className="flex min-h-full items-center justify-center">
+						<img
+							src={doc.url}
+							alt={doc.title}
+							className="max-h-full max-w-full object-contain"
+						/>
+					</div>
+				) : isPdf ? (
+					<iframe
+						title={doc.title}
+						src={doc.url}
+						className="h-full min-h-[420px] w-full border border-white/[0.08] bg-white"
+					/>
+				) : (
+					<ProofPreviewUnavailable />
+				)}
+			</div>
+		</div>
+	)
+}
+
+function ProofPreviewUnavailable() {
+	return (
+		<div className="flex min-h-full items-center justify-center border border-white/[0.06] bg-black/20 px-5 py-8">
+			<p className="font-[family-name:var(--font-archivo)] text-[13px] text-white/44">
+				Preview unavailable for this document.
+			</p>
+		</div>
 	)
 }
 

@@ -364,6 +364,55 @@ describe('Search display formatting', () => {
 		expect(labels).not.toContain('Context')
 	})
 
+	it('projects refill-sourced pricing as refill activity instead of a price change', () => {
+		const row: SearchDisplayIndexRow = {
+			entity_type: 'activity',
+			entity_id: 'activity-refill-price-1',
+			title:
+				'Ahmed Hassan from Inventory recorded refill pricing for Wood for 10 units at 12.00 LE before Finance review on May 24, 2026, 11:59 AM',
+			subtitle: 'Inventory',
+			metadata: {
+				activity_sentence:
+					'Ahmed Hassan from Inventory recorded refill pricing for Wood for 10 units at 12.00 LE before Finance review on May 24, 2026, 11:59 AM',
+				actor: 'Ahmed Hassan',
+				area: 'Inventory',
+				quantity: '10',
+				target: 'Wood',
+				to_status: 'finance_pending',
+				unit_cost: '12',
+				unit_cost_label: '12.00 LE',
+				what: 'Recorded refill pricing for Wood for 10 units at 12.00 LE before Finance review',
+				when: 'May 24, 2026, 11:59 AM',
+			},
+		}
+
+		const preview = buildSearchPreviewFields(row)
+		const details = buildSearchDetailFields(row)
+		const labels = details.map((field) => field.label)
+
+		expect(buildSearchDisplayTitle(row)).toBe(row.title)
+		expect(preview).toEqual(
+			expect.arrayContaining([
+				{ label: 'What', value: row.metadata?.what },
+				{ label: 'Target', value: 'Wood' },
+				{ label: 'Quantity', value: '10' },
+				{ label: 'Unit cost', value: '12.00 LE' },
+			]),
+		)
+		expect(details).toEqual(
+			expect.arrayContaining([
+				{ label: 'What happened', value: row.metadata?.what },
+				{ label: 'Target', value: 'Wood' },
+				{ label: 'Quantity', value: '10' },
+				{ label: 'Unit cost', value: '12.00 LE' },
+				{ label: 'Status change', value: 'Now Finance pending' },
+			]),
+		)
+		expect(labels).not.toContain('Changed')
+		expect(labels).not.toContain('From')
+		expect(labels).not.toContain('To')
+	})
+
 	it('builds business summary buckets for the Search dashboard', () => {
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date('2026-05-21T12:00:00Z'))
