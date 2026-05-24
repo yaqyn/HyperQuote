@@ -23,21 +23,29 @@ describe('website chat navigation helpers', () => {
 			shouldShowWebsiteChatActionButtons(
 				'i need to reach the place where we buy stuff',
 			),
-			false,
+			true,
 		)
 	})
 
-	it('only shows action buttons for explicit link or open requests', () => {
+	it('shows action buttons for navigation requests, not informational answers', () => {
 		assert.equal(
 			shouldShowWebsiteChatActionButtons('where do I buy wood?'),
-			false,
+			true,
 		)
 		assert.equal(
 			shouldShowWebsiteChatActionButtons('which page has wood?'),
-			false,
+			true,
 		)
+		assert.deepEqual(labelsFor('where is the place we buy stuff?'), ['Market'])
+		assert.deepEqual(labelsFor('where is the cart making place? lol'), [
+			'Market',
+		])
 		assert.equal(shouldShowWebsiteChatActionButtons('market please?'), true)
 		assert.equal(shouldShowWebsiteChatActionButtons('support'), true)
+		assert.equal(
+			shouldShowWebsiteChatActionButtons('how do published prices work?'),
+			false,
+		)
 		assert.equal(
 			shouldShowWebsiteChatActionButtons('send me the market link'),
 			true,

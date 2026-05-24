@@ -369,7 +369,7 @@ const AR_WEBSITE_DIRECT_PAGE_TARGET_PATTERN =
 	/(السوق|كتالوج|دعم|تواصل|اسئله|أسئلة|وثائق|بوابة|دخول|عن|الفريق|الموظفين|وظائف|شروط|خصوصية|خصوصيه|سياسة|الرئيسية)/
 
 const WEBSITE_MARKET_TOPIC_PATTERN =
-	/\b(market|catalog|catalogue|products?|materials?|browse|availability|available|stock|wood|lumber|timber|plywood|cement|concrete|rebar|steel|sand|aggregate|bricks?|blocks?|paint|pipes?|plumbing|electrical|hardware|fixtures?|roofing|drywall)\b/
+	/\b(market|catalog|catalogue|products?|materials?|material list|browse|availability|available|stock|cart|basket|wood|lumber|timber|plywood|cement|concrete|rebar|steel|sand|aggregate|bricks?|blocks?|paint|pipes?|plumbing|electrical|hardware|fixtures?|roofing|drywall)\b/
 
 const WEBSITE_MARKET_ACTION_PATTERN =
 	/\b(buy|purchase|source|sourcing|procure|procurement|shop|find|get|need|looking for)\b/
@@ -446,16 +446,8 @@ export function shouldShowWebsiteChatActionButtons(userText: string): boolean {
 	return (
 		WEBSITE_ACTION_BUTTON_REQUEST_PATTERN.test(normalized) ||
 		AR_WEBSITE_ACTION_BUTTON_REQUEST_PATTERN.test(userText) ||
-		isShortDirectPageButtonRequest(normalized)
-	)
-}
-
-function isShortDirectPageButtonRequest(normalized: string): boolean {
-	const tokenCount = normalized.split(/\s+/).filter(Boolean).length
-	if (tokenCount === 0 || tokenCount > 3) return false
-	return (
-		WEBSITE_DIRECT_PAGE_TARGET_PATTERN.test(normalized) ||
-		AR_WEBSITE_DIRECT_PAGE_TARGET_PATTERN.test(normalized)
+		(isWebsiteNavigationRequest(userText) &&
+			websiteDirectNavigationButtons(userText).length > 0)
 	)
 }
 
