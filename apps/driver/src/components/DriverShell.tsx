@@ -41,6 +41,7 @@ const DeliveryMap = lazy(() =>
 const DRIVER_LOCATION_SYNC_MS = 10_000
 const DRIVER_QUERY_REFRESH_MS = 10_000
 const LIVE_LOCATION_SYNC_MAX_AGE_MS = 15_000
+type CompletionStage = 'idle' | 'verifying' | 'location' | 'completing'
 
 interface DriverShellProps {
 	session: DriverAuthSession
@@ -57,6 +58,8 @@ export function DriverShell({ session }: DriverShellProps) {
 	const [openPanel, setOpenPanel] = useState<ShellPanel>(null)
 	const [fleetTab, setFleetTab] = useState<FleetTab>('deliveries')
 	const [isChromeCollapsed, setIsChromeCollapsed] = useState(false)
+	const [completionStage, setCompletionStage] =
+		useState<CompletionStage>('idle')
 	const [recentOutcomeDelivery, setRecentOutcomeDelivery] =
 		useState<DriverDelivery | null>(null)
 	const autoOnlineAttemptedRef = useRef<string | null>(null)
@@ -127,8 +130,29 @@ export function DriverShell({ session }: DriverShellProps) {
 			deliveryId: string
 			secretCode: string
 		}) => {
-			const location = await locationProvider.getCurrentPosition()
+			const deliveryForCompletion =
+				activeDelivery?.id === deliveryId
+					? activeDelivery
+					: nextDelivery?.id === deliveryId
+						? nextDelivery
+						: null
+
+			setCompletionStage('verifying')
+			if (deliveryForCompletion?.status !== 'arrived') {
+				await driverRepository.confirmArrival(
+					deliveryId,
+					session.driverId,
+					secretCode,
+				)
+				invalidateDriverQueries()
+			}
+
+			setCompletionStage('location')
+			const location =
+				freshDriverLocation(liveLocationRef.current) ??
+				(await locationProvider.getCurrentPosition())
 			rememberLiveLocation(location)
+			setCompletionStage('completing')
 			return driverRepository.completeDelivery(deliveryId, session.driverId, {
 				capturedAt: new Date().toISOString(),
 				location,
@@ -139,6 +163,7 @@ export function DriverShell({ session }: DriverShellProps) {
 			setRecentOutcomeDelivery(delivery)
 			invalidateDriverQueries()
 		},
+		onSettled: () => setCompletionStage('idle'),
 	})
 	const sendMessage = useMutation({
 		mutationFn: (body: string) =>
@@ -210,6 +235,10 @@ export function DriverShell({ session }: DriverShellProps) {
 	const currentDriverId = currentDriver?.id ?? null
 	const activeDeliveryId = activeDelivery?.id ?? null
 	const nextDeliveryId = nextDelivery?.id ?? null
+	const errorMessages = {
+		actionFailed: t('verification.actionFailed'),
+		invalidSecret: t('verification.invalidSecret'),
+	}
 
 	const assignedDriverById = useMemo(() => {
 		const map = new Map<string, DriverProfile>()
@@ -433,12 +462,17 @@ export function DriverShell({ session }: DriverShellProps) {
 									startDelivery.error ??
 									refreshLocation.error ??
 									setOnline.error,
+								errorMessages,
 							)}
 							activeDelivery={visibleActiveDelivery}
-							completeError={driverMutationError(completeDelivery.error)}
+							completeError={driverMutationError(
+								completeDelivery.error,
+								errorMessages,
+							)}
 							completeDelivery={(deliveryId, secretCode) =>
 								completeDelivery.mutate({ deliveryId, secretCode })
 							}
+							completionStage={completionStage}
 							isCompleting={completeDelivery.isPending}
 							isMutating={
 								acceptDelivery.isPending ||
@@ -453,7 +487,10 @@ export function DriverShell({ session }: DriverShellProps) {
 								rejectDelivery.mutate({ deliveryId, evidenceText, reason })
 							}
 							onStart={(deliveryId) => startDelivery.mutate(deliveryId)}
-							rejectError={driverMutationError(rejectDelivery.error)}
+							rejectError={driverMutationError(
+								rejectDelivery.error,
+								errorMessages,
+							)}
 						/>
 					</div>
 				</section>
@@ -492,7 +529,10 @@ export function DriverShell({ session }: DriverShellProps) {
 						}
 					}}
 					selectedTab={fleetTab}
-					sendMessageError={driverMutationError(sendMessage.error)}
+					sendMessageError={driverMutationError(
+						sendMessage.error,
+						errorMessages,
+					)}
 					sendMessagePending={sendMessage.isPending}
 				/>
 			)}
@@ -530,11 +570,17 @@ function DriverDashboardError({ onSignOut }: { onSignOut: () => void }) {
 	)
 }
 
-function driverMutationError(error: unknown): string | null {
+function driverMutationError(
+	error: unknown,
+	messages: { actionFailed: string; invalidSecret: string },
+): string | null {
 	if (!error) return null
-	if (error instanceof DriverRepositoryError) return error.message
+	if (error instanceof DriverRepositoryError) {
+		if (error.code === 'invalid_secret') return messages.invalidSecret
+		return error.message
+	}
 	if (error instanceof Error) return error.message
-	return 'Driver action could not be completed.'
+	return messages.actionFailed
 }
 
 function isDriverSessionReplacedError(error: unknown): boolean {

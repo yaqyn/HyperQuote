@@ -105,6 +105,14 @@ function errorJson(status: number, error: string) {
 	return json({ error }, { status })
 }
 
+function isDeliverySecretError(error: unknown): boolean {
+	const message = error instanceof Error ? error.message : String(error)
+	return (
+		message.includes('invalid_delivery_secret') ||
+		message.includes('delivery_secret_not_verified')
+	)
+}
+
 async function requestBody<T>(request: Request, schema: z.ZodType<T>) {
 	const payload = await request.json().catch(() => null)
 	const parsed = schema.safeParse(payload)
@@ -457,7 +465,12 @@ async function handleDriverApi(request: Request, env: DriverApiEnv) {
 					p_signature_path: null,
 					p_signer_name: null,
 				})
-				if (error) throw error
+				if (error) {
+					if (isDeliverySecretError(error)) {
+						return errorJson(400, 'invalid_delivery_secret')
+					}
+					throw error
+				}
 			} else if (action === 'reject') {
 				const input = await requestBody(request, rejectInput)
 				const { error } = await ctx.service.rpc('driver_reject_delivery', {
@@ -483,6 +496,9 @@ async function handleDriverApi(request: Request, env: DriverApiEnv) {
 		return errorJson(404, 'not_found')
 	} catch (error) {
 		if (error instanceof Response) return error
+		if (isDeliverySecretError(error)) {
+			return errorJson(400, 'invalid_delivery_secret')
+		}
 		const message = error instanceof Error ? error.message : 'driver_api_failed'
 		return errorJson(message.includes('permission') ? 403 : 400, message)
 	}

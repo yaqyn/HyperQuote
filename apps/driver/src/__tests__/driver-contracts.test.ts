@@ -149,6 +149,48 @@ describe('driver app contracts', () => {
 		expect(source).not.toContain('onBackToRoute')
 	})
 
+	it('validates customer codes before requesting GPS for completion', () => {
+		const source = readFileSync(
+			new URL('../components/DriverShell.tsx', import.meta.url),
+			'utf8',
+		)
+		const completionStart = source.indexOf(
+			'const completeDelivery = useMutation',
+		)
+		const completionEnd = source.indexOf('const sendMessage = useMutation')
+		const completionBlock = source.slice(completionStart, completionEnd)
+
+		expect(completionStart).toBeGreaterThan(-1)
+		expect(completionEnd).toBeGreaterThan(completionStart)
+		expect(completionBlock).toContain("setCompletionStage('verifying')")
+		expect(completionBlock).toContain('driverRepository.confirmArrival(')
+		expect(
+			completionBlock.indexOf('driverRepository.confirmArrival('),
+		).toBeLessThan(
+			completionBlock.indexOf('locationProvider.getCurrentPosition()'),
+		)
+		expect(completionBlock).toContain("setCompletionStage('location')")
+		expect(completionBlock).toContain("setCompletionStage('completing')")
+	})
+
+	it('keeps invalid delivery secrets mapped to a direct driver error', () => {
+		const apiSource = readFileSync(
+			new URL('../api.ts', import.meta.url),
+			'utf8',
+		)
+		const repositorySource = readFileSync(
+			new URL('../lib/supabase-driver-repository.ts', import.meta.url),
+			'utf8',
+		)
+
+		expect(apiSource).toContain('isDeliverySecretError(error)')
+		expect(apiSource).toContain("errorJson(400, 'invalid_delivery_secret')")
+		expect(repositorySource).toContain("'invalid_secret'")
+		expect(repositorySource).toContain(
+			'Customer verification code is wrong. Try again.',
+		)
+	})
+
 	it('allows a valid customer code to complete an in-transit delivery directly', () => {
 		const source = latestMigrationFunctionSource(
 			'public.driver_confirm_delivery',

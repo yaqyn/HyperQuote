@@ -26,6 +26,7 @@ interface ActiveDeliveryFlowProps {
 	actionError?: string | null
 	completeDelivery: (deliveryId: string, secretCode: string) => void
 	completeError?: string | null
+	completionStage: 'idle' | 'verifying' | 'location' | 'completing'
 	isCompleting: boolean
 	isMutating: boolean
 	isRejecting: boolean
@@ -42,6 +43,7 @@ export function ActiveDeliveryFlow({
 	actionError,
 	completeDelivery,
 	completeError,
+	completionStage,
 	isCompleting,
 	isMutating,
 	isRejecting,
@@ -114,6 +116,7 @@ export function ActiveDeliveryFlow({
 					allowReject={delivery.status === 'in_transit'}
 					deliveryId={delivery.id}
 					errorMessage={completeError}
+					completionStage={completionStage}
 					isCompleting={isCompleting}
 					isMutating={isMutating}
 					isRejecting={isRejecting}
@@ -357,6 +360,7 @@ function CompletionVerificationForm({
 	allowReject,
 	deliveryId,
 	errorMessage,
+	completionStage,
 	isCompleting,
 	isMutating,
 	isRejecting,
@@ -367,6 +371,7 @@ function CompletionVerificationForm({
 	allowReject: boolean
 	deliveryId: string
 	errorMessage?: string | null
+	completionStage: 'idle' | 'verifying' | 'location' | 'completing'
 	isCompleting: boolean
 	isMutating: boolean
 	isRejecting: boolean
@@ -378,7 +383,13 @@ function CompletionVerificationForm({
 	const [mode, setMode] = useState<'secret' | 'reject'>('secret')
 	const [secretCode, setSecretCode] = useState('')
 	const [submitted, setSubmitted] = useState(false)
-	const isSubmitting = submitted || isCompleting
+	const isSubmitting = (submitted || isCompleting) && !errorMessage
+	const statusMessage =
+		completionStage === 'verifying'
+			? t('verification.verifying')
+			: completionStage === 'location'
+				? t('verification.location')
+				: t('verification.completing')
 	const canSubmit =
 		isDeliverySecretCodeReady(secretCode) && !isSubmitting && !isMutating
 
@@ -401,7 +412,7 @@ function CompletionVerificationForm({
 	if (isSubmitting) {
 		return (
 			<div className="mt-3 border border-[#047857]/25 bg-[#047857]/10 px-3 py-2 text-sm font-semibold text-[#047857]">
-				<p role="status">{t('verification.completing')}</p>
+				<p role="status">{statusMessage}</p>
 			</div>
 		)
 	}

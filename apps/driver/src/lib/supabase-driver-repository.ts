@@ -535,7 +535,10 @@ function toRepositoryError(error: { message: string }) {
 		return new DriverRepositoryError('invalid_transition', message)
 	}
 	if (message.includes('secret')) {
-		return new DriverRepositoryError('invalid_secret', message)
+		return new DriverRepositoryError(
+			'invalid_secret',
+			'Customer verification code is wrong. Try again.',
+		)
 	}
 	if (
 		message.includes('proof') ||

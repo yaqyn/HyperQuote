@@ -178,7 +178,11 @@
 		"pending": "Pending"
 	},
 	"verification": {
+		"actionFailed": "Driver action could not be completed.",
 		"complete": "Complete delivery",
-		"completing": "Completing delivery..."
+		"completing": "Completing delivery...",
+		"invalidSecret": "Customer code is wrong. Try again.",
+		"location": "Getting GPS position...",
+		"verifying": "Checking customer code..."
 	}
 }
