@@ -52,6 +52,9 @@ describe('customer service email rendering', () => {
 		expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
 		expect(html).toContain('<img')
 		expect(html).toContain('/email/auth-icons/phone.png')
+		expect(html).toContain('class="message-rule"')
+		expect(html).toContain('font-size: 14px;')
+		expect(html).toContain('text-align: left;')
 		expect(html).toContain(
 			'https://pub-cbfbae308dae4797b95916396d2ff713.r2.dev',
 		)

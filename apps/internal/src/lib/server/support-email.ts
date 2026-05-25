@@ -342,24 +342,30 @@ export function renderSupportEmailHtml(input: SupportEmailRenderInput): string {
 		.message {
 			max-width: 720px;
 			margin: 0 auto;
+			text-align: left;
 		}
 		.lead {
 			margin: 0;
 			color: ${BRAND_BLACK};
-			font-size: 18px;
-			line-height: 1.65;
+			font-size: 17px;
+			line-height: 1.55;
 			font-weight: 650;
 		}
 		.copy {
-			margin: 12px 0 0;
-			color: #343a46;
-			font-size: 16px;
-			line-height: 1.65;
+			margin: 6px 0 0;
+			color: ${BRAND_MUTED};
+			font-size: 14px;
+			line-height: 1.6;
+		}
+		.message-rule {
+			width: 52px;
+			height: 1px;
+			margin: 28px 0 24px;
+			background: ${BRAND_LINE};
 		}
 		.reply-body {
-			margin: 34px 0 0;
-			color: #343a46;
-			font-size: 16px;
+			color: #222a35;
+			font-size: 15.5px;
 			line-height: 1.72;
 		}
 		.safe-note {
@@ -470,9 +476,10 @@ export function renderSupportEmailHtml(input: SupportEmailRenderInput): string {
 				height: 76px;
 			}
 			h1 { font-size: 30px; }
-			.copy, .reply-body { font-size: 16px; }
+			.copy { font-size: 14px; }
+			.reply-body { font-size: 15px; }
 			.main { padding: 34px 24px 72px; }
-			.message { text-align: center; }
+			.message { text-align: left; }
 			.footer-note { padding: 0 24px 30px; }
 			.footer {
 				grid-template-columns: 1fr;
@@ -511,6 +518,7 @@ export function renderSupportEmailHtml(input: SupportEmailRenderInput): string {
 			<section class="message">
 				<p class="lead">Hi ${customerName},</p>
 				<p class="copy">Thanks for reaching out to HyperQuote. Our support team reviewed your message and replied below.</p>
+				<div class="message-rule" aria-hidden="true"></div>
 				<div class="reply-body">${messageHtml}</div>
 			</section>
 		</main>
