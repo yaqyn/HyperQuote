@@ -180,10 +180,14 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 				if (refreshError) return { error: 'not_authenticated', success: false }
 			}
 
-			const { error: updateError } = await client.auth.updateUser({
+			const { error: firstUpdateError } = await client.auth.updateUser({
 				email: nextEmail,
 				...(requiresPassword ? { password: input.password } : {}),
 			})
+			const updateError =
+				requiresPassword && isSamePasswordError(firstUpdateError)
+					? (await client.auth.updateUser({ email: nextEmail })).error
+					: firstUpdateError
 			appendSetCookieHeaders(
 				getResponse().headers,
 				responseCookies.values(),
@@ -200,6 +204,15 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 			}
 		},
 	)
+
+function isSamePasswordError(
+	error: { code?: string; message?: string } | null,
+) {
+	return (
+		error?.code === 'same_password' ||
+		/same password/i.test(error?.message ?? '')
+	)
+}
 
 export const uploadTradeLicense = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ fileUrl: z.string() }))

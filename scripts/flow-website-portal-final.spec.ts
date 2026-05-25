@@ -389,7 +389,24 @@ test('portal phone-only customer must add email login with password', async ({
 	)
 	await expect(page.getByLabel(/^Email$/i)).toHaveValue('')
 	await expect(page.getByLabel(/^Password$/i)).toHaveCount(0)
+
+	const clearedPending = await service.rpc(
+		'service_clear_customer_pending_email_change',
+		{
+			p_expected_pending_email: staleEmail,
+			p_user_id: userId,
+		},
+	)
+	expect(clearedPending.error).toBeNull()
+	expect(clearedPending.data).toBe(true)
+	expect(readAuthEmailState(userId)).toEqual({ email: '', emailChange: '' })
+
+	await page.reload({ waitUntil: 'domcontentloaded' })
+	await waitForHydration(page)
+	await expect(page.getByLabel(/^Email$/i)).toHaveValue('')
+	await expect(page.getByLabel(/^Password$/i)).toBeVisible()
 	await page.getByLabel(/^Email$/i).fill(email)
+	await page.getByLabel(/^Password$/i).fill(password)
 	await page.getByRole('button', { name: /send confirmation/i }).click()
 	await expect(page.locator('body')).toContainText(
 		`Confirmation email sent to ${email}.`,
