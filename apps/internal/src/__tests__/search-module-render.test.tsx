@@ -10,6 +10,7 @@ import type {
 	SearchResponse,
 } from '../lib/search-registry'
 import type { ActivityProofDocument } from '../lib/server/proofs'
+import { useInternalStore } from '../stores/internal'
 
 const serverSearchMocks = vi.hoisted(() => ({
 	getSearchActivityFeed: vi.fn(
@@ -104,6 +105,7 @@ afterEach(() => {
 		tables: [],
 	})
 	proofMocks.getActivityProofDocuments.mockResolvedValue([])
+	useInternalStore.setState({ activeModule: null, windowStates: {} })
 	vi.clearAllMocks()
 })
 
@@ -314,6 +316,85 @@ describe('SearchModule first render', () => {
 		expect(summaryMenu?.className).toContain('fixed')
 		expect(summaryMenu?.className).toContain('top-1/2')
 		expect(summaryMenu?.className).toContain('left-1/2')
+	})
+
+	it('opens inventory-domain search results in the inventory app module', async () => {
+		const pricingRow = {
+			accent: '#10b981',
+			details: [
+				{ label: 'Item', value: 'Wood' },
+				{ label: 'Supplier', value: 'Alex Supplies' },
+			],
+			preview: [
+				{ label: 'Item', value: 'Wood' },
+				{ label: 'Supplier', value: 'Alex Supplies' },
+			],
+			rowId: '33333333-3333-4333-8333-333333333333',
+			tableId: 'pricing' as const,
+			tableLabel: 'Pricing',
+			title: 'Wood price from Alex Supplies',
+		}
+		serverSearchMocks.searchInternalDb.mockResolvedValue({
+			query: 'wood',
+			results: [
+				{
+					accent: '#10b981',
+					label: 'Pricing',
+					rowCount: 1,
+					rows: [{ ...pricingRow, matchedFields: ['Item'] }],
+					tableId: 'pricing',
+				},
+			],
+			tableMatches: [],
+			tables: [
+				{
+					accent: '#10b981',
+					label: 'Pricing',
+					rowCount: 1,
+					tableId: 'pricing',
+				},
+			],
+		})
+
+		const queryClient = new QueryClient({
+			defaultOptions: { queries: { retry: false } },
+		})
+		activeContainer = document.createElement('div')
+		document.body.appendChild(activeContainer)
+		activeRoot = createRoot(activeContainer)
+
+		await act(async () => {
+			activeRoot?.render(
+				<QueryClientProvider client={queryClient}>
+					<SearchModule />
+				</QueryClientProvider>,
+			)
+		})
+
+		await setSearchQuery('wood')
+		await waitForSearchModuleUpdate(() =>
+			Boolean(activeContainer?.textContent?.includes(pricingRow.title)),
+		)
+
+		const resultButton = Array.from(
+			activeContainer.querySelectorAll('button'),
+		).find((button) => button.textContent?.includes(pricingRow.title))
+		expect(resultButton).toBeInTheDocument()
+
+		await act(async () => {
+			resultButton?.click()
+		})
+
+		const openInventoryButton = Array.from(
+			activeContainer.querySelectorAll('button'),
+		).find((button) => button.textContent?.includes('Open Inventory'))
+		expect(openInventoryButton).toBeInTheDocument()
+
+		await act(async () => {
+			openInventoryButton?.click()
+		})
+
+		expect(useInternalStore.getState().activeModule).toBe('procurement')
 	})
 
 	it('previews activity proof documents inside the app window', async () => {

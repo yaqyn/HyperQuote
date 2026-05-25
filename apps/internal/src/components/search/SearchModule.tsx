@@ -62,7 +62,17 @@ const activityTimestampFormatter = new Intl.DateTimeFormat('en-EG', {
 	timeZone: 'Africa/Cairo',
 })
 
-const SOURCE_PANEL_BY_TABLE: Record<string, string> = {
+type SourcePanelId =
+	| 'admin'
+	| 'customer-service'
+	| 'dispatch'
+	| 'finance'
+	| 'procurement'
+	| 'sales'
+	| 'search'
+	| 'warehouse'
+
+const SOURCE_PANEL_BY_TABLE: Record<SearchRow['tableId'], SourcePanelId> = {
 	activity: 'search',
 	approvals: 'search',
 	categories: 'admin',
@@ -72,23 +82,23 @@ const SOURCE_PANEL_BY_TABLE: Record<string, string> = {
 	drivers: 'dispatch',
 	'driver-locations': 'dispatch',
 	employees: 'admin',
-	inventory: 'inventory',
+	inventory: 'procurement',
 	orders: 'sales',
 	payments: 'finance',
-	pricing: 'inventory',
+	pricing: 'procurement',
 	'sales-history': 'sales',
 	support: 'customer-service',
 	'support-messages': 'customer-service',
-	suppliers: 'inventory',
+	suppliers: 'procurement',
 	warehouse: 'warehouse',
 }
 
-const SOURCE_PANEL_LABELS: Record<string, string> = {
+const SOURCE_PANEL_LABELS: Record<SourcePanelId, string> = {
 	admin: 'Admin',
 	'customer-service': 'Customer service',
 	dispatch: 'Dispatch',
 	finance: 'Finance',
-	inventory: 'Inventory',
+	procurement: 'Inventory',
 	sales: 'Sales',
 	search: 'Search',
 	warehouse: 'Warehouse',
