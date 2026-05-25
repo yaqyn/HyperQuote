@@ -341,33 +341,51 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 					</div>
 					<AuthStateBadge profile={profile} />
 				</div>
-				<div
-					className={
-						profile.hasPassword
-							? 'grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
-							: 'grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
-					}
-				>
-					<TextField
-						value={emailDraft}
-						onChange={(value) => {
-							setEmailDraft(value)
-							setEmailMessage(null)
-						}}
-						type="email"
-						className="space-y-1.5"
-					>
-						<Label className={labelClass}>{t('settings.profile.email')}</Label>
-						<Input
-							className={underlineInputClass}
-							placeholder={t('profilePage.emailPlaceholder')}
-						/>
-					</TextField>
-					{profile.hasPassword ? (
+				<div className="space-y-5">
+					<div className="grid gap-x-6 gap-y-5 md:grid-cols-2">
 						<TextField
-							value={currentPasswordDraft}
+							value={emailDraft}
 							onChange={(value) => {
-								setCurrentPasswordDraft(value)
+								setEmailDraft(value)
+								setEmailMessage(null)
+							}}
+							type="email"
+							className="space-y-1.5"
+						>
+							<Label className={labelClass}>
+								{t('settings.profile.email')}
+							</Label>
+							<Input
+								className={underlineInputClass}
+								placeholder={t('profilePage.emailPlaceholder')}
+							/>
+						</TextField>
+						{profile.hasPassword ? (
+							<TextField
+								value={currentPasswordDraft}
+								onChange={(value) => {
+									setCurrentPasswordDraft(value)
+									setEmailMessage(null)
+								}}
+								type="password"
+								className="space-y-1.5"
+							>
+								<Label className={labelClass}>
+									<span className="inline-flex items-center gap-2">
+										<KeyRound size={13} strokeWidth={1.8} />
+										{t('profilePage.currentPasswordLabel')}
+									</span>
+								</Label>
+								<Input
+									className={underlineInputClass}
+									placeholder={t('profilePage.currentPasswordPlaceholder')}
+								/>
+							</TextField>
+						) : null}
+						<TextField
+							value={newPasswordDraft}
+							onChange={(value) => {
+								setNewPasswordDraft(value)
 								setEmailMessage(null)
 							}}
 							type="password"
@@ -376,75 +394,51 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 							<Label className={labelClass}>
 								<span className="inline-flex items-center gap-2">
 									<KeyRound size={13} strokeWidth={1.8} />
-									{t('profilePage.currentPasswordLabel')}
+									{t('profilePage.newPasswordLabel')}
 								</span>
 							</Label>
 							<Input
 								className={underlineInputClass}
-								placeholder={t('profilePage.currentPasswordPlaceholder')}
+								placeholder={
+									profile.hasPassword
+										? t('profilePage.newPasswordPlaceholder')
+										: t('profilePage.createPasswordPlaceholder')
+								}
 							/>
 						</TextField>
-					) : null}
-					<TextField
-						value={newPasswordDraft}
-						onChange={(value) => {
-							setNewPasswordDraft(value)
-							setEmailMessage(null)
-						}}
-						type="password"
-						className="space-y-1.5"
-					>
-						<Label className={labelClass}>
-							<span className="inline-flex items-center gap-2">
-								<KeyRound size={13} strokeWidth={1.8} />
-								{t('profilePage.newPasswordLabel')}
-							</span>
-						</Label>
-						<Input
-							className={underlineInputClass}
-							placeholder={
-								profile.hasPassword
-									? t('profilePage.newPasswordPlaceholder')
-									: t('profilePage.createPasswordPlaceholder')
-							}
-						/>
-					</TextField>
-					<TextField
-						value={newPasswordConfirmationDraft}
-						onChange={(value) => {
-							setNewPasswordConfirmationDraft(value)
-							setEmailMessage(null)
-						}}
-						type="password"
-						className="space-y-1.5"
-					>
-						<Label className={labelClass}>
-							<span className="inline-flex items-center gap-2">
-								<KeyRound size={13} strokeWidth={1.8} />
-								{t('profilePage.confirmPasswordLabel')}
-							</span>
-						</Label>
-						<Input
-							className={underlineInputClass}
-							placeholder={t('profilePage.confirmPasswordPlaceholder')}
-						/>
-					</TextField>
-					<Button
-						type="button"
-						onPress={handleEmailChange}
-						isDisabled={emailMutation.isPending}
-						className="self-end px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50"
-					>
-						{emailMutation.isPending
-							? t('settings.saving')
-							: authUpdateButtonLabel(
-									profile,
-									emailDraft,
-									newPasswordDraft,
-									newPasswordConfirmationDraft,
-									t,
-								)}
-					</Button>
+						<TextField
+							value={newPasswordConfirmationDraft}
+							onChange={(value) => {
+								setNewPasswordConfirmationDraft(value)
+								setEmailMessage(null)
+							}}
+							type="password"
+							className="space-y-1.5"
+						>
+							<Label className={labelClass}>
+								<span className="inline-flex items-center gap-2">
+									<KeyRound size={13} strokeWidth={1.8} />
+									{t('profilePage.confirmPasswordLabel')}
+								</span>
+							</Label>
+							<Input
+								className={underlineInputClass}
+								placeholder={t('profilePage.confirmPasswordPlaceholder')}
+							/>
+						</TextField>
+					</div>
+					<div className="flex justify-end">
+						<Button
+							type="button"
+							onPress={handleEmailChange}
+							isDisabled={emailMutation.isPending}
+							className="min-w-32 px-5 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50"
+						>
+							{emailMutation.isPending
+								? t('settings.saving')
+								: t('profilePage.updateAuthButton')}
+						</Button>
+					</div>
 				</div>
 				{profile.pendingEmail && (
 					<p className="flex items-center gap-2 text-[13px] text-[var(--color-text-subtle)]">
@@ -647,23 +641,6 @@ function authUpdateSuccessLabel(
 		return t('profilePage.emailConfirmationSent', { email })
 	}
 	return t('profilePage.noAuthChanges')
-}
-
-function authUpdateButtonLabel(
-	profile: CustomerProfile,
-	emailDraft: string,
-	newPassword: string,
-	newPasswordConfirmation: string,
-	t: TFunction<'portal'>,
-) {
-	const emailChanged = hasEmailDraftChange(profile, emailDraft)
-	const passwordChanged = Boolean(newPassword || newPasswordConfirmation)
-	if (emailChanged && passwordChanged) {
-		return t('profilePage.updateEmailAndPasswordButton')
-	}
-	if (emailChanged) return t('profilePage.sendEmailConfirmation')
-	if (passwordChanged) return t('profilePage.updatePasswordButton')
-	return t('profilePage.updateAuthButton')
 }
 
 function hasEmailDraftChange(profile: CustomerProfile, emailDraft: string) {

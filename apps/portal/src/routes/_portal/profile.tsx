@@ -539,9 +539,6 @@ function EmailChangePanel({
 	onRequest: () => void
 }) {
 	const { t } = useTranslation('portal')
-	const gridClass = profile.hasPassword
-		? 'grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
-		: 'grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
 	return (
 		<section className="mt-8 border-t border-[var(--p-border)] pt-6">
 			<div className="mb-4 flex items-start gap-3">
@@ -569,69 +566,65 @@ function EmailChangePanel({
 				</div>
 			</div>
 
-			<div className={gridClass}>
-				<ProfileField
-					label={t('settings.profile.email')}
-					value={emailDraft}
-					type="email"
-					onChange={(event) => onEmailChange(event.currentTarget.value)}
-					placeholder={t('profilePage.emailPlaceholder')}
-				/>
-				{profile.hasPassword ? (
+			<div className="space-y-5">
+				<div className="grid gap-x-6 gap-y-5 md:grid-cols-2">
 					<ProfileField
-						label={t('profilePage.currentPasswordLabel')}
-						value={currentPasswordDraft}
+						label={t('settings.profile.email')}
+						value={emailDraft}
+						type="email"
+						onChange={(event) => onEmailChange(event.currentTarget.value)}
+						placeholder={t('profilePage.emailPlaceholder')}
+					/>
+					{profile.hasPassword ? (
+						<ProfileField
+							label={t('profilePage.currentPasswordLabel')}
+							value={currentPasswordDraft}
+							type="password"
+							onChange={(event) =>
+								onCurrentPasswordChange(event.currentTarget.value)
+							}
+							placeholder={t('profilePage.currentPasswordPlaceholder')}
+							icon={<KeyRound size={14} strokeWidth={1.7} />}
+						/>
+					) : null}
+					<ProfileField
+						label={t('profilePage.newPasswordLabel')}
+						value={newPasswordDraft}
 						type="password"
-						onChange={(event) =>
-							onCurrentPasswordChange(event.currentTarget.value)
+						onChange={(event) => onNewPasswordChange(event.currentTarget.value)}
+						placeholder={
+							profile.hasPassword
+								? t('profilePage.newPasswordPlaceholder')
+								: t('profilePage.createPasswordPlaceholder')
 						}
-						placeholder={t('profilePage.currentPasswordPlaceholder')}
 						icon={<KeyRound size={14} strokeWidth={1.7} />}
 					/>
-				) : null}
-				<ProfileField
-					label={t('profilePage.newPasswordLabel')}
-					value={newPasswordDraft}
-					type="password"
-					onChange={(event) => onNewPasswordChange(event.currentTarget.value)}
-					placeholder={
-						profile.hasPassword
-							? t('profilePage.newPasswordPlaceholder')
-							: t('profilePage.createPasswordPlaceholder')
-					}
-					icon={<KeyRound size={14} strokeWidth={1.7} />}
-				/>
-				<ProfileField
-					label={t('profilePage.confirmPasswordLabel')}
-					value={newPasswordConfirmationDraft}
-					type="password"
-					onChange={(event) =>
-						onNewPasswordConfirmationChange(event.currentTarget.value)
-					}
-					placeholder={t('profilePage.confirmPasswordPlaceholder')}
-					icon={<KeyRound size={14} strokeWidth={1.7} />}
-				/>
-				<button
-					type="button"
-					onClick={onRequest}
-					disabled={isPending}
-					className="flex h-11 items-center justify-center gap-2 self-end rounded-xl border border-[var(--p-border)] px-4 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-50"
-				>
-					{isPending ? (
-						<Loader2 size={15} className="animate-spin" />
-					) : (
-						<Mail size={15} strokeWidth={1.8} />
-					)}
-					<span>
-						{authUpdateButtonLabel(
-							profile,
-							emailDraft,
-							newPasswordDraft,
-							newPasswordConfirmationDraft,
-							t,
+					<ProfileField
+						label={t('profilePage.confirmPasswordLabel')}
+						value={newPasswordConfirmationDraft}
+						type="password"
+						onChange={(event) =>
+							onNewPasswordConfirmationChange(event.currentTarget.value)
+						}
+						placeholder={t('profilePage.confirmPasswordPlaceholder')}
+						icon={<KeyRound size={14} strokeWidth={1.7} />}
+					/>
+				</div>
+				<div className="flex justify-end">
+					<button
+						type="button"
+						onClick={onRequest}
+						disabled={isPending}
+						className="flex h-11 min-w-32 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] px-5 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-50"
+					>
+						{isPending ? (
+							<Loader2 size={15} className="animate-spin" />
+						) : (
+							<Mail size={15} strokeWidth={1.8} />
 						)}
-					</span>
-				</button>
+						<span>{t('profilePage.updateAuthButton')}</span>
+					</button>
+				</div>
 			</div>
 			{message && <StatusText kind={message.kind} text={message.text} />}
 		</section>
@@ -936,23 +929,6 @@ function authUpdateSuccessLabel(
 		return t('profilePage.emailConfirmationSent', { email })
 	}
 	return t('profilePage.noAuthChanges')
-}
-
-function authUpdateButtonLabel(
-	profile: CustomerProfile,
-	emailDraft: string,
-	newPassword: string,
-	newPasswordConfirmation: string,
-	t: TFunction<'portal'>,
-) {
-	const emailChanged = hasEmailDraftChange(profile, emailDraft)
-	const passwordChanged = Boolean(newPassword || newPasswordConfirmation)
-	if (emailChanged && passwordChanged) {
-		return t('profilePage.updateEmailAndPasswordButton')
-	}
-	if (emailChanged) return t('profilePage.sendEmailConfirmation')
-	if (passwordChanged) return t('profilePage.updatePasswordButton')
-	return t('profilePage.updateAuthButton')
 }
 
 function hasEmailDraftChange(profile: CustomerProfile, emailDraft: string) {
