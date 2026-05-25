@@ -21,10 +21,14 @@ import {
 } from 'lucide-react'
 import { motion } from 'motion/react'
 import type { ChangeEvent, ReactNode } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
-import { requestPhoneChange, verifyPhoneChange } from '../../lib/auth'
+import {
+	requestPasswordReset,
+	requestPhoneChange,
+	verifyPhoneChange,
+} from '../../lib/auth'
 import {
 	getCustomerProfile,
 	requestCustomerEmailChange,
@@ -132,6 +136,24 @@ function ProfilePage() {
 			setEmailMessage({
 				kind: 'error',
 				text: t('profilePage.emailChangeFailed'),
+			})
+		},
+	})
+
+	const passwordResetMutation = useMutation({
+		mutationFn: (email: string) => requestPasswordReset({ data: { email } }),
+		onSuccess: (result) => {
+			setEmailMessage({
+				kind: result.success ? 'success' : 'error',
+				text: result.success
+					? t('login.passwordResetSent')
+					: t('login.passwordResetFailed'),
+			})
+		},
+		onError: () => {
+			setEmailMessage({
+				kind: 'error',
+				text: t('login.passwordResetFailed'),
 			})
 		},
 	})
@@ -274,6 +296,20 @@ function ProfilePage() {
 		})
 	}
 
+	function handleForgotPassword() {
+		if (!profile || passwordResetMutation.isPending) return
+		const resetEmail = confirmedPasswordResetEmail(profile)
+		if (!resetEmail) {
+			setEmailMessage({
+				kind: 'error',
+				text: t('profilePage.passwordResetUnavailable'),
+			})
+			return
+		}
+		setEmailMessage(null)
+		passwordResetMutation.mutate(resetEmail)
+	}
+
 	function handleRequestPhoneChange() {
 		if (!profile || requestPhoneMutation.isPending) return
 		const nextPhone = normalizeEgyptPhoneInput(phoneDraft)
@@ -413,6 +449,7 @@ function ProfilePage() {
 					newPasswordConfirmationDraft={newPasswordConfirmationDraft}
 					message={emailMessage}
 					isPending={emailMutation.isPending}
+					isResettingPassword={passwordResetMutation.isPending}
 					onEmailChange={(value) => {
 						setEmailDraft(value)
 						setEmailMessage(null)
@@ -429,6 +466,7 @@ function ProfilePage() {
 						setNewPasswordConfirmationDraft(value)
 						setEmailMessage(null)
 					}}
+					onForgotPassword={handleForgotPassword}
 					onRequest={handleEmailChange}
 				/>
 
@@ -519,10 +557,12 @@ function EmailChangePanel({
 	newPasswordConfirmationDraft,
 	message,
 	isPending,
+	isResettingPassword,
 	onEmailChange,
 	onCurrentPasswordChange,
 	onNewPasswordChange,
 	onNewPasswordConfirmationChange,
+	onForgotPassword,
 	onRequest,
 }: {
 	profile: CustomerProfile
@@ -532,13 +572,16 @@ function EmailChangePanel({
 	newPasswordConfirmationDraft: string
 	message: { kind: 'success' | 'error'; text: string } | null
 	isPending: boolean
+	isResettingPassword: boolean
 	onEmailChange: (value: string) => void
 	onCurrentPasswordChange: (value: string) => void
 	onNewPasswordChange: (value: string) => void
 	onNewPasswordConfirmationChange: (value: string) => void
+	onForgotPassword: () => void
 	onRequest: () => void
 }) {
 	const { t } = useTranslation('portal')
+	const canResetPassword = Boolean(confirmedPasswordResetEmail(profile))
 	return (
 		<section className="mt-8 border-t border-[var(--p-border)] pt-6">
 			<div className="mb-4 flex items-start gap-3">
@@ -578,6 +621,20 @@ function EmailChangePanel({
 					{profile.hasPassword ? (
 						<ProfileField
 							label={t('profilePage.currentPasswordLabel')}
+							labelAction={
+								canResetPassword ? (
+									<button
+										type="button"
+										onClick={onForgotPassword}
+										disabled={isPending || isResettingPassword}
+										className="text-[12px] font-semibold normal-case tracking-normal text-[var(--p-accent)] transition-colors hover:text-[var(--p-text)] disabled:pointer-events-none disabled:opacity-50"
+									>
+										{isResettingPassword
+											? t('login.sendPasswordReset')
+											: t('login.forgotPassword')}
+									</button>
+								) : null
+							}
 							value={currentPasswordDraft}
 							type="password"
 							onChange={(event) =>
@@ -696,6 +753,7 @@ function ProfileAvatar({ profile }: { profile: CustomerProfile }) {
 
 function ProfileField({
 	label,
+	labelAction,
 	value,
 	onChange,
 	placeholder,
@@ -704,6 +762,7 @@ function ProfileField({
 	icon,
 }: {
 	label: string
+	labelAction?: ReactNode
 	value: string
 	onChange?: (event: ChangeEvent<HTMLInputElement>) => void
 	placeholder?: string
@@ -711,13 +770,21 @@ function ProfileField({
 	type?: 'email' | 'password' | 'tel' | 'text'
 	icon?: ReactNode
 }) {
+	const inputId = useId()
 	return (
-		<label className="block">
-			<span className="mb-1.5 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--p-text-muted)]">
-				{icon}
-				{label}
-			</span>
+		<div className="block">
+			<div className="mb-1.5 flex min-h-5 items-center justify-between gap-3">
+				<label
+					htmlFor={inputId}
+					className="flex min-w-0 items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-[var(--p-text-muted)]"
+				>
+					{icon}
+					<span className="truncate">{label}</span>
+				</label>
+				{labelAction ? <span className="shrink-0">{labelAction}</span> : null}
+			</div>
 			<input
+				id={inputId}
 				type={type}
 				value={value}
 				onChange={onChange}
@@ -725,7 +792,7 @@ function ProfileField({
 				disabled={disabled}
 				className="h-11 w-full border-b border-[var(--p-border)] bg-transparent text-[15px] text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)] disabled:cursor-not-allowed disabled:text-[var(--p-text-faint)]"
 			/>
-		</label>
+		</div>
 	)
 }
 
@@ -942,6 +1009,12 @@ function hasEmailDraftChange(profile: CustomerProfile, emailDraft: string) {
 
 function normalizedProfileEmail(value: string | undefined) {
 	return (value ?? '').trim().toLowerCase()
+}
+
+function confirmedPasswordResetEmail(profile: CustomerProfile) {
+	if (!profile.emailConfirmed) return null
+	const email = profile.authEmail ?? profile.email
+	return email ? normalizedProfileEmail(email) : null
 }
 
 function statusLabel(

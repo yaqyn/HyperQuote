@@ -24,6 +24,7 @@ import { Label } from 'react-aria-components/Label'
 import { TextField } from 'react-aria-components/TextField'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import { requestPasswordReset } from '../../lib/auth'
 import {
 	requestCustomerEmailChange,
 	updateCustomerProfile,
@@ -111,6 +112,24 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 			setEmailMessage({
 				kind: 'error',
 				text: t('profilePage.emailChangeFailed'),
+			})
+		},
+	})
+
+	const passwordResetMutation = useMutation({
+		mutationFn: (email: string) => requestPasswordReset({ data: { email } }),
+		onSuccess: (result) => {
+			setEmailMessage({
+				kind: result.success ? 'success' : 'error',
+				text: result.success
+					? t('login.passwordResetSent')
+					: t('login.passwordResetFailed'),
+			})
+		},
+		onError: () => {
+			setEmailMessage({
+				kind: 'error',
+				text: t('login.passwordResetFailed'),
 			})
 		},
 	})
@@ -213,6 +232,20 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 					}
 				: {}),
 		})
+	}
+
+	function handleForgotPassword() {
+		if (passwordResetMutation.isPending) return
+		const resetEmail = confirmedPasswordResetEmail(profile)
+		if (!resetEmail) {
+			setEmailMessage({
+				kind: 'error',
+				text: t('profilePage.passwordResetUnavailable'),
+			})
+			return
+		}
+		setEmailMessage(null)
+		passwordResetMutation.mutate(resetEmail)
 	}
 
 	function handleLicenseSelect(files: FileList | null) {
@@ -370,12 +403,31 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 								type="password"
 								className="space-y-1.5"
 							>
-								<Label className={labelClass}>
-									<span className="inline-flex items-center gap-2">
-										<KeyRound size={13} strokeWidth={1.8} />
-										{t('profilePage.currentPasswordLabel')}
-									</span>
-								</Label>
+								<div className="flex items-center justify-between gap-3">
+									<Label className={`${labelClass} min-w-0`}>
+										<span className="inline-flex min-w-0 items-center gap-2">
+											<KeyRound size={13} strokeWidth={1.8} />
+											<span className="truncate">
+												{t('profilePage.currentPasswordLabel')}
+											</span>
+										</span>
+									</Label>
+									{confirmedPasswordResetEmail(profile) ? (
+										<button
+											type="button"
+											onClick={handleForgotPassword}
+											disabled={
+												emailMutation.isPending ||
+												passwordResetMutation.isPending
+											}
+											className="shrink-0 text-[12px] font-semibold normal-case tracking-normal text-[#2563EB] transition-colors hover:text-[var(--color-text)] disabled:pointer-events-none disabled:opacity-50"
+										>
+											{passwordResetMutation.isPending
+												? t('login.sendPasswordReset')
+												: t('login.forgotPassword')}
+										</button>
+									) : null}
+								</div>
 								<Input
 									className={underlineInputClass}
 									placeholder={t('profilePage.currentPasswordPlaceholder')}
@@ -654,4 +706,10 @@ function hasEmailDraftChange(profile: CustomerProfile, emailDraft: string) {
 
 function normalizedProfileEmail(value: string | undefined) {
 	return (value ?? '').trim().toLowerCase()
+}
+
+function confirmedPasswordResetEmail(profile: CustomerProfile) {
+	if (!profile.emailConfirmed) return null
+	const email = profile.authEmail ?? profile.email
+	return email ? normalizedProfileEmail(email) : null
 }

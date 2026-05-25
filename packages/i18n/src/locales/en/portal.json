@@ -425,6 +425,7 @@
 		"emailPasswordMismatch": "Passwords do not match.",
 		"passwordSame": "New password must be different from the current password.",
 		"passwordUpdated": "Password updated.",
+		"passwordResetUnavailable": "Confirm an email before resetting your password.",
 		"noAuthChanges": "No account changes to update.",
 		"updateAuthButton": "Update",
 		"emailChangeFailed": "Email was not changed.",

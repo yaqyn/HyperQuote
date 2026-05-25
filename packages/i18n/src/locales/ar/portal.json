@@ -296,6 +296,7 @@
 	"profilePage.emailPasswordMismatch": "كلمتا المرور غير متطابقتين.",
 	"profilePage.passwordSame": "كلمة المرور الجديدة يجب أن تختلف عن الحالية.",
 	"profilePage.passwordUpdated": "تم تحديث كلمة المرور.",
+	"profilePage.passwordResetUnavailable": "أكد البريد الإلكتروني قبل استعادة كلمة المرور.",
 	"profilePage.noAuthChanges": "لا توجد تغييرات حساب لتحديثها.",
 	"profilePage.updateAuthButton": "تحديث",
 	"profilePage.emailChangeFailed": "لم يتم تغيير البريد الإلكتروني.",
