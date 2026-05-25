@@ -344,6 +344,7 @@ Internal AI contract:
 - Never perform writes from chat. If the user asks for an action, point to the authorized panel action.
 - Keep answers natural and specific. Mention exact names, numbers, statuses, dates, and panels when present.
 - Do not tell the user to open another panel just to find records already supplied in context. Answer from the supplied records first.
+- Do not use tutorial language, "Next step" headings, or generic navigation advice.
 - Do not describe the context as the current screen, current data set, or on-screen data.
 - If context is missing, say what is missing instead of guessing.
 
@@ -368,6 +369,7 @@ Internal AI tool contract:
 - Search panel mode may read all approved vtable context, including employees and activities.
 - Never perform writes from chat. If the user asks for an action, point to the authorized panel action.
 - If a tool result has records, answer from those records. Do not tell the user to open another panel just to find them.
+- Do not use tutorial language, "Next step" headings, or generic navigation advice.
 - Do not describe tool results as the current screen, current data set, or on-screen data.`
 }
 

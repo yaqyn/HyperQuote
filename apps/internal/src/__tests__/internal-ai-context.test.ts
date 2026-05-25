@@ -159,6 +159,7 @@ describe('internal AI vtable context', () => {
 		expect(systemPrompt).not.toContain('Active panel')
 		expect(systemPrompt).not.toContain('Sales')
 		expect(systemPrompt).toContain('Do not tell the user to open another panel')
+		expect(systemPrompt).toContain('"Next step" headings')
 		expect(systemPrompt).toContain('current screen')
 	})
 
@@ -169,6 +170,7 @@ describe('internal AI vtable context', () => {
 		expect(prompt).toContain('natural, messy, slangy, misspelled')
 		expect(prompt).toContain('Do not require exact keywords')
 		expect(prompt).toContain('Tools are the source of truth')
+		expect(prompt).toContain('generic navigation advice')
 		expect(prompt).toContain('except employee information and activities')
 	})
 })

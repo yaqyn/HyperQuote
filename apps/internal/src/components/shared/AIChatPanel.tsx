@@ -8,6 +8,14 @@ import { type AIChatMessage, useAIChatStore } from '../../stores/ai-chat'
 import { SlidePanel } from './SlidePanel'
 
 type AIChatPanelTone = 'default' | 'dark'
+const THREAD_BOTTOM_THRESHOLD = 120
+
+function isThreadNearBottom(node: HTMLDivElement): boolean {
+	return (
+		node.scrollHeight - node.scrollTop - node.clientHeight <=
+		THREAD_BOTTOM_THRESHOLD
+	)
+}
 
 /**
  * AIChatPanel — the Correspondence.
@@ -39,20 +47,9 @@ export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
 
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
+	const pinnedToBottomRef = useRef(true)
 	const [showScrollToBottom, setShowScrollToBottom] = useState(false)
 	const isDark = tone === 'dark'
-
-	// Auto-stick to the bottom as new messages arrive — but only if the
-	// user is already near the bottom. If they've scrolled up to read, we
-	// leave their scroll position alone and show the jump-to-bottom button.
-	useEffect(() => {
-		if (!isOpen) return
-		const node = scrollRef.current
-		if (!node) return
-		const nearBottom =
-			node.scrollHeight - node.scrollTop - node.clientHeight < 160
-		if (nearBottom) node.scrollTop = node.scrollHeight
-	})
 
 	// Focus the composer when the panel opens. Delayed one tick past the
 	// SlidePanel spring so focus doesn't fight the slide-in.
@@ -68,17 +65,34 @@ export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
 		const node = scrollRef.current
 		if (!node) return
 		const handler = () => {
-			const distance = node.scrollHeight - node.scrollTop - node.clientHeight
-			setShowScrollToBottom(distance > 120)
+			const pinned = isThreadNearBottom(node)
+			pinnedToBottomRef.current = pinned
+			setShowScrollToBottom(!pinned)
 		}
 		handler()
 		node.addEventListener('scroll', handler, { passive: true })
 		return () => node.removeEventListener('scroll', handler)
 	}, [isOpen])
 
+	// Keep the thread pinned while the user is already at the bottom, including
+	// while Lyon streams tokens. If the user scrolls up, leave them there.
+	useLayoutEffect(() => {
+		if (!isOpen) return
+		const node = scrollRef.current
+		if (!node) return
+		if (messages.length <= 1 || pinnedToBottomRef.current) {
+			node.scrollTop = node.scrollHeight
+			pinnedToBottomRef.current = true
+			setShowScrollToBottom(false)
+		}
+	}, [isOpen, messages])
+
 	const jumpToBottom = () => {
 		const node = scrollRef.current
-		if (node) node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' })
+		if (!node) return
+		pinnedToBottomRef.current = true
+		setShowScrollToBottom(false)
+		node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' })
 	}
 
 	// Auto-size the composer textarea up to MAX_LINES, then let it scroll
