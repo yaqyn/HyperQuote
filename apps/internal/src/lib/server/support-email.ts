@@ -55,6 +55,7 @@ interface ResendResponse {
 }
 
 const RESEND_EMAIL_ENDPOINT = 'https://api.resend.com/emails'
+const EMAIL_ASSET_URL = 'https://pub-cbfbae308dae4797b95916396d2ff713.r2.dev'
 const DEFAULT_SUPPORT_FROM = 'HyperQuote <support@info.moderngroupco.com>'
 const DEFAULT_SUPPORT_REPLY_TO = 'support@info.moderngroupco.com'
 const DEFAULT_WEBSITE_URL = 'https://hyperquote.net'
@@ -68,17 +69,19 @@ const BRAND_BLACK = '#090909'
 const BRAND_WHITE = '#FFFFFF'
 const BRAND_MUTED = '#5F6B7A'
 const BRAND_LINE = '#E7EBF0'
-const BRAND_SOFT_BLUE = '#EFF6FF'
 const EMAIL_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/
 const MAX_PROVIDER_ERROR_LENGTH = 500
 const MAX_SUPPORT_EMAIL_BODY_LENGTH = 4000
 const MAX_SUPPORT_EMAIL_SUBJECT_LENGTH = 180
-const MATERIAL_EMAIL_ICON_LABEL = 'MAIL'
-const FOOTER_ICON_LABELS = {
-	call: 'TEL',
-	email: 'SUP',
-	portal: 'APP',
-	whatsapp: 'WA',
+const EMAIL_IMAGE_URLS = {
+	logo: emailAssetUrl('logos/lyon-black.png'),
+	supportEmailIcon: emailAssetUrl('email/auth-icons/mark_email_read.png'),
+	footerIcons: {
+		call: emailAssetUrl('email/footer-icons/call.png'),
+		email: emailAssetUrl('email/footer-icons/email.png'),
+		portal: emailAssetUrl('email/footer-icons/portal.png'),
+		whatsapp: emailAssetUrl('email/footer-icons/whatsapp.png'),
+	},
 } as const
 const LOCAL_ONLY_DOMAINS = new Set([
 	'example.com',
@@ -277,7 +280,7 @@ export function renderSupportEmailHtml(input: SupportEmailRenderInput): string {
 										<h1 class="email-title" style="margin:0;font-size:36px;line-height:1.12;font-weight:800;letter-spacing:0;color:${BRAND_BLACK};">Your HyperQuote update is ready.</h1>
 									</td>
 									<td class="email-icon-cell" align="right" style="width:92px;vertical-align:middle;">
-										${renderEmailIcon(MATERIAL_EMAIL_ICON_LABEL)}
+										${renderEmailIcon(EMAIL_IMAGE_URLS.supportEmailIcon)}
 									</td>
 								</tr>
 							</table>
@@ -445,12 +448,8 @@ function isLocalOnlyEmail(email: string): boolean {
 	)
 }
 
-function renderEmailIcon(label: string): string {
-	return `<table role="presentation" class="email-icon" width="92" height="92" cellspacing="0" cellpadding="0" style="width:92px;height:92px;border:1px solid #CFE0FF;border-radius:24px;background:${BRAND_SOFT_BLUE};">
-	<tr>
-		<td align="center" valign="middle" style="color:${BRAND_BLUE};font-size:15px;font-weight:900;letter-spacing:0.08em;line-height:1;text-align:center;">${label}</td>
-	</tr>
-</table>`
+function renderEmailIcon(src: string): string {
+	return `<img class="email-icon" src="${src}" width="92" height="92" alt="" style="display:block;width:92px;height:92px;border:0;outline:none;text-decoration:none;">`
 }
 
 function renderEmailFooter(input: {
@@ -473,7 +472,9 @@ function renderEmailFooter(input: {
 								<a href="${input.websiteUrl}" style="display:inline-block;text-decoration:none;">
 									<table role="presentation" width="86" height="86" cellspacing="0" cellpadding="0" style="width:86px;height:86px;border:1px solid ${BRAND_LINE};border-radius:18px;background:#F6F8FB;">
 										<tr>
-											<td align="center" valign="middle" style="color:${BRAND_BLUE};font-size:24px;font-weight:900;letter-spacing:0.04em;line-height:1;text-align:center;">HQ</td>
+											<td align="center" valign="middle">
+												<img src="${EMAIL_IMAGE_URLS.logo}" width="72" height="72" alt="HyperQuote logo" style="display:block;width:72px;height:72px;border:0;outline:none;text-decoration:none;">
+											</td>
 										</tr>
 									</table>
 								</a>
@@ -506,7 +507,7 @@ function renderEmailFooter(input: {
 function footerLink(
 	label: string,
 	href: string,
-	icon: keyof typeof FOOTER_ICON_LABELS,
+	icon: keyof typeof EMAIL_IMAGE_URLS.footerIcons,
 ): string {
 	return `<td style="padding:6px;">
 	<a class="email-footer-link" href="${href}" style="display:block;min-height:22px;padding:10px 12px;border:1px solid ${BRAND_LINE};border-radius:14px;color:${BRAND_BLACK};font-size:13px;font-weight:750;line-height:22px;text-align:left;text-decoration:none;white-space:nowrap;">
@@ -516,8 +517,14 @@ function footerLink(
 </td>`
 }
 
-function renderFooterIcon(icon: keyof typeof FOOTER_ICON_LABELS): string {
-	return `<span style="display:inline-block;width:28px;margin-right:9px;border-radius:8px;background:${BRAND_SOFT_BLUE};color:${BRAND_BLUE};font-size:9px;font-weight:900;line-height:20px;text-align:center;vertical-align:middle;">${FOOTER_ICON_LABELS[icon]}</span>`
+function renderFooterIcon(
+	icon: keyof typeof EMAIL_IMAGE_URLS.footerIcons,
+): string {
+	return `<img src="${EMAIL_IMAGE_URLS.footerIcons[icon]}" width="17" height="17" alt="" style="display:inline-block;width:17px;height:17px;margin-right:9px;border:0;outline:none;text-decoration:none;vertical-align:-3px;">`
+}
+
+function emailAssetUrl(fileName: string): string {
+	return `${EMAIL_ASSET_URL}/${fileName}`
 }
 
 function supportContactHref(

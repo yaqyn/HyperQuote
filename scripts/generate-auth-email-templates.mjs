@@ -10,36 +10,38 @@ const BLACK = '#090909'
 const WHITE = '#FFFFFF'
 const MUTED = '#5F6B7A'
 const LINE = '#E7EBF0'
-const SOFT_BLUE = '#EFF6FF'
 const WEBSITE_URL = 'https://hyperquote.net'
 const SUPPORT_URL = `${WEBSITE_URL}/support#contact`
 const PORTAL_URL = 'https://portal.hyperquote.net'
 const OFFICE_URL = 'https://maps.google.com/?q=Arkan+Plaza+Sheikh+Zayed+Egypt'
 const OFFICE_ADDRESS = 'Arkan Plaza, Sheikh Zayed, Egypt'
+const EMAIL_ASSET_URL = 'https://pub-cbfbae308dae4797b95916396d2ff713.r2.dev'
 
 const SUPPORT_PHONE_URL = SUPPORT_URL
 const SUPPORT_WHATSAPP_URL = SUPPORT_URL
 const CUSTOMER_NAME =
 	'{{ if .Data.company_name }}{{ .Data.company_name }}{{ else if .Data.name }}{{ .Data.name }}{{ else if .Data.contact_name }}{{ .Data.contact_name }}{{ else }}there{{ end }}'
 
-const iconLabels = {
-	alternate_email: 'MAIL',
-	key: 'KEY',
-	link: 'LINK',
-	link_off: 'OFF',
-	mark_email_read: 'MAIL',
-	mfa: '2FA',
-	otp: 'OTP',
-	person_add: 'JOIN',
-	phone: 'TEL',
-	security: 'SEC',
-}
-
-const footerIconLabels = {
-	call: 'TEL',
-	email: 'SUP',
-	portal: 'APP',
-	whatsapp: 'WA',
+const imageUrls = {
+	logo: emailAssetUrl('logos/lyon-black.png'),
+	icons: {
+		alternate_email: emailAssetUrl('email/auth-icons/alternate_email.png'),
+		key: emailAssetUrl('email/auth-icons/key.png'),
+		link: emailAssetUrl('email/auth-icons/link.png'),
+		link_off: emailAssetUrl('email/auth-icons/link_off.png'),
+		mark_email_read: emailAssetUrl('email/auth-icons/mark_email_read.png'),
+		mfa: emailAssetUrl('email/auth-icons/mfa.png'),
+		otp: emailAssetUrl('email/auth-icons/otp.png'),
+		person_add: emailAssetUrl('email/auth-icons/person_add.png'),
+		phone: emailAssetUrl('email/auth-icons/phone.png'),
+		security: emailAssetUrl('email/auth-icons/security.png'),
+	},
+	footerIcons: {
+		call: emailAssetUrl('email/footer-icons/call.png'),
+		email: emailAssetUrl('email/footer-icons/email.png'),
+		portal: emailAssetUrl('email/footer-icons/portal.png'),
+		whatsapp: emailAssetUrl('email/footer-icons/whatsapp.png'),
+	},
 }
 
 const templates = [
@@ -344,12 +346,8 @@ function renderCode(code) {
 }
 
 function renderIcon(name) {
-	const label = iconLabels[name] ?? iconLabels.security
-	return `<table role="presentation" class="email-icon" width="92" height="92" cellspacing="0" cellpadding="0" style="width:92px;height:92px;border:1px solid #CFE0FF;border-radius:24px;background:${SOFT_BLUE};">
-	<tr>
-		<td align="center" valign="middle" style="color:${BRAND_BLUE};font-size:15px;font-weight:900;letter-spacing:0.08em;line-height:1;text-align:center;">${label}</td>
-	</tr>
-</table>`
+	const src = imageUrls.icons[name] ?? imageUrls.icons.security
+	return `<img class="email-icon" src="${src}" width="92" height="92" alt="" style="display:block;width:92px;height:92px;border:0;outline:none;text-decoration:none;">`
 }
 
 function renderFooter() {
@@ -364,7 +362,9 @@ function renderFooter() {
 								<a href="${WEBSITE_URL}" style="display:inline-block;text-decoration:none;">
 									<table role="presentation" width="86" height="86" cellspacing="0" cellpadding="0" style="width:86px;height:86px;border:1px solid ${LINE};border-radius:18px;background:#F6F8FB;">
 										<tr>
-											<td align="center" valign="middle" style="color:${BRAND_BLUE};font-size:24px;font-weight:900;letter-spacing:0.04em;line-height:1;text-align:center;">HQ</td>
+											<td align="center" valign="middle">
+												<img src="${imageUrls.logo}" width="72" height="72" alt="HyperQuote logo" style="display:block;width:72px;height:72px;border:0;outline:none;text-decoration:none;">
+											</td>
 										</tr>
 									</table>
 								</a>
@@ -426,8 +426,12 @@ function footerLink(label, href, icon) {
 }
 
 function renderFooterIcon(icon) {
-	const label = footerIconLabels[icon] ?? footerIconLabels.email
-	return `<span style="display:inline-block;width:28px;margin-right:9px;border-radius:8px;background:${SOFT_BLUE};color:${BRAND_BLUE};font-size:9px;font-weight:900;line-height:20px;text-align:center;vertical-align:middle;">${label}</span>`
+	const src = imageUrls.footerIcons[icon] ?? imageUrls.footerIcons.email
+	return `<img src="${src}" width="17" height="17" alt="" style="display:inline-block;width:17px;height:17px;margin-right:9px;border:0;outline:none;text-decoration:none;vertical-align:-3px;">`
+}
+
+function emailAssetUrl(fileName) {
+	return `${EMAIL_ASSET_URL}/${fileName}`
 }
 
 console.log(
