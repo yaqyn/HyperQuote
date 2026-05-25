@@ -54,6 +54,7 @@ export const Route = createRootRoute({
 			{ name: 'apple-mobile-web-app-capable', content: 'yes' },
 			{ name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
 			{ name: 'apple-mobile-web-app-title', content: 'HyperQuote' },
+			{ name: 'hyperquote-deploy-test', content: 'frontend-2026-05-25' },
 			{
 				name: 'theme-color',
 				content: '#ffffff',
