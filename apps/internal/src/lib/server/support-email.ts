@@ -74,7 +74,7 @@ const MAX_PROVIDER_ERROR_LENGTH = 500
 const MAX_SUPPORT_EMAIL_BODY_LENGTH = 4000
 const MAX_SUPPORT_EMAIL_SUBJECT_LENGTH = 180
 const EMAIL_IMAGE_URLS = {
-	logo: emailAssetUrl('logos/lyon-black.png'),
+	logo: emailAssetUrl('logos/lyon-black-v2.png'),
 	supportEmailIcon: emailAssetUrl('email/auth-icons/mark_email_read.png'),
 	footerIcons: {
 		call: emailAssetUrl('email/footer-icons/call.png'),
@@ -251,17 +251,21 @@ export function renderSupportEmailHtml(input: SupportEmailRenderInput): string {
 		@media only screen and (max-width: 720px) {
 			.email-shell { width: 100% !important; max-width: 100% !important; }
 			.email-pad { padding-left: 24px !important; padding-right: 24px !important; }
-			.email-title-cell, .email-icon-cell, .email-body-cell, .email-footer-brand, .email-footer-links { display: block !important; width: 100% !important; text-align: center !important; }
+			.email-title-cell, .email-icon-cell, .email-body-cell, .email-footer-brand, .email-footer-links, .email-footer-logo-cell, .email-footer-copy-cell { display: block !important; width: 100% !important; text-align: center !important; }
 			.email-title-cell { padding-right: 0 !important; }
 			.email-title { font-size: 30px !important; }
-			.email-icon-cell { padding-top: 26px !important; }
+			.email-icon-cell { padding-top: 26px !important; text-align: center !important; }
 			.email-icon { width: 76px !important; height: 76px !important; margin: 0 auto !important; }
 			.email-main-pad { padding-bottom: 72px !important; }
 			.email-body-action { margin-top: 72px !important; }
 			.email-footer-brand-table, .email-footer-links-table { margin-left: auto !important; margin-right: auto !important; }
+			.email-footer-logo-cell { padding: 0 !important; }
+			.email-footer-logo { width: 112px !important; height: 112px !important; margin: 0 auto !important; border: 0 !important; background: transparent !important; border-radius: 0 !important; }
+			.email-footer-copy-cell { padding: 12px 0 0 !important; }
 			.email-footer-links { padding-top: 28px !important; }
 			.email-footer-note { padding-left: 24px !important; padding-right: 24px !important; text-align: center !important; }
 			.email-footer-link { text-align: center !important; }
+			.email-footer-link-icon { width: 30px !important; height: 30px !important; vertical-align: -9px !important; }
 		}
 	</style>
 </head>
@@ -468,12 +472,12 @@ function renderEmailFooter(input: {
 				<td class="email-footer-brand" style="vertical-align:middle;">
 					<table role="presentation" class="email-footer-brand-table" cellspacing="0" cellpadding="0">
 						<tr>
-							<td style="width:82px;vertical-align:middle;">
+							<td class="email-footer-logo-cell" style="width:112px;vertical-align:middle;">
 								<a href="${input.websiteUrl}" style="display:inline-block;text-decoration:none;">
-									<img src="${EMAIL_IMAGE_URLS.logo}" width="82" height="82" alt="HyperQuote logo" style="display:block;width:82px;height:82px;border:0;outline:none;text-decoration:none;">
+									<img class="email-footer-logo" src="${EMAIL_IMAGE_URLS.logo}" width="112" height="112" alt="HyperQuote logo" style="display:block;width:112px;height:112px;border:0;outline:none;text-decoration:none;background:transparent;border-radius:0;">
 								</a>
 							</td>
-							<td style="padding-left:20px;vertical-align:middle;">
+							<td class="email-footer-copy-cell" style="padding-left:20px;vertical-align:middle;">
 								<a href="${input.websiteUrl}" style="display:block;color:${BRAND_BLACK};font-size:24px;font-weight:850;line-height:1.15;text-decoration:none;">HyperQuote</a>
 								<a href="${input.officeMapUrl}" style="display:block;margin-top:7px;color:${BRAND_MUTED};font-size:13px;line-height:1.45;text-decoration:none;">${input.officeAddress}</a>
 							</td>
@@ -504,7 +508,7 @@ function footerLink(
 	icon: keyof typeof EMAIL_IMAGE_URLS.footerIcons,
 ): string {
 	return `<td style="padding:6px;">
-	<a class="email-footer-link" href="${href}" style="display:block;min-height:24px;padding:11px 14px;border:1px solid ${BRAND_LINE};border-radius:14px;color:${BRAND_BLACK};font-size:13px;font-weight:750;line-height:24px;text-align:left;text-decoration:none;white-space:nowrap;">
+	<a class="email-footer-link" href="${href}" style="display:block;min-height:32px;padding:12px 16px;border:1px solid ${BRAND_LINE};border-radius:14px;color:${BRAND_BLACK};font-size:13px;font-weight:750;line-height:32px;text-align:left;text-decoration:none;white-space:nowrap;">
 		${renderFooterIcon(icon)}
 		<span style="vertical-align:middle;">${label}</span>
 	</a>
@@ -514,7 +518,7 @@ function footerLink(
 function renderFooterIcon(
 	icon: keyof typeof EMAIL_IMAGE_URLS.footerIcons,
 ): string {
-	return `<img src="${EMAIL_IMAGE_URLS.footerIcons[icon]}" width="22" height="22" alt="" style="display:inline-block;width:22px;height:22px;margin-right:10px;border:0;outline:none;text-decoration:none;vertical-align:-5px;">`
+	return `<img class="email-footer-link-icon" src="${EMAIL_IMAGE_URLS.footerIcons[icon]}" width="30" height="30" alt="" style="display:inline-block;width:30px;height:30px;margin-right:10px;border:0;outline:none;text-decoration:none;vertical-align:-9px;">`
 }
 
 function emailAssetUrl(fileName: string): string {

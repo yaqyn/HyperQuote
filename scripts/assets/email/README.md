@@ -9,7 +9,7 @@ Public base URL:
 
 Hosted layout:
 
-- `logos/lyon-black.png`
+- `logos/lyon-black-v2.png`
 - `email/auth-icons/*.png`
 - `email/footer-icons/*.png`
 

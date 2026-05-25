@@ -23,7 +23,7 @@ const CUSTOMER_NAME =
 	'{{ if .Data.company_name }}{{ .Data.company_name }}{{ else if .Data.name }}{{ .Data.name }}{{ else if .Data.contact_name }}{{ .Data.contact_name }}{{ else }}there{{ end }}'
 
 const imageUrls = {
-	logo: emailAssetUrl('logos/lyon-black.png'),
+	logo: emailAssetUrl('logos/lyon-black-v2.png'),
 	icons: {
 		alternate_email: emailAssetUrl('email/auth-icons/alternate_email.png'),
 		key: emailAssetUrl('email/auth-icons/key.png'),
@@ -262,17 +262,21 @@ function renderEmail(template) {
 		@media only screen and (max-width: 720px) {
 			.email-shell { width: 100% !important; max-width: 100% !important; }
 			.email-pad { padding-left: 24px !important; padding-right: 24px !important; }
-			.email-title-cell, .email-icon-cell, .email-body-cell, .email-footer-brand, .email-footer-links { display: block !important; width: 100% !important; text-align: center !important; }
+			.email-title-cell, .email-icon-cell, .email-body-cell, .email-footer-brand, .email-footer-links, .email-footer-logo-cell, .email-footer-copy-cell { display: block !important; width: 100% !important; text-align: center !important; }
 			.email-title-cell { padding-right: 0 !important; }
 			.email-title { font-size: 30px !important; }
-			.email-icon-cell { padding-top: 26px !important; }
+			.email-icon-cell { padding-top: 26px !important; text-align: center !important; }
 			.email-icon { width: 76px !important; height: 76px !important; margin: 0 auto !important; }
 			.email-main-pad { padding-bottom: 72px !important; }
 			.email-body-action { margin-top: 72px !important; }
 			.email-footer-brand-table, .email-footer-links-table { margin-left: auto !important; margin-right: auto !important; }
+			.email-footer-logo-cell { padding: 0 !important; }
+			.email-footer-logo { width: 112px !important; height: 112px !important; margin: 0 auto !important; border: 0 !important; background: transparent !important; border-radius: 0 !important; }
+			.email-footer-copy-cell { padding: 12px 0 0 !important; }
 			.email-footer-links { padding-top: 28px !important; }
 			.email-footer-note { padding-left: 24px !important; padding-right: 24px !important; text-align: center !important; }
 			.email-footer-link { text-align: center !important; }
+			.email-footer-link-icon { width: 30px !important; height: 30px !important; vertical-align: -9px !important; }
 		}
 	</style>
 </head>
@@ -290,7 +294,7 @@ function renderEmail(template) {
 										<p style="margin:0 0 12px;font-size:12px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:${BRAND_BLUE};">${template.kicker}</p>
 										<h1 class="email-title" style="margin:0;font-size:36px;line-height:1.12;font-weight:800;letter-spacing:0;color:${BLACK};">${template.title}</h1>
 									</td>
-									<td class="email-icon-cell" align="right" style="width:92px;vertical-align:middle;">
+									<td class="email-icon-cell" align="right" style="width:92px;vertical-align:middle;text-align:right;">
 										${renderIcon(template.icon)}
 									</td>
 								</tr>
@@ -358,12 +362,12 @@ function renderFooter() {
 				<td class="email-footer-brand" style="vertical-align:middle;">
 					<table role="presentation" class="email-footer-brand-table" cellspacing="0" cellpadding="0">
 						<tr>
-							<td style="width:82px;vertical-align:middle;">
+							<td class="email-footer-logo-cell" style="width:112px;vertical-align:middle;">
 								<a href="${WEBSITE_URL}" style="display:inline-block;text-decoration:none;">
-									<img src="${imageUrls.logo}" width="82" height="82" alt="HyperQuote logo" style="display:block;width:82px;height:82px;border:0;outline:none;text-decoration:none;">
+									<img class="email-footer-logo" src="${imageUrls.logo}" width="112" height="112" alt="HyperQuote logo" style="display:block;width:112px;height:112px;border:0;outline:none;text-decoration:none;background:transparent;border-radius:0;">
 								</a>
 							</td>
-							<td style="padding-left:20px;vertical-align:middle;">
+							<td class="email-footer-copy-cell" style="padding-left:20px;vertical-align:middle;">
 								<a href="${WEBSITE_URL}" style="display:block;color:${BLACK};font-size:24px;font-weight:850;line-height:1.15;text-decoration:none;">HyperQuote</a>
 								<a href="${OFFICE_URL}" style="display:block;margin-top:7px;color:${MUTED};font-size:13px;line-height:1.45;text-decoration:none;">${OFFICE_ADDRESS}</a>
 							</td>
@@ -412,7 +416,7 @@ function renderFooterNote(template) {
 
 function footerLink(label, href, icon) {
 	return `<td style="padding:6px;">
-	<a class="email-footer-link" href="${href}" style="display:block;min-height:24px;padding:11px 14px;border:1px solid ${LINE};border-radius:14px;color:${BLACK};font-size:13px;font-weight:750;line-height:24px;text-align:left;text-decoration:none;white-space:nowrap;">
+	<a class="email-footer-link" href="${href}" style="display:block;min-height:32px;padding:12px 16px;border:1px solid ${LINE};border-radius:14px;color:${BLACK};font-size:13px;font-weight:750;line-height:32px;text-align:left;text-decoration:none;white-space:nowrap;">
 		${renderFooterIcon(icon)}
 		<span style="vertical-align:middle;">${label}</span>
 	</a>
@@ -421,7 +425,7 @@ function footerLink(label, href, icon) {
 
 function renderFooterIcon(icon) {
 	const src = imageUrls.footerIcons[icon] ?? imageUrls.footerIcons.email
-	return `<img src="${src}" width="22" height="22" alt="" style="display:inline-block;width:22px;height:22px;margin-right:10px;border:0;outline:none;text-decoration:none;vertical-align:-5px;">`
+	return `<img class="email-footer-link-icon" src="${src}" width="30" height="30" alt="" style="display:inline-block;width:30px;height:30px;margin-right:10px;border:0;outline:none;text-decoration:none;vertical-align:-9px;">`
 }
 
 function emailAssetUrl(fileName) {
