@@ -456,6 +456,35 @@ describe('SearchModule first render', () => {
 				uploadedAt: '2026-05-24T09:05:00Z',
 				uploadedBy: 'Mona Finance',
 				url: 'https://example.test/payment-slip.pdf',
+				downloadUrl: 'https://example.test/payment-slip.pdf?download=1',
+			},
+			{
+				fileName: 'site-note.txt',
+				id: '33333333-3333-4333-8333-333333333333',
+				mimeType: 'text/plain',
+				panel: 'finance',
+				proofType: 'finance_in',
+				reference: null,
+				sizeBytes: 2_048,
+				title: 'Site note',
+				uploadedAt: '2026-05-24T09:04:30Z',
+				uploadedBy: 'Mona Finance',
+				url: 'https://example.test/site-note.txt',
+				downloadUrl: 'https://example.test/site-note.txt?download=1',
+			},
+			{
+				fileName: 'receipt.jpg',
+				id: '44444444-4444-4444-8444-444444444444',
+				mimeType: 'image/jpeg',
+				panel: 'finance',
+				proofType: 'finance_in',
+				reference: null,
+				sizeBytes: 64_000,
+				title: 'Receipt image',
+				uploadedAt: '2026-05-24T09:04:15Z',
+				uploadedBy: 'Mona Finance',
+				url: 'https://example.test/receipt.jpg',
+				downloadUrl: 'https://example.test/receipt.jpg?download=1',
 			},
 			{
 				fileName: 'legacy-proof.txt',
@@ -469,6 +498,7 @@ describe('SearchModule first render', () => {
 				uploadedAt: '2026-05-24T09:04:00Z',
 				uploadedBy: null,
 				url: null,
+				downloadUrl: null,
 			},
 		])
 
@@ -540,7 +570,62 @@ describe('SearchModule first render', () => {
 		expect(
 			dialog?.querySelector('iframe[title="Payment slip"]'),
 		).toBeInTheDocument()
-		expect(dialog?.querySelector('a[target="_blank"]')).not.toBeInTheDocument()
+		expect(
+			dialog?.querySelector(
+				'a[target="_blank"][aria-label="Open Payment slip"]',
+			),
+		).toHaveAttribute('href', 'https://example.test/payment-slip.pdf')
+		expect(
+			dialog?.querySelector('a[download="payment-slip.pdf"]'),
+		).toHaveAttribute(
+			'href',
+			'https://example.test/payment-slip.pdf?download=1',
+		)
+
+		const textButton = Array.from(
+			dialog?.querySelectorAll('button') ?? [],
+		).find((button) => button.textContent?.includes('Site note'))
+		expect(textButton).toBeInTheDocument()
+
+		await act(async () => {
+			textButton?.click()
+		})
+
+		await waitForSearchModuleUpdate(() =>
+			Boolean(dialog?.querySelector('iframe[title="Site note"]')),
+		)
+		expect(dialog?.querySelector('iframe[title="Site note"]')).toHaveAttribute(
+			'src',
+			'https://example.test/site-note.txt',
+		)
+
+		const imageButton = Array.from(
+			dialog?.querySelectorAll('button') ?? [],
+		).find((button) => button.textContent?.includes('Receipt image'))
+		expect(imageButton).toBeInTheDocument()
+
+		await act(async () => {
+			imageButton?.click()
+		})
+
+		await waitForSearchModuleUpdate(() =>
+			Boolean(dialog?.querySelector('img[alt="Receipt image"]')),
+		)
+		await act(async () => {
+			dialog
+				?.querySelector('img[alt="Receipt image"]')
+				?.dispatchEvent(new Event('error', { bubbles: true }))
+		})
+
+		await waitForSearchModuleUpdate(() =>
+			Boolean(
+				dialog?.textContent?.includes('Preview failed for this document.'),
+			),
+		)
+		expect(dialog?.querySelector('a[download="receipt.jpg"]')).toHaveAttribute(
+			'href',
+			'https://example.test/receipt.jpg?download=1',
+		)
 
 		const legacyButton = Array.from(
 			dialog?.querySelectorAll('button') ?? [],

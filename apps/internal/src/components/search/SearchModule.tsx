@@ -4,6 +4,8 @@ import {
 	ArrowLeft,
 	ChevronDown,
 	Database,
+	Download,
+	ExternalLink,
 	FileText,
 	Table2,
 	X,
@@ -1578,6 +1580,17 @@ function ActivityProofCard({
 }
 
 function ActivityProofPreview({ doc }: { doc: ActivityProofDocument | null }) {
+	const [failedDocId, setFailedDocId] = useState<string | null>(null)
+	const activeDocId = doc?.id ?? null
+	const hasPreviewFailed = activeDocId !== null && failedDocId === activeDocId
+	const markPreviewFailed = useCallback(() => {
+		if (activeDocId) setFailedDocId(activeDocId)
+	}, [activeDocId])
+
+	useEffect(() => {
+		setFailedDocId((current) => (current === activeDocId ? current : null))
+	}, [activeDocId])
+
 	if (!doc) {
 		return (
 			<div className="flex min-h-0 items-center justify-center bg-white/[0.018] px-5 py-5">
@@ -1588,55 +1601,160 @@ function ActivityProofPreview({ doc }: { doc: ActivityProofDocument | null }) {
 		)
 	}
 
-	const isImage = doc.mimeType.startsWith('image/')
-	const isPdf = doc.mimeType === 'application/pdf'
-
 	return (
 		<div className="flex min-h-0 flex-col bg-white/[0.018]">
 			<div className="shrink-0 border-b border-white/[0.06] px-4 py-3 sm:px-5">
-				<h3 className="break-words font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-white/86">
-					{doc.title}
-				</h3>
-				<p className="mt-1 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/36">
-					{proofTypeLabel(doc.proofType)} · {formatProofSize(doc.sizeBytes)}
-				</p>
-				{doc.reference && (
-					<p className="mt-1 break-all font-[family-name:var(--font-plex-mono)] text-[10px] text-white/30">
-						{doc.reference}
-					</p>
-				)}
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+					<div className="min-w-0">
+						<h3 className="break-words font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-white/86">
+							{doc.title}
+						</h3>
+						<p className="mt-1 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-white/36">
+							{proofTypeLabel(doc.proofType)} · {formatProofSize(doc.sizeBytes)}
+						</p>
+						{doc.reference && (
+							<p className="mt-1 break-all font-[family-name:var(--font-plex-mono)] text-[10px] text-white/30">
+								{doc.reference}
+							</p>
+						)}
+					</div>
+					<ProofFileActions doc={doc} />
+				</div>
 			</div>
 			<div className="min-h-0 flex-1 overflow-auto p-3 sm:p-4">
-				{!doc.url ? (
-					<ProofPreviewUnavailable />
-				) : isImage ? (
-					<div className="flex min-h-full items-center justify-center">
-						<img
-							src={doc.url}
-							alt={doc.title}
-							className="max-h-full max-w-full object-contain"
-						/>
-					</div>
-				) : isPdf ? (
-					<iframe
-						title={doc.title}
-						src={doc.url}
-						className="h-full min-h-[420px] w-full border border-white/[0.08] bg-white"
-					/>
-				) : (
-					<ProofPreviewUnavailable />
-				)}
+				<ActivityProofPreviewContent
+					doc={doc}
+					hasPreviewFailed={hasPreviewFailed}
+					onPreviewError={markPreviewFailed}
+				/>
 			</div>
 		</div>
 	)
 }
 
-function ProofPreviewUnavailable() {
+function ProofFileActions({ doc }: { doc: ActivityProofDocument }) {
+	if (!doc.url && !doc.downloadUrl) return null
+
+	return (
+		<div className="flex shrink-0 flex-wrap items-center gap-2">
+			{doc.url && (
+				<a
+					href={doc.url}
+					target="_blank"
+					rel="noreferrer"
+					aria-label={`Open ${doc.title}`}
+					className="inline-flex h-9 items-center gap-2 border border-white/[0.09] px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-white/64 outline-none transition-colors hover:border-white/[0.18] hover:text-white focus-visible:border-white/30"
+				>
+					<ExternalLink aria-hidden="true" size={13} strokeWidth={1.9} />
+					Open
+				</a>
+			)}
+			{doc.downloadUrl && (
+				<a
+					href={doc.downloadUrl}
+					download={doc.fileName}
+					aria-label={`Download ${doc.title}`}
+					className="inline-flex h-9 items-center gap-2 border border-white/70 bg-white px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-black outline-none transition-colors hover:border-white hover:bg-white/88 focus-visible:ring-2 focus-visible:ring-white/35"
+				>
+					<Download aria-hidden="true" size={13} strokeWidth={1.9} />
+					Download
+				</a>
+			)}
+		</div>
+	)
+}
+
+function ActivityProofPreviewContent({
+	doc,
+	hasPreviewFailed,
+	onPreviewError,
+}: {
+	doc: ActivityProofDocument
+	hasPreviewFailed: boolean
+	onPreviewError: () => void
+}) {
+	if (!doc.url || hasPreviewFailed) {
+		return (
+			<ProofPreviewUnavailable
+				doc={doc}
+				reason={hasPreviewFailed ? 'failed' : 'unavailable'}
+			/>
+		)
+	}
+
+	const mimeType = doc.mimeType.toLowerCase()
+
+	if (mimeType.startsWith('image/')) {
+		return (
+			<div className="flex min-h-full items-center justify-center">
+				<img
+					src={doc.url}
+					alt={doc.title}
+					className="max-h-full max-w-full object-contain"
+					onError={onPreviewError}
+				/>
+			</div>
+		)
+	}
+
+	if (mimeType.startsWith('video/')) {
+		return (
+			<div className="flex min-h-full items-center justify-center">
+				<video
+					src={doc.url}
+					controls
+					className="max-h-full max-w-full bg-black"
+					onError={onPreviewError}
+				>
+					<track kind="captions" />
+				</video>
+			</div>
+		)
+	}
+
+	if (mimeType.startsWith('audio/')) {
+		return (
+			<div className="flex min-h-full items-center justify-center">
+				<audio
+					src={doc.url}
+					controls
+					className="w-full max-w-xl"
+					onError={onPreviewError}
+				>
+					<track kind="captions" />
+				</audio>
+			</div>
+		)
+	}
+
+	return (
+		<iframe
+			title={doc.title}
+			src={doc.url}
+			onError={onPreviewError}
+			className="h-full min-h-[420px] w-full border border-white/[0.08] bg-white"
+			sandbox="allow-downloads allow-forms allow-popups"
+		/>
+	)
+}
+
+function ProofPreviewUnavailable({
+	doc,
+	reason = 'unavailable',
+}: {
+	doc: ActivityProofDocument
+	reason?: 'failed' | 'unavailable'
+}) {
 	return (
 		<div className="flex min-h-full items-center justify-center border border-white/[0.06] bg-black/20 px-5 py-8">
-			<p className="font-[family-name:var(--font-archivo)] text-[13px] text-white/44">
-				Preview unavailable for this document.
-			</p>
+			<div className="flex max-w-sm flex-col items-center gap-4 text-center">
+				<p className="font-[family-name:var(--font-archivo)] text-[13px] text-white/44">
+					{reason === 'failed'
+						? 'Preview failed for this document.'
+						: 'Preview unavailable for this document.'}
+				</p>
+				{doc.downloadUrl && <ProofFileActions doc={doc} />}
+			</div>
 		</div>
 	)
 }

@@ -78,6 +78,7 @@ export interface ActivityProofDocument {
 	uploadedAt: string
 	uploadedBy: string | null
 	url: string | null
+	downloadUrl: string | null
 }
 
 type JsonRecord = Record<string, unknown>
@@ -334,12 +335,34 @@ export const getActivityProofDocuments = createServerFn({ method: 'POST' })
 
 		const docs: ActivityProofDocument[] = []
 		const linkedReferences = new Set<string>()
+		async function createSignedProofUrls(
+			storagePath: string,
+			fileName: string,
+		) {
+			const [inlineResult, downloadResult] = await Promise.all([
+				auth.client.storage
+					.from(PROOF_BUCKET)
+					.createSignedUrl(storagePath, 300),
+				auth.client.storage
+					.from(PROOF_BUCKET)
+					.createSignedUrl(storagePath, 300, { download: fileName }),
+			])
+
+			return {
+				url: inlineResult.error ? null : (inlineResult.data.signedUrl ?? null),
+				downloadUrl: downloadResult.error
+					? null
+					: (downloadResult.data.signedUrl ?? null),
+			}
+		}
+
 		for (const row of proofRows.data ?? []) {
 			linkedReferences.add(row.id)
 			linkedReferences.add(normalizeProofReference(row.storage_path))
-			const { data: signed, error: signedError } = await auth.client.storage
-				.from(PROOF_BUCKET)
-				.createSignedUrl(row.storage_path, 300)
+			const signedUrls = await createSignedProofUrls(
+				row.storage_path,
+				row.file_name,
+			)
 			docs.push({
 				id: row.id,
 				fileName: row.file_name,
@@ -353,7 +376,8 @@ export const getActivityProofDocuments = createServerFn({ method: 'POST' })
 				uploadedBy: row.uploaded_by_employee_id
 					? (uploaderById.get(row.uploaded_by_employee_id) ?? null)
 					: null,
-				url: signedError ? null : (signed.signedUrl ?? null),
+				url: signedUrls.url,
+				downloadUrl: signedUrls.downloadUrl,
 			})
 		}
 		for (const reference of legacyReferences) {
@@ -362,6 +386,7 @@ export const getActivityProofDocuments = createServerFn({ method: 'POST' })
 				continue
 			}
 			const fileName = proofReferenceFileName(reference)
+			const signedUrls = await createSignedProofUrls(normalized, fileName)
 			docs.push({
 				id: `legacy-${normalized}`,
 				fileName,
@@ -373,7 +398,8 @@ export const getActivityProofDocuments = createServerFn({ method: 'POST' })
 				title: `Legacy proof reference - ${fileName}`,
 				uploadedAt: activity?.created_at ?? new Date(0).toISOString(),
 				uploadedBy: null,
-				url: null,
+				url: signedUrls.url,
+				downloadUrl: signedUrls.downloadUrl,
 			})
 			linkedReferences.add(reference)
 			linkedReferences.add(normalized)
