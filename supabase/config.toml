@@ -247,7 +247,7 @@ host = "smtp.resend.com"
 port = 465
 user = "resend"
 pass = "env(RESEND_API_KEY)"
-admin_email = "support@hyperquote.net"
+admin_email = "support@info.moderngroupco.com"
 sender_name = "HyperQuote"
 
 [auth.email.template.confirmation]
