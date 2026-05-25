@@ -21,6 +21,7 @@ import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { signOutPortalAccount } from '../../lib/auth'
+import { getOrderHistoryOrders } from '../../lib/order-history'
 import { getAllCustomerOrders } from '../../lib/server/orders'
 import { getCurrentPortalTheme, setPortalTheme } from '../../lib/theme'
 import { type Conversation, useChatStore } from '../../stores/chat'
@@ -595,9 +596,7 @@ function DraftSection({
 		staleTime: 30_000,
 	})
 
-	const savedOrders = data?.orders?.filter((o) => o.type === 'saved') ?? []
-	const submittedOrders =
-		data?.orders?.filter((o) => o.type === 'submitted') ?? []
+	const orderHistory = getOrderHistoryOrders(data?.orders ?? [])
 	const closeSidebarAfterNavigate = useCallback(() => {
 		if (closeOnNavigate) {
 			usePortalStore.getState().setSidebarOpen(false)
@@ -624,42 +623,10 @@ function DraftSection({
 					)}
 
 					<p className="voice-mono px-1 pt-3 pb-1 text-[9px] uppercase tracking-[0.22em] text-[var(--p-text-faint)]">
-						{t('sidebar.savedOrders')}
+						{t('sidebar.recentOrders')}
 					</p>
-					{savedOrders.length > 0 ? (
-						savedOrders.map((order) => (
-							<button
-								key={order.id}
-								type="button"
-								onClick={() => {
-									navigate({
-										to: '/orders/edit/$orderId',
-										params: { orderId: order.id },
-									})
-									closeSidebarAfterNavigate()
-								}}
-								className="flex min-h-9 w-full items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-2.5 py-1.5 text-start text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-							>
-								<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--p-border-strong)]" />
-								<span className="min-w-0 flex-1 truncate text-[13px] font-medium">
-									{order.name ?? 'Draft'}
-								</span>
-								<span className="voice-mono shrink-0 text-[11px] tabular-nums text-[var(--p-text-faint)]">
-									{order.itemCount}
-								</span>
-							</button>
-						))
-					) : (
-						<p className="rounded-xl px-2 py-1.5 text-[12px] text-[var(--p-text-faint)]">
-							{t('sidebar.noSavedOrders')}
-						</p>
-					)}
-
-					<p className="voice-mono px-1 pt-3 pb-1 text-[9px] uppercase tracking-[0.22em] text-[var(--p-text-faint)]">
-						{t('sidebar.submittedOrders')}
-					</p>
-					{submittedOrders.length > 0 ? (
-						submittedOrders.map((order) => (
+					{orderHistory.length > 0 ? (
+						orderHistory.map((order) => (
 							<button
 								key={order.id}
 								type="button"
@@ -673,8 +640,8 @@ function DraftSection({
 								className="flex min-h-9 w-full items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-2.5 py-1.5 text-start text-[var(--p-text-muted)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
 							>
 								<span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--p-border-strong)]" />
-								<span className="voice-mono min-w-0 flex-1 truncate text-[12px] tabular-nums">
-									{order.reference}
+								<span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+									{order.name ?? order.reference ?? order.id}
 								</span>
 								<span className="voice-mono shrink-0 text-[11px] tabular-nums text-[var(--p-text-faint)]">
 									{order.itemCount}
@@ -683,7 +650,7 @@ function DraftSection({
 						))
 					) : (
 						<p className="rounded-xl px-2 py-1.5 text-[12px] text-[var(--p-text-faint)]">
-							{t('sidebar.noSubmittedOrders')}
+							{t('sidebar.noRecentOrders')}
 						</p>
 					)}
 				</div>

@@ -1,0 +1,31 @@
+import type { Order } from '../types/order'
+
+type DatedOrder = Pick<Order, 'date'>
+type OrderHistoryCandidate = Pick<Order, 'date' | 'type' | 'status'>
+
+function orderDateValue(order: DatedOrder): number {
+	const timestamp = Date.parse(order.date)
+	return Number.isNaN(timestamp) ? 0 : timestamp
+}
+
+export function compareOrdersByDateDesc(a: DatedOrder, b: DatedOrder): number {
+	return orderDateValue(b) - orderDateValue(a)
+}
+
+export function sortOrdersByDateDesc<T extends DatedOrder>(
+	orders: readonly T[],
+): T[] {
+	return [...orders].sort(compareOrdersByDateDesc)
+}
+
+export function isRealOrderHistoryOrder(
+	order: Pick<Order, 'type' | 'status'>,
+): boolean {
+	return order.type !== 'saved' && order.status !== 'draft'
+}
+
+export function getOrderHistoryOrders<T extends OrderHistoryCandidate>(
+	orders: readonly T[],
+): T[] {
+	return sortOrdersByDateDesc(orders.filter(isRealOrderHistoryOrder))
+}

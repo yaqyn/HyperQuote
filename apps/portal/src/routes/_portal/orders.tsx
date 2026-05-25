@@ -48,6 +48,10 @@ import {
 	customerDeliveryDestinationPlace,
 	describeDriverLocationForCustomer,
 } from '../../lib/delivery-location-copy'
+import {
+	getOrderHistoryOrders,
+	sortOrdersByDateDesc,
+} from '../../lib/order-history'
 import { getDeliverySecret } from '../../lib/server/deliveries'
 import {
 	deleteOrder,
@@ -88,6 +92,20 @@ const SECTION_META: Record<
 	saved: { labelKey: 'orders.saved' },
 	submitted: { labelKey: 'orders.submitted' },
 	confirmed: { labelKey: 'orders.confirmed' },
+}
+type OrderSummaryType = OrderType | 'history'
+const SUMMARY_META: Record<
+	OrderSummaryType,
+	{
+		labelKey:
+			| 'orders.saved'
+			| 'orders.submitted'
+			| 'orders.confirmed'
+			| 'orders.history'
+	}
+> = {
+	...SECTION_META,
+	history: { labelKey: 'orders.history' },
 }
 
 const ORDER_PREVIEW_SLOT_COUNT = 3
@@ -150,6 +168,7 @@ function OrdersPage() {
 	const savedSectionRef = useRef<HTMLElement | null>(null)
 	const submittedSectionRef = useRef<HTMLElement | null>(null)
 	const confirmedSectionRef = useRef<HTMLElement | null>(null)
+	const historySectionRef = useRef<HTMLElement | null>(null)
 	const draftItems = useDraftQuoteStore((s) => s.items)
 	const setDraftQuoteOpen = usePortalStore((s) => s.setDraftQuoteOpen)
 	const [collapsedSections, setCollapsedSections] = useState<
@@ -168,17 +187,27 @@ function OrdersPage() {
 		staleTime: 5_000,
 	})
 
-	const grouped = useMemo(() => {
-		if (!data?.orders) return { saved: [], submitted: [], confirmed: [] }
-		return {
-			saved: data.orders.filter((order) => order.type === 'saved'),
-			submitted: data.orders.filter((order) => order.type === 'submitted'),
-			confirmed: data.orders.filter((order) => order.type === 'confirmed'),
-		}
-	}, [data])
+	const allOrders = useMemo(
+		() => sortOrdersByDateDesc(data?.orders ?? []),
+		[data?.orders],
+	)
+	const orderHistory = useMemo(
+		() => getOrderHistoryOrders(allOrders),
+		[allOrders],
+	)
 
-	const totalCount =
-		grouped.saved.length + grouped.submitted.length + grouped.confirmed.length
+	const grouped = useMemo(() => {
+		if (allOrders.length === 0) {
+			return { saved: [], submitted: [], confirmed: [] }
+		}
+		return {
+			saved: allOrders.filter((order) => order.type === 'saved'),
+			submitted: allOrders.filter((order) => order.type === 'submitted'),
+			confirmed: allOrders.filter((order) => order.type === 'confirmed'),
+		}
+	}, [allOrders])
+
+	const totalCount = allOrders.length
 	const incomingDeliveries = data?.incomingDeliveries ?? []
 	const hasDraft = draftItems.length > 0
 	useEffect(() => {
@@ -211,6 +240,16 @@ function OrdersPage() {
 						: confirmedSectionRef.current
 
 			target?.scrollIntoView({
+				behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+					? 'auto'
+					: 'smooth',
+				block: 'start',
+			})
+		})
+	}
+	const scrollToHistory = () => {
+		requestAnimationFrame(() => {
+			historySectionRef.current?.scrollIntoView({
 				behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
 					? 'auto'
 					: 'smooth',
@@ -254,6 +293,12 @@ function OrdersPage() {
 						isAr={isAr}
 						onSelect={() => scrollToSection('confirmed')}
 					/>
+					<SummaryTile
+						type="history"
+						count={orderHistory.length}
+						isAr={isAr}
+						onSelect={scrollToHistory}
+					/>
 				</div>
 			</section>
 
@@ -294,6 +339,11 @@ function OrdersPage() {
 								onOpen={openDraft}
 							/>
 						)}
+						<OrderHistorySection
+							orders={orderHistory}
+							isAr={isAr}
+							sectionRef={historySectionRef}
+						/>
 						<OrdersSection
 							type="saved"
 							orders={grouped.saved}
@@ -331,13 +381,13 @@ function SummaryTile({
 	isAr,
 	onSelect,
 }: {
-	type: OrderType
+	type: OrderSummaryType
 	count: number
 	isAr: boolean
 	onSelect: () => void
 }) {
 	const { t } = useTranslation('portal')
-	const meta = SECTION_META[type]
+	const meta = SUMMARY_META[type]
 
 	return (
 		<button
@@ -356,6 +406,124 @@ function SummaryTile({
 				{t(meta.labelKey)}
 			</p>
 		</button>
+	)
+}
+
+function OrderHistorySection({
+	orders,
+	isAr,
+	sectionRef,
+}: {
+	orders: Order[]
+	isAr: boolean
+	sectionRef: RefObject<HTMLElement | null>
+}) {
+	const { t } = useTranslation('portal')
+
+	if (orders.length === 0) return null
+
+	return (
+		<section
+			ref={sectionRef}
+			aria-label={t('orders.history')}
+			className="scroll-mt-[76px] sm:scroll-mt-24 lg:scroll-mt-28"
+		>
+			<header className="mb-3 border-b border-[var(--p-border)] pb-3">
+				<div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))] sm:items-end">
+					<div className="min-w-0">
+						<p className={PORTAL_LABEL_CLASS}>{t('orders.historyEyebrow')}</p>
+						<h2 className="mt-1 text-[21px] font-semibold leading-tight text-[var(--p-text)] sm:text-[24px]">
+							{t('orders.history')}
+						</h2>
+						<p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-[var(--p-text-muted)]">
+							{t('orders.historyBody')}
+						</p>
+					</div>
+					<span
+						className="inline-flex h-9 w-fit items-center gap-2 rounded-full border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[12px] font-medium text-[var(--p-text-muted)] sm:justify-self-end"
+						style={{ fontVariantNumeric: 'tabular-nums' }}
+					>
+						<Clock size={14} strokeWidth={1.8} />
+						{t('orders.historyCount', {
+							count: isAr
+								? orders.length.toLocaleString('ar-EG')
+								: orders.length.toLocaleString('en-EG'),
+						})}
+					</span>
+				</div>
+			</header>
+			<div className="overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-card)]">
+				{orders.map((order) => (
+					<OrderHistoryRow key={order.id} order={order} isAr={isAr} />
+				))}
+			</div>
+		</section>
+	)
+}
+
+function OrderHistoryRow({ order, isAr }: { order: Order; isAr: boolean }) {
+	const { t } = useTranslation('portal')
+	const navigate = useNavigate()
+	const title = order.name ?? order.reference ?? order.id
+	const statusKey = order.status ? ORDER_STATUS_LABEL_KEYS[order.status] : null
+	const statusLabel =
+		order.type === 'saved' && order.draftSource === 'lyon'
+			? t('orders.lyon')
+			: statusKey
+				? t(statusKey)
+				: t(SECTION_META[order.type].labelKey)
+	const typeLabel = t(SECTION_META[order.type].labelKey)
+	const dateLabel = formatHistoryDate(order.date, isAr)
+	const amountLabel = formatAmount(order, isAr)
+
+	function openOrder() {
+		navigate({ to: '/orders/$orderId', params: { orderId: order.id } })
+	}
+
+	return (
+		<article className="grid min-w-0 gap-3 border-b border-[var(--p-border)] px-3.5 py-3.5 last:border-b-0 [grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr))] sm:px-4 sm:py-4">
+			<div className="min-w-0">
+				<div className="flex min-w-0 flex-wrap items-center gap-2">
+					<span className="rounded-full border border-[var(--p-border)] bg-[var(--p-input)] px-2.5 py-1 text-[11px] font-medium text-[var(--p-text-muted)]">
+						{typeLabel}
+					</span>
+					<span className="min-w-0 truncate text-[12px] font-medium text-[var(--p-text-faint)]">
+						{statusLabel}
+					</span>
+				</div>
+				<h3 className="mt-2 line-clamp-2 break-words text-[15px] font-semibold leading-snug text-[var(--p-text)] sm:text-[16px]">
+					{title}
+				</h3>
+				<p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-[var(--p-text-muted)]">
+					{order.description}
+				</p>
+			</div>
+			<div className="grid min-w-0 gap-3 [grid-template-columns:minmax(0,1fr)_minmax(7rem,auto)] sm:justify-self-end">
+				<div className="min-w-0 sm:text-end">
+					<p className="truncate text-[12px] font-medium text-[var(--p-text-muted)]">
+						{dateLabel}
+					</p>
+					<p className="mt-1 text-[12px] text-[var(--p-text-faint)]">
+						{t('orders.items', { count: order.itemCount })}
+					</p>
+					{amountLabel && (
+						<p
+							className="mt-1 truncate text-[12px] font-semibold text-[var(--p-text)]"
+							style={{ fontVariantNumeric: 'tabular-nums' }}
+						>
+							{amountLabel}
+						</p>
+					)}
+				</div>
+				<button
+					type="button"
+					onClick={openOrder}
+					className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+				>
+					<span className="truncate">{t('orders.view')}</span>
+				</button>
+			</div>
+		</article>
 	)
 }
 
@@ -1513,6 +1681,14 @@ function formatDate(iso: string, isAr: boolean): string {
 	return new Intl.DateTimeFormat(isAr ? 'ar-EG' : 'en-EG', {
 		day: '2-digit',
 		month: 'short',
+	}).format(new Date(iso))
+}
+
+function formatHistoryDate(iso: string, isAr: boolean): string {
+	return new Intl.DateTimeFormat(isAr ? 'ar-EG' : 'en-EG', {
+		day: '2-digit',
+		month: 'short',
+		year: 'numeric',
 	}).format(new Date(iso))
 }
 

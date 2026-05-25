@@ -9,6 +9,7 @@ import type {
 	OrderItem,
 	OrderType,
 } from '../../types/order'
+import { sortOrdersByDateDesc } from '../order-history'
 import { getAuthenticatedPortalCustomer } from './_supabase'
 import {
 	type DeliveryInfo,
@@ -225,7 +226,7 @@ function mapQuoteRequestToOrder(
 		items,
 		itemCount: items.length,
 		description,
-		date: row.submitted_at ?? linkedOrder?.created_at ?? row.created_at,
+		date: linkedOrder?.created_at ?? row.submitted_at ?? row.created_at,
 		amount: linkedOrder?.total_amount ?? null,
 		currency: 'EGP',
 	}
@@ -291,14 +292,16 @@ export const getAllCustomerOrders = createServerFn({ method: 'GET' }).handler(
 			supabase,
 			rows,
 		)
-		const orders = rows.map((row) => {
-			const linkedOrder = firstRelation(row.orders)
-			return mapQuoteRequestToOrder(
-				row,
-				categoryImages,
-				linkedOrder ? deliveryByOrderId.get(linkedOrder.id) : undefined,
-			)
-		})
+		const orders = sortOrdersByDateDesc(
+			rows.map((row) => {
+				const linkedOrder = firstRelation(row.orders)
+				return mapQuoteRequestToOrder(
+					row,
+					categoryImages,
+					linkedOrder ? deliveryByOrderId.get(linkedOrder.id) : undefined,
+				)
+			}),
+		)
 		return {
 			incomingDeliveries: orders.flatMap((order) =>
 				order.delivery && isIncomingDelivery(order.delivery)
