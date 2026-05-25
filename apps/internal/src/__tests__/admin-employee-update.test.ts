@@ -38,4 +38,27 @@ describe('admin employee update session safety', () => {
 			/recordAdminAudit\([\s\S]*auth\.client,\s*\)/,
 		)
 	})
+
+	it('does not reassign existing auth users by email across account pools', () => {
+		const adminServer = readWorkspaceFile(
+			'apps/internal/src/lib/server/admin.ts',
+		)
+		const employeeEnsureSource = sourceBetween(
+			adminServer,
+			'async function ensureEmployeeAuthUser',
+			'async function ensureDriverAuthUser',
+		)
+		const driverEnsureSource = sourceBetween(
+			adminServer,
+			'async function ensureDriverAuthUser',
+			'async function upsertEmployeeProfileRows',
+		)
+
+		expect(employeeEnsureSource).toContain('assertAdminAccountEmailAvailable')
+		expect(driverEnsureSource).toContain('assertAdminAccountEmailAvailable')
+		expect(employeeEnsureSource).not.toContain('findAuthUserByEmail')
+		expect(driverEnsureSource).not.toContain('findAuthUserByEmail')
+		expect(employeeEnsureSource).not.toContain('existing.id')
+		expect(driverEnsureSource).not.toContain('existing.id')
+	})
 })

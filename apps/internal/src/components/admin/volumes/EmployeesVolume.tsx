@@ -265,6 +265,12 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 		r.phone.includes(q) ||
 		String(r.baseSalary).includes(q) ||
 		r.id.toLowerCase().includes(q)
+	const mutationError =
+		createMutation.error instanceof Error
+			? createMutation.error.message
+			: updateMutation.error instanceof Error
+				? updateMutation.error.message
+				: null
 
 	return (
 		<VolumeWorkspace
@@ -336,6 +342,14 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 								type="password"
 							/>
 						</Field>
+					)}
+					{mutationError && (
+						<p
+							className="rounded-md border border-[#B91C1C]/20 bg-[#B91C1C]/5 px-3 py-2 text-sm text-[#B91C1C]"
+							role="alert"
+						>
+							{mutationError}
+						</p>
 					)}
 
 					<Section title={t('editor.section.assignment')} />

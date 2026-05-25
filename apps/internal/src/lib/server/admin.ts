@@ -816,6 +816,17 @@ function nullableCleanText(value: string | null): string | null {
 	return clean.length > 0 ? clean : null
 }
 
+function normalizedAdminEmail(value: string): string {
+	return value.trim().toLowerCase()
+}
+
+function normalizedNullableAdminEmail(
+	value: string | null | undefined,
+): string | null {
+	const clean = value?.trim()
+	return clean ? normalizedAdminEmail(clean) : null
+}
+
 function roundCurrency(value: number): number {
 	return Math.round(value * 100) / 100
 }
@@ -984,6 +995,15 @@ type InternalSupabaseAdminClient = Awaited<
 	ReturnType<typeof getInternalSupabaseAdminClient>
 >
 
+type AdminAccountType = 'customer' | 'driver' | 'employee'
+
+interface AdminEmailConflict {
+	email: string
+	id: string
+	type: AdminAccountType
+	userId: string | null
+}
+
 async function currentAdminEmployeeId(input?: {
 	actorUserId?: string
 	service?: InternalSupabaseAdminClient
@@ -1116,6 +1136,7 @@ async function findAuthUserByEmail(
 	service: InternalSupabaseAdminClient,
 	email: string,
 ) {
+	const normalizedEmail = normalizedAdminEmail(email)
 	let page = 1
 	const perPage = 100
 	while (true) {
@@ -1124,10 +1145,156 @@ async function findAuthUserByEmail(
 			perPage,
 		})
 		if (error) throw new Error(error.message)
-		const user = data.users.find((candidate) => candidate.email === email)
+		const user = data.users.find(
+			(candidate) =>
+				typeof candidate.email === 'string' &&
+				normalizedAdminEmail(candidate.email) === normalizedEmail,
+		)
 		if (user) return user
 		if (data.users.length < perPage) return null
 		page += 1
+	}
+}
+
+function valueString(value: unknown, key: string): string | null {
+	if (!value || typeof value !== 'object' || !(key in value)) return null
+	const field = Reflect.get(value, key)
+	return typeof field === 'string' ? field : null
+}
+
+async function emailConflictsForTable({
+	allowedId,
+	email,
+	select,
+	service,
+	table,
+	type,
+}: {
+	allowedId?: string | null
+	email: string
+	select: string
+	service: InternalSupabaseAdminClient
+	table: 'customers' | 'drivers' | 'employees'
+	type: AdminAccountType
+}): Promise<AdminEmailConflict[]> {
+	const { data, error } = await service
+		.from(table)
+		.select(select)
+		.ilike('email', email)
+	if (error) throw new Error(error.message)
+
+	const conflicts: AdminEmailConflict[] = []
+	for (const row of data ?? []) {
+		const rowEmail = valueString(row, 'email')
+		if (!rowEmail || normalizedAdminEmail(rowEmail) !== email) continue
+		const id = valueString(row, 'id')
+		if (!id || id === allowedId) continue
+		conflicts.push({
+			email: rowEmail,
+			id,
+			type,
+			userId: valueString(row, 'user_id'),
+		})
+	}
+	return conflicts
+}
+
+async function findAdminEmailConflicts({
+	allowedId,
+	email,
+	service,
+	type,
+}: {
+	allowedId?: string | null
+	email: string
+	service: InternalSupabaseAdminClient
+	type: AdminAccountType
+}): Promise<AdminEmailConflict[]> {
+	const [customerConflicts, driverConflicts, employeeConflicts] =
+		await Promise.all([
+			emailConflictsForTable({
+				allowedId: type === 'customer' ? allowedId : null,
+				email,
+				select: 'id, email, user_id',
+				service,
+				table: 'customers',
+				type: 'customer',
+			}),
+			emailConflictsForTable({
+				allowedId: type === 'driver' ? allowedId : null,
+				email,
+				select: 'id, email, user_id',
+				service,
+				table: 'drivers',
+				type: 'driver',
+			}),
+			emailConflictsForTable({
+				allowedId: type === 'employee' ? allowedId : null,
+				email,
+				select: 'id, email, user_id',
+				service,
+				table: 'employees',
+				type: 'employee',
+			}),
+		])
+	return [...customerConflicts, ...driverConflicts, ...employeeConflicts]
+}
+
+function accountTypeLabel(type: AdminAccountType): string {
+	if (type === 'customer') return 'a customer'
+	if (type === 'driver') return 'a driver'
+	return 'an employee'
+}
+
+function authUserPoolLabel(value: unknown): string {
+	if (!value || typeof value !== 'object' || !('pool' in value)) {
+		return 'another login account'
+	}
+	const pool = value.pool
+	if (pool === 'external') return 'a customer login account'
+	if (pool === 'driver') return 'a driver login account'
+	if (pool === 'internal') return 'an employee login account'
+	return 'another login account'
+}
+
+function duplicateAccountEmailMessage(email: string, owner: string): string {
+	return `${email} is already used by ${owner}. Use a unique email for each customer, employee, and driver login.`
+}
+
+async function assertAdminAccountEmailAvailable({
+	allowedId,
+	allowedUserId,
+	email,
+	service,
+	type,
+}: {
+	allowedId?: string | null
+	allowedUserId?: string | null
+	email: string
+	service: InternalSupabaseAdminClient
+	type: AdminAccountType
+}) {
+	const conflicts = await findAdminEmailConflicts({
+		allowedId,
+		email,
+		service,
+		type,
+	})
+	const conflict = conflicts[0]
+	if (conflict) {
+		throw new Error(
+			duplicateAccountEmailMessage(email, accountTypeLabel(conflict.type)),
+		)
+	}
+
+	const existing = await findAuthUserByEmail(service, email)
+	if (existing && existing.id !== allowedUserId) {
+		throw new Error(
+			duplicateAccountEmailMessage(
+				email,
+				authUserPoolLabel(existing.app_metadata),
+			),
+		)
 	}
 }
 
@@ -1137,16 +1304,25 @@ async function ensureEmployeeAuthUser(input: {
 	isCeo: boolean
 	password?: string
 	phone: string
+	recordId?: string | null
 	roles: AdminEmployeeRole[]
 	userId?: string | null
 }) {
 	const service = await getInternalSupabaseAdminClient()
+	const email = normalizedAdminEmail(input.email)
+	await assertAdminAccountEmailAvailable({
+		allowedId: input.recordId,
+		allowedUserId: input.userId,
+		email,
+		service,
+		type: 'employee',
+	})
 	const payload = {
 		app_metadata: {
 			pool: 'internal',
 			roles: employeeAuthRoles(input.roles, input.isCeo),
 		},
-		email: input.email,
+		email,
 		email_confirm: true,
 		phone: input.phone,
 		phone_confirm: true,
@@ -1157,18 +1333,6 @@ async function ensureEmployeeAuthUser(input: {
 	if (input.userId) {
 		const { data, error } = await service.auth.admin.updateUserById(
 			input.userId,
-			payload,
-		)
-		if (error || !data.user) {
-			throw new Error(error?.message ?? 'Failed to update employee auth user')
-		}
-		return data.user.id
-	}
-
-	const existing = await findAuthUserByEmail(service, input.email)
-	if (existing) {
-		const { data, error } = await service.auth.admin.updateUserById(
-			existing.id,
 			payload,
 		)
 		if (error || !data.user) {
@@ -1193,15 +1357,24 @@ async function ensureDriverAuthUser(input: {
 	fullName: string
 	password?: string
 	phone: string
+	recordId?: string | null
 	userId?: string | null
 }) {
 	const service = await getInternalSupabaseAdminClient()
+	const email = normalizedAdminEmail(input.email)
+	await assertAdminAccountEmailAvailable({
+		allowedId: input.recordId,
+		allowedUserId: input.userId,
+		email,
+		service,
+		type: 'driver',
+	})
 	const payload = {
 		app_metadata: {
 			pool: 'driver',
 			roles: ['driver'],
 		},
-		email: input.email,
+		email,
 		email_confirm: true,
 		phone: input.phone,
 		phone_confirm: true,
@@ -1212,18 +1385,6 @@ async function ensureDriverAuthUser(input: {
 	if (input.userId) {
 		const { data, error } = await service.auth.admin.updateUserById(
 			input.userId,
-			payload,
-		)
-		if (error || !data.user) {
-			throw new Error(error?.message ?? 'Failed to update driver auth user')
-		}
-		return data.user.id
-	}
-
-	const existing = await findAuthUserByEmail(service, input.email)
-	if (existing) {
-		const { data, error } = await service.auth.admin.updateUserById(
-			existing.id,
 			payload,
 		)
 		if (error || !data.user) {
@@ -1694,6 +1855,14 @@ export const adminCreateCustomer = createServerFn({ method: 'POST' })
 	.handler(async ({ data }): Promise<CustomerRow> => {
 		await getAdminSupabaseClient()
 		const service = await getInternalSupabaseAdminClient()
+		const email = normalizedNullableAdminEmail(data.email)
+		if (email) {
+			await assertAdminAccountEmailAvailable({
+				email,
+				service,
+				type: 'customer',
+			})
+		}
 		const { data: row, error } = await service
 			.from('customers')
 			.insert({
@@ -1702,7 +1871,7 @@ export const adminCreateCustomer = createServerFn({ method: 'POST' })
 				contact_name: data.contactName,
 				created_by_employee_id: data.createdByEmployeeId,
 				credit_limit: data.creditLimit,
-				email: data.email,
+				email,
 				payment_history: data.paymentHistory,
 				phone: data.phone,
 				profile_photo_url: data.profilePhotoUrl,
@@ -1744,7 +1913,26 @@ export const adminUpdateCustomer = createServerFn({ method: 'POST' })
 		}
 		if (patch.creditLimit !== undefined)
 			customerPatch.credit_limit = patch.creditLimit
-		if (patch.email !== undefined) customerPatch.email = patch.email
+		if (patch.email !== undefined) {
+			const email = normalizedNullableAdminEmail(patch.email)
+			if (email) {
+				const { data: currentCustomer, error: currentCustomerError } =
+					await service
+						.from('customers')
+						.select('id, user_id')
+						.eq('id', id)
+						.single()
+				if (currentCustomerError) throw new Error(currentCustomerError.message)
+				await assertAdminAccountEmailAvailable({
+					allowedId: id,
+					allowedUserId: valueString(currentCustomer, 'user_id'),
+					email,
+					service,
+					type: 'customer',
+				})
+			}
+			customerPatch.email = email
+		}
 		if (patch.paymentHistory !== undefined) {
 			customerPatch.payment_history = patch.paymentHistory
 		}
@@ -2460,6 +2648,12 @@ export const adminCreateEmployee = createServerFn({ method: 'POST' })
 	.handler(async ({ data }): Promise<AdminEmployeeRow> => {
 		const auth = await getAdminSupabaseClient()
 		const service = await getInternalSupabaseAdminClient()
+		const email = normalizedAdminEmail(data.email)
+		await assertAdminAccountEmailAvailable({
+			email,
+			service,
+			type: 'employee',
+		})
 		const actingEmployeeId = await currentAdminEmployeeId({
 			actorUserId: auth.user.id,
 			service,
@@ -2467,7 +2661,7 @@ export const adminCreateEmployee = createServerFn({ method: 'POST' })
 		const userId =
 			data.password || data.status === 'active'
 				? await ensureEmployeeAuthUser({
-						email: data.email,
+						email,
 						fullName: data.name,
 						isCeo: data.isCeo,
 						password: data.password,
@@ -2479,7 +2673,7 @@ export const adminCreateEmployee = createServerFn({ method: 'POST' })
 			.from('employees')
 			.insert({
 				full_name: data.name,
-				email: data.email,
+				email,
 				user_id: userId,
 				phone: data.phone,
 				status: data.status,
@@ -2507,7 +2701,7 @@ export const adminCreateEmployee = createServerFn({ method: 'POST' })
 			await upsertEmployeeProfileRows({
 				authUserId: userId,
 				displayName: data.name,
-				email: data.email,
+				email,
 				employeeId: row.id,
 				isCeo: data.isCeo,
 				phone: data.phone,
@@ -2517,7 +2711,7 @@ export const adminCreateEmployee = createServerFn({ method: 'POST' })
 		await recordAdminAudit(
 			{
 				action: 'internal_employee_created',
-				details: { email_domain: data.email.split('@')[1], scope: 'employees' },
+				details: { email_domain: email.split('@')[1], scope: 'employees' },
 				entityId: row.id,
 				entityType: 'employee',
 				reason: 'Admin employee create via internal panel',
@@ -2549,7 +2743,6 @@ export const adminUpdateEmployee = createServerFn({ method: 'POST' })
 		})
 		const employeePatch: Record<string, unknown> = {}
 		if (patch.name !== undefined) employeePatch.full_name = patch.name
-		if (patch.email !== undefined) employeePatch.email = patch.email
 		if (patch.phone !== undefined) employeePatch.phone = patch.phone
 		if (patch.status !== undefined) employeePatch.status = patch.status
 		if (patch.isCeo !== undefined) employeePatch.is_ceo = patch.isCeo
@@ -2564,8 +2757,18 @@ export const adminUpdateEmployee = createServerFn({ method: 'POST' })
 		const nextRoles = patch.roles ?? supabaseEmployeeToAdmin(currentRow).roles
 		const nextIsCeo = patch.isCeo ?? currentRow.is_ceo
 		const nextName = patch.name ?? currentRow.full_name
-		const nextEmail = patch.email ?? currentRow.email
+		const nextEmail = normalizedAdminEmail(patch.email ?? currentRow.email)
 		const nextPhone = patch.phone ?? currentRow.phone ?? ''
+		if (patch.email !== undefined) {
+			await assertAdminAccountEmailAvailable({
+				allowedId: id,
+				allowedUserId: currentRow.user_id,
+				email: nextEmail,
+				service,
+				type: 'employee',
+			})
+			employeePatch.email = nextEmail
+		}
 		const shouldEnsureAuth =
 			patch.password !== undefined ||
 			patch.email !== undefined ||
@@ -2584,6 +2787,7 @@ export const adminUpdateEmployee = createServerFn({ method: 'POST' })
 				isCeo: nextIsCeo,
 				password: patch.password,
 				phone: nextPhone,
+				recordId: id,
 				roles: nextRoles,
 				userId: currentRow.user_id,
 			})
@@ -2736,8 +2940,14 @@ export const adminCreateDriver = createServerFn({ method: 'POST' })
 			)
 		}
 		const service = await getInternalSupabaseAdminClient()
+		const email = normalizedAdminEmail(data.email)
+		await assertAdminAccountEmailAvailable({
+			email,
+			service,
+			type: 'driver',
+		})
 		const userId = await ensureDriverAuthUser({
-			email: data.email,
+			email,
 			fullName: data.fullName,
 			password: data.password,
 			phone: data.phone,
@@ -2745,7 +2955,7 @@ export const adminCreateDriver = createServerFn({ method: 'POST' })
 		const { data: row, error } = await service
 			.from('drivers')
 			.insert({
-				email: data.email,
+				email,
 				full_name: data.fullName,
 				phone: data.phone,
 				status: data.status,
@@ -2761,12 +2971,12 @@ export const adminCreateDriver = createServerFn({ method: 'POST' })
 			authUserId: userId,
 			displayName: data.fullName,
 			driverId: row.id,
-			email: data.email,
+			email,
 			phone: data.phone,
 		})
 		await recordAdminAudit({
 			action: 'admin_record_created',
-			details: { email_domain: data.email.split('@')[1], scope: 'drivers' },
+			details: { email_domain: email.split('@')[1], scope: 'drivers' },
 			entityId: row.id,
 			entityType: 'driver',
 			reason: 'Admin driver create via internal panel',
@@ -2791,7 +3001,9 @@ export const adminUpdateDriver = createServerFn({ method: 'POST' })
 			throw new Error(currentError?.message ?? `Driver ${id} not found`)
 		}
 		const currentRow = current as unknown as SupabaseAdminDriverRow
-		const nextEmail = patch.email === undefined ? currentRow.email : patch.email
+		const nextEmail = normalizedNullableAdminEmail(
+			patch.email === undefined ? currentRow.email : patch.email,
+		)
 		const nextFullName = patch.fullName ?? currentRow.full_name
 		const nextPhone = patch.phone ?? currentRow.phone
 		const shouldEnsureAuth =
@@ -2805,7 +3017,18 @@ export const adminUpdateDriver = createServerFn({ method: 'POST' })
 
 		const driverPatch: Record<string, unknown> = {}
 		if (patch.fullName !== undefined) driverPatch.full_name = patch.fullName
-		if (patch.email !== undefined) driverPatch.email = patch.email
+		if (patch.email !== undefined) {
+			if (nextEmail) {
+				await assertAdminAccountEmailAvailable({
+					allowedId: id,
+					allowedUserId: currentRow.user_id,
+					email: nextEmail,
+					service,
+					type: 'driver',
+				})
+			}
+			driverPatch.email = nextEmail
+		}
 		if (patch.phone !== undefined) driverPatch.phone = patch.phone
 		if (patch.status !== undefined) driverPatch.status = patch.status
 		if (patch.vehicleLabel !== undefined) {
@@ -2823,6 +3046,7 @@ export const adminUpdateDriver = createServerFn({ method: 'POST' })
 				fullName: nextFullName,
 				password: patch.password,
 				phone: nextPhone,
+				recordId: id,
 				userId: currentRow.user_id,
 			})
 		}

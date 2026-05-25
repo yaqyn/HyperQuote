@@ -294,6 +294,12 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 			)
 			.map((employee) => ({ value: employee.id, label: employee.name })),
 	]
+	const mutationError =
+		createMutation.error instanceof Error
+			? createMutation.error.message
+			: updateMutation.error instanceof Error
+				? updateMutation.error.message
+				: null
 
 	function coordinateFromInput(value: string): number | null {
 		if (!value.trim()) return null
@@ -419,6 +425,14 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 							/>
 						</Field>
 					</div>
+					{mutationError && (
+						<p
+							className="rounded-md border border-[#B91C1C]/20 bg-[#B91C1C]/5 px-3 py-2 text-sm text-[#B91C1C]"
+							role="alert"
+						>
+							{mutationError}
+						</p>
+					)}
 
 					<Section title={t('editor.section.address')} />
 					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
