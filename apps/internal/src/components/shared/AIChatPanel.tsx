@@ -196,7 +196,8 @@ export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
 							ref={textareaRef}
 							value={draft}
 							onChange={(e) => setDraft(e.target.value)}
-							disabled={isStreaming}
+							readOnly={isStreaming}
+							aria-disabled={isStreaming}
 							onKeyDown={(e) => {
 								if (e.key === 'Enter' && !e.shiftKey) {
 									e.preventDefault()
@@ -205,7 +206,9 @@ export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
 							}}
 							placeholder="ask lyon anything on screen…"
 							rows={1}
-							className="min-w-0 flex-1 resize-none bg-transparent font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)] disabled:cursor-wait disabled:opacity-60"
+							className={`min-w-0 flex-1 resize-none bg-transparent font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)] ${
+								isStreaming ? 'cursor-wait opacity-60' : ''
+							}`}
 							style={{
 								fontSize: '13px',
 								lineHeight: 1.55,
@@ -484,20 +487,308 @@ function MessageEntry({ message }: { message: AIChatMessage }) {
 				) : isPending ? (
 					<TypingDots />
 				) : (
-					<p
-						className="mt-1.5 whitespace-pre-wrap font-[family-name:var(--font-literata)] text-[var(--color-text)]"
-						style={{
-							fontSize: '14px',
-							lineHeight: 1.55,
-							letterSpacing: '0',
-						}}
-					>
-						{message.content}
-					</p>
+					<FormattedAssistantMessage content={message.content} />
 				)}
 			</div>
 		</motion.div>
 	)
+}
+
+function FormattedAssistantMessage({ content }: { content: string }) {
+	const blocks = parseAssistantBlocks(content)
+	const blockKeys = createStableKeys(
+		blocks.map(assistantBlockIdentity),
+		'block',
+	)
+	return (
+		<div
+			className="mt-1.5 space-y-3 break-words font-[family-name:var(--font-literata)] text-[var(--color-text)]"
+			style={{
+				fontSize: '14px',
+				lineHeight: 1.55,
+				letterSpacing: '0',
+			}}
+		>
+			{blocks.map((block, blockPosition) =>
+				renderAssistantBlock(block, blockKeys[blockPosition] ?? 'block'),
+			)}
+		</div>
+	)
+}
+
+type AssistantBlock =
+	| { text: string; type: 'paragraph' }
+	| { items: string[]; ordered: boolean; type: 'list' }
+	| { text: string; type: 'code' }
+	| { headers: string[]; rows: string[][]; type: 'table' }
+
+function parseAssistantBlocks(content: string): AssistantBlock[] {
+	const lines = content.replace(/\r\n/g, '\n').split('\n')
+	const blocks: AssistantBlock[] = []
+	let index = 0
+
+	while (index < lines.length) {
+		const line = lines[index] ?? ''
+		if (!line.trim()) {
+			index += 1
+			continue
+		}
+
+		if (/^\s*```/.test(line)) {
+			const codeLines: string[] = []
+			index += 1
+			while (index < lines.length && !/^\s*```/.test(lines[index] ?? '')) {
+				codeLines.push(lines[index] ?? '')
+				index += 1
+			}
+			if (index < lines.length) index += 1
+			blocks.push({ text: codeLines.join('\n'), type: 'code' })
+			continue
+		}
+
+		if (isAssistantTableAt(lines, index)) {
+			const headers = splitTableRow(lines[index] ?? '')
+			const rows: string[][] = []
+			index += 2
+			while (index < lines.length && isTableRow(lines[index] ?? '')) {
+				rows.push(
+					padTableRow(splitTableRow(lines[index] ?? ''), headers.length),
+				)
+				index += 1
+			}
+			blocks.push({ headers, rows, type: 'table' })
+			continue
+		}
+
+		const listMatch = matchAssistantListLine(line)
+		if (listMatch) {
+			const ordered = listMatch.ordered
+			const items: string[] = []
+			while (index < lines.length) {
+				const currentMatch = matchAssistantListLine(lines[index] ?? '')
+				if (!currentMatch || currentMatch.ordered !== ordered) break
+				items.push(currentMatch.text)
+				index += 1
+			}
+			blocks.push({ items, ordered, type: 'list' })
+			continue
+		}
+
+		const paragraphLines: string[] = []
+		while (index < lines.length && !isAssistantSpecialStart(lines, index)) {
+			const current = lines[index] ?? ''
+			if (!current.trim()) break
+			paragraphLines.push(current.trim())
+			index += 1
+		}
+		blocks.push({ text: paragraphLines.join('\n'), type: 'paragraph' })
+	}
+
+	return blocks.length > 0 ? blocks : [{ text: content, type: 'paragraph' }]
+}
+
+function renderAssistantBlock(block: AssistantBlock, blockKey: string) {
+	switch (block.type) {
+		case 'paragraph':
+			return (
+				<p key={blockKey} className="whitespace-pre-wrap">
+					{renderAssistantInline(block.text, blockKey)}
+				</p>
+			)
+		case 'list': {
+			const ListTag = block.ordered ? 'ol' : 'ul'
+			const itemKeys = createStableKeys(block.items, `${blockKey}:item`)
+			return (
+				<ListTag
+					key={blockKey}
+					className={`space-y-1.5 ${
+						block.ordered ? 'list-decimal' : 'list-disc'
+					} ps-5`}
+				>
+					{block.items.map((item, itemPosition) => (
+						<li key={itemKeys[itemPosition] ?? `${blockKey}:item`}>
+							{renderAssistantInline(
+								item,
+								itemKeys[itemPosition] ?? `${blockKey}:item`,
+							)}
+						</li>
+					))}
+				</ListTag>
+			)
+		}
+		case 'code':
+			return (
+				<pre
+					key={blockKey}
+					className="overflow-x-auto rounded-md border border-black/[0.08] bg-black/[0.03] p-3 text-start dark:border-white/[0.1] dark:bg-white/[0.05]"
+				>
+					<code className="font-[family-name:var(--font-plex-mono)] text-[12px] leading-relaxed">
+						{block.text}
+					</code>
+				</pre>
+			)
+		case 'table': {
+			const headerKeys = createStableKeys(block.headers, `${blockKey}:head`)
+			const rowKeys = createStableKeys(
+				block.rows.map((row) => row.join('\u001f')),
+				`${blockKey}:row`,
+			)
+			return (
+				<div key={blockKey} className="max-w-full overflow-x-auto">
+					<table className="w-full min-w-[260px] border-collapse text-start font-[family-name:var(--font-archivo)] text-[12px]">
+						<thead>
+							<tr>
+								{block.headers.map((header, headerPosition) => (
+									<th
+										key={headerKeys[headerPosition] ?? `${blockKey}:head`}
+										className="border-b border-black/[0.12] px-2 py-2 text-start font-semibold dark:border-white/[0.14]"
+									>
+										{renderAssistantInline(
+											header,
+											headerKeys[headerPosition] ?? `${blockKey}:head`,
+										)}
+									</th>
+								))}
+							</tr>
+						</thead>
+						<tbody>
+							{block.rows.map((row, rowPosition) => {
+								const rowKey = rowKeys[rowPosition] ?? `${blockKey}:row`
+								const cellKeys = createStableKeys(
+									row.map(
+										(cell, cellPosition) =>
+											`${block.headers[cellPosition] ?? 'cell'}:${cell}`,
+									),
+									`${rowKey}:cell`,
+								)
+								return (
+									<tr key={rowKey}>
+										{row.map((cell, cellPosition) => {
+											const cellKey = cellKeys[cellPosition] ?? `${rowKey}:cell`
+											return (
+												<td
+													key={cellKey}
+													className="border-b border-black/[0.06] px-2 py-2 align-top dark:border-white/[0.08]"
+												>
+													{renderAssistantInline(cell, cellKey)}
+												</td>
+											)
+										})}
+									</tr>
+								)
+							})}
+						</tbody>
+					</table>
+				</div>
+			)
+		}
+	}
+}
+
+function renderAssistantInline(text: string, keyPrefix: string) {
+	const parts = text.split(/(`[^`]+`|\*\*[^*]+\*\*)/g)
+	const partKeys = createStableKeys(parts, `${keyPrefix}:part`)
+	return parts.map((part, partPosition) => {
+		const key = partKeys[partPosition] ?? `${keyPrefix}:part`
+		if (part.startsWith('`') && part.endsWith('`')) {
+			return (
+				<code
+					key={key}
+					className="rounded bg-black/[0.05] px-1 py-0.5 font-[family-name:var(--font-plex-mono)] text-[0.9em] dark:bg-white/[0.08]"
+				>
+					{part.slice(1, -1)}
+				</code>
+			)
+		}
+		if (part.startsWith('**') && part.endsWith('**')) {
+			return <strong key={key}>{part.slice(2, -2)}</strong>
+		}
+		return <span key={key}>{part}</span>
+	})
+}
+
+function assistantBlockIdentity(block: AssistantBlock): string {
+	switch (block.type) {
+		case 'paragraph':
+			return `paragraph:${block.text}`
+		case 'list':
+			return `${block.ordered ? 'ordered' : 'unordered'}:${block.items.join(
+				'\u001f',
+			)}`
+		case 'code':
+			return `code:${block.text}`
+		case 'table':
+			return `table:${block.headers.join('\u001f')}:${block.rows
+				.map((row) => row.join('\u001f'))
+				.join('\u001e')}`
+	}
+}
+
+function createStableKeys(values: string[], prefix: string): string[] {
+	const seen = new Map<string, number>()
+	return values.map((value) => {
+		const baseKey = `${prefix}:${stableMessageKey(value)}`
+		const count = seen.get(baseKey) ?? 0
+		seen.set(baseKey, count + 1)
+		return count === 0 ? baseKey : `${baseKey}:${count}`
+	})
+}
+
+function stableMessageKey(value: string): string {
+	let hash = 0
+	for (let index = 0; index < value.length; index += 1) {
+		hash = (hash * 31 + value.charCodeAt(index)) >>> 0
+	}
+	return hash.toString(36)
+}
+
+function matchAssistantListLine(
+	line: string,
+): { ordered: boolean; text: string } | null {
+	const ordered = line.match(/^\s*\d+[.)]\s+(.+)$/)
+	if (ordered) return { ordered: true, text: ordered[1]?.trim() ?? '' }
+	const unordered = line.match(/^\s*[-*]\s+(.+)$/)
+	if (unordered) return { ordered: false, text: unordered[1]?.trim() ?? '' }
+	return null
+}
+
+function isAssistantSpecialStart(lines: string[], index: number): boolean {
+	const line = lines[index] ?? ''
+	return (
+		!line.trim() ||
+		/^\s*```/.test(line) ||
+		isAssistantTableAt(lines, index) ||
+		matchAssistantListLine(line) !== null
+	)
+}
+
+function isAssistantTableAt(lines: string[], index: number): boolean {
+	return (
+		isTableRow(lines[index] ?? '') && isTableDivider(lines[index + 1] ?? '')
+	)
+}
+
+function isTableRow(line: string): boolean {
+	const trimmed = line.trim()
+	return trimmed.startsWith('|') && trimmed.endsWith('|')
+}
+
+function isTableDivider(line: string): boolean {
+	return /^\s*\|?(?:\s*:?-{3,}:?\s*\|)+\s*$/.test(line.trim())
+}
+
+function splitTableRow(line: string): string[] {
+	return line
+		.trim()
+		.replace(/^\|/, '')
+		.replace(/\|$/, '')
+		.split('|')
+		.map((cell) => cell.trim())
+}
+
+function padTableRow(row: string[], length: number): string[] {
+	if (row.length >= length) return row.slice(0, length)
+	return [...row, ...Array.from({ length: length - row.length }, () => '')]
 }
 
 // ─── Typing indicator ────────────────────────────────────
