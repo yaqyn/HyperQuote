@@ -955,19 +955,22 @@ function productPatchForSupabase(data: Partial<AdminProductPayload>) {
 	return patch
 }
 
-async function recordAdminAudit(input: {
-	entityType: string
-	entityId: string
-	action:
-		| 'admin_record_created'
-		| 'admin_record_updated'
-		| 'admin_record_deactivated'
-		| 'internal_employee_created'
-	reason: string
-	details?: JsonObject
-}) {
-	const auth = await getInternalSupabaseClient()
-	const { error } = await auth.client.rpc('admin_record_audit', {
+async function recordAdminAudit(
+	input: {
+		entityType: string
+		entityId: string
+		action:
+			| 'admin_record_created'
+			| 'admin_record_updated'
+			| 'admin_record_deactivated'
+			| 'internal_employee_created'
+		reason: string
+		details?: JsonObject
+	},
+	client?: Awaited<ReturnType<typeof getInternalSupabaseClient>>['client'],
+) {
+	const actorClient = client ?? (await getInternalSupabaseClient()).client
+	const { error } = await actorClient.rpc('admin_record_audit', {
 		p_action: input.action,
 		p_details: input.details ?? {},
 		p_entity_id: input.entityId,
@@ -981,13 +984,17 @@ type InternalSupabaseAdminClient = Awaited<
 	ReturnType<typeof getInternalSupabaseAdminClient>
 >
 
-async function currentAdminEmployeeId(): Promise<string | null> {
-	const auth = await getInternalSupabaseClient()
-	const service = await getInternalSupabaseAdminClient()
+async function currentAdminEmployeeId(input?: {
+	actorUserId?: string
+	service?: InternalSupabaseAdminClient
+}): Promise<string | null> {
+	const actorUserId =
+		input?.actorUserId ?? (await getInternalSupabaseClient()).user.id
+	const service = input?.service ?? (await getInternalSupabaseAdminClient())
 	const { data, error } = await service
 		.from('employees')
 		.select('id')
-		.eq('user_id', auth.user.id)
+		.eq('user_id', actorUserId)
 		.limit(1)
 	if (error) throw new Error(error.message)
 	return data?.[0]?.id ?? null
@@ -1085,10 +1092,16 @@ async function upsertEmployeeCompensation(
 		socialInsuranceSalary: number
 		title: string
 	}>,
+	options?: {
+		updatedByEmployeeId?: string | null
+	},
 ) {
 	if (!hasEmployeeCompensationPatch(data)) return
 	const service = await getInternalSupabaseAdminClient()
-	const updatedByEmployeeId = await currentAdminEmployeeId()
+	const updatedByEmployeeId =
+		options && 'updatedByEmployeeId' in options
+			? (options.updatedByEmployeeId ?? null)
+			: await currentAdminEmployeeId({ service })
 	const { error } = await service.from('employee_compensation').upsert(
 		{
 			employee_id: employeeId,
@@ -2447,6 +2460,10 @@ export const adminCreateEmployee = createServerFn({ method: 'POST' })
 	.handler(async ({ data }): Promise<AdminEmployeeRow> => {
 		const auth = await getAdminSupabaseClient()
 		const service = await getInternalSupabaseAdminClient()
+		const actingEmployeeId = await currentAdminEmployeeId({
+			actorUserId: auth.user.id,
+			service,
+		})
 		const userId =
 			data.password || data.status === 'active'
 				? await ensureEmployeeAuthUser({
@@ -2471,7 +2488,9 @@ export const adminCreateEmployee = createServerFn({ method: 'POST' })
 			.select(EMPLOYEE_COLUMNS)
 			.single()
 		if (error) throw new Error(error.message)
-		await upsertEmployeeCompensation(row.id, data)
+		await upsertEmployeeCompensation(row.id, data, {
+			updatedByEmployeeId: actingEmployeeId,
+		})
 		for (const role of data.roles) {
 			const { error: assignError } = await auth.client.rpc(
 				'admin_assign_employee_role',
@@ -2495,13 +2514,16 @@ export const adminCreateEmployee = createServerFn({ method: 'POST' })
 				roles: data.roles,
 			})
 		}
-		await recordAdminAudit({
-			action: 'internal_employee_created',
-			details: { email_domain: data.email.split('@')[1], scope: 'employees' },
-			entityId: row.id,
-			entityType: 'employee',
-			reason: 'Admin employee create via internal panel',
-		})
+		await recordAdminAudit(
+			{
+				action: 'internal_employee_created',
+				details: { email_domain: data.email.split('@')[1], scope: 'employees' },
+				entityId: row.id,
+				entityType: 'employee',
+				reason: 'Admin employee create via internal panel',
+			},
+			auth.client,
+		)
 		const { data: fresh, error: freshError } = await service
 			.from('employees')
 			.select(EMPLOYEE_COLUMNS)
@@ -2521,6 +2543,10 @@ export const adminUpdateEmployee = createServerFn({ method: 'POST' })
 		const { id, ...patch } = data
 		const auth = await getAdminSupabaseClient()
 		const service = await getInternalSupabaseAdminClient()
+		const actingEmployeeId = await currentAdminEmployeeId({
+			actorUserId: auth.user.id,
+			service,
+		})
 		const employeePatch: Record<string, unknown> = {}
 		if (patch.name !== undefined) employeePatch.full_name = patch.name
 		if (patch.email !== undefined) employeePatch.email = patch.email
@@ -2570,7 +2596,9 @@ export const adminUpdateEmployee = createServerFn({ method: 'POST' })
 				.eq('id', id)
 			if (error) throw new Error(error.message)
 		}
-		await upsertEmployeeCompensation(id, patch)
+		await upsertEmployeeCompensation(id, patch, {
+			updatedByEmployeeId: actingEmployeeId,
+		})
 
 		if (patch.roles) {
 			const { data: currentRoles, error: roleError } = await auth.client
@@ -2623,13 +2651,16 @@ export const adminUpdateEmployee = createServerFn({ method: 'POST' })
 			})
 		}
 
-		await recordAdminAudit({
-			action: 'admin_record_updated',
-			details: { changed_keys: Object.keys(patch), scope: 'employees' },
-			entityId: id,
-			entityType: 'employee',
-			reason: 'Admin employee update via internal panel',
-		})
+		await recordAdminAudit(
+			{
+				action: 'admin_record_updated',
+				details: { changed_keys: Object.keys(patch), scope: 'employees' },
+				entityId: id,
+				entityType: 'employee',
+				reason: 'Admin employee update via internal panel',
+			},
+			auth.client,
+		)
 		const { data: row, error } = await service
 			.from('employees')
 			.select(EMPLOYEE_COLUMNS)
