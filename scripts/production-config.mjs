@@ -125,8 +125,6 @@ export function requiredRuntimeSecretNamesForApp(app) {
 	}
 	if (app.id === 'internal') {
 		for (const name of supportRuntimeSecretNames) names.add(name)
-		names.add('PORTAL_URL')
-		names.add('WEBSITE_URL')
 	}
 	return [...names]
 }
