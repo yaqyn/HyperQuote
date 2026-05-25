@@ -63,7 +63,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build
-        run: bunx turbo build --force
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: bunx turbo build --force --concurrency=1
 
       - name: Diff whitespace
         run: git diff --check
