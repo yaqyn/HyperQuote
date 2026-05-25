@@ -28,7 +28,7 @@
 		"dev:local": "node scripts/dev-local.mjs",
 		"db:start": "node scripts/supabase-local.mjs start",
 		"db:stop": "node scripts/supabase-local.mjs stop",
-		"db:reset": "node scripts/supabase-local.mjs db reset && node scripts/harden-local-supabase-api-boundary.mjs",
+		"db:reset": "node scripts/supabase-local.mjs db reset && node scripts/harden-local-supabase-api-boundary.mjs && node scripts/seed-local-auth.mjs --quiet",
 		"db:migrate": "node scripts/supabase-local.mjs migration up",
 		"db:api-boundary": "node scripts/assert-supabase-api-boundary.mjs",
 		"db:seed:local-auth": "node scripts/seed-local-auth.mjs",

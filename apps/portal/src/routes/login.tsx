@@ -78,7 +78,7 @@ function LoginPage() {
 	const recoveryToken =
 		search.type === 'recovery' ? search.token_hash : undefined
 	const [step, setStep] = useState<AuthStep>(() =>
-		recoveryToken ? 'reset' : 'phone',
+		recoveryToken ? 'reset' : 'email',
 	)
 	const [phone, setPhone] = useState('')
 	const [claimableCompany, setClaimableCompany] = useState<string | null>(null)

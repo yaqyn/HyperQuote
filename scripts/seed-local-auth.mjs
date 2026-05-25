@@ -5,19 +5,19 @@ import { createClient } from '@supabase/supabase-js'
 
 const LOCAL_ACCOUNTS = {
 	customer: {
-		companyName: 'Customer',
+		companyName: 'Customer Company',
 		contactName: 'Customer',
-		email: 'customer@customer.customer',
-		password: 'customer',
+		email: 'Customer@HyperQuote.net',
+		password: '123456',
 		phone: '+201000000000',
 	},
 	driver: {
-		email: 'driver@driver.driver',
+		email: 'Driver@HyperQuote.net',
 		fullName: 'Driver',
-		password: 'driver',
+		password: '123456',
 		phone: '+201000000002',
-		truckPlateNumber: 'DRIVER-1',
-		vehicleLabel: 'Truck',
+		truckPlateNumber: 'HQ-DRIVER-1',
+		vehicleLabel: 'Driver Truck',
 	},
 }
 
@@ -49,17 +49,17 @@ const EMPLOYEE_ROLES = [
 ]
 
 const ADMIN_ACCOUNT = {
-	email: 'admin@admin.admin',
+	email: 'Admin@HyperQuote.net',
 	fullName: 'Admin',
 	isCeo: true,
 	panels: PANEL_PERMISSIONS,
-	password: 'admin1',
+	password: '123456',
 	phone: '+201000000003',
 	roles: EMPLOYEE_ROLES,
 }
 
 const MANAGER_ACCOUNT = {
-	email: 'manager@manager.manager',
+	email: 'Manager@HyperQuote.net',
 	fullName: 'Manager',
 	panels: [
 		'sales',
@@ -70,7 +70,7 @@ const MANAGER_ACCOUNT = {
 		'customer_service',
 		'search',
 	],
-	password: 'manager',
+	password: '123456',
 	phone: '+201000000001',
 	roles: [
 		'sales',
@@ -81,6 +81,15 @@ const MANAGER_ACCOUNT = {
 		'customer_service',
 		'driver_manager',
 	],
+}
+
+const ADVISOR_ACCOUNT = {
+	email: 'Advisor@HyperQuote.net',
+	fullName: 'Advisor',
+	panels: ['sales', 'warehouse'],
+	password: '123456',
+	phone: '+201000000005',
+	roles: ['sales', 'warehouse'],
 }
 
 const FLOW_CUSTOMER_ACCOUNTS = [
@@ -191,6 +200,9 @@ const FLOW_DRIVER_ACCOUNTS = [
 ]
 
 const quiet = process.argv.includes('--quiet')
+const production = process.argv.includes('--production')
+const primaryOnly = process.argv.includes('--primary-only')
+const cleanAuth = process.argv.includes('--clean-auth')
 
 main().catch((error) => {
 	console.error(
@@ -201,7 +213,9 @@ main().catch((error) => {
 
 async function main() {
 	debugStep('read-local-env')
-	const { apiUrl, serviceRoleKey } = readLocalSupabaseEnv()
+	const { apiUrl, serviceRoleKey } = production
+		? readHostedSupabaseEnv()
+		: readLocalSupabaseEnv()
 	let searchRefreshActorUserId = null
 	const supabase = createClient(apiUrl, serviceRoleKey, {
 		auth: {
@@ -209,6 +223,14 @@ async function main() {
 			persistSession: false,
 		},
 	})
+
+	if (cleanAuth) {
+		if (!production) {
+			throw new Error('--clean-auth is only allowed with --production')
+		}
+		debugStep('clean-auth-users')
+		await deleteAllAuthUsers(supabase)
+	}
 
 	debugStep('customer-auth')
 	const customerUser = await upsertAuthUser(supabase, {
@@ -225,7 +247,7 @@ async function main() {
 	const customer = await upsertCustomer(supabase, customerUser.id)
 	await syncCustomerProfile(supabase, customerUser.id, customer.id)
 
-	for (const account of FLOW_CUSTOMER_ACCOUNTS) {
+	for (const account of primaryOnly ? [] : FLOW_CUSTOMER_ACCOUNTS) {
 		debugStep(`flow-customer-auth:${account.email}`)
 		const flowCustomerUser = await upsertAuthUser(supabase, {
 			app_metadata: { pool: 'external', roles: ['customer'] },
@@ -255,7 +277,8 @@ async function main() {
 	for (const account of [
 		ADMIN_ACCOUNT,
 		MANAGER_ACCOUNT,
-		...FLOW_EMPLOYEE_ACCOUNTS,
+		ADVISOR_ACCOUNT,
+		...(primaryOnly ? [] : FLOW_EMPLOYEE_ACCOUNTS),
 	]) {
 		debugStep(`role-auth:${account.email}`)
 		const roleEmployeeUser = await upsertAuthUser(supabase, {
@@ -296,7 +319,7 @@ async function main() {
 	await upsertDriverTruck(supabase, driver.id)
 	await syncDriverProfile(supabase, driverUser.id, driver.id)
 
-	for (const account of FLOW_DRIVER_ACCOUNTS) {
+	for (const account of primaryOnly ? [] : FLOW_DRIVER_ACCOUNTS) {
 		debugStep(`flow-driver-auth:${account.email}`)
 		const flowDriverUser = await upsertAuthUser(supabase, {
 			app_metadata: { pool: 'driver', roles: ['driver'] },
@@ -317,7 +340,9 @@ async function main() {
 	await refreshSearchDocuments(supabase, searchRefreshActorUserId)
 
 	if (!quiet) {
-		console.log('Local Supabase auth accounts are seeded.')
+		console.log(
+			`${production ? 'Production' : 'Local'} Supabase auth accounts are seeded.`,
+		)
 		console.log(
 			`Customer: ${LOCAL_ACCOUNTS.customer.email} / ${LOCAL_ACCOUNTS.customer.password}`,
 		)
@@ -326,9 +351,14 @@ async function main() {
 			`Manager: ${MANAGER_ACCOUNT.email} / ${MANAGER_ACCOUNT.password}`,
 		)
 		console.log(
+			`Advisor: ${ADVISOR_ACCOUNT.email} / ${ADVISOR_ACCOUNT.password}`,
+		)
+		console.log(
 			`Driver: ${LOCAL_ACCOUNTS.driver.email} / ${LOCAL_ACCOUNTS.driver.password}`,
 		)
-		console.log(`Flow accounts: local-*@hyperquote.local / ${FLOW_PASSWORD}`)
+		if (!primaryOnly) {
+			console.log(`Flow accounts: local-*@hyperquote.local / ${FLOW_PASSWORD}`)
+		}
 	}
 }
 
@@ -356,6 +386,20 @@ function readLocalSupabaseEnv() {
 		throw new Error('Could not read local Supabase API URL/service role key.')
 	}
 
+	return { apiUrl, serviceRoleKey }
+}
+
+function readHostedSupabaseEnv() {
+	const apiUrl = process.env.SUPABASE_URL?.trim()
+	const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+	const missing = []
+	if (!apiUrl) missing.push('SUPABASE_URL')
+	if (!serviceRoleKey) missing.push('SUPABASE_SERVICE_ROLE_KEY')
+	if (missing.length > 0) {
+		throw new Error(
+			`Cannot seed production Auth. Missing env: ${missing.join(', ')}`,
+		)
+	}
 	return { apiUrl, serviceRoleKey }
 }
 
@@ -414,6 +458,7 @@ async function upsertAuthUser(
 async function findAuthUser(supabase, { email, phone }) {
 	let page = 1
 	const perPage = 100
+	const normalizedEmail = email.trim().toLowerCase()
 	const normalizedPhone = phone ? normalizePhoneForAuth(phone) : null
 
 	while (true) {
@@ -425,13 +470,33 @@ async function findAuthUser(supabase, { email, phone }) {
 
 		const found = data.users.find(
 			(user) =>
-				user.email === email ||
+				user.email?.trim().toLowerCase() === normalizedEmail ||
 				(normalizedPhone !== null &&
 					normalizePhoneForAuth(user.phone ?? '') === normalizedPhone),
 		)
 		if (found) return found
 		if (data.users.length < perPage) return null
 		page += 1
+	}
+}
+
+async function deleteAllAuthUsers(supabase) {
+	const page = 1
+	const perPage = 100
+	while (true) {
+		const { data, error } = await supabase.auth.admin.listUsers({
+			page,
+			perPage,
+		})
+		if (error) throw new Error(error.message)
+		if (data.users.length === 0) return
+		for (const user of data.users) {
+			const { error: deleteError } = await supabase.auth.admin.deleteUser(
+				user.id,
+			)
+			if (deleteError) throw new Error(deleteError.message)
+		}
+		if (data.users.length < perPage) return
 	}
 }
 

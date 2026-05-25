@@ -601,8 +601,8 @@
 		"context": {
 			"eyebrow": "Customer access",
 			"heading": "Your purchasing desk for building materials.",
-			"body": "Sign in with your Egyptian mobile number to request quotes, track orders, and manage project purchasing from one secure workspace.",
-			"stat1": "Passwordless OTP",
+			"body": "Sign in with email and password to request quotes, track orders, and manage project purchasing from one secure workspace.",
+			"stat1": "Email/password access",
 			"stat2": "Built for Egyptian contractors",
 			"benefits": {
 				"quotes": {
@@ -620,7 +620,7 @@
 			}
 		},
 		"cardEyebrow": "Secure sign in",
-		"cardSubtitle": "Phone verification is required for every account. Email/password can be added after phone verification.",
+		"cardSubtitle": "Use your HyperQuote email and password. Phone verification stays available for customer phone login only.",
 		"step1": {
 			"heading": "Sign In",
 			"subtitle": "Enter the mobile number connected to your company account."
@@ -666,7 +666,7 @@
 		"emailSignInButton": "Sign In",
 		"emailNotConfirmed": "Confirm your email before signing in.",
 		"emailSignInFailed": "Email/password is incorrect, or the email is not confirmed yet.",
-		"phoneVerificationRequired": "Verify your phone number first, then add email/password from account setup.",
+		"phoneVerificationRequired": "This email is not linked to a customer profile yet. Use phone setup or contact HyperQuote.",
 		"codeSent": "Code sent to",
 		"wrongCode": "Incorrect code. Try again.",
 		"resend": "Resend",
