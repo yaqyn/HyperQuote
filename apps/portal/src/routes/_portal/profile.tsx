@@ -714,7 +714,7 @@ function ProfileShell({ children }: { children: ReactNode }) {
 				initial={{ opacity: 0, y: 8 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.28, ease: 'easeOut' }}
-				className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 lg:px-8 lg:py-10"
+				className="mx-auto flex min-h-full w-full max-w-5xl flex-col px-4 pb-[calc(env(safe-area-inset-bottom)+4rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-6 sm:pt-5 lg:px-8 lg:pb-20 lg:pt-10"
 			>
 				<header className="mb-6 shrink-0">
 					<PortalTitleRow
