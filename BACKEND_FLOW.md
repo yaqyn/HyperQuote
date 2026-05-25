@@ -91,9 +91,31 @@ functions:
 - `driver_reject_delivery`
 - `create_support_ticket`
 - `send_support_reply`
+- `service_ingest_support_email_message`
 - `ingest_whatsapp_message`
 
 Every reject action requires proof. Reject RPCs must fail without proof.
+
+## Support Email Threading
+
+Support tickets have one conversation model across website contact tickets,
+Portal tickets, and direct email. Website and Portal tickets continue to enter
+through `create_support_ticket`. Direct email enters through
+`service_ingest_support_email_message` after an app-side inbound email handler
+normalizes provider payloads.
+
+The implemented Internal inbound route is
+`POST /api/email/inbound/resend`. It is Resend-specific: it verifies Svix
+webhook headers, fetches the received email content from Resend, rejects mail
+not addressed to `support@hyperquote.net`, and writes through the service-role
+ingest RPC.
+
+Threading uses message headers first, then ticket references in subjects, then
+same sender plus normalized subject on a recent open or pending ticket. If none
+match, the ingest RPC creates a new `source=email` ticket and links a matching
+customer by email when one exists.
+
+Provider setup and activation status live in `SUPPORT_EMAIL_HANDOFF.md`.
 
 ## App Flows
 

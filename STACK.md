@@ -42,6 +42,12 @@ Cloudflare DNS records and Pipelines were not part of the verified reset
 because the available tokens did not allow full inspection. Re-inventory before
 touching them.
 
+Support email threading is implemented locally and partially prepared in
+Resend. `SUPPORT_EMAIL_HANDOFF.md` is the current source of truth for the
+Resend webhook/domain setup, Cloudflare Email Routing state, and activation
+choices. Do not replace root `hyperquote.net` MX records without confirming the
+impact on all `@hyperquote.net` mail.
+
 Product AI/Lyon behavior remains part of the app and docs. Deleted Lyon-named
 Cloudflare resources must not be recreated automatically.
 

@@ -9,6 +9,8 @@ facts.
   resource policy.
 - `BACKEND_FLOW.md` defines backend workflow contracts and app/server
   boundaries.
+- `SUPPORT_EMAIL_HANDOFF.md` records the current support-email threading
+  implementation, Resend setup, Cloudflare mail state, and activation choices.
 - `Flow.md` is the product workflow spec. `Flow.evidence.md` and
   `Flow.human-tasklist.md` are generated proof/checklist artifacts.
 - `packages/docs/src/content/docs/` contains customer-facing product docs, not
