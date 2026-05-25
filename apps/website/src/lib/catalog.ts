@@ -205,7 +205,7 @@ export const getPublicMarketPreviewCategories = createServerFn({
 				'website.catalog.categories.supabase_error',
 				categoryError,
 			)
-			throw new Error('Website catalog categories failed to load')
+			return []
 		}
 
 		const categories = (categoryRows ?? []).filter(
@@ -229,7 +229,14 @@ export const getPublicMarketPreviewCategories = createServerFn({
 					'website.catalog.public_catalog.supabase_error',
 					productError,
 				)
-				throw new Error('Website catalog preview failed to load')
+				return categories.map((category) => ({
+					slug: category.slug,
+					name: category.name,
+					name_ar: category.name_ar ?? '',
+					description: category.description ?? '',
+					description_ar: category.description_ar ?? '',
+					imageUrl: category.image_url ?? null,
+				}))
 			}
 
 			for (const product of productRows ?? []) {
@@ -304,10 +311,12 @@ export const getPublicCatalog = createServerFn({ method: 'POST' })
 		const offset = (input.page - 1) * input.limit
 		query = query.range(offset, offset + input.limit - 1)
 
-		const [
-			{ data, error, count },
-			{ data: categoryRows, error: categoryError },
-		] = await Promise.all([query, categoriesQuery])
+		const [productResult, categoryResult] = await Promise.all([
+			query,
+			categoriesQuery,
+		])
+		const { data, error, count } = productResult
+		const categoryRows = categoryResult.error ? [] : categoryResult.data
 
 		if (error) {
 			logWebsiteServerError(
@@ -316,12 +325,11 @@ export const getPublicCatalog = createServerFn({ method: 'POST' })
 			)
 			throw new Error('Website catalog failed to load')
 		}
-		if (categoryError) {
+		if (categoryResult.error) {
 			logWebsiteServerError(
 				'website.catalog.categories.supabase_error',
-				categoryError,
+				categoryResult.error,
 			)
-			throw new Error('Website catalog categories failed to load')
 		}
 		const categoriesBySlug = publicCategoryMap(
 			(categoryRows ?? []) as PublicCategoryRow[],

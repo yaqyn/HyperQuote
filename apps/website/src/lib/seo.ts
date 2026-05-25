@@ -9,7 +9,7 @@ type SeoMeta =
 
 interface SeoLink {
 	href: string
-	hreflang?: string
+	hrefLang?: string
 	rel: string
 }
 
@@ -66,7 +66,7 @@ export function websiteHead({
 		],
 		links: [
 			{ rel: 'canonical', href: url },
-			{ rel: 'alternate', hreflang: 'x-default', href: url },
+			{ rel: 'alternate', hrefLang: 'x-default', href: url },
 		],
 	}
 }
