@@ -103,11 +103,19 @@ function requiredSecretGroups(infisicalEnv) {
 			isValid: (value) => value.length > 0,
 		},
 	]
+	const resendEmail = [
+		{
+			label: 'Resend API key (RESEND_API_KEY, starts with re_)',
+			names: ['RESEND_API_KEY'],
+			isValid: (value) => value.startsWith('re_'),
+		},
+	]
 
-	if (infisicalEnv === 'dev') return twilioVerify
+	if (infisicalEnv === 'dev') return [...twilioVerify, ...resendEmail]
 
 	return [
 		...twilioVerify,
+		...resendEmail,
 		{
 			label: 'Hosted Supabase URL (SUPABASE_URL, https URL)',
 			names: ['SUPABASE_URL'],
