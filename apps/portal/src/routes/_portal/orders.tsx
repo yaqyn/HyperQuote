@@ -939,8 +939,8 @@ function IncomingStaticMap({
 						y2={line.destination.top}
 						stroke={line.color}
 						strokeLinecap="round"
-						strokeWidth="1.25"
-						opacity="0.95"
+						strokeWidth="0.9"
+						opacity="0.9"
 					/>
 				))}
 			</svg>

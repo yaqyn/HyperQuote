@@ -101,8 +101,8 @@ export function IncomingOrdersInteractiveMap({
 								}}
 								paint={{
 									'line-color': ['get', 'color'],
-									'line-opacity': 0.95,
-									'line-width': 6,
+									'line-opacity': 0.9,
+									'line-width': 4.5,
 								}}
 							/>
 						</Source>
