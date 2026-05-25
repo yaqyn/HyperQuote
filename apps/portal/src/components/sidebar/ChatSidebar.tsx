@@ -81,7 +81,7 @@ export function ChatSidebar({
 	const loadConversation = useChatStore((s) => s.loadConversation)
 
 	const favorites = conversations.filter((c) => c.pinned)
-	const firstName = userName?.trim().split(/\s+/)[0] ?? ''
+	const displayName = userName?.trim().split(/\s+/)[0] || t('sidebar.user')
 	const currentPath = matches[matches.length - 1]?.pathname ?? '/'
 
 	useEffect(() => {
@@ -303,7 +303,7 @@ export function ChatSidebar({
 								{t('sidebar.welcome')}
 							</p>
 							<p className="truncate text-[15px] font-semibold leading-tight text-[var(--p-text)]">
-								{firstName}
+								{displayName}
 							</p>
 						</div>
 					</div>
@@ -510,7 +510,8 @@ function ProfileMenu({
 		action: () => void
 	}>
 
-	const initial = (userName || '?').charAt(0).toUpperCase()
+	const displayName = userName.trim() || t('sidebar.user')
+	const initial = Array.from(displayName)[0]?.toUpperCase() ?? 'U'
 
 	return (
 		<div ref={menuRef} className="relative">
