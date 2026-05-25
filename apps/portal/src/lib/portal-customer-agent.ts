@@ -123,7 +123,7 @@ Tools:
 - create_draft_from_plan: explicit draft-create/catalog-selection only; server writes real Available product IDs. Include a natural draft_name and draft_notes.
 - update_draft_items: edit an editable draft line, quantity, note, or clear lines. Include refreshed draft_notes; include draft_name when the title should change.
 - draft_add_items, draft_replace_item, draft_set_delivery, duplicate_order_to_draft, update_draft_metadata, cleanup_drafts, delete_draft: customer-scoped draft-only edits.
-- support_request: only when the user explicitly asks to create, send, or submit a support ticket or feedback message. If they need docs, contact links, FAQ, or help finding something, use public_docs or chat instead.
+- support_request: when the user asks to create, send, submit, or file a support ticket/feedback, or says they need to contact support about a concrete issue or complaint. Do not ask them for a separate subject/title/description; infer the subject and use their natural message as the description. If they only ask for support contact details, docs, FAQ, or help finding something, use public_docs or chat instead.
 - refuse: submit/confirm/place/cancel orders, payments, cross-customer data, internal finance, supplier costs/margins, employee data, secrets, or unrelated driver-only data.
 
 Use the conversation like a capable assistant. Decide from intent and context, not isolated keywords. Put natural draft targets in search_query when no exact reference exists. Slash commands are user shortcuts, not words to repeat back.
@@ -177,6 +177,9 @@ export function fallbackPortalCustomerToolRequest(
 	if (refusal) {
 		return { action: 'refuse', reason: refusal, searchQuery: '' }
 	}
+
+	const supportRequest = inferNaturalSupportTicketRequest(userMessage)
+	if (supportRequest) return supportRequest
 
 	return { action: 'chat', searchQuery: '' }
 }
@@ -457,20 +460,22 @@ export function routePortalChatCommand(
 				searchQuery: '',
 			}
 		case '/feedback':
-			return commandArgs
-				? {
-						action: 'support_request',
-						commandName: command.name,
-						confirmedAction,
-						searchQuery,
-						supportMessage: cleanCommandText(commandArgs) ?? commandArgs,
-						supportSubject: 'Portal feedback',
-					}
-				: {
-						action: 'chat',
-						commandName: command.name,
-						searchQuery: '',
-					}
+			if (commandArgs) {
+				const supportMessage = cleanCommandText(commandArgs) ?? commandArgs
+				return {
+					action: 'support_request',
+					commandName: command.name,
+					confirmedAction,
+					searchQuery,
+					supportMessage,
+					supportSubject: supportSubjectFromText(supportMessage),
+				}
+			}
+			return {
+				action: 'chat',
+				commandName: command.name,
+				searchQuery: '',
+			}
 		case '/docs':
 			return commandArgs
 				? {
@@ -691,14 +696,31 @@ export function enforcePortalCustomerToolRequest(
 			searchQuery: '',
 		}
 	}
+	const naturalSupportRequest = inferNaturalSupportTicketRequest(userMessage)
 	if (
 		request.action === 'support_request' &&
 		!isExplicitSupportTicketRequest(userMessage, request)
 	) {
+		if (naturalSupportRequest) {
+			return {
+				...request,
+				searchQuery: request.searchQuery || naturalSupportRequest.searchQuery,
+				supportMessage:
+					request.supportMessage ?? naturalSupportRequest.supportMessage,
+				supportSubject:
+					request.supportSubject ?? naturalSupportRequest.supportSubject,
+			}
+		}
 		return {
 			action: 'public_docs',
 			searchQuery: userMessage.trim() || 'support docs contact faq',
 		}
+	}
+	if (
+		naturalSupportRequest &&
+		(request.action === 'chat' || request.action === 'public_docs')
+	) {
+		return naturalSupportRequest
 	}
 	if (request.action === 'chat' && isExplicitDraftCreateRequest(userMessage)) {
 		return {
@@ -845,6 +867,75 @@ function isExplicitSupportTicketRequest(
 		(/تذكرة|تذكره|بلاغ|فيدباك/.test(userMessage) &&
 			/افتح|ابعت|ارسل|اعمل|سجل|قدّم|قدم/.test(userMessage))
 	)
+}
+
+function inferNaturalSupportTicketRequest(
+	userMessage: string,
+): PortalCustomerToolRequest | null {
+	const message = userMessage.trim()
+	if (!message || !isNaturalSupportTicketRequest(message)) return null
+	return {
+		action: 'support_request',
+		searchQuery: message,
+		supportMessage: message,
+		supportSubject: supportSubjectFromText(message),
+	}
+}
+
+function isNaturalSupportTicketRequest(userMessage: string): boolean {
+	const normalized = normalizeForAgentMatch(userMessage)
+	const asksSupport =
+		/\b(need|want|wanna|would like|please|can you|help me|contact|reach|talk|speak|connect|complain|complaint)\b.*\bsupport\b/.test(
+			normalized,
+		) ||
+		/\bsupport\b.*\b(contact|team|help|please|complaint|complain)\b/.test(
+			normalized,
+		) ||
+		/الدعم|خدمة العملاء|اشتكي|شكوى|مشكلة/.test(userMessage)
+	if (!asksSupport) return false
+
+	const neutralContactLookup =
+		/^\s*(how|where|what|which)\b.*\b(contact|reach|call|email|phone)\b.*\bsupport\b/.test(
+			normalized,
+		) || /^\s*support\s+(email|phone|number|contact)\b/.test(normalized)
+	if (neutralContactLookup) return false
+
+	const hasIssueDetail =
+		/\b(product|products|material|materials|order|quote|delivery|driver|invoice|payment|checkout|price|quality|weak|bad|wrong|broken|damaged|slow|late|missing|failed|error|bug|issue|problem|complaint|not working)\b/.test(
+			normalized,
+		) ||
+		/منتج|مواد|طلب|عرض|توصيل|سعر|جودة|ضعيف|وحش|غلط|مكسور|متأخر|مشكلة|شكوى/.test(
+			userMessage,
+		)
+	return hasIssueDetail || normalized.split(/\s+/).length >= 5
+}
+
+function supportSubjectFromText(message: string): string {
+	const cleaned =
+		cleanCommandText(message.replace(/^\/feedback\s*/i, '')) ??
+		'Portal feedback'
+	const normalized = normalizeForAgentMatch(cleaned)
+	if (
+		/\b(product|products|material|materials|quality|weak|bad|damaged|broken|wrong)\b/.test(
+			normalized,
+		)
+	) {
+		return 'Product quality issue'
+	}
+	if (/\b(delivery|driver|late|delayed|missing)\b/.test(normalized)) {
+		return 'Delivery issue'
+	}
+	if (/\b(order|quote|rfq|request|checkout)\b/.test(normalized)) {
+		return 'Order support request'
+	}
+	const subject = cleaned
+		.replace(/[.!?].*$/, '')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.slice(0, 80)
+	return subject
+		? `${subject.charAt(0).toUpperCase()}${subject.slice(1)}`
+		: 'Portal feedback'
 }
 
 export function inferDraftItemEdit(

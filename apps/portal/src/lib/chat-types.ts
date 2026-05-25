@@ -32,26 +32,37 @@ export interface StatusCardData {
 	type: 'draft' | 'submitted' | 'confirmed'
 }
 
+export type ActionButtonIcon =
+	| 'book'
+	| 'cart'
+	| 'command'
+	| 'draft'
+	| 'external'
+	| 'help'
+	| 'mail'
+	| 'market'
+	| 'orders'
+	| 'phone'
+	| 'profile'
+	| 'support'
+	| 'track'
+
+export interface ActionButtonUnavailableAction {
+	href?: string
+	icon?: ActionButtonIcon
+	label: string
+	labelAr: string
+	params?: Record<string, string>
+	route?: string
+}
+
 export interface ActionButtonData {
 	command?: string
 	confirmMessage?: string
 	confirmMessageAr?: string
 	event?: 'open_cart' | 'open_draft_panel'
 	href?: string
-	icon?:
-		| 'book'
-		| 'cart'
-		| 'command'
-		| 'draft'
-		| 'external'
-		| 'help'
-		| 'mail'
-		| 'market'
-		| 'orders'
-		| 'phone'
-		| 'profile'
-		| 'support'
-		| 'track'
+	icon?: ActionButtonIcon
 	label: string
 	labelAr: string
 	route?: string
@@ -59,9 +70,7 @@ export interface ActionButtonData {
 	runCommand?: boolean
 	unavailableMessage?: string
 	unavailableMessageAr?: string
-	unavailableActionHref?: string
-	unavailableActionLabel?: string
-	unavailableActionLabelAr?: string
+	unavailableActions?: ActionButtonUnavailableAction[]
 	unavailableTitle?: string
 	unavailableTitleAr?: string
 }

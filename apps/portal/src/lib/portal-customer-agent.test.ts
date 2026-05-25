@@ -257,7 +257,7 @@ describe('portal customer AI agent', () => {
 			action: 'support_request',
 			commandName: '/feedback',
 			supportMessage: 'slow checkout',
-			supportSubject: 'Portal feedback',
+			supportSubject: 'Order support request',
 		})
 		expect(routePortalChatCommand('/docs prices')).toMatchObject({
 			action: 'public_docs',
@@ -525,6 +525,32 @@ describe('portal customer AI agent', () => {
 		).toMatchObject({
 			action: 'public_docs',
 			searchQuery: 'I cannot find the website docs',
+		})
+		expect(
+			parsePortalCustomerToolRequest(
+				JSON.stringify({
+					final_response:
+						'Please give me a subject title and description for support.',
+					tool: 'chat',
+				}),
+				'products were weak, i need to contact support',
+			),
+		).toMatchObject({
+			action: 'support_request',
+			supportMessage: 'products were weak, i need to contact support',
+			supportSubject: 'Product quality issue',
+		})
+		expect(
+			parsePortalCustomerToolRequest(
+				JSON.stringify({
+					search_query: 'support contacts',
+					tool: 'public_docs',
+				}),
+				'how can I contact support?',
+			),
+		).toMatchObject({
+			action: 'public_docs',
+			searchQuery: 'support contacts',
 		})
 		expect(
 			parsePortalCustomerToolRequest('not json', 'find cement').action,

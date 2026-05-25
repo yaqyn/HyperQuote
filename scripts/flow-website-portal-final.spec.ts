@@ -337,7 +337,7 @@ test('portal phone-only customer must add email login with password', async ({
 	})
 	await page
 		.locator('textarea[data-chat-input]')
-		.fill('/feedback Need help from portal support.')
+		.fill('products were weak, i need to contact support')
 	await page.getByRole('button', { name: /^Send message$/i }).click()
 	await expect(page.locator('body')).toContainText('Ticket needs email', {
 		timeout: 20_000,
@@ -349,10 +349,13 @@ test('portal phone-only customer must add email login with password', async ({
 	await expect(page.getByRole('dialog')).toContainText(
 		'You need a verified email',
 	)
-	const websiteContactLink = page.getByRole('link', {
-		name: /^Website contact$/i,
-	})
+	await expect(page.getByRole('dialog')).toContainText('Call')
+	await expect(page.getByRole('dialog')).toContainText('Edit Profile')
+	const websiteContactLink = page.getByRole('link', { name: /^Contact$/i })
 	await expect(websiteContactLink).toHaveAttribute('href', /\/support#contact$/)
+	await expect(
+		page.getByRole('dialog').getByRole('button', { name: /^OK$/i }),
+	).toHaveCount(0)
 	await expect(supportTicketCountByPhone(service, fullPhone)).resolves.toBe(0)
 	await page.keyboard.press('Escape')
 

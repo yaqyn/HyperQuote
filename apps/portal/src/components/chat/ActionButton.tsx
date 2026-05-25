@@ -28,6 +28,7 @@ import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
 import {
 	type ActionButtonData,
+	type ActionButtonUnavailableAction,
 	PORTAL_CHAT_OPEN_DRAFT_EVENT,
 	PORTAL_CHAT_RUN_COMMAND_EVENT,
 } from '../../lib/chat-types'
@@ -69,14 +70,10 @@ export function ActionButton({ data }: ActionButtonProps) {
 	const unavailableTitle = isArabic
 		? (data.unavailableTitleAr ?? data.unavailableTitle)
 		: data.unavailableTitle
-	const unavailableActionLabel = isArabic
-		? (data.unavailableActionLabelAr ?? data.unavailableActionLabel)
-		: data.unavailableActionLabel
+	const unavailableActions = data.unavailableActions ?? []
 	const Icon = data.icon ? ACTION_ICONS[data.icon] : undefined
 	const className =
 		'inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] sm:min-h-8'
-	const unavailableActionExternal =
-		data.unavailableActionHref?.startsWith('http')
 
 	if (data.href && !unavailableMessage) {
 		return (
@@ -135,6 +132,49 @@ export function ActionButton({ data }: ActionButtonProps) {
 		runAction()
 	}
 
+	const renderUnavailableAction = (
+		action: ActionButtonUnavailableAction,
+		index: number,
+	) => {
+		const actionLabel = isArabic ? action.labelAr : action.label
+		const ActionIcon = action.icon ? ACTION_ICONS[action.icon] : undefined
+		const actionClassName =
+			'inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)]'
+
+		if (action.href) {
+			const external = action.href.startsWith('http')
+			return (
+				<a
+					key={`${action.label}-${index}`}
+					href={action.href}
+					target={external ? '_blank' : undefined}
+					rel={external ? 'noopener noreferrer' : undefined}
+					className={actionClassName}
+					onClick={() => setUnavailableOpen(false)}
+				>
+					{ActionIcon ? <ActionIcon size={15} strokeWidth={1.9} /> : null}
+					<span className="truncate">{actionLabel}</span>
+				</a>
+			)
+		}
+
+		return (
+			<Button
+				key={`${action.label}-${index}`}
+				onPress={() => {
+					setUnavailableOpen(false)
+					if (action.route) {
+						navigate({ to: action.route, search: action.params ?? {} })
+					}
+				}}
+				className={actionClassName}
+			>
+				{ActionIcon ? <ActionIcon size={15} strokeWidth={1.9} /> : null}
+				<span className="truncate">{actionLabel}</span>
+			</Button>
+		)
+	}
+
 	return (
 		<>
 			<Button
@@ -152,12 +192,12 @@ export function ActionButton({ data }: ActionButtonProps) {
 					onOpenChange={setUnavailableOpen}
 					className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 backdrop-blur-sm"
 				>
-					<Modal className="w-full max-w-sm rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] shadow-2xl">
+					<Modal className="w-full max-w-md rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] shadow-2xl">
 						<Dialog className="outline-none">
 							<div className="border-b border-[var(--p-rule)] px-5 py-4">
 								<Heading
 									slot="title"
-									className="text-[14px] font-semibold text-[var(--p-text)]"
+									className="text-[16px] font-semibold text-[var(--p-text)]"
 								>
 									{unavailableTitle ??
 										(isArabic ? 'الإجراء غير متاح' : 'Action unavailable')}
@@ -168,28 +208,21 @@ export function ActionButton({ data }: ActionButtonProps) {
 									{unavailableMessage}
 								</p>
 							</div>
-							<div className="flex flex-wrap justify-end gap-2 border-t border-[var(--p-rule)] px-5 py-3">
-								<Button
-									onPress={() => setUnavailableOpen(false)}
-									className="min-h-9 rounded-lg px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
-								>
-									{isArabic ? 'حسناً' : 'OK'}
-								</Button>
-								{data.unavailableActionHref && unavailableActionLabel ? (
-									<a
-										href={data.unavailableActionHref}
-										target={unavailableActionExternal ? '_blank' : undefined}
-										rel={
-											unavailableActionExternal
-												? 'noopener noreferrer'
-												: undefined
-										}
-										className="inline-flex min-h-9 items-center justify-center rounded-lg bg-[var(--p-accent)] px-3 text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
-										onClick={() => setUnavailableOpen(false)}
-									>
-										{unavailableActionLabel}
-									</a>
-								) : null}
+							<div className="border-t border-[var(--p-rule)] px-5 py-4">
+								{unavailableActions.length > 0 ? (
+									<div className="grid gap-2 sm:grid-cols-3">
+										{unavailableActions.map(renderUnavailableAction)}
+									</div>
+								) : (
+									<div className="flex justify-end">
+										<Button
+											onPress={() => setUnavailableOpen(false)}
+											className="min-h-9 rounded-lg px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+										>
+											{isArabic ? 'حسناً' : 'OK'}
+										</Button>
+									</div>
+								)}
 							</div>
 						</Dialog>
 					</Modal>
