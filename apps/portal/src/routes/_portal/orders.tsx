@@ -234,7 +234,7 @@ function OrdersPage() {
 			</header>
 
 			<section className="shrink-0 border-y border-[var(--p-border)] py-2.5 sm:py-3">
-				<div className="mx-auto grid w-full max-w-[1400px] grid-cols-3 gap-2 px-4 sm:gap-3 sm:px-6 lg:px-12">
+				<div className="mx-auto grid w-full max-w-[1400px] grid-cols-[repeat(auto-fit,minmax(min(100%,7rem),1fr))] gap-2 px-4 sm:gap-3 sm:px-6 lg:px-12">
 					<SummaryTile
 						type="saved"
 						count={grouped.saved.length}
@@ -463,7 +463,7 @@ function IncomingOrdersSection({
 
 				<div className="grid gap-4 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
 					<IncomingOrdersMap deliveries={deliveries} />
-					<div className="grid gap-3 md:grid-cols-2">
+					<div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,24rem),1fr))]">
 						{deliveries.map((delivery, index) => {
 							const palette = INCOMING_COLORS[index % INCOMING_COLORS.length]
 							const driverPlaceLabel =
@@ -474,7 +474,7 @@ function IncomingOrdersSection({
 							return (
 								<article
 									key={delivery.id}
-									className="grid gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] p-3 sm:grid-cols-[1fr_auto] sm:items-center"
+									className="grid min-w-0 gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] p-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr))] sm:items-center"
 								>
 									<div className="min-w-0">
 										<div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -597,7 +597,7 @@ function IncomingOrderActions({
 	}
 
 	return (
-		<div className="grid min-w-0 gap-2 sm:w-[300px]">
+		<div className="grid w-full min-w-0 gap-2 self-center">
 			<div className="grid min-w-0 grid-cols-2 gap-2">
 				<button
 					type="button"
@@ -1107,7 +1107,7 @@ function OrdersSection({
 				(type === 'saved' ? (
 					<SavedDraftList orders={orders} isAr={isAr} />
 				) : (
-					<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+					<div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr))]">
 						{orders.map((order) => (
 							<OrderTile key={order.id} order={order} isAr={isAr} />
 						))}
@@ -1186,7 +1186,7 @@ function SavedDraftRow({ order, isAr }: { order: Order; isAr: boolean }) {
 	})
 
 	return (
-		<article className="grid min-w-0 gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3.5 transition-colors hover:border-[var(--p-border-strong)] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-4">
+		<article className="grid min-w-0 items-center gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3.5 transition-colors [grid-template-columns:repeat(auto-fit,minmax(min(100%,24rem),1fr))] hover:border-[var(--p-border-strong)] sm:p-4">
 			<div className="min-w-0">
 				<div className="flex min-w-0 flex-wrap items-center gap-2">
 					<span className="rounded-full border border-[var(--p-border)] bg-[var(--p-input)] px-2.5 py-1 text-[11px] font-medium text-[var(--p-text-muted)]">
@@ -1235,7 +1235,7 @@ function SavedDraftRow({ order, isAr }: { order: Order; isAr: boolean }) {
 			</div>
 
 			{confirmDelete ? (
-				<div className="grid gap-2 sm:w-[240px] sm:grid-cols-2">
+				<div className="grid w-full grid-cols-2 gap-2">
 					<button
 						type="button"
 						onClick={() => deleteMutation.mutate()}
@@ -1253,7 +1253,7 @@ function SavedDraftRow({ order, isAr }: { order: Order; isAr: boolean }) {
 					</button>
 				</div>
 			) : (
-				<div className="grid grid-cols-[minmax(0,1fr)_40px_40px_40px] items-center gap-2 sm:w-[360px]">
+				<div className="grid w-full grid-cols-[minmax(0,1fr)_40px_40px_40px] items-center gap-2">
 					<button
 						type="button"
 						onClick={openEditor}
@@ -1401,8 +1401,8 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 			)}
 
 			<div className="mt-3 border-t border-[var(--p-border)] pt-3">
-				<div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
-					<div className="min-w-0">
+				<div className="flex min-w-0 flex-wrap items-center gap-2">
+					<div className="min-w-[9rem] flex-1">
 						<p className="truncate text-[12px] text-[var(--p-text-muted)]">
 							{t('orders.items', { count: order.itemCount })}
 						</p>
@@ -1419,7 +1419,7 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 						type="button"
 						onClick={() => saveDraftMutation.mutate()}
 						disabled={saveDraftMutation.isPending}
-						className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl border border-[var(--p-border)] px-3 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-60"
+						className="inline-flex h-10 min-w-[9rem] flex-1 items-center justify-center rounded-xl border border-[var(--p-border)] px-3 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-60"
 					>
 						<span className="truncate">
 							{saveDraftMutation.isPending
@@ -1430,12 +1430,12 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 					<button
 						type="button"
 						onClick={openOrder}
-						className="inline-flex h-10 min-w-0 items-center justify-center rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+						className="inline-flex h-10 min-w-[7rem] flex-1 items-center justify-center rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
 					>
 						<span className="truncate">{t('orders.view')}</span>
 					</button>
 					{savedDraftReference && (
-						<p className="text-[12px] font-medium text-[var(--p-text-muted)] sm:col-span-3">
+						<p className="w-full text-[12px] font-medium text-[var(--p-text-muted)]">
 							{t('orders.savedAsDraft', { ref: savedDraftReference })}
 						</p>
 					)}
@@ -1478,7 +1478,7 @@ function OrdersSkeleton() {
 						<div className="h-5 w-28 animate-pulse rounded bg-[var(--p-border)]" />
 						<div className="h-4 w-6 animate-pulse rounded bg-[var(--p-border)]" />
 					</div>
-					<div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+					<div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr))]">
 						{SKELETON_CARDS.map((card) => (
 							<div
 								key={`${section}-${card}`}
