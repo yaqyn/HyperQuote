@@ -6,7 +6,7 @@ import {
 	Plus,
 	Search,
 } from 'lucide-react'
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSupportStore } from '../../stores/customer-service'
 import type { Conversation } from '../../types/customer-service'
@@ -16,8 +16,7 @@ import {
 } from '../shared/EmployeeControls'
 import { ConversationItem } from './ConversationItem'
 
-/** Top-level: Email vs WhatsApp. WhatsApp keeps a sub-filter for closed chats. */
-type ChannelTab = 'email' | 'whatsapp'
+type ChannelTab = 'email' | 'whatsapp' | 'live'
 
 interface SupportInboxProps {
 	conversations: Conversation[]
@@ -32,8 +31,24 @@ function isResolved(conversation: Conversation): boolean {
 	return conversation.status === 'resolved' || conversation.status === 'closed'
 }
 
-function isWhatsAppLike(conversation: Conversation): boolean {
-	return conversation.channel === 'whatsapp' || conversation.channel === 'live'
+function hasAttention(conversation: Conversation): boolean {
+	return conversation.priority === 'urgent' || conversation.slaBreached
+}
+
+function compareRecent(a: Conversation, b: Conversation): number {
+	return (
+		new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+	)
+}
+
+function compareEmailTicket(a: Conversation, b: Conversation): number {
+	const aUnread = a.unreadCount > 0
+	const bUnread = b.unreadCount > 0
+	if (aUnread !== bUnread) return aUnread ? -1 : 1
+	const aNeedsAttention = hasAttention(a)
+	const bNeedsAttention = hasAttention(b)
+	if (aNeedsAttention !== bNeedsAttention) return aNeedsAttention ? -1 : 1
+	return compareRecent(a, b)
 }
 
 export function SupportInbox({
@@ -50,49 +65,34 @@ export function SupportInbox({
 	const setSelectedConversation = useSupportStore(
 		(s) => s.setSelectedConversation,
 	)
-	const [activeTab, setActiveTab] = useState<ChannelTab>('whatsapp')
-	const [showResolved, setShowResolved] = useState(false)
 	const canComposeEmail =
 		selectedConversation?.channel === 'email' &&
 		selectedConversation.status !== 'closed' &&
 		selectedConversation.status !== 'resolved'
 
-	function handleTabChange(tab: ChannelTab) {
-		setActiveTab(tab)
-		setShowResolved(false)
-	}
-
 	const counts = useMemo(() => {
 		const next = {
-			live: 0,
-			liveResolved: 0,
 			email: 0,
+			live: 0,
+			whatsapp: 0,
 			urgent: 0,
 		}
 
 		for (const conv of conversations) {
-			if (conv.priority === 'urgent' || conv.slaBreached) next.urgent++
-			if (isWhatsAppLike(conv)) {
-				if (isResolved(conv)) next.liveResolved++
-				else next.live++
+			if (conv.channel === 'email') {
+				next.email++
+				if (!isResolved(conv) && hasAttention(conv)) next.urgent++
 				continue
 			}
-			next.email++
+			if (conv.channel === 'whatsapp') next.whatsapp++
+			if (conv.channel === 'live') next.live++
 		}
 
 		return next
 	}, [conversations])
 
-	const filtered = useMemo(() => {
-		let result = conversations.filter((c) =>
-			activeTab === 'whatsapp' ? isWhatsAppLike(c) : c.channel === activeTab,
-		)
-
-		if (activeTab === 'whatsapp') {
-			result = showResolved
-				? result.filter(isResolved)
-				: result.filter((c) => !isResolved(c))
-		}
+	const emailGroups = useMemo(() => {
+		let result = conversations.filter((c) => c.channel === 'email')
 
 		if (searchQuery.trim()) {
 			const q = searchQuery.toLowerCase()
@@ -105,72 +105,33 @@ export function SupportInbox({
 			)
 		}
 
-		const sortKey = activeTab === 'whatsapp' ? 'createdAt' : 'lastMessageAt'
-		return [...result].sort((a, b) => {
-			if (activeTab === 'email') {
-				const aNeedsAttention = a.priority === 'urgent' || a.slaBreached
-				const bNeedsAttention = b.priority === 'urgent' || b.slaBreached
-				if (aNeedsAttention !== bNeedsAttention) {
-					return aNeedsAttention ? -1 : 1
-				}
-			}
-			return new Date(a[sortKey]).getTime() - new Date(b[sortKey]).getTime()
-		})
-	}, [conversations, activeTab, showResolved, searchQuery])
+		const open = result.filter((c) => !isResolved(c)).sort(compareEmailTicket)
+		const closed = result.filter(isResolved).sort(compareRecent)
+		return {
+			closed,
+			open,
+			all: [...open, ...closed],
+		}
+	}, [conversations, searchQuery])
 
-	const isLiveActive = activeTab === 'whatsapp' && !showResolved
-
-	const liveQueueHeadId = useMemo(() => {
-		if (!isLiveActive) return null
-		return filtered[0]?.id ?? null
-	}, [isLiveActive, filtered])
+	const filtered = emailGroups.all
 
 	useEffect(() => {
 		if (!autoSelect) return
-		if (isLiveActive) {
-			if (liveQueueHeadId && selectedId !== liveQueueHeadId) {
-				setSelectedConversation(liveQueueHeadId)
-			} else if (!liveQueueHeadId && selectedId !== null) {
-				setSelectedConversation(null)
-			}
-			return
-		}
 
 		const currentInTab = selectedId && filtered.some((c) => c.id === selectedId)
 		const head = filtered[0]
 		if (!currentInTab) setSelectedConversation(head?.id ?? null)
-	}, [
-		isLiveActive,
-		liveQueueHeadId,
-		selectedId,
-		filtered,
-		autoSelect,
-		setSelectedConversation,
-	])
+	}, [selectedId, filtered, autoSelect, setSelectedConversation])
 
-	const queueLabel = showResolved
-		? 'closed WhatsApp chats'
-		: activeTab === 'whatsapp'
-			? 'WhatsApp conversations waiting'
-			: 'email conversations'
+	const queueLabel = 'email tickets'
 
 	return (
 		<>
 			<div className="shrink-0 border-b border-black/[0.06] px-3 py-3 dark:border-white/[0.08] sm:px-4 lg:px-6 lg:py-4">
 				<div className="flex flex-col gap-3 lg:hidden">
 					<div className="grid grid-cols-3 gap-2">
-						<QueueButtonGrid
-							counts={counts}
-							activeTab={activeTab}
-							showResolved={showResolved}
-							iconSize={16}
-							onLive={() => handleTabChange('whatsapp')}
-							onEmail={() => handleTabChange('email')}
-							onResolved={() => {
-								setActiveTab('whatsapp')
-								setShowResolved(true)
-							}}
-						/>
+						<QueueButtonGrid counts={counts} iconSize={16} />
 					</div>
 
 					<EmployeeSearchField
@@ -226,18 +187,7 @@ export function SupportInbox({
 					</div>
 
 					<div className="grid grid-cols-3 gap-2">
-						<QueueButtonGrid
-							counts={counts}
-							activeTab={activeTab}
-							showResolved={showResolved}
-							iconSize={15}
-							onLive={() => handleTabChange('whatsapp')}
-							onEmail={() => handleTabChange('email')}
-							onResolved={() => {
-								setActiveTab('whatsapp')
-								setShowResolved(true)
-							}}
-						/>
+						<QueueButtonGrid counts={counts} iconSize={15} />
 					</div>
 
 					<EmployeeSearchField
@@ -266,23 +216,45 @@ export function SupportInbox({
 					</div>
 				) : (
 					<div className="divide-y divide-black/[0.06] dark:divide-white/[0.08]">
-						{filtered.map((conversation, index) => {
-							const isLocked = isLiveActive && index > 0
-							return (
-								<ConversationItem
-									key={conversation.id}
-									conversation={conversation}
-									isSelected={conversation.id === selectedId}
-									isLocked={isLocked}
-									queuePosition={isLiveActive ? index : 0}
-									onSelect={() => {
-										setSelectedConversation(conversation.id)
-										onConversationSelect?.()
-									}}
-									isFaded={showResolved}
-								/>
-							)
-						})}
+						{emailGroups.open.map((conversation) => (
+							<ConversationItem
+								key={conversation.id}
+								conversation={conversation}
+								isSelected={conversation.id === selectedId}
+								isLocked={false}
+								queuePosition={0}
+								onSelect={() => {
+									setSelectedConversation(conversation.id)
+									onConversationSelect?.()
+								}}
+							/>
+						))}
+						{emailGroups.closed.length > 0 && (
+							<div
+								data-email-closed-separator="true"
+								className="flex items-center gap-3 bg-[var(--color-surface)]/80 px-4 py-3 sm:px-5"
+							>
+								<span className="h-px flex-1 bg-black/[0.1] dark:bg-white/[0.12]" />
+								<span className="font-[family-name:var(--font-archivo)] text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
+									Closed
+								</span>
+								<span className="h-px flex-1 bg-black/[0.1] dark:bg-white/[0.12]" />
+							</div>
+						)}
+						{emailGroups.closed.map((conversation) => (
+							<ConversationItem
+								key={conversation.id}
+								conversation={conversation}
+								isSelected={conversation.id === selectedId}
+								isLocked={false}
+								queuePosition={0}
+								onSelect={() => {
+									setSelectedConversation(conversation.id)
+									onConversationSelect?.()
+								}}
+								isFaded
+							/>
+						))}
 					</div>
 				)}
 			</div>
@@ -292,44 +264,31 @@ export function SupportInbox({
 
 function QueueButtonGrid({
 	counts,
-	activeTab,
-	showResolved,
 	iconSize,
-	onLive,
-	onEmail,
-	onResolved,
 }: {
-	counts: { live: number; liveResolved: number; email: number }
-	activeTab: ChannelTab
-	showResolved: boolean
+	counts: { email: number; live: number; whatsapp: number }
 	iconSize: number
-	onLive: () => void
-	onEmail: () => void
-	onResolved: () => void
 }) {
 	return (
 		<>
+			<MobileQueueButton id="email" active label="Email" count={counts.email}>
+				<Mail size={iconSize} strokeWidth={2.2} />
+			</MobileQueueButton>
 			<MobileQueueButton
-				active={activeTab === 'whatsapp' && !showResolved}
+				id="whatsapp"
+				active={false}
 				label="WhatsApp"
-				count={counts.live}
-				onClick={onLive}
+				count={counts.whatsapp}
+				comingSoon
 			>
 				<MessageCircle size={iconSize} strokeWidth={2.2} />
 			</MobileQueueButton>
 			<MobileQueueButton
-				active={activeTab === 'email'}
-				label="Email"
-				count={counts.email}
-				onClick={onEmail}
-			>
-				<Mail size={iconSize} strokeWidth={2.2} />
-			</MobileQueueButton>
-			<MobileQueueButton
-				active={activeTab === 'whatsapp' && showResolved}
-				label="Closed chats"
-				count={counts.liveResolved}
-				onClick={onResolved}
+				id="live"
+				active={false}
+				label="Live"
+				count={counts.live}
+				comingSoon
 			>
 				<CheckCircle2 size={iconSize} strokeWidth={2.2} />
 			</MobileQueueButton>
@@ -338,25 +297,28 @@ function QueueButtonGrid({
 }
 
 function MobileQueueButton({
+	id,
 	active,
 	label,
 	count,
-	onClick,
+	comingSoon = false,
 	children,
 }: {
+	id: ChannelTab
 	active: boolean
 	label: string
 	count: number
-	onClick: () => void
+	comingSoon?: boolean
 	children: ReactNode
 }) {
 	return (
 		<button
 			type="button"
 			aria-pressed={active}
-			aria-label={`${label}: ${count}`}
-			onClick={onClick}
-			className={`inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border font-[family-name:var(--font-archivo)] text-[12px] font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 ${
+			aria-label={`${label}: ${comingSoon ? 'coming soon' : count}`}
+			data-channel-tab={id}
+			disabled={comingSoon}
+			className={`inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-md border px-2 font-[family-name:var(--font-archivo)] text-[12px] font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 disabled:cursor-not-allowed disabled:opacity-60 ${
 				active
 					? 'border-transparent bg-[var(--color-primary)] text-white'
 					: 'border-black/[0.08] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)]/35 hover:text-[var(--color-text)] dark:border-white/[0.1]'
@@ -365,8 +327,13 @@ function MobileQueueButton({
 			<span aria-hidden="true" className="shrink-0">
 				{children}
 			</span>
-			<span className="min-w-0 font-[family-name:var(--font-geist-mono)] text-[11px]">
-				{count.toString().padStart(2, '0')}
+			<span className="flex min-w-0 flex-col items-start leading-none">
+				<span className="max-w-full truncate font-[family-name:var(--font-archivo)] text-[10.5px]">
+					{label}
+				</span>
+				<span className="mt-1 max-w-full truncate font-[family-name:var(--font-geist-mono)] text-[9.5px]">
+					{comingSoon ? 'Coming soon' : count.toString().padStart(2, '0')}
+				</span>
 			</span>
 		</button>
 	)
