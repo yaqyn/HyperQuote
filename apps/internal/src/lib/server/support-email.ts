@@ -63,7 +63,6 @@ const DEFAULT_SUPPORT_URL = 'https://hyperquote.net/support#contact'
 const DEFAULT_OFFICE_ADDRESS = 'Arkan Plaza, Sheikh Zayed, Egypt'
 const DEFAULT_OFFICE_MAP_URL =
 	'https://maps.google.com/?q=Arkan+Plaza+Sheikh+Zayed+Egypt'
-const DEFAULT_LOGO_URL = 'https://hyperquote.net/LyonBlack.svg'
 const BRAND_BLUE = '#2563EB'
 const BRAND_BLACK = '#090909'
 const BRAND_WHITE = '#FFFFFF'
@@ -74,16 +73,12 @@ const EMAIL_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/
 const MAX_PROVIDER_ERROR_LENGTH = 500
 const MAX_SUPPORT_EMAIL_BODY_LENGTH = 4000
 const MAX_SUPPORT_EMAIL_SUBJECT_LENGTH = 180
-const MATERIAL_EMAIL_ICON_PATH =
-	'M20 4H4q-.825 0-1.412.588T2 6v12q0 .825.588 1.413T4 20h8v-2H4V8l8 5 8-5v4h2V6q0-.825-.587-1.412T20 4Zm-8 7L4 6h16l-8 5Zm6.2 9.5 3.55-3.55-1.4-1.4-2.15 2.15-.9-.9-1.4 1.4 2.3 2.3ZM19 23q-2.075 0-3.537-1.463T14 18q0-2.075 1.463-3.537T19 13q2.075 0 3.538 1.463T24 18q0 2.075-1.462 3.537T19 23Z'
-const FOOTER_ICON_PATHS = {
-	call: 'M19.95 21q-3.125 0-6.175-1.362t-5.55-3.863q-2.5-2.5-3.862-5.55T3 4.05q0-.45.3-.75t.75-.3H8.1q.35 0 .625.238t.325.562l.65 3.5q.05.4-.075.675T9.25 8.45L6.8 10.9q.5.925 1.187 1.788t1.513 1.662q.775.775 1.625 1.438T12.9 17l2.35-2.35q.225-.225.588-.337t.712-.063l3.65.75q.35.1.575.363t.225.612v4q0 .45-.3.738t-.75.287Z',
-	email:
-		'M4 20q-.825 0-1.412-.587T2 18V6q0-.825.588-1.412T4 4h16q.825 0 1.413.588T22 6v12q0 .825-.587 1.413T20 20H4Zm8-7 8-5V6l-8 5-8-5v2l8 5Z',
-	portal:
-		'M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h7v2H5v14h7v2H5Zm11-4-1.4-1.45L17.15 13H9v-2h8.15L14.6 8.45 16 7l5 5-5 5Z',
-	whatsapp:
-		'M12.04 2q-4.14 0-7.07 2.92T2.04 12q0 1.85.7 3.54L2 22l6.64-.72q1.62.62 3.4.62 4.12 0 7.04-2.92T22 11.94q0-4.12-2.92-7.03T12.04 2Zm4.15 13.64q-.27.76-1.54 1.38-.42.2-.96.2-.72 0-1.72-.36-1.37-.5-2.54-1.5-1.18-1-1.95-2.2-.82-1.28-1.02-2.32-.2-1.05.2-1.74.35-.62.8-.98.32-.26.68-.26h.5q.28 0 .46.38l.72 1.74q.12.32.02.56-.15.34-.46.7l-.24.28q-.14.16-.03.38.38.74 1.1 1.42.7.66 1.62 1.1.28.14.47-.08l.65-.78q.2-.24.48-.18.18.04.48.18l1.56.74q.42.2.48.43.05.25-.03.49Z',
+const MATERIAL_EMAIL_ICON_LABEL = 'MAIL'
+const FOOTER_ICON_LABELS = {
+	call: 'TEL',
+	email: 'SUP',
+	portal: 'APP',
+	whatsapp: 'WA',
 } as const
 const LOCAL_ONLY_DOMAINS = new Set([
 	'example.com',
@@ -282,7 +277,7 @@ export function renderSupportEmailHtml(input: SupportEmailRenderInput): string {
 										<h1 class="email-title" style="margin:0;font-size:36px;line-height:1.12;font-weight:800;letter-spacing:0;color:${BRAND_BLACK};">Your HyperQuote update is ready.</h1>
 									</td>
 									<td class="email-icon-cell" align="right" style="width:92px;vertical-align:middle;">
-										${renderEmailIcon(MATERIAL_EMAIL_ICON_PATH)}
+										${renderEmailIcon(MATERIAL_EMAIL_ICON_LABEL)}
 									</td>
 								</tr>
 							</table>
@@ -450,11 +445,12 @@ function isLocalOnlyEmail(email: string): boolean {
 	)
 }
 
-function renderEmailIcon(path: string): string {
-	return `<svg class="email-icon" xmlns="http://www.w3.org/2000/svg" width="92" height="92" viewBox="0 0 24 24" aria-hidden="true" style="display:block;">
-	<circle cx="12" cy="12" r="12" fill="${BRAND_SOFT_BLUE}"/>
-	<path fill="${BRAND_BLUE}" d="${path}"/>
-</svg>`
+function renderEmailIcon(label: string): string {
+	return `<table role="presentation" class="email-icon" width="92" height="92" cellspacing="0" cellpadding="0" style="width:92px;height:92px;border:1px solid #CFE0FF;border-radius:24px;background:${BRAND_SOFT_BLUE};">
+	<tr>
+		<td align="center" valign="middle" style="color:${BRAND_BLUE};font-size:15px;font-weight:900;letter-spacing:0.08em;line-height:1;text-align:center;">${label}</td>
+	</tr>
+</table>`
 }
 
 function renderEmailFooter(input: {
@@ -475,7 +471,11 @@ function renderEmailFooter(input: {
 						<tr>
 							<td style="width:86px;vertical-align:middle;">
 								<a href="${input.websiteUrl}" style="display:inline-block;text-decoration:none;">
-									<img src="${DEFAULT_LOGO_URL}" width="86" height="86" alt="HyperQuote logo" style="display:block;width:86px;height:86px;border:0;">
+									<table role="presentation" width="86" height="86" cellspacing="0" cellpadding="0" style="width:86px;height:86px;border:1px solid ${BRAND_LINE};border-radius:18px;background:#F6F8FB;">
+										<tr>
+											<td align="center" valign="middle" style="color:${BRAND_BLUE};font-size:24px;font-weight:900;letter-spacing:0.04em;line-height:1;text-align:center;">HQ</td>
+										</tr>
+									</table>
 								</a>
 							</td>
 							<td style="padding-left:20px;vertical-align:middle;">
@@ -506,7 +506,7 @@ function renderEmailFooter(input: {
 function footerLink(
 	label: string,
 	href: string,
-	icon: keyof typeof FOOTER_ICON_PATHS,
+	icon: keyof typeof FOOTER_ICON_LABELS,
 ): string {
 	return `<td style="padding:6px;">
 	<a class="email-footer-link" href="${href}" style="display:block;min-height:22px;padding:10px 12px;border:1px solid ${BRAND_LINE};border-radius:14px;color:${BRAND_BLACK};font-size:13px;font-weight:750;line-height:22px;text-align:left;text-decoration:none;white-space:nowrap;">
@@ -516,10 +516,8 @@ function footerLink(
 </td>`
 }
 
-function renderFooterIcon(icon: keyof typeof FOOTER_ICON_PATHS): string {
-	return `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" style="display:inline-block;margin-right:9px;vertical-align:-3px;">
-	<path fill="${BRAND_BLUE}" d="${FOOTER_ICON_PATHS[icon]}"/>
-</svg>`
+function renderFooterIcon(icon: keyof typeof FOOTER_ICON_LABELS): string {
+	return `<span style="display:inline-block;width:28px;margin-right:9px;border-radius:8px;background:${BRAND_SOFT_BLUE};color:${BRAND_BLUE};font-size:9px;font-weight:900;line-height:20px;text-align:center;vertical-align:middle;">${FOOTER_ICON_LABELS[icon]}</span>`
 }
 
 function supportContactHref(

@@ -43,6 +43,8 @@ describe('customer service email rendering', () => {
 		expect(html).toContain('<li')
 		expect(html).toContain('Your order is confirmed')
 		expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+		expect(html).not.toContain('<img')
+		expect(html).not.toContain('<svg')
 		expect(html).not.toContain('<script>alert(1)</script>')
 	})
 
