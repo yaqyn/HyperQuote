@@ -48,15 +48,9 @@ describe('AI runtime routing', () => {
 		)
 
 		const internalSource = readRepoFile('apps/internal/src/lib/ai-chat.ts')
-		expect(
-			internalSource.indexOf(
-				'if (await isAIEnabled()) return streamChat(messages, OPS_ASSISTANT)',
-			),
-		).toBeLessThan(
-			internalSource.indexOf(
-				'const simpleAnswer = simpleEmployeeChatAnswer(options.userText)',
-			),
-		)
+		expect(internalSource).toContain('if (await isAIEnabled()) {')
+		expect(internalSource).toContain('completeChatWithTools')
+		expect(internalSource).toContain('search_internal_records')
 	})
 
 	it('loads operator secrets for direct website, portal, and internal dev', () => {

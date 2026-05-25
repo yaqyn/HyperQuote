@@ -3,7 +3,13 @@ import {
 	installRuntimeEnv,
 } from '@hyperquote/runtime/env'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { completeChat, isAIEnabled, runtimeEnvValue, streamChat } from './groq'
+import {
+	completeChat,
+	completeChatWithTools,
+	isAIEnabled,
+	runtimeEnvValue,
+	streamChat,
+} from './groq'
 
 const ENV_KEYS = [
 	'GROQ_API_KEY',
@@ -83,6 +89,77 @@ describe('Groq runtime env', () => {
 				}),
 			}),
 		)
+	})
+
+	it('returns Groq tool calls from non-streaming completions', async () => {
+		process.env.GROQ_API_KEY = 'operator-key'
+		process.env.GROQ_MODEL = 'openai/gpt-oss-120b'
+		process.env.GROQ_URL = 'https://groq.test/openai/v1/chat/completions'
+
+		const fetchMock = vi.fn<typeof fetch>(async () =>
+			Response.json({
+				choices: [
+					{
+						message: {
+							content: null,
+							tool_calls: [
+								{
+									function: {
+										arguments: '{"entity_types":["order"],"query":""}',
+										name: 'search_internal_records',
+									},
+									id: 'call_orders',
+									type: 'function',
+								},
+							],
+						},
+					},
+				],
+			}),
+		)
+		vi.stubGlobal('fetch', fetchMock)
+
+		const completion = await completeChatWithTools(
+			[{ role: 'user', content: 'get me orororordersss homie' }],
+			'system',
+			[
+				{
+					function: {
+						description: 'Search records',
+						name: 'search_internal_records',
+						parameters: {
+							properties: {
+								entity_types: {
+									items: { enum: ['order'], type: 'string' },
+									type: 'array',
+								},
+							},
+							type: 'object',
+						},
+					},
+					type: 'function',
+				},
+			],
+		)
+
+		expect(completion.toolCalls).toHaveLength(1)
+		expect(completion.toolCalls[0]?.function.name).toBe(
+			'search_internal_records',
+		)
+		expect(
+			JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
+		).toMatchObject({
+			stream: false,
+			tool_choice: 'auto',
+			tools: [
+				{
+					function: {
+						name: 'search_internal_records',
+					},
+					type: 'function',
+				},
+			],
+		})
 	})
 
 	it('falls back to a non-streaming completion when streaming drops before text', async () => {

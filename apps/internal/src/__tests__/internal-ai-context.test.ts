@@ -6,10 +6,10 @@ import {
 	allowedInternalAiVtables,
 	buildInternalAiContextPackage,
 	buildInternalAiSystemPrompt,
+	buildInternalAiToolSystemPrompt,
 	internalAiPolicyRefusal,
 	normalPanelExcludedRequest,
 	resolveInternalAiScope,
-	searchTokensForInternalAiRows,
 } from '../lib/internal-ai-context'
 import type { SearchDisplayIndexRow } from '../lib/search-display'
 
@@ -118,25 +118,6 @@ describe('internal AI vtable context', () => {
 		).toBeNull()
 	})
 
-	it('does not apply polite list commands as required row filters', () => {
-		const orderVtable = allowedInternalAiVtables('employee').filter(
-			(vtable) => vtable.entityType === 'order',
-		)
-
-		expect(
-			searchTokensForInternalAiRows('list orders please', {
-				requestedEntityTypes: ['order'],
-				vtables: orderVtable,
-			}),
-		).toEqual([])
-		expect(
-			searchTokensForInternalAiRows('list accepted orders please', {
-				requestedEntityTypes: ['order'],
-				vtables: orderVtable,
-			}),
-		).toEqual(['accepted'])
-	})
-
 	it('builds business context and audit entities from allowed vtable rows', () => {
 		const row: SearchDisplayIndexRow = {
 			entity_id: 'customer_order:order-1',
@@ -179,5 +160,15 @@ describe('internal AI vtable context', () => {
 		expect(systemPrompt).not.toContain('Sales')
 		expect(systemPrompt).toContain('Do not tell the user to open another panel')
 		expect(systemPrompt).toContain('current screen')
+	})
+
+	it('tells Lyon to infer natural language intent and call tools', () => {
+		const prompt = buildInternalAiToolSystemPrompt({ scope: 'employee' })
+
+		expect(prompt).toContain('call search_internal_records before answering')
+		expect(prompt).toContain('natural, messy, slangy, misspelled')
+		expect(prompt).toContain('Do not require exact keywords')
+		expect(prompt).toContain('Tools are the source of truth')
+		expect(prompt).toContain('except employee information and activities')
 	})
 })

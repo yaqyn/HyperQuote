@@ -33,9 +33,46 @@ const RUNTIME_KEYS = [
 	'NODE_ENV',
 ] as const
 
-interface ChatMessage {
+interface BasicChatMessage {
 	role: 'system' | 'user' | 'assistant'
 	content: string
+}
+
+export interface ChatToolDefinition {
+	function: {
+		description: string
+		name: string
+		parameters: Record<string, unknown>
+	}
+	type: 'function'
+}
+
+export interface ChatToolCall {
+	function: {
+		arguments: string
+		name: string
+	}
+	id: string
+	type: 'function'
+}
+
+export type ChatRequestMessage =
+	| BasicChatMessage
+	| {
+			content: string | null
+			role: 'assistant'
+			tool_calls: ChatToolCall[]
+	  }
+	| {
+			content: string
+			name: string
+			role: 'tool'
+			tool_call_id: string
+	  }
+
+export interface ChatToolCompletion {
+	content: string
+	toolCalls: ChatToolCall[]
 }
 
 interface GroqSSEChunk {
@@ -46,9 +83,14 @@ interface GroqSSEChunk {
 	error?: { message?: string } | string
 }
 
+interface GroqCompletionMessage {
+	content?: string | null
+	tool_calls?: ChatToolCall[]
+}
+
 interface GroqCompletionResponse {
 	choices?: Array<{
-		message?: { content?: string }
+		message?: GroqCompletionMessage
 	}>
 	error?: { message?: string } | string
 }
@@ -62,6 +104,11 @@ interface GroqEnv {
 
 interface ChatCompletionOptions {
 	temperature?: number
+}
+
+interface ChatCompletionRequestOptions extends ChatCompletionOptions {
+	toolChoice?: 'auto' | 'none'
+	tools?: ChatToolDefinition[]
 }
 
 function processEnvRecord(): Record<string, string | undefined> | undefined {
@@ -91,6 +138,23 @@ async function readGroqEnv(): Promise<GroqEnv> {
 			: undefined,
 		url: env.GROQ_URL ?? DEFAULT_GROQ_URL,
 	}
+}
+
+function basicChatMessage(message: {
+	content: string
+	role: 'user' | 'assistant'
+}): BasicChatMessage {
+	return { content: message.content, role: message.role }
+}
+
+function chatMessagesWithSystem(
+	messages: { role: 'user' | 'assistant'; content: string }[],
+	systemPrompt: string,
+): ChatRequestMessage[] {
+	return [
+		{ content: systemPrompt, role: 'system' },
+		...messages.map(basicChatMessage),
+	]
 }
 
 /**
@@ -140,12 +204,7 @@ export async function* streamChat(
 
 	const payload = {
 		model: groq.model,
-		messages: [
-			{ role: 'system', content: systemPrompt } as ChatMessage,
-			...messages.map(
-				(m) => ({ role: m.role, content: m.content }) as ChatMessage,
-			),
-		],
+		messages: chatMessagesWithSystem(messages, systemPrompt),
 		stream: true,
 		...(groq.reasoningEffort ? { reasoning_effort: groq.reasoningEffort } : {}),
 	}
@@ -269,6 +328,46 @@ export async function completeChat(
 	systemPrompt: string,
 	options: ChatCompletionOptions = {},
 ): Promise<string> {
+	return completeChatFromMessages(
+		chatMessagesWithSystem(messages, systemPrompt),
+		options,
+	)
+}
+
+export async function completeChatWithTools(
+	messages: { role: 'user' | 'assistant'; content: string }[],
+	systemPrompt: string,
+	tools: ChatToolDefinition[],
+	options: ChatCompletionOptions = {},
+): Promise<ChatToolCompletion> {
+	const message = await completeChatMessage(
+		chatMessagesWithSystem(messages, systemPrompt),
+		{
+			...options,
+			toolChoice: 'auto',
+			tools,
+		},
+	)
+	return {
+		content: message.content ? sanitizeClassifierLeak(message.content) : '',
+		toolCalls: message.tool_calls ?? [],
+	}
+}
+
+export async function completeChatFromMessages(
+	messages: ChatRequestMessage[],
+	options: ChatCompletionOptions = {},
+): Promise<string> {
+	const message = await completeChatMessage(messages, options)
+	const content = message.content
+	if (!content) throw new Error('Groq returned an empty completion')
+	return sanitizeClassifierLeak(content)
+}
+
+async function completeChatMessage(
+	messages: ChatRequestMessage[],
+	options: ChatCompletionRequestOptions = {},
+): Promise<GroqCompletionMessage> {
 	const groq = await readGroqEnv()
 	if (!groq.apiKey) {
 		throw new Error('GROQ_API_KEY is not set')
@@ -276,16 +375,13 @@ export async function completeChat(
 
 	const payload = {
 		model: groq.model,
-		messages: [
-			{ role: 'system', content: systemPrompt } as ChatMessage,
-			...messages.map(
-				(m) => ({ role: m.role, content: m.content }) as ChatMessage,
-			),
-		],
+		messages,
 		stream: false,
 		...(options.temperature !== undefined
 			? { temperature: options.temperature }
 			: {}),
+		...(options.tools ? { tools: options.tools } : {}),
+		...(options.toolChoice ? { tool_choice: options.toolChoice } : {}),
 		...(groq.reasoningEffort ? { reasoning_effort: groq.reasoningEffort } : {}),
 	}
 
@@ -312,9 +408,9 @@ export async function completeChat(
 				: (parsed.error.message ?? 'Groq error')
 		throw new Error(msg)
 	}
-	const content = parsed.choices?.[0]?.message?.content
-	if (!content) throw new Error('Groq returned an empty completion')
-	return sanitizeClassifierLeak(content)
+	const message = parsed.choices?.[0]?.message
+	if (!message) throw new Error('Groq returned an empty completion')
+	return message
 }
 
 function sanitizeClassifierLeak(content: string): string {

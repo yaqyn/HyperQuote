@@ -8,22 +8,29 @@
  * The client still receives StreamChunk[] and drips the chunks into Zustand.
  */
 
-import { isAIEnabled, streamChat } from '@hyperquote/ai'
+import {
+	type ChatRequestMessage,
+	type ChatToolCall,
+	type ChatToolDefinition,
+	completeChatFromMessages,
+	completeChatWithTools,
+	isAIEnabled,
+} from '@hyperquote/ai'
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import {
 	allowedInternalAiVtables,
 	buildInternalAiContextPackage,
-	buildInternalAiSystemPrompt,
+	buildInternalAiToolSystemPrompt,
 	type InternalAiScope,
 	internalAiPolicyRefusal,
 	requestedInternalAiEntityTypes,
 	resolveInternalAiScope,
 	searchQueryFromPrompt,
-	searchTokensForInternalAiRows,
 } from './internal-ai-context'
 import type { SearchDisplayIndexRow } from './search-display'
+import { searchTokens } from './search-query'
 import { getInternalSupabaseClient } from './server/_supabase'
 
 const internalChatInput = z.object({
@@ -37,6 +44,15 @@ const internalChatInput = z.object({
 })
 
 const INTERNAL_AI_ENTITY_LIMIT = 8
+const INTERNAL_AI_MAX_TOOL_CALLS = 4
+const INTERNAL_AI_MODEL_MESSAGE_LIMIT = 12
+const internalSearchToolArgs = z.object({
+	entity_types: z.array(z.string().trim().min(1).max(80)).max(24).optional(),
+	limit_per_entity: z.number().int().min(1).max(20).optional(),
+	query: z.string().max(240).optional(),
+})
+
+type InternalSearchToolArgs = z.infer<typeof internalSearchToolArgs>
 type InternalSupabaseClient = NonNullable<
 	Awaited<ReturnType<typeof getInternalSupabaseClient>>
 >['client']
@@ -128,6 +144,18 @@ async function getInternalAiSource(
 	if (simpleAnswer) return textStream(simpleAnswer)
 
 	await refreshSearchDocumentsIfDirty(client)
+	if (await isAIEnabled()) {
+		try {
+			const result = await runInternalAiToolLoop(client, messages, {
+				scope: options.scope,
+			})
+			options.setReadEntities(result.readEntities)
+			return textStream(result.answer)
+		} catch {
+			// Fall back to the deterministic read path if the model/tool loop fails.
+		}
+	}
+
 	const contextPackage = await buildAiContext(client, {
 		panelId: options.panelId,
 		scope: options.scope,
@@ -135,16 +163,6 @@ async function getInternalAiSource(
 	})
 	options.setReadEntities(contextPackage.readEntities)
 
-	if (await isAIEnabled()) {
-		return streamChat(
-			messages,
-			buildInternalAiSystemPrompt({
-				context: contextPackage.context,
-				panelId: options.panelId,
-				scope: options.scope,
-			}),
-		)
-	}
 	return textStream(contextPackage.fallbackText)
 }
 
@@ -169,8 +187,13 @@ async function buildAiContext(
 	},
 ) {
 	const query = searchQueryFromPrompt(options.userText)
-	const result = await fetchInternalAiRows(client, {
+	const requestedEntityTypes = requestedInternalAiEntityTypes({
 		query,
+		scope: options.scope,
+	})
+	const result = await fetchInternalAiRows(client, {
+		entityTypes: requestedEntityTypes,
+		query: '',
 		scope: options.scope,
 	})
 	return buildInternalAiContextPackage({
@@ -185,32 +208,33 @@ async function buildAiContext(
 async function fetchInternalAiRows(
 	client: InternalSupabaseClient,
 	options: {
+		entityTypes?: string[]
+		limitPerEntity?: number
 		query: string
 		scope: InternalAiScope
 	},
 ): Promise<{ queriedEntityTypes: string[]; rows: SearchDisplayIndexRow[] }> {
-	const requestedEntityTypes = requestedInternalAiEntityTypes({
-		query: options.query,
-		scope: options.scope,
-	})
 	const allowedByEntityType = new Map(
 		allowedInternalAiVtables(options.scope).map((vtable) => [
 			vtable.entityType,
 			vtable,
 		]),
 	)
-	const entityTypesToQuery = requestedEntityTypes.filter((entityType) =>
-		allowedByEntityType.has(entityType),
-	)
-	const tokensToApply = searchTokensForInternalAiRows(options.query, {
-		requestedEntityTypes: entityTypesToQuery,
-		vtables: [...allowedByEntityType.values()],
-	})
+	const requestedEntityTypes = (options.entityTypes ?? [])
+		.map((entityType) => entityType.trim().toLowerCase())
+		.filter((entityType) => entityType.length > 0)
+	const entityTypesToQuery =
+		requestedEntityTypes.length > 0
+			? [...new Set(requestedEntityTypes)].filter((entityType) =>
+					allowedByEntityType.has(entityType),
+				)
+			: [...allowedByEntityType.keys()]
+	const tokensToApply = searchTokens(options.query)
 
 	const { data, error } = await client.rpc('internal_ai_search_documents', {
 		p_agent_scope: options.scope,
 		p_entity_types: entityTypesToQuery,
-		p_limit_per_entity: INTERNAL_AI_ENTITY_LIMIT,
+		p_limit_per_entity: options.limitPerEntity ?? INTERNAL_AI_ENTITY_LIMIT,
 		p_search_tokens: tokensToApply,
 	})
 	if (error) throw new Error(error.message)
@@ -221,6 +245,181 @@ async function fetchInternalAiRows(
 	}
 }
 
+async function runInternalAiToolLoop(
+	client: InternalSupabaseClient,
+	messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+	options: { scope: InternalAiScope },
+): Promise<{ answer: string; readEntities: string[] }> {
+	const modelMessages = messages.slice(-INTERNAL_AI_MODEL_MESSAGE_LIMIT)
+	const systemPrompt = buildInternalAiToolSystemPrompt({ scope: options.scope })
+	const toolCompletion = await completeChatWithTools(
+		modelMessages,
+		systemPrompt,
+		internalAiToolDefinitions(options.scope),
+		{ temperature: 0.1 },
+	)
+	const toolCalls = toolCompletion.toolCalls.slice(
+		0,
+		INTERNAL_AI_MAX_TOOL_CALLS,
+	)
+	if (toolCalls.length === 0) {
+		return {
+			answer:
+				toolCompletion.content ||
+				'I need an internal lookup tool result before I can answer that.',
+			readEntities: [],
+		}
+	}
+
+	const readEntities = new Set<string>()
+	const toolMessages: ChatRequestMessage[] = []
+	for (const toolCall of toolCalls) {
+		const result = await executeInternalAiToolCall(client, toolCall, {
+			scope: options.scope,
+		})
+		for (const readEntity of result.readEntities) {
+			readEntities.add(readEntity)
+		}
+		toolMessages.push({
+			content: result.content,
+			name: toolCall.function.name,
+			role: 'tool',
+			tool_call_id: toolCall.id,
+		})
+	}
+	const conversationMessages: ChatRequestMessage[] = modelMessages.map(
+		(message) => ({
+			content: message.content,
+			role: message.role,
+		}),
+	)
+
+	const finalMessages: ChatRequestMessage[] = [
+		{ content: systemPrompt, role: 'system' },
+		...conversationMessages,
+		{
+			content: toolCompletion.content || null,
+			role: 'assistant',
+			tool_calls: toolCalls,
+		},
+		...toolMessages,
+	]
+	const answer = await completeChatFromMessages(finalMessages, {
+		temperature: 0.2,
+	})
+	return { answer, readEntities: [...readEntities] }
+}
+
+function internalAiToolDefinitions(
+	scope: InternalAiScope,
+): ChatToolDefinition[] {
+	const allowedEntityTypes = allowedInternalAiVtables(scope).map(
+		(vtable) => vtable.entityType,
+	)
+	return [
+		{
+			function: {
+				description:
+					'Search HyperQuote internal records. Infer entity_types from natural user intent. Use query only for meaningful filters, names, numbers, statuses, or dates; leave query empty for broad list requests.',
+				name: 'search_internal_records',
+				parameters: {
+					additionalProperties: false,
+					properties: {
+						entity_types: {
+							description:
+								'Record types to search. Choose the closest types from the enum.',
+							items: {
+								enum: allowedEntityTypes,
+								type: 'string',
+							},
+							type: 'array',
+						},
+						limit_per_entity: {
+							default: INTERNAL_AI_ENTITY_LIMIT,
+							description: 'Maximum rows to return for each record type.',
+							maximum: 20,
+							minimum: 1,
+							type: 'integer',
+						},
+						query: {
+							description:
+								'Optional focused filter text. Exclude slang, filler, greetings, and the entity type itself when no filter is needed.',
+							maxLength: 240,
+							type: 'string',
+						},
+					},
+					type: 'object',
+				},
+			},
+			type: 'function',
+		},
+	]
+}
+
+async function executeInternalAiToolCall(
+	client: InternalSupabaseClient,
+	toolCall: ChatToolCall,
+	options: { scope: InternalAiScope },
+): Promise<{ content: string; readEntities: string[] }> {
+	if (toolCall.function.name !== 'search_internal_records') {
+		return {
+			content: JSON.stringify({
+				error: 'unknown_internal_ai_tool',
+				tool: toolCall.function.name,
+			}),
+			readEntities: [],
+		}
+	}
+
+	const parsed = parseInternalSearchToolArgs(toolCall.function.arguments)
+	if (!parsed.ok) {
+		return {
+			content: JSON.stringify({
+				error: 'invalid_internal_ai_tool_arguments',
+			}),
+			readEntities: [],
+		}
+	}
+
+	const query = parsed.value.query?.trim() ?? ''
+	const result = await fetchInternalAiRows(client, {
+		entityTypes: parsed.value.entity_types ?? [],
+		limitPerEntity: parsed.value.limit_per_entity ?? INTERNAL_AI_ENTITY_LIMIT,
+		query,
+		scope: options.scope,
+	})
+	const contextPackage = buildInternalAiContextPackage({
+		query,
+		queriedEntityTypes: result.queriedEntityTypes,
+		rows: result.rows,
+		scope: options.scope,
+	})
+
+	return {
+		content: JSON.stringify({
+			context: contextPackage.context,
+			entity_types: result.queriedEntityTypes,
+			query,
+			row_count: result.rows.length,
+			scope: options.scope,
+			tool: 'search_internal_records',
+		}),
+		readEntities: contextPackage.readEntities,
+	}
+}
+
+function parseInternalSearchToolArgs(
+	rawArguments: string,
+): { ok: true; value: InternalSearchToolArgs } | { ok: false } {
+	try {
+		const parsed: unknown = rawArguments.trim() ? JSON.parse(rawArguments) : {}
+		const result = internalSearchToolArgs.safeParse(parsed)
+		return result.success ? { ok: true, value: result.data } : { ok: false }
+	} catch {
+		return { ok: false }
+	}
+}
+
 function simpleEmployeeChatAnswer(userText: string): string | null {
 	const normalized = userText
 		.toLowerCase()
@@ -228,9 +427,6 @@ function simpleEmployeeChatAnswer(userText: string): string | null {
 		.replace(/[^\p{L}\p{N}\s]+/gu, ' ')
 		.replace(/\s+/g, ' ')
 		.trim()
-	if (/\b(fuck|fucker|bitch|idiot|stupid|shut up)\b/.test(normalized)) {
-		return "I'm here to help with allowed internal context when you're ready."
-	}
 	if (
 		!/^(hi|hello|hey|yo|good morning|good afternoon|good evening)$/.test(
 			normalized,

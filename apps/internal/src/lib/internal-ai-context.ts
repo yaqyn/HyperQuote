@@ -6,7 +6,6 @@ import {
 	buildSearchPreviewFields,
 	type SearchDisplayIndexRow,
 } from './search-display'
-import { searchTokens } from './search-query'
 
 export type InternalAiScope = 'employee' | 'search'
 
@@ -29,38 +28,6 @@ const NORMAL_PANEL_EXCLUDED_ENTITY_TYPES = new Set(['activity', 'employee'])
 const MAX_ROWS_PER_ENTITY = 6
 const MAX_CONTEXT_LINES = 80
 const MAX_FIELD_VALUE_LENGTH = 160
-const INTERNAL_AI_QUERY_STOP_TOKENS = new Set([
-	'a',
-	'all',
-	'an',
-	'are',
-	'as',
-	'at',
-	'about',
-	'for',
-	'from',
-	'give',
-	'in',
-	'is',
-	'latest',
-	'list',
-	'me',
-	'need',
-	'needs',
-	'of',
-	'on',
-	'please',
-	'recent',
-	'show',
-	'summarize',
-	'summary',
-	'tell',
-	'the',
-	'to',
-	'view',
-	'what',
-	'with',
-])
 
 const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 	{
@@ -238,28 +205,6 @@ export function requestedInternalAiEntityTypes({
 	)
 }
 
-export function searchTokensForInternalAiRows(
-	query: string,
-	options: {
-		requestedEntityTypes: string[]
-		vtables: InternalAiVtable[]
-	},
-): string[] {
-	const typeTokens = new Set<string>()
-	for (const vtable of options.vtables) {
-		if (!options.requestedEntityTypes.includes(vtable.entityType)) continue
-		for (const keyword of vtable.keywords) {
-			for (const token of queryTokensForAi(keyword)) {
-				typeTokens.add(token)
-			}
-		}
-	}
-	return searchTokens(query).filter(
-		(token) =>
-			!typeTokens.has(token) && !INTERNAL_AI_QUERY_STOP_TOKENS.has(token),
-	)
-}
-
 export function normalPanelExcludedRequest(userText: string): string | null {
 	const lower = userText.toLowerCase()
 	if (/\b(activities|activity|audit log|audit history)\b/.test(lower)) {
@@ -406,6 +351,26 @@ Approved context:
 ${context}`
 }
 
+export function buildInternalAiToolSystemPrompt({
+	scope,
+}: {
+	scope: InternalAiScope
+}): string {
+	const base = scope === 'search' ? SEARCH_ASSISTANT : OPS_ASSISTANT
+	return `${base}
+
+Internal AI tool contract:
+- Tools are the source of truth for company records.
+- When the user asks about operational records, call search_internal_records before answering.
+- Infer the user's target from natural, messy, slangy, misspelled, repeated, or casual text. Do not require exact keywords from the user.
+- Choose entity_types for the records the user wants. Put only meaningful filters in query. If the user only asks to list records, set query to an empty string.
+- Normal internal mode may read all operational vtable context except employee information and activities.
+- Search panel mode may read all approved vtable context, including employees and activities.
+- Never perform writes from chat. If the user asks for an action, point to the authorized panel action.
+- If a tool result has records, answer from those records. Do not tell the user to open another panel just to find them.
+- Do not describe tool results as the current screen, current data set, or on-screen data.`
+}
+
 function buildFallbackAnswer({
 	query,
 	rows,
@@ -497,8 +462,4 @@ function truncateText(value: string, maxLength: number): string {
 	return value.length > maxLength
 		? `${value.slice(0, maxLength - 1)}...`
 		: value
-}
-
-export function queryTokensForAi(query: string): string[] {
-	return searchTokens(query)
 }
