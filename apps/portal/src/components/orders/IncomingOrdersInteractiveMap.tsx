@@ -95,11 +95,14 @@ export function IncomingOrdersInteractiveMap({
 							<Layer
 								id="incoming-route-lines"
 								type="line"
+								layout={{
+									'line-cap': 'round',
+									'line-join': 'round',
+								}}
 								paint={{
 									'line-color': ['get', 'color'],
-									'line-dasharray': [1.5, 1.5],
-									'line-opacity': 0.76,
-									'line-width': 4,
+									'line-opacity': 0.95,
+									'line-width': 6,
 								}}
 							/>
 						</Source>

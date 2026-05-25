@@ -111,6 +111,7 @@ const INCOMING_COLORS = [
 	{ driver: '#9333ea', destination: '#581c87' },
 	{ driver: '#dc2626', destination: '#7f1d1d' },
 ] as const
+const DELIVERY_ROUTE_BLUE = '#2563eb'
 const PORTAL_LABEL_CLASS =
 	'text-[11px] font-semibold text-[var(--p-text-faint)]'
 type MarketDraftItem = ReturnType<
@@ -743,13 +744,13 @@ function IncomingOrdersMap({
 	)
 	const routePairs = useMemo<IncomingRoadRoutePair[]>(
 		() =>
-			deliveries.flatMap((delivery, index) => {
+			deliveries.flatMap((delivery) => {
 				const driverPoint = toGeoPoint(delivery.route.driverLocation)
 				const destinationPoint = toGeoPoint(delivery.route.destinationLocation)
 				if (!driverPoint || !destinationPoint) return []
 				return [
 					{
-						color: INCOMING_COLORS[index % INCOMING_COLORS.length].driver,
+						color: DELIVERY_ROUTE_BLUE,
 						deliveryId: delivery.id,
 						points: [driverPoint, destinationPoint],
 					},
@@ -890,7 +891,7 @@ function IncomingStaticMap({
 		]
 	})
 	const lines = deliveries.map((delivery, index) => ({
-		color: INCOMING_COLORS[index % INCOMING_COLORS.length].driver,
+		color: DELIVERY_ROUTE_BLUE,
 		destination:
 			mapPositionByKey.get(`destination-${delivery.id}`) ??
 			fallbackIncomingPosition(index, 'destination'),
@@ -937,10 +938,9 @@ function IncomingStaticMap({
 						x2={line.destination.left}
 						y2={line.destination.top}
 						stroke={line.color}
-						strokeDasharray="4 4"
 						strokeLinecap="round"
-						strokeWidth="0.65"
-						opacity="0.72"
+						strokeWidth="1.25"
+						opacity="0.95"
 					/>
 				))}
 			</svg>
