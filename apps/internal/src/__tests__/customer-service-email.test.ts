@@ -38,7 +38,8 @@ describe('customer service email rendering', () => {
 		})
 
 		expect(html).toContain('HyperQuote')
-		expect(html).toContain('Important links')
+		expect(html).toContain('Portal App')
+		expect(html).toContain('Our Office')
 		expect(html).toContain('<li')
 		expect(html).toContain('Your order is confirmed')
 		expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
@@ -148,8 +149,8 @@ describe('customer service email rendering', () => {
 				: null
 		expect(body).toMatchObject({
 			cc: ['ops@hyperquote.net'],
-			from: 'HyperQuote <support@hyperquote.net>',
-			reply_to: 'support@hyperquote.net',
+			from: 'HyperQuote <support@info.moderngroupco.com>',
+			reply_to: 'support@info.moderngroupco.com',
 			subject: 'Re: Delivery update',
 			to: ['customer@hyperquote.net'],
 		})

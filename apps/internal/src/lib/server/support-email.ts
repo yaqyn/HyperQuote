@@ -26,10 +26,14 @@ export interface SupportEmailEnvelope {
 export interface SupportEmailRenderInput {
 	body: string
 	customerName: string
+	officeAddress?: string
+	officeMapUrl?: string
 	portalUrl?: string
 	reference: string
 	subject: string
+	supportPhoneUrl?: string
 	supportUrl?: string
+	supportWhatsappUrl?: string
 	websiteUrl?: string
 }
 
@@ -55,11 +59,20 @@ const DEFAULT_SUPPORT_FROM = 'HyperQuote <support@info.moderngroupco.com>'
 const DEFAULT_SUPPORT_REPLY_TO = 'support@info.moderngroupco.com'
 const DEFAULT_WEBSITE_URL = 'https://hyperquote.net'
 const DEFAULT_PORTAL_URL = 'https://portal.hyperquote.net'
-const DEFAULT_SUPPORT_URL = 'https://hyperquote.net/support'
+const DEFAULT_SUPPORT_URL = 'https://hyperquote.net/support#contact'
+const DEFAULT_OFFICE_ADDRESS = 'Arkan Plaza, Sheikh Zayed, Egypt'
+const DEFAULT_OFFICE_MAP_URL =
+	'https://maps.google.com/?q=Arkan+Plaza+Sheikh+Zayed+Egypt'
+const DEFAULT_LOGO_URL = 'https://hyperquote.net/LyonWhite.svg'
+const BRAND_BLUE = '#2563EB'
+const BRAND_BLACK = '#090909'
+const BRAND_WHITE = '#FFFFFF'
 const EMAIL_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/
 const MAX_PROVIDER_ERROR_LENGTH = 500
 const MAX_SUPPORT_EMAIL_BODY_LENGTH = 4000
 const MAX_SUPPORT_EMAIL_SUBJECT_LENGTH = 180
+const MATERIAL_EMAIL_ICON_PATH =
+	'M20 4H4q-.825 0-1.412.588T2 6v12q0 .825.588 1.413T4 20h8v-2H4V8l8 5 8-5v4h2V6q0-.825-.587-1.412T20 4Zm-8 7L4 6h16l-8 5Zm6.2 9.5 3.55-3.55-1.4-1.4-2.15 2.15-.9-.9-1.4 1.4 2.3 2.3ZM19 23q-2.075 0-3.537-1.463T14 18q0-2.075 1.463-3.537T19 13q2.075 0 3.538 1.463T24 18q0 2.075-1.462 3.537T19 23Z'
 const LOCAL_ONLY_DOMAINS = new Set([
 	'example.com',
 	'example.net',
@@ -207,7 +220,13 @@ export function renderSupportEmailHtml(input: SupportEmailRenderInput): string {
 	const subject = escapeHtml(input.subject)
 	const portalUrl = escapeHtml(input.portalUrl ?? DEFAULT_PORTAL_URL)
 	const supportUrl = escapeHtml(input.supportUrl ?? DEFAULT_SUPPORT_URL)
+	const supportPhoneUrl = escapeHtml(input.supportPhoneUrl ?? supportUrl)
+	const supportWhatsappUrl = escapeHtml(input.supportWhatsappUrl ?? supportUrl)
 	const websiteUrl = escapeHtml(input.websiteUrl ?? DEFAULT_WEBSITE_URL)
+	const officeMapUrl = escapeHtml(input.officeMapUrl ?? DEFAULT_OFFICE_MAP_URL)
+	const officeAddress = escapeHtml(
+		input.officeAddress ?? DEFAULT_OFFICE_ADDRESS,
+	)
 	const messageHtml = renderMessageBodyHtml(input.body)
 
 	return `<!doctype html>
@@ -215,68 +234,79 @@ export function renderSupportEmailHtml(input: SupportEmailRenderInput): string {
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="color-scheme" content="light">
+	<meta name="supported-color-schemes" content="light">
 	<title>${subject}</title>
+	<style>
+		@media only screen and (max-width: 720px) {
+			.email-shell { width: 100% !important; max-width: 100% !important; }
+			.email-pad { padding-left: 22px !important; padding-right: 22px !important; }
+			.email-title { font-size: 32px !important; }
+			.email-icon-cell { width: 64px !important; }
+			.email-icon { width: 56px !important; height: 56px !important; }
+			.email-footer-brand, .email-footer-links { display: block !important; width: 100% !important; text-align: left !important; }
+			.email-footer-links { padding-top: 22px !important; }
+			.email-footer-link { display: inline-block !important; margin: 0 14px 12px 0 !important; }
+		}
+	</style>
 </head>
-<body style="margin:0;padding:0;background:#eef2f7;color:#0f172a;font-family:Arial,Helvetica,sans-serif;">
+<body style="margin:0;padding:0;background:${BRAND_WHITE};color:${BRAND_BLACK};font-family:Arial,Helvetica,sans-serif;">
 	<div style="display:none;max-height:0;overflow:hidden;opacity:0;">HyperQuote replied to ${reference}.</div>
-	<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef2f7;margin:0;padding:36px 12px;">
+	<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;background:${BRAND_WHITE};margin:0;padding:0;">
 		<tr>
-			<td align="center">
-				<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:#ffffff;border:1px solid #d9e2ee;border-radius:20px;overflow:hidden;box-shadow:0 28px 90px rgba(15,23,42,0.12);">
+			<td align="center" style="padding:44px 18px 0;">
+				<table role="presentation" class="email-shell" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:860px;margin:0 auto;background:${BRAND_WHITE};">
 					<tr>
-						<td style="background:#0f172a;padding:28px 32px;">
+						<td class="email-pad" style="padding:0 34px 30px;">
 							<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
 								<tr>
-									<td align="left" style="vertical-align:middle;">
-										<table role="presentation" cellspacing="0" cellpadding="0">
+									<td style="vertical-align:top;padding:0 24px 0 0;">
+										<p style="margin:0 0 14px;font-size:13px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:${BRAND_BLUE};">Customer service</p>
+										<h1 class="email-title" style="margin:0;font-size:44px;line-height:1.04;font-weight:800;letter-spacing:0;color:${BRAND_BLACK};">Hi ${customerName}, your HyperQuote update is ready.</h1>
+									</td>
+									<td class="email-icon-cell" align="right" style="width:92px;vertical-align:top;">
+										${renderEmailIcon(MATERIAL_EMAIL_ICON_PATH)}
+									</td>
+								</tr>
+							</table>
+						</td>
+					</tr>
+					<tr>
+						<td class="email-pad" style="padding:0 34px 46px;">
+							<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #E5E7EB;border-bottom:1px solid #E5E7EB;">
+								<tr>
+									<td align="center" style="padding:46px 0;">
+										<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:680px;margin:0 auto;">
 											<tr>
-												<td style="width:38px;height:38px;border-radius:12px;background:#ffffff;color:#0f172a;text-align:center;font-size:13px;font-weight:700;letter-spacing:0.08em;">HQ</td>
-												<td style="padding-left:12px;font-size:19px;line-height:1;font-weight:700;letter-spacing:0;color:#ffffff;">HyperQuote</td>
+												<td style="font-size:18px;line-height:1.76;color:#2A2A2A;text-align:left;">
+													<p style="margin:0 0 20px;font-size:18px;line-height:1.76;color:#2A2A2A;">Our team reviewed your request and replied below. Keep this email for the reference number, or open the portal for the latest quote and order status.</p>
+													<div style="margin:0 0 28px;border-left:4px solid ${BRAND_BLUE};padding:0 0 0 18px;">
+														<p style="margin:0 0 8px;font-size:13px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:${BRAND_BLUE};">${reference}</p>
+														<p style="margin:0;font-size:22px;line-height:1.35;font-weight:800;color:${BRAND_BLACK};">${subject}</p>
+													</div>
+													<div style="font-size:18px;line-height:1.76;color:#2A2A2A;">${messageHtml}</div>
+													<div style="margin:34px 0 12px;text-align:center;">
+														<a href="${portalUrl}" style="display:inline-block;margin:0 6px 12px;padding:15px 22px;border:1px solid ${BRAND_BLUE};border-radius:999px;background:${BRAND_BLUE};color:${BRAND_WHITE};font-size:15px;font-weight:800;line-height:1;text-decoration:none;">Open portal</a>
+														<a href="${supportUrl}" style="display:inline-block;margin:0 6px 12px;padding:15px 22px;border:1px solid #D9DDE5;border-radius:999px;background:${BRAND_WHITE};color:${BRAND_BLACK};font-size:15px;font-weight:800;line-height:1;text-decoration:none;">Contact support</a>
+													</div>
+													<p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#666666;">Reply to this email to keep the same support thread. HyperQuote will never ask for your password or one-time verification code by email.</p>
+												</td>
 											</tr>
 										</table>
 									</td>
-									<td align="right" style="font-size:12px;line-height:1.4;color:#cbd5e1;">${reference}</td>
 								</tr>
 							</table>
 						</td>
 					</tr>
-					<tr>
-						<td style="padding:34px 34px 0;">
-							<p style="margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#64748b;">Customer service</p>
-							<h1 style="margin:0;font-size:30px;line-height:1.18;font-weight:700;letter-spacing:0;color:#0f172a;">Hi ${customerName}, your HyperQuote update is ready.</h1>
-							<p style="margin:16px 0 0;font-size:16px;line-height:1.7;color:#475569;">Our team reviewed your request and replied below. Keep this email for the reference number, or open the portal for the latest quote and order status.</p>
-						</td>
-					</tr>
-					<tr>
-						<td style="padding:28px 34px 8px;">
-							<div style="border:1px solid #dbe3ef;border-radius:18px;background:#fbfdff;padding:24px;">
-								<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:18px;">
-									<tr>
-										<td style="font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#64748b;">${subject}</td>
-										<td align="right" style="font-size:12px;color:#64748b;">${reference}</td>
-									</tr>
-								</table>
-								<div style="font-size:16px;line-height:1.78;color:#1e293b;">${messageHtml}</div>
-							</div>
-						</td>
-					</tr>
-					<tr>
-						<td style="padding:24px 34px 34px;">
-							<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #dbe3ef;padding-top:22px;">
-								<tr>
-									<td style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#64748b;">Important links</td>
-								</tr>
-								<tr>
-									<td style="padding-top:12px;">
-										<a href="${portalUrl}" style="display:inline-block;margin:0 8px 8px 0;padding:11px 15px;border-radius:12px;background:#0f172a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;">Customer portal</a>
-										<a href="${supportUrl}" style="display:inline-block;margin:0 8px 8px 0;padding:11px 15px;border-radius:12px;background:#e2e8f0;color:#0f172a;text-decoration:none;font-size:13px;font-weight:700;">Support center</a>
-										<a href="${websiteUrl}" style="display:inline-block;margin:0 0 8px 0;padding:11px 15px;border-radius:12px;background:#e2e8f0;color:#0f172a;text-decoration:none;font-size:13px;font-weight:700;">HyperQuote</a>
-									</td>
-								</tr>
-							</table>
-							<p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#64748b;">Reply to this email to keep the same support thread. HyperQuote will never ask for your password or one-time verification code by email.</p>
-						</td>
-					</tr>
+					${renderEmailFooter({
+						officeAddress,
+						officeMapUrl,
+						portalUrl,
+						supportPhoneUrl,
+						supportUrl,
+						supportWhatsappUrl,
+						websiteUrl,
+					})}
 				</table>
 			</td>
 		</tr>
@@ -289,6 +319,9 @@ export function renderSupportEmailText(input: SupportEmailRenderInput): string {
 	const links = [
 		`Customer portal: ${input.portalUrl ?? DEFAULT_PORTAL_URL}`,
 		`Support center: ${input.supportUrl ?? DEFAULT_SUPPORT_URL}`,
+		`Call: ${input.supportPhoneUrl ?? input.supportUrl ?? DEFAULT_SUPPORT_URL}`,
+		`WhatsApp: ${input.supportWhatsappUrl ?? input.supportUrl ?? DEFAULT_SUPPORT_URL}`,
+		`Office: ${input.officeMapUrl ?? DEFAULT_OFFICE_MAP_URL}`,
 		`HyperQuote: ${input.websiteUrl ?? DEFAULT_WEBSITE_URL}`,
 	]
 	return [
@@ -326,14 +359,24 @@ export function supportEmailMetadata(
 async function renderInputForEnvelope(
 	envelope: SupportEmailEnvelope,
 ): Promise<SupportEmailRenderInput> {
+	const supportPhone =
+		(await readRuntimeEnv('SUPPORT_PHONE_E164')) ??
+		(await readRuntimeEnv('VITE_SUPPORT_PHONE_E164'))
+	const supportWhatsapp =
+		(await readRuntimeEnv('SUPPORT_WHATSAPP_E164')) ??
+		(await readRuntimeEnv('VITE_SUPPORT_WHATSAPP_E164'))
 	return {
 		body: envelope.body,
 		customerName:
 			envelope.ticket.requester_name || envelope.ticket.requester_email,
+		officeAddress: await readRuntimeEnv('OFFICE_ADDRESS'),
+		officeMapUrl: await readRuntimeEnv('OFFICE_MAP_URL'),
 		portalUrl: await readRuntimeEnv('PORTAL_URL'),
 		reference: envelope.ticket.reference,
 		subject: envelope.subject,
+		supportPhoneUrl: supportContactHref('phone', supportPhone),
 		supportUrl: await readRuntimeEnv('SUPPORT_URL'),
+		supportWhatsappUrl: supportContactHref('whatsapp', supportWhatsapp),
 		websiteUrl: await readRuntimeEnv('WEBSITE_URL'),
 	}
 }
@@ -389,6 +432,72 @@ function isLocalOnlyEmail(email: string): boolean {
 		domain.endsWith('.local') ||
 		domain.endsWith('.test')
 	)
+}
+
+function renderEmailIcon(path: string): string {
+	return `<svg class="email-icon" xmlns="http://www.w3.org/2000/svg" width="76" height="76" viewBox="0 0 24 24" aria-hidden="true" style="display:block;">
+	<circle cx="12" cy="12" r="12" fill="#EFF6FF"/>
+	<path fill="${BRAND_BLUE}" d="${path}"/>
+</svg>`
+}
+
+function renderEmailFooter(input: {
+	officeAddress: string
+	officeMapUrl: string
+	portalUrl: string
+	supportPhoneUrl: string
+	supportUrl: string
+	supportWhatsappUrl: string
+	websiteUrl: string
+}): string {
+	return `<tr>
+	<td style="background:${BRAND_BLACK};padding:0;">
+		<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${BRAND_BLACK};">
+			<tr>
+				<td class="email-pad" style="padding:30px 34px;">
+					<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+						<tr>
+							<td class="email-footer-brand" style="vertical-align:middle;">
+								<a href="${input.websiteUrl}" style="display:inline-block;color:${BRAND_WHITE};text-decoration:none;">
+									<img src="${DEFAULT_LOGO_URL}" width="34" height="34" alt="HyperQuote logo" style="display:inline-block;width:34px;height:34px;border:0;vertical-align:middle;">
+									<span style="display:inline-block;margin-left:12px;font-size:21px;line-height:1;font-weight:800;color:${BRAND_WHITE};vertical-align:middle;">HyperQuote</span>
+								</a>
+							</td>
+							<td class="email-footer-links" align="right" style="vertical-align:middle;text-align:right;">
+								${footerLink('Support', input.supportUrl)}
+								${footerLink('Call', input.supportPhoneUrl)}
+								${footerLink('WhatsApp', input.supportWhatsappUrl)}
+								${footerLink('Our Office', input.officeMapUrl)}
+								${footerLink('Portal App', input.portalUrl)}
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2" style="padding-top:18px;font-size:12px;line-height:1.7;color:#BDBDBD;">
+								${input.officeAddress}
+							</td>
+						</tr>
+					</table>
+				</td>
+			</tr>
+		</table>
+	</td>
+</tr>`
+}
+
+function footerLink(label: string, href: string): string {
+	return `<a class="email-footer-link" href="${href}" style="margin-left:18px;color:${BRAND_WHITE};font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;">${label}</a>`
+}
+
+function supportContactHref(
+	kind: 'phone' | 'whatsapp',
+	e164: string | undefined,
+): string | undefined {
+	if (!e164) return undefined
+	const trimmed = e164.trim()
+	if (!trimmed) return undefined
+	if (kind === 'phone') return `tel:${trimmed}`
+	const digits = trimmed.replace(/\D/g, '')
+	return digits ? `https://wa.me/${digits}` : undefined
 }
 
 function renderMessageBodyHtml(body: string): string {
