@@ -468,15 +468,9 @@ function renderEmailFooter(input: {
 				<td class="email-footer-brand" style="vertical-align:middle;">
 					<table role="presentation" class="email-footer-brand-table" cellspacing="0" cellpadding="0">
 						<tr>
-							<td style="width:86px;vertical-align:middle;">
+							<td style="width:82px;vertical-align:middle;">
 								<a href="${input.websiteUrl}" style="display:inline-block;text-decoration:none;">
-									<table role="presentation" width="86" height="86" cellspacing="0" cellpadding="0" style="width:86px;height:86px;border:1px solid ${BRAND_LINE};border-radius:18px;background:#F6F8FB;">
-										<tr>
-											<td align="center" valign="middle">
-												<img src="${EMAIL_IMAGE_URLS.logo}" width="72" height="72" alt="HyperQuote logo" style="display:block;width:72px;height:72px;border:0;outline:none;text-decoration:none;">
-											</td>
-										</tr>
-									</table>
+									<img src="${EMAIL_IMAGE_URLS.logo}" width="82" height="82" alt="HyperQuote logo" style="display:block;width:82px;height:82px;border:0;outline:none;text-decoration:none;">
 								</a>
 							</td>
 							<td style="padding-left:20px;vertical-align:middle;">
@@ -510,7 +504,7 @@ function footerLink(
 	icon: keyof typeof EMAIL_IMAGE_URLS.footerIcons,
 ): string {
 	return `<td style="padding:6px;">
-	<a class="email-footer-link" href="${href}" style="display:block;min-height:22px;padding:10px 12px;border:1px solid ${BRAND_LINE};border-radius:14px;color:${BRAND_BLACK};font-size:13px;font-weight:750;line-height:22px;text-align:left;text-decoration:none;white-space:nowrap;">
+	<a class="email-footer-link" href="${href}" style="display:block;min-height:24px;padding:11px 14px;border:1px solid ${BRAND_LINE};border-radius:14px;color:${BRAND_BLACK};font-size:13px;font-weight:750;line-height:24px;text-align:left;text-decoration:none;white-space:nowrap;">
 		${renderFooterIcon(icon)}
 		<span style="vertical-align:middle;">${label}</span>
 	</a>
@@ -520,7 +514,7 @@ function footerLink(
 function renderFooterIcon(
 	icon: keyof typeof EMAIL_IMAGE_URLS.footerIcons,
 ): string {
-	return `<img src="${EMAIL_IMAGE_URLS.footerIcons[icon]}" width="17" height="17" alt="" style="display:inline-block;width:17px;height:17px;margin-right:9px;border:0;outline:none;text-decoration:none;vertical-align:-3px;">`
+	return `<img src="${EMAIL_IMAGE_URLS.footerIcons[icon]}" width="22" height="22" alt="" style="display:inline-block;width:22px;height:22px;margin-right:10px;border:0;outline:none;text-decoration:none;vertical-align:-5px;">`
 }
 
 function emailAssetUrl(fileName: string): string {
