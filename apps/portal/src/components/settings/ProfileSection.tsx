@@ -412,21 +412,18 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 											</span>
 										</span>
 									</Label>
-									{confirmedPasswordResetEmail(profile) ? (
-										<button
-											type="button"
-											onClick={handleForgotPassword}
-											disabled={
-												emailMutation.isPending ||
-												passwordResetMutation.isPending
-											}
-											className="shrink-0 text-[12px] font-semibold normal-case tracking-normal text-[#2563EB] transition-colors hover:text-[var(--color-text)] disabled:pointer-events-none disabled:opacity-50"
-										>
-											{passwordResetMutation.isPending
-												? t('login.sendPasswordReset')
-												: t('login.forgotPassword')}
-										</button>
-									) : null}
+									<button
+										type="button"
+										onClick={handleForgotPassword}
+										disabled={
+											emailMutation.isPending || passwordResetMutation.isPending
+										}
+										className="shrink-0 text-[12px] font-semibold normal-case tracking-normal text-[#2563EB] transition-colors hover:text-[var(--color-text)] disabled:pointer-events-none disabled:opacity-50"
+									>
+										{passwordResetMutation.isPending
+											? t('login.sendPasswordReset')
+											: t('login.forgotPassword')}
+									</button>
 								</div>
 								<Input
 									className={underlineInputClass}

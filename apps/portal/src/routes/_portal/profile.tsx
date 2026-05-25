@@ -581,7 +581,6 @@ function EmailChangePanel({
 	onRequest: () => void
 }) {
 	const { t } = useTranslation('portal')
-	const canResetPassword = Boolean(confirmedPasswordResetEmail(profile))
 	return (
 		<section className="mt-8 border-t border-[var(--p-border)] pt-6">
 			<div className="mb-4 flex items-start gap-3">
@@ -622,18 +621,16 @@ function EmailChangePanel({
 						<ProfileField
 							label={t('profilePage.currentPasswordLabel')}
 							labelAction={
-								canResetPassword ? (
-									<button
-										type="button"
-										onClick={onForgotPassword}
-										disabled={isPending || isResettingPassword}
-										className="text-[12px] font-semibold normal-case tracking-normal text-[var(--p-accent)] transition-colors hover:text-[var(--p-text)] disabled:pointer-events-none disabled:opacity-50"
-									>
-										{isResettingPassword
-											? t('login.sendPasswordReset')
-											: t('login.forgotPassword')}
-									</button>
-								) : null
+								<button
+									type="button"
+									onClick={onForgotPassword}
+									disabled={isPending || isResettingPassword}
+									className="text-[12px] font-semibold normal-case tracking-normal text-[var(--p-accent)] transition-colors hover:text-[var(--p-text)] disabled:pointer-events-none disabled:opacity-50"
+								>
+									{isResettingPassword
+										? t('login.sendPasswordReset')
+										: t('login.forgotPassword')}
+								</button>
 							}
 							value={currentPasswordDraft}
 							type="password"
