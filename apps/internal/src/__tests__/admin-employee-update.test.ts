@@ -61,4 +61,25 @@ describe('admin employee update session safety', () => {
 		expect(employeeEnsureSource).not.toContain('existing.id')
 		expect(driverEnsureSource).not.toContain('existing.id')
 	})
+
+	it('does not put employee or driver contact phones into auth identities', () => {
+		const adminServer = readWorkspaceFile(
+			'apps/internal/src/lib/server/admin.ts',
+		)
+		const employeeEnsureSource = sourceBetween(
+			adminServer,
+			'async function ensureEmployeeAuthUser',
+			'async function ensureDriverAuthUser',
+		)
+		const driverEnsureSource = sourceBetween(
+			adminServer,
+			'async function ensureDriverAuthUser',
+			'async function upsertEmployeeProfileRows',
+		)
+
+		expect(employeeEnsureSource).not.toContain('phone:')
+		expect(employeeEnsureSource).not.toContain('phone_confirm')
+		expect(driverEnsureSource).not.toContain('phone:')
+		expect(driverEnsureSource).not.toContain('phone_confirm')
+	})
 })

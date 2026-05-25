@@ -963,10 +963,11 @@ async function createSalesOnlyInternalActor(
 	const password = 'sales1'
 	const { data: userData, error: userError } =
 		await service.auth.admin.createUser({
+			app_metadata: { pool: 'internal', roles: ['sales'] },
 			email,
 			email_confirm: true,
 			password,
-			user_metadata: { pool: 'internal' },
+			user_metadata: { name: `Flow Sales Only ${runId}` },
 		})
 	if (userError || !userData.user) {
 		throw new Error(userError?.message ?? 'Sales-only auth user missing')

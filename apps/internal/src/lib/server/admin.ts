@@ -1303,7 +1303,6 @@ async function ensureEmployeeAuthUser(input: {
 	fullName: string
 	isCeo: boolean
 	password?: string
-	phone: string
 	recordId?: string | null
 	roles: AdminEmployeeRole[]
 	userId?: string | null
@@ -1324,8 +1323,6 @@ async function ensureEmployeeAuthUser(input: {
 		},
 		email,
 		email_confirm: true,
-		phone: input.phone,
-		phone_confirm: true,
 		user_metadata: { name: input.fullName },
 		...(input.password ? { password: input.password } : {}),
 	}
@@ -1356,7 +1353,6 @@ async function ensureDriverAuthUser(input: {
 	email: string
 	fullName: string
 	password?: string
-	phone: string
 	recordId?: string | null
 	userId?: string | null
 }) {
@@ -1376,8 +1372,6 @@ async function ensureDriverAuthUser(input: {
 		},
 		email,
 		email_confirm: true,
-		phone: input.phone,
-		phone_confirm: true,
 		user_metadata: { name: input.fullName },
 		...(input.password ? { password: input.password } : {}),
 	}
@@ -2665,7 +2659,6 @@ export const adminCreateEmployee = createServerFn({ method: 'POST' })
 						fullName: data.name,
 						isCeo: data.isCeo,
 						password: data.password,
-						phone: data.phone,
 						roles: data.roles,
 					})
 				: null
@@ -2773,10 +2766,10 @@ export const adminUpdateEmployee = createServerFn({ method: 'POST' })
 			patch.password !== undefined ||
 			patch.email !== undefined ||
 			patch.name !== undefined ||
-			patch.phone !== undefined ||
 			patch.roles !== undefined ||
 			patch.isCeo !== undefined ||
 			(patch.status === 'active' && !currentRow.user_id)
+		const shouldSyncProfile = shouldEnsureAuth || patch.phone !== undefined
 		if (patch.status === 'active' && !currentRow.user_id && !patch.password) {
 			throw new Error('Employee password is required to activate this account')
 		}
@@ -2786,7 +2779,6 @@ export const adminUpdateEmployee = createServerFn({ method: 'POST' })
 				fullName: nextName,
 				isCeo: nextIsCeo,
 				password: patch.password,
-				phone: nextPhone,
 				recordId: id,
 				roles: nextRoles,
 				userId: currentRow.user_id,
@@ -2843,7 +2835,7 @@ export const adminUpdateEmployee = createServerFn({ method: 'POST' })
 			typeof employeePatch.user_id === 'string'
 				? employeePatch.user_id
 				: currentRow.user_id
-		if (nextUserId) {
+		if (nextUserId && shouldSyncProfile) {
 			await upsertEmployeeProfileRows({
 				authUserId: nextUserId,
 				displayName: nextName,
@@ -2950,7 +2942,6 @@ export const adminCreateDriver = createServerFn({ method: 'POST' })
 			email,
 			fullName: data.fullName,
 			password: data.password,
-			phone: data.phone,
 		})
 		const { data: row, error } = await service
 			.from('drivers')
@@ -3010,10 +3001,10 @@ export const adminUpdateDriver = createServerFn({ method: 'POST' })
 			patch.password !== undefined ||
 			patch.email !== undefined ||
 			patch.fullName !== undefined ||
-			patch.phone !== undefined ||
 			(currentRow.user_id === null &&
 				patch.status !== undefined &&
 				patch.status !== 'invited')
+		const shouldSyncProfile = shouldEnsureAuth || patch.phone !== undefined
 
 		const driverPatch: Record<string, unknown> = {}
 		if (patch.fullName !== undefined) driverPatch.full_name = patch.fullName
@@ -3045,7 +3036,6 @@ export const adminUpdateDriver = createServerFn({ method: 'POST' })
 				email: nextEmail,
 				fullName: nextFullName,
 				password: patch.password,
-				phone: nextPhone,
 				recordId: id,
 				userId: currentRow.user_id,
 			})
@@ -3064,7 +3054,7 @@ export const adminUpdateDriver = createServerFn({ method: 'POST' })
 		if (error || !row) {
 			throw new Error(error?.message ?? `Driver ${id} not found`)
 		}
-		if (nextUserId) {
+		if (nextUserId && shouldSyncProfile) {
 			await upsertDriverProfileRows({
 				authUserId: nextUserId,
 				displayName: nextFullName,

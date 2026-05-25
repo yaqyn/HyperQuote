@@ -614,8 +614,6 @@ async function createDriverTruck(
 			email,
 			email_confirm: true,
 			password,
-			phone: `+209${Date.now().toString().slice(-9)}${input.suffix.length}`,
-			phone_confirm: true,
 			user_metadata: { name: input.driverName },
 		})
 	if (authError || !authUser.user) {

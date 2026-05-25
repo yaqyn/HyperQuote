@@ -262,7 +262,6 @@ async function main() {
 			app_metadata: { pool: 'internal', roles: account.roles },
 			email: account.email,
 			password: account.password,
-			phone: account.phone,
 			user_metadata: { name: account.fullName },
 		})
 		if (!searchRefreshActorUserId && account.isCeo) {
@@ -287,7 +286,6 @@ async function main() {
 		app_metadata: { pool: 'driver', roles: ['driver'] },
 		email: LOCAL_ACCOUNTS.driver.email,
 		password: LOCAL_ACCOUNTS.driver.password,
-		phone: LOCAL_ACCOUNTS.driver.phone,
 		user_metadata: { name: LOCAL_ACCOUNTS.driver.fullName },
 	})
 	debugStep('driver-row')
@@ -304,7 +302,6 @@ async function main() {
 			app_metadata: { pool: 'driver', roles: ['driver'] },
 			email: account.email,
 			password: account.password,
-			phone: account.phone,
 			user_metadata: { name: account.fullName },
 		})
 		debugStep(`flow-driver-row:${account.email}`)
@@ -390,8 +387,7 @@ async function upsertAuthUser(
 		app_metadata,
 		email,
 		email_confirm: true,
-		phone,
-		phone_confirm: true,
+		...(phone ? { phone, phone_confirm: true } : {}),
 		user_metadata,
 	}
 
@@ -418,7 +414,7 @@ async function upsertAuthUser(
 async function findAuthUser(supabase, { email, phone }) {
 	let page = 1
 	const perPage = 100
-	const normalizedPhone = normalizePhoneForAuth(phone)
+	const normalizedPhone = phone ? normalizePhoneForAuth(phone) : null
 
 	while (true) {
 		const { data, error } = await supabase.auth.admin.listUsers({
@@ -430,7 +426,8 @@ async function findAuthUser(supabase, { email, phone }) {
 		const found = data.users.find(
 			(user) =>
 				user.email === email ||
-				normalizePhoneForAuth(user.phone ?? '') === normalizedPhone,
+				(normalizedPhone !== null &&
+					normalizePhoneForAuth(user.phone ?? '') === normalizedPhone),
 		)
 		if (found) return found
 		if (data.users.length < perPage) return null

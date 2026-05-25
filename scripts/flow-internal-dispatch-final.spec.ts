@@ -674,6 +674,7 @@ async function createDriverTruck(
 	const password = `Flow-${input.runId}-${input.suffix}-Aa123456!`
 	const { data: authUser, error: authError } =
 		await service.auth.admin.createUser({
+			app_metadata: { pool: 'driver', roles: ['driver'] },
 			email,
 			email_confirm: true,
 			password,
