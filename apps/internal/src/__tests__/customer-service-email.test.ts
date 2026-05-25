@@ -157,7 +157,7 @@ describe('customer service email rendering', () => {
 		expect(body).toMatchObject({
 			cc: ['ops@hyperquote.net'],
 			from: 'HyperQuote <support@info.moderngroupco.com>',
-			reply_to: 'support@info.moderngroupco.com',
+			reply_to: 'support@hyperquote.net',
 			subject: 'Re: Delivery update',
 			to: ['customer@hyperquote.net'],
 		})

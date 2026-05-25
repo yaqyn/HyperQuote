@@ -57,7 +57,7 @@ interface ResendResponse {
 const RESEND_EMAIL_ENDPOINT = 'https://api.resend.com/emails'
 const EMAIL_ASSET_URL = 'https://pub-cbfbae308dae4797b95916396d2ff713.r2.dev'
 const DEFAULT_SUPPORT_FROM = 'HyperQuote <support@info.moderngroupco.com>'
-const DEFAULT_SUPPORT_REPLY_TO = 'support@info.moderngroupco.com'
+const DEFAULT_SUPPORT_REPLY_TO = 'support@hyperquote.net'
 const DEFAULT_WEBSITE_URL = 'https://hyperquote.net'
 const DEFAULT_PORTAL_URL = 'https://portal.hyperquote.net'
 const DEFAULT_SUPPORT_URL = 'https://hyperquote.net/support#contact'
