@@ -32,6 +32,7 @@ import {
 import {
 	getCustomerProfile,
 	requestCustomerEmailChange,
+	requestCustomerPendingEmailConfirmation,
 	updateCustomerProfile,
 } from '../../lib/server/settings'
 import type { CustomerProfile } from '../../types/settings'
@@ -140,20 +141,47 @@ function ProfilePage() {
 		},
 	})
 
-	const passwordResetMutation = useMutation({
-		mutationFn: (email: string) => requestPasswordReset({ data: { email } }),
+	const authEmailActionMutation = useMutation({
+		mutationFn: async (
+			input:
+				| { email: string; kind: 'password_reset' }
+				| { kind: 'pending_confirmation' },
+		): Promise<{
+			email?: string
+			kind: 'password_reset' | 'pending_confirmation'
+			success: boolean
+		}> => {
+			if (input.kind === 'pending_confirmation') {
+				const result = await requestCustomerPendingEmailConfirmation()
+				return {
+					email: result.email,
+					kind: input.kind,
+					success: result.success,
+				}
+			}
+			const result = await requestPasswordReset({
+				data: { email: input.email },
+			})
+			return { email: input.email, kind: input.kind, success: result.success }
+		},
 		onSuccess: (result) => {
 			setEmailMessage({
 				kind: result.success ? 'success' : 'error',
 				text: result.success
-					? t('login.passwordResetSent')
-					: t('login.passwordResetFailed'),
+					? result.kind === 'pending_confirmation'
+						? t('profilePage.emailConfirmationSent', {
+								email: result.email ?? profile?.pendingEmail ?? '',
+							})
+						: t('login.passwordResetSent')
+					: result.kind === 'pending_confirmation'
+						? t('profilePage.emailConfirmationFailed')
+						: t('login.passwordResetFailed'),
 			})
 		},
 		onError: () => {
 			setEmailMessage({
 				kind: 'error',
-				text: t('login.passwordResetFailed'),
+				text: t('profilePage.authEmailSendFailed'),
 			})
 		},
 	})
@@ -297,7 +325,12 @@ function ProfilePage() {
 	}
 
 	function handleForgotPassword() {
-		if (!profile || passwordResetMutation.isPending) return
+		if (!profile || authEmailActionMutation.isPending) return
+		if (profile.pendingEmail) {
+			setEmailMessage(null)
+			authEmailActionMutation.mutate({ kind: 'pending_confirmation' })
+			return
+		}
 		const resetEmail = confirmedPasswordResetEmail(profile)
 		if (!resetEmail) {
 			setEmailMessage({
@@ -307,7 +340,10 @@ function ProfilePage() {
 			return
 		}
 		setEmailMessage(null)
-		passwordResetMutation.mutate(resetEmail)
+		authEmailActionMutation.mutate({
+			email: resetEmail,
+			kind: 'password_reset',
+		})
 	}
 
 	function handleRequestPhoneChange() {
@@ -449,7 +485,7 @@ function ProfilePage() {
 					newPasswordConfirmationDraft={newPasswordConfirmationDraft}
 					message={emailMessage}
 					isPending={emailMutation.isPending}
-					isResettingPassword={passwordResetMutation.isPending}
+					isSendingAuthEmail={authEmailActionMutation.isPending}
 					onEmailChange={(value) => {
 						setEmailDraft(value)
 						setEmailMessage(null)
@@ -557,7 +593,7 @@ function EmailChangePanel({
 	newPasswordConfirmationDraft,
 	message,
 	isPending,
-	isResettingPassword,
+	isSendingAuthEmail,
 	onEmailChange,
 	onCurrentPasswordChange,
 	onNewPasswordChange,
@@ -572,7 +608,7 @@ function EmailChangePanel({
 	newPasswordConfirmationDraft: string
 	message: { kind: 'success' | 'error'; text: string } | null
 	isPending: boolean
-	isResettingPassword: boolean
+	isSendingAuthEmail: boolean
 	onEmailChange: (value: string) => void
 	onCurrentPasswordChange: (value: string) => void
 	onNewPasswordChange: (value: string) => void
@@ -581,6 +617,9 @@ function EmailChangePanel({
 	onRequest: () => void
 }) {
 	const { t } = useTranslation('portal')
+	const authEmailActionLabel = profile.pendingEmail
+		? t('profilePage.resendEmailConfirmation')
+		: t('login.forgotPassword')
 	return (
 		<section className="mt-8 border-t border-[var(--p-border)] pt-6">
 			<div className="mb-4 flex items-start gap-3">
@@ -624,12 +663,12 @@ function EmailChangePanel({
 								<button
 									type="button"
 									onClick={onForgotPassword}
-									disabled={isPending || isResettingPassword}
+									disabled={isPending || isSendingAuthEmail}
 									className="text-[12px] font-semibold normal-case tracking-normal text-[var(--p-accent)] transition-colors hover:text-[var(--p-text)] disabled:pointer-events-none disabled:opacity-50"
 								>
-									{isResettingPassword
-										? t('login.sendPasswordReset')
-										: t('login.forgotPassword')}
+									{isSendingAuthEmail
+										? t('profilePage.sendingAuthEmail')
+										: authEmailActionLabel}
 								</button>
 							}
 							value={currentPasswordDraft}

@@ -27,6 +27,7 @@ import { useTranslation } from 'react-i18next'
 import { requestPasswordReset } from '../../lib/auth'
 import {
 	requestCustomerEmailChange,
+	requestCustomerPendingEmailConfirmation,
 	updateCustomerProfile,
 	uploadProfilePhoto,
 	uploadTradeLicense,
@@ -116,20 +117,47 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 		},
 	})
 
-	const passwordResetMutation = useMutation({
-		mutationFn: (email: string) => requestPasswordReset({ data: { email } }),
+	const authEmailActionMutation = useMutation({
+		mutationFn: async (
+			input:
+				| { email: string; kind: 'password_reset' }
+				| { kind: 'pending_confirmation' },
+		): Promise<{
+			email?: string
+			kind: 'password_reset' | 'pending_confirmation'
+			success: boolean
+		}> => {
+			if (input.kind === 'pending_confirmation') {
+				const result = await requestCustomerPendingEmailConfirmation()
+				return {
+					email: result.email,
+					kind: input.kind,
+					success: result.success,
+				}
+			}
+			const result = await requestPasswordReset({
+				data: { email: input.email },
+			})
+			return { email: input.email, kind: input.kind, success: result.success }
+		},
 		onSuccess: (result) => {
 			setEmailMessage({
 				kind: result.success ? 'success' : 'error',
 				text: result.success
-					? t('login.passwordResetSent')
-					: t('login.passwordResetFailed'),
+					? result.kind === 'pending_confirmation'
+						? t('profilePage.emailConfirmationSent', {
+								email: result.email ?? profile.pendingEmail ?? '',
+							})
+						: t('login.passwordResetSent')
+					: result.kind === 'pending_confirmation'
+						? t('profilePage.emailConfirmationFailed')
+						: t('login.passwordResetFailed'),
 			})
 		},
 		onError: () => {
 			setEmailMessage({
 				kind: 'error',
-				text: t('login.passwordResetFailed'),
+				text: t('profilePage.authEmailSendFailed'),
 			})
 		},
 	})
@@ -235,7 +263,12 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 	}
 
 	function handleForgotPassword() {
-		if (passwordResetMutation.isPending) return
+		if (authEmailActionMutation.isPending) return
+		if (profile.pendingEmail) {
+			setEmailMessage(null)
+			authEmailActionMutation.mutate({ kind: 'pending_confirmation' })
+			return
+		}
 		const resetEmail = confirmedPasswordResetEmail(profile)
 		if (!resetEmail) {
 			setEmailMessage({
@@ -245,7 +278,10 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 			return
 		}
 		setEmailMessage(null)
-		passwordResetMutation.mutate(resetEmail)
+		authEmailActionMutation.mutate({
+			email: resetEmail,
+			kind: 'password_reset',
+		})
 	}
 
 	function handleLicenseSelect(files: FileList | null) {
@@ -416,13 +452,16 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 										type="button"
 										onClick={handleForgotPassword}
 										disabled={
-											emailMutation.isPending || passwordResetMutation.isPending
+											emailMutation.isPending ||
+											authEmailActionMutation.isPending
 										}
 										className="shrink-0 text-[12px] font-semibold normal-case tracking-normal text-[#2563EB] transition-colors hover:text-[var(--color-text)] disabled:pointer-events-none disabled:opacity-50"
 									>
-										{passwordResetMutation.isPending
-											? t('login.sendPasswordReset')
-											: t('login.forgotPassword')}
+										{authEmailActionMutation.isPending
+											? t('profilePage.sendingAuthEmail')
+											: profile.pendingEmail
+												? t('profilePage.resendEmailConfirmation')
+												: t('login.forgotPassword')}
 									</button>
 								</div>
 								<Input
