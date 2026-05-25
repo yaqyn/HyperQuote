@@ -57,7 +57,7 @@ function AboutPage() {
 				<div className="max-w-[1400px] mx-auto">
 					<div className="aspect-[16/10] overflow-hidden rounded-xl sm:aspect-[16/7] sm:rounded-2xl lg:aspect-[21/8]">
 						<img
-							src="https://websiteassets.hyperquote.net/Images/boxtree.webp"
+							src="/images/tree.webp"
 							alt=""
 							className="h-full w-full object-cover"
 						/>

@@ -9,23 +9,12 @@ import { useTranslation } from 'react-i18next'
 import { SectionReveal } from '../shared/SectionReveal'
 
 const STEP_KEYS = ['step1', 'step2', 'step3', 'step4'] as const
-const IMAGES = [
-	'https://websiteassets.hyperquote.net/Images/sea1.webp',
-	'https://websiteassets.hyperquote.net/Images/truck1.webp',
-]
+const HERO_IMAGE = '/images/paper.webp'
 
 export function HowItWorksSection() {
 	const { t } = useTranslation('website')
 	const sectionRef = useRef<HTMLElement>(null)
-	const [activeImg, setActiveImg] = useState(0)
 	const [isCompactViewport, setIsCompactViewport] = useState(false)
-
-	useEffect(() => {
-		const id = setInterval(() => {
-			setActiveImg((p) => (p + 1) % IMAGES.length)
-		}, 30000)
-		return () => clearInterval(id)
-	}, [])
 
 	useEffect(() => {
 		const query = window.matchMedia('(max-width: 1023px)')
@@ -59,17 +48,13 @@ export function HowItWorksSection() {
 				}}
 				className="relative overflow-hidden bg-[#101010]"
 			>
-				{/* Images — crossfade */}
+				{/* Fixed image */}
 				<div className="absolute top-0 bottom-0 max-lg:hidden start-[55%] end-0">
-					{IMAGES.map((src, i) => (
-						<img
-							key={src}
-							src={src}
-							alt=""
-							className="absolute inset-0 h-full w-full object-cover object-left transition-opacity duration-[2s] ease-in-out"
-							style={{ opacity: i === activeImg ? 1 : 0 }}
-						/>
-					))}
+					<img
+						src={HERO_IMAGE}
+						alt=""
+						className="absolute inset-0 h-full w-full object-cover object-left"
+					/>
 				</div>
 
 				{/* Content — left side */}
@@ -109,7 +94,7 @@ export function HowItWorksSection() {
 				{/* Mobile image */}
 				<div className="lg:hidden relative aspect-[16/9]">
 					<img
-						src="https://websiteassets.hyperquote.net/Images/cairo.webp"
+						src={HERO_IMAGE}
 						alt={t('hero.imageAlt')}
 						width={800}
 						height={450}
