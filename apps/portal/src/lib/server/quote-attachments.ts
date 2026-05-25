@@ -1,3 +1,4 @@
+import { decodeBase64Payload, sanitizeFileName } from '@hyperquote/runtime/file'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getAuthenticatedPortalCustomer } from './_supabase'
@@ -16,26 +17,6 @@ const uploadQuoteAttachmentInput = z.object({
 	base64: z.string().min(1),
 })
 
-function sanitizeFileName(value: string): string {
-	const sanitized = value
-		.normalize('NFKD')
-		.replace(/[^\w.-]+/g, '-')
-		.replace(/-+/g, '-')
-		.replace(/^-|-$/g, '')
-		.slice(0, 120)
-	return sanitized || 'attachment'
-}
-
-function decodeBase64(value: string): Uint8Array {
-	const base64 = value.includes(',') ? value.split(',').pop() || '' : value
-	const binary = atob(base64)
-	const bytes = new Uint8Array(binary.length)
-	for (let index = 0; index < binary.length; index += 1) {
-		bytes[index] = binary.charCodeAt(index)
-	}
-	return bytes
-}
-
 export const uploadQuoteAttachment = createServerFn({ method: 'POST' })
 	.inputValidator(uploadQuoteAttachmentInput)
 	.handler(
@@ -51,13 +32,13 @@ export const uploadQuoteAttachment = createServerFn({ method: 'POST' })
 				throw new Error('Unsupported quote attachment type')
 			}
 
-			const bytes = decodeBase64(input.base64)
+			const bytes = decodeBase64Payload(input.base64)
 			if (bytes.byteLength !== input.size) {
 				throw new Error('Attachment payload size mismatch')
 			}
 
 			const { customerId, supabase } = await getAuthenticatedPortalCustomer()
-			const safeName = sanitizeFileName(input.fileName)
+			const safeName = sanitizeFileName(input.fileName, 'attachment')
 			const path = `${customerId}/${crypto.randomUUID()}-${safeName}`
 			const { error } = await supabase.storage
 				.from('quote-attachments')

@@ -24,6 +24,35 @@ const contactInput = z.object({
 	message: z.string().min(10).max(2000),
 })
 
+async function getOptionalWebsiteAuthUser(request: Request) {
+	const config = await resolveSupabaseRuntimeConfig(process.env)
+	if (!config) return { error: 'not_configured' as const }
+
+	const {
+		client: authClient,
+		responseCookies,
+		responseHeaders,
+	} = createSupabaseServerClient({
+		request,
+		...config,
+	})
+	const {
+		data: { user },
+	} = await getSupabaseServerUser({
+		client: authClient,
+		cookieDomain: config.cookieDomain,
+		cookieName: config.cookieName,
+		request,
+		responseHeaders: getResponse().headers,
+	})
+	appendSetCookieHeaders(
+		getResponse().headers,
+		responseCookies.values(),
+		responseHeaders.entries(),
+	)
+	return { user }
+}
+
 export const getContactFormDefaults = createServerFn({ method: 'GET' }).handler(
 	async (): Promise<{
 		email: string
@@ -31,46 +60,24 @@ export const getContactFormDefaults = createServerFn({ method: 'GET' }).handler(
 		phone: string
 	}> => {
 		const emptyDefaults = { email: '', name: '', phone: '' }
-		const config = await resolveSupabaseRuntimeConfig(process.env)
-		if (!config) return emptyDefaults
-
 		const request = getRequest()
-		const {
-			client: authClient,
-			responseCookies,
-			responseHeaders,
-		} = createSupabaseServerClient({
-			request,
-			...config,
-		})
-		const {
-			data: { user },
-		} = await getSupabaseServerUser({
-			client: authClient,
-			cookieDomain: config.cookieDomain,
-			cookieName: config.cookieName,
-			request,
-			responseHeaders: getResponse().headers,
-		})
-		appendSetCookieHeaders(
-			getResponse().headers,
-			responseCookies.values(),
-			responseHeaders.entries(),
-		)
-		const pool = user?.app_metadata?.pool
-		if (!user || pool === 'internal' || pool === 'driver') return emptyDefaults
+		const auth = await getOptionalWebsiteAuthUser(request)
+		if ('error' in auth) return emptyDefaults
+		const pool = auth.user?.app_metadata?.pool
+		if (!auth.user || pool === 'internal' || pool === 'driver')
+			return emptyDefaults
 
 		const service = await createSupabaseServiceRoleClient(process.env)
 		if (!service) return emptyDefaults
 		const customerClient = createActorServiceRoleClient({
 			actorPool: 'external',
-			actorUserId: user.id,
+			actorUserId: auth.user.id,
 			client: service,
 		})
 		const { data, error } = await customerClient
 			.from('customers')
 			.select('contact_name, email, phone')
-			.eq('user_id', user.id)
+			.eq('user_id', auth.user.id)
 			.maybeSingle()
 		if (error || !data) {
 			if (error) {
@@ -79,7 +86,9 @@ export const getContactFormDefaults = createServerFn({ method: 'GET' }).handler(
 			return emptyDefaults
 		}
 
-		const confirmedAuthEmail = user.email_confirmed_at ? (user.email ?? '') : ''
+		const confirmedAuthEmail = auth.user.email_confirmed_at
+			? (auth.user.email ?? '')
+			: ''
 		return {
 			email: confirmedAuthEmail,
 			name: data.contact_name ?? '',
@@ -113,41 +122,18 @@ export const submitContactForm = createServerFn({ method: 'POST' })
 			}
 		}
 
-		const config = await resolveSupabaseRuntimeConfig(process.env)
-		if (!config) return { error: 'not_configured' as const }
+		const auth = await getOptionalWebsiteAuthUser(request)
+		if ('error' in auth) return { error: 'not_configured' as const }
 
 		const client = await createSupabaseServiceRoleClient(process.env)
 		if (!client) return { error: 'not_configured' as const }
 
 		try {
-			const {
-				client: authClient,
-				responseCookies,
-				responseHeaders,
-			} = createSupabaseServerClient({
-				request,
-				...config,
-			})
-			const {
-				data: { user },
-			} = await getSupabaseServerUser({
-				client: authClient,
-				cookieDomain: config.cookieDomain,
-				cookieName: config.cookieName,
-				request,
-				responseHeaders: getResponse().headers,
-			})
-			appendSetCookieHeaders(
-				getResponse().headers,
-				responseCookies.values(),
-				responseHeaders.entries(),
-			)
-
 			const ticketClient =
-				user?.app_metadata?.pool === 'external'
+				auth.user?.app_metadata?.pool === 'external'
 					? createActorServiceRoleClient({
 							actorPool: 'external',
-							actorUserId: user.id,
+							actorUserId: auth.user.id,
 							client,
 						})
 					: client

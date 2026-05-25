@@ -105,6 +105,24 @@ export function useVolumeEditor<TRow, TDraft>({
 	}
 }
 
+export function confirmAdminDelete(confirmMessage: string): boolean {
+	return typeof window !== 'undefined' && window.confirm(confirmMessage)
+}
+
+export function promptAdminDeleteReason({
+	confirmMessage,
+	promptMessage,
+}: {
+	confirmMessage: string
+	promptMessage: string
+}): string | null {
+	if (typeof window === 'undefined') return null
+	if (!window.confirm(confirmMessage)) return null
+	const reason = window.prompt(promptMessage)
+	if (!reason || reason.trim().length < 8) return null
+	return reason.trim()
+}
+
 function VolumeEditorFooter({
 	mode,
 	id,

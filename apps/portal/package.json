@@ -18,6 +18,7 @@
 		"@hyperquote/forms": "workspace:*",
 		"@hyperquote/i18n": "workspace:*",
 		"@hyperquote/quote-cart": "workspace:*",
+		"@hyperquote/runtime": "workspace:*",
 		"@hyperquote/ui": "workspace:*",
 		"@internationalized/date": "^3.12.1",
 		"@tanstack/ai": "^0.9.2",

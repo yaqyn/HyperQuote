@@ -17,7 +17,11 @@ import {
 } from '../AdminControls'
 import { Field, Section } from '../EntityEditor'
 import type { ColumnDef } from '../EntityIndex'
-import { useVolumeEditor, VolumeWorkspace } from './volumeEditor'
+import {
+	confirmAdminDelete,
+	useVolumeEditor,
+	VolumeWorkspace,
+} from './volumeEditor'
 
 type TruckDraft = Omit<TruckRow, 'id' | 'createdAt'> & {
 	id?: string
@@ -125,11 +129,7 @@ export function TrucksVolume({ onOpenVolumes }: TrucksVolumeProps) {
 
 	function handleDelete() {
 		if (!draft?.id) return
-		if (
-			typeof window !== 'undefined' &&
-			!window.confirm(t('actions.confirmDelete'))
-		)
-			return
+		if (!confirmAdminDelete(t('actions.confirmDelete'))) return
 		deleteMutation.mutate(draft.id)
 	}
 

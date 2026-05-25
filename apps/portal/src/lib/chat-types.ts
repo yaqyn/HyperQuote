@@ -32,7 +32,7 @@ export interface StatusCardData {
 	type: 'draft' | 'submitted' | 'confirmed'
 }
 
-export type ActionButtonIcon =
+type ActionButtonIcon =
 	| 'book'
 	| 'cart'
 	| 'command'

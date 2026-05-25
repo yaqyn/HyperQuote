@@ -13,7 +13,7 @@ function orderDateValue(order: DatedOrder): number {
 	return Number.isNaN(timestamp) ? 0 : timestamp
 }
 
-export function compareOrdersByDateDesc(a: DatedOrder, b: DatedOrder): number {
+function compareOrdersByDateDesc(a: DatedOrder, b: DatedOrder): number {
 	return orderDateValue(b) - orderDateValue(a)
 }
 
@@ -23,7 +23,7 @@ export function sortOrdersByDateDesc<T extends DatedOrder>(
 	return [...orders].sort(compareOrdersByDateDesc)
 }
 
-export function isRealOrderHistoryOrder(
+function isRealOrderHistoryOrder(
 	order: Pick<Order, 'type' | 'status'>,
 ): boolean {
 	return order.type !== 'saved' && order.status !== 'draft'
@@ -35,7 +35,7 @@ export function getOrderHistoryOrders<T extends OrderHistoryCandidate>(
 	return sortOrdersByDateDesc(orders.filter(isRealOrderHistoryOrder))
 }
 
-export function isActiveOrder(order: Pick<Order, 'status'>): boolean {
+function isActiveOrder(order: Pick<Order, 'status'>): boolean {
 	return ACTIVE_ORDER_STATUSES.has(order.status)
 }
 

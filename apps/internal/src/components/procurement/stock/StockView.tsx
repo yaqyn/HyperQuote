@@ -15,6 +15,7 @@ import {
 	EmployeeActionButton,
 	EmployeeSearchField,
 } from '../../shared/EmployeeControls'
+import { filterProcurementProducts } from '../productFilters'
 import { RefillPanel } from './RefillPanel'
 
 const STATUS_COPY: Record<StockStatus, string> = {
@@ -57,19 +58,12 @@ export function StockView() {
 
 	const filtered = useMemo(() => {
 		if (!data) return []
-		let list: StockProductView[] = data.products
-		if (activeCategory !== 'all') {
-			list = list.filter((p) => p.broadCategory === activeCategory)
-		}
-		if (search.trim()) {
-			const q = search.trim().toLowerCase()
-			list = list.filter(
-				(p) =>
-					p.name.toLowerCase().includes(q) ||
-					p.sku.toLowerCase().includes(q) ||
-					p.primarySupplierName.toLowerCase().includes(q),
-			)
-		}
+		const list: StockProductView[] = filterProcurementProducts(
+			data.products,
+			activeCategory,
+			search,
+			(product) => [product.primarySupplierName],
+		)
 		return [...list].sort((a, b) => {
 			if (STATUS_WEIGHT[a.status] !== STATUS_WEIGHT[b.status]) {
 				return STATUS_WEIGHT[a.status] - STATUS_WEIGHT[b.status]

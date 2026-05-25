@@ -16,6 +16,7 @@ import {
 	EmployeeSearchField,
 } from '../../shared/EmployeeControls'
 import { formatCompactHours } from '../../shared/formatters'
+import { filterProcurementProducts } from '../productFilters'
 import { ProductDetailModal } from './ProductDetailModal'
 import { SupplierBatchPricePanel } from './SupplierBatchPricePanel'
 
@@ -75,20 +76,12 @@ export function InventoryView() {
 
 	const filtered = useMemo(() => {
 		if (!data) return []
-		let list: InventoryProductView[] = data.products
-		if (activeCategory !== 'all') {
-			list = list.filter((p) => p.broadCategory === activeCategory)
-		}
-		if (search.trim()) {
-			const q = search.trim().toLowerCase()
-			list = list.filter(
-				(p) =>
-					p.name.toLowerCase().includes(q) ||
-					p.sku.toLowerCase().includes(q) ||
-					p.supplierName.toLowerCase().includes(q) ||
-					(p.allSupplierNames ?? []).some((s) => s.toLowerCase().includes(q)),
-			)
-		}
+		const list: InventoryProductView[] = filterProcurementProducts(
+			data.products,
+			activeCategory,
+			search,
+			(product) => [product.supplierName, ...(product.allSupplierNames ?? [])],
+		)
 		return [...list].sort((a, b) => {
 			const aNeedsAttention =
 				a.priceStatus === 'outdated' || a.isUrgent || a.pendingRequestCount > 0

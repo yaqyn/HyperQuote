@@ -19,7 +19,11 @@ import {
 import { Field, Section } from '../EntityEditor'
 import type { ColumnDef } from '../EntityIndex'
 import { useAdminExport } from './useAdminExport'
-import { useVolumeEditor, VolumeWorkspace } from './volumeEditor'
+import {
+	promptAdminDeleteReason,
+	useVolumeEditor,
+	VolumeWorkspace,
+} from './volumeEditor'
 
 type EmployeeDraft = Omit<AdminEmployeeRow, 'id'> & {
 	id?: string
@@ -137,17 +141,12 @@ export function EmployeesVolume({ onOpenVolumes }: EmployeesVolumeProps) {
 
 	function handleDelete() {
 		if (!draft?.id) return
-		if (
-			typeof window !== 'undefined' &&
-			!window.confirm(t('actions.confirmDelete'))
-		)
-			return
-		const reason =
-			typeof window === 'undefined'
-				? null
-				: window.prompt('Reason for disabling this employee')
-		if (!reason || reason.trim().length < 8) return
-		deleteMutation.mutate({ id: draft.id, reason: reason.trim() })
+		const reason = promptAdminDeleteReason({
+			confirmMessage: t('actions.confirmDelete'),
+			promptMessage: 'Reason for disabling this employee',
+		})
+		if (!reason) return
+		deleteMutation.mutate({ id: draft.id, reason })
 	}
 
 	const statusOptions: Array<{

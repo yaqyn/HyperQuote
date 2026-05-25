@@ -38,6 +38,41 @@ function loginRedirectUrl(request: Request) {
 	return new URL('/login', new URL(request.url).origin).toString()
 }
 
+type SupabaseServerClientContext = ReturnType<typeof createSupabaseServerClient>
+
+function appendPortalAuthCookies(auth: SupabaseServerClientContext) {
+	appendSetCookieHeaders(
+		getResponse().headers,
+		auth.responseCookies.values(),
+		auth.responseHeaders.entries(),
+	)
+}
+
+async function getVerifiedPortalAuthContext(
+	expectedUserId: string,
+): Promise<(SupabaseServerClientContext & { request: Request }) | null> {
+	const config = await resolveSupabaseRuntimeConfig(process.env)
+	if (!config) return null
+
+	const request = getRequest()
+	const auth = createSupabaseServerClient({
+		request,
+		...config,
+	})
+	const {
+		data: { user },
+	} = await getSupabaseServerUser({
+		client: auth.client,
+		cookieDomain: config.cookieDomain,
+		cookieName: config.cookieName,
+		request,
+		responseHeaders: getResponse().headers,
+	})
+	appendPortalAuthCookies(auth)
+	if (!user || user.id !== expectedUserId) return null
+	return { ...auth, request }
+}
+
 export const getCustomerProfile = createServerFn().handler(
 	async (): Promise<CustomerProfile> => {
 		const { customerId, session, supabase } =
@@ -135,36 +170,14 @@ export const requestCustomerPendingEmailConfirmation = createServerFn({
 			return { error: 'no_pending_email', success: false }
 		}
 
-		const config = await resolveSupabaseRuntimeConfig(process.env)
-		if (!config) return { error: 'not_authenticated', success: false }
-
-		const request = getRequest()
-		const { client, responseCookies, responseHeaders } =
-			createSupabaseServerClient({
-				request,
-				...config,
-			})
-		const {
-			data: { user },
-		} = await getSupabaseServerUser({
-			client,
-			cookieDomain: config.cookieDomain,
-			cookieName: config.cookieName,
-			request,
-			responseHeaders: getResponse().headers,
-		})
-		appendSetCookieHeaders(
-			getResponse().headers,
-			responseCookies.values(),
-			responseHeaders.entries(),
-		)
-		if (!user || user.id !== session.user.id) {
+		const auth = await getVerifiedPortalAuthContext(session.user.id)
+		if (!auth) {
 			return { error: 'not_authenticated', success: false }
 		}
 
-		const { error } = await client.auth.resend({
+		const { error } = await auth.client.auth.resend({
 			email: pendingEmail,
-			options: { emailRedirectTo: loginRedirectUrl(request) },
+			options: { emailRedirectTo: loginRedirectUrl(auth.request) },
 			type: 'email_change',
 		})
 		if (error) return { error: 'resend_failed', success: false }
@@ -240,30 +253,8 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 				}
 			}
 
-			const config = await resolveSupabaseRuntimeConfig(process.env)
-			if (!config) return { error: 'not_authenticated', success: false }
-
-			const request = getRequest()
-			const { client, responseCookies, responseHeaders } =
-				createSupabaseServerClient({
-					request,
-					...config,
-				})
-			const {
-				data: { user },
-			} = await getSupabaseServerUser({
-				client,
-				cookieDomain: config.cookieDomain,
-				cookieName: config.cookieName,
-				request,
-				responseHeaders: getResponse().headers,
-			})
-			appendSetCookieHeaders(
-				getResponse().headers,
-				responseCookies.values(),
-				responseHeaders.entries(),
-			)
-			if (!user || user.id !== session.user.id) {
+			const auth = await getVerifiedPortalAuthContext(session.user.id)
+			if (!auth) {
 				return { error: 'not_authenticated', success: false }
 			}
 
@@ -278,17 +269,13 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 					},
 				)
 				if (clearError) return { error: 'update_failed', success: false }
-				const { error: refreshError } = await client.auth.refreshSession()
-				appendSetCookieHeaders(
-					getResponse().headers,
-					responseCookies.values(),
-					responseHeaders.entries(),
-				)
+				const { error: refreshError } = await auth.client.auth.refreshSession()
+				appendPortalAuthCookies(auth)
 				if (refreshError) return { error: 'not_authenticated', success: false }
 			}
 
-			const emailRedirectTo = loginRedirectUrl(request)
-			const { error: firstUpdateError } = await client.auth.updateUser(
+			const emailRedirectTo = loginRedirectUrl(auth.request)
+			const { error: firstUpdateError } = await auth.client.auth.updateUser(
 				{
 					...(emailChanged ? { email: nextEmail } : {}),
 					...(wantsPasswordChange ? { password: input.newPassword } : {}),
@@ -300,17 +287,13 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 				wantsPasswordChange &&
 				isSamePasswordError(firstUpdateError)
 					? (
-							await client.auth.updateUser(
+							await auth.client.auth.updateUser(
 								{ email: nextEmail },
 								{ emailRedirectTo },
 							)
 						).error
 					: firstUpdateError
-			appendSetCookieHeaders(
-				getResponse().headers,
-				responseCookies.values(),
-				responseHeaders.entries(),
-			)
+			appendPortalAuthCookies(auth)
 			if (updateError) {
 				return {
 					error: isSamePasswordError(updateError)

@@ -1,14 +1,11 @@
-import {
-	appendSetCookieHeaders,
-	createActorServiceRoleClient,
-	createSupabaseServerClient,
-	createSupabaseServiceRoleClient,
-	getSupabaseServerUser,
-	resolveSupabaseRuntimeConfig,
-} from '@hyperquote/auth/server'
-import { createServerFn, createServerOnlyFn } from '@tanstack/react-start'
-import { getRequest, getResponse } from '@tanstack/react-start/server'
+import { createSupabaseServiceRoleClient } from '@hyperquote/auth/server'
+import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
+import {
+	appendWebsiteAuthCookies,
+	getAuthenticatedWebsiteCustomer,
+	type WebsiteCustomerSupabaseClient,
+} from './customer-auth-context'
 import { logWebsiteServerError } from './server-log'
 
 const UUID_RE =
@@ -210,62 +207,6 @@ function mapSavedDraftRow(
 	}
 }
 
-const getAuthenticatedClient = createServerOnlyFn(async () => {
-	const config = await resolveSupabaseRuntimeConfig(process.env)
-	if (!config) return { error: 'not_configured' as const }
-
-	const request = getRequest()
-	const { client, responseCookies, responseHeaders } =
-		createSupabaseServerClient({
-			request,
-			...config,
-		})
-
-	const {
-		data: { user },
-	} = await getSupabaseServerUser({
-		client,
-		cookieDomain: config.cookieDomain,
-		cookieName: config.cookieName,
-		request,
-		responseHeaders: getResponse().headers,
-	})
-
-	if (!user) return { error: 'not_authenticated' as const }
-
-	const service = await createSupabaseServiceRoleClient(process.env)
-	if (!service) return { error: 'not_configured' as const }
-	const dataClient = createActorServiceRoleClient({
-		actorPool: 'external',
-		actorUserId: user.id,
-		client: service,
-	})
-
-	const { data: customer, error } = await dataClient
-		.from('customers')
-		.select('id')
-		.eq('user_id', user.id)
-		.maybeSingle()
-
-	if (error) throw error
-	if (!customer) return { error: 'customer_required' as const }
-
-	return {
-		client: dataClient,
-		customerId: customer.id,
-		responseCookies,
-		responseHeaders,
-		user,
-	}
-})
-
-type AuthenticatedClient = Exclude<
-	Awaited<ReturnType<typeof getAuthenticatedClient>>,
-	{ error: unknown }
->
-
-type WebsiteSupabaseClient = AuthenticatedClient['client']
-
 function validProductId(productId: string | undefined): string | null {
 	return productId && UUID_RE.test(productId) ? productId : null
 }
@@ -292,7 +233,7 @@ function quoteRequestItemRows(
 }
 
 async function replaceQuoteRequestItems(
-	client: WebsiteSupabaseClient,
+	client: WebsiteCustomerSupabaseClient,
 	quoteRequestId: string,
 	items: QuoteRequestItemInput[],
 ) {
@@ -307,7 +248,7 @@ async function replaceQuoteRequestItems(
 }
 
 async function insertQuoteRequestItems(
-	client: WebsiteSupabaseClient,
+	client: WebsiteCustomerSupabaseClient,
 	quoteRequestId: string,
 	items: QuoteRequestItemInput[],
 ) {
@@ -318,14 +259,6 @@ async function insertQuoteRequestItems(
 
 	if (error) throw error
 }
-
-const appendAuthCookies = createServerOnlyFn((auth: AuthenticatedClient) => {
-	appendSetCookieHeaders(
-		getResponse().headers,
-		auth.responseCookies.values(),
-		auth.responseHeaders.entries(),
-	)
-})
 
 export const getWebsiteSavedQuoteDrafts = createServerFn({
 	method: 'GET',
@@ -342,7 +275,7 @@ export const getWebsiteSavedQuoteDrafts = createServerFn({
 		  }
 	> => {
 		try {
-			const auth = await getAuthenticatedClient()
+			const auth = await getAuthenticatedWebsiteCustomer()
 			if ('error' in auth) {
 				return { success: false, error: auth.error ?? 'load_failed' }
 			}
@@ -385,7 +318,7 @@ export const getWebsiteSavedQuoteDrafts = createServerFn({
 			if (error) throw error
 
 			const rows = savedDraftRow.array().parse(data ?? [])
-			await appendAuthCookies(auth)
+			await appendWebsiteAuthCookies(auth)
 
 			return {
 				success: true,
@@ -402,7 +335,7 @@ export const getWebsiteSavedQuoteDrafts = createServerFn({
 )
 
 async function assertQuoteRequestItemsOrderable(
-	client: WebsiteSupabaseClient,
+	client: WebsiteCustomerSupabaseClient,
 	items: z.infer<typeof quoteRequestItemInput>[],
 ) {
 	const textOnlyItems = items.flatMap((item) =>
@@ -482,7 +415,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 			  }
 		> => {
 			try {
-				const auth = await getAuthenticatedClient()
+				const auth = await getAuthenticatedWebsiteCustomer()
 				if ('error' in auth) {
 					return { success: false, error: auth.error ?? 'submit_failed' }
 				}
@@ -508,7 +441,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 						if (submitError) throw submitError
 					}
 
-					await appendAuthCookies(auth)
+					await appendWebsiteAuthCookies(auth)
 					return {
 						success: true,
 						requestId: existing.data.id,
@@ -569,7 +502,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 
 					if (submitError) throw submitError
 
-					await appendAuthCookies(auth)
+					await appendWebsiteAuthCookies(auth)
 
 					return {
 						success: true,
@@ -609,7 +542,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 
 				if (submitError) throw submitError
 
-				await appendAuthCookies(auth)
+				await appendWebsiteAuthCookies(auth)
 
 				return {
 					success: true,
@@ -653,7 +586,7 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 			  }
 		> => {
 			try {
-				const auth = await getAuthenticatedClient()
+				const auth = await getAuthenticatedWebsiteCustomer()
 				if ('error' in auth) {
 					return { success: false, error: auth.error ?? 'save_failed' }
 				}
@@ -701,7 +634,7 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 						)
 					}
 
-					await appendAuthCookies(auth)
+					await appendWebsiteAuthCookies(auth)
 
 					return {
 						success: true,
@@ -749,7 +682,7 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 					)
 				}
 
-				await appendAuthCookies(auth)
+				await appendWebsiteAuthCookies(auth)
 
 				return {
 					success: true,

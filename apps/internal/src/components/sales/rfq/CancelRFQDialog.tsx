@@ -10,6 +10,11 @@ import {
 	DispatchInputClass,
 } from '../../shared/DispatchDialog'
 import { ProofUploadField } from '../../shared/ProofUploadField'
+import {
+	invalidateRfqDecisionQueries,
+	RfqDecisionError,
+	RfqDecisionSummary,
+} from './rfqDialogHelpers'
 
 interface CancelRFQDialogProps {
 	rfqId: string
@@ -49,9 +54,7 @@ export function CancelRFQDialog({
 			})
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['rfq-queue'] })
-			queryClient.invalidateQueries({ queryKey: ['sales-rfq-list'] })
-			queryClient.invalidateQueries({ queryKey: ['rfq-detail', rfqId] })
+			invalidateRfqDecisionQueries(queryClient, rfqId)
 			reset()
 			onClose()
 			onCanceled?.()
@@ -125,39 +128,14 @@ export function CancelRFQDialog({
 						/>
 					</div>
 				) : (
-					<div className="space-y-3 font-[family-name:var(--font-archivo)] text-[13.5px] text-[var(--color-text-muted)]">
-						<p>
-							<span className="mb-0.5 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
-								Reason
-							</span>
-							<span className="font-medium text-[var(--color-text)]">
-								{reason.trim()}
-							</span>
-						</p>
-						{note.trim() && (
-							<p>
-								<span className="mb-0.5 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
-									Note
-								</span>
-								<span className="italic">{note.trim()}</span>
-							</p>
-						)}
-						<p>
-							<span className="mb-0.5 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
-								Proof
-							</span>
-							<span className="font-medium text-[var(--color-text)]">
-								{proofDocument?.fileName ?? 'Missing proof'}
-							</span>
-						</p>
-					</div>
+					<RfqDecisionSummary
+						reason={reason.trim()}
+						note={note}
+						proofFileName={proofDocument?.fileName}
+					/>
 				)}
 				{mutation.isError && (
-					<p className="mt-4 rounded-md border border-[#B3261E]/30 bg-[#B3261E]/10 px-3 py-2 font-[family-name:var(--font-archivo)] text-[12px] text-[#B3261E]">
-						{mutation.error instanceof Error
-							? mutation.error.message
-							: 'Cancel failed.'}
-					</p>
+					<RfqDecisionError error={mutation.error} fallback="Cancel failed." />
 				)}
 			</DispatchBody>
 

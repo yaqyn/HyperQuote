@@ -20,7 +20,11 @@ import {
 import { CustomerSubrecords } from '../CustomerSubrecords'
 import { Field, Section } from '../EntityEditor'
 import type { ColumnDef } from '../EntityIndex'
-import { useVolumeEditor, VolumeWorkspace } from './volumeEditor'
+import {
+	confirmAdminDelete,
+	useVolumeEditor,
+	VolumeWorkspace,
+} from './volumeEditor'
 
 type CustomerDraft = Omit<CustomerRow, 'id' | 'joinedAt'> & {
 	id?: string
@@ -143,11 +147,7 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 
 	function handleDelete() {
 		if (!draft?.id) return
-		if (
-			typeof window !== 'undefined' &&
-			!window.confirm(t('actions.confirmDelete'))
-		)
-			return
+		if (!confirmAdminDelete(t('actions.confirmDelete'))) return
 		deleteMutation.mutate(draft.id)
 	}
 

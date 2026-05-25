@@ -1,6 +1,8 @@
 import { Package } from 'lucide-react'
 import { useState } from 'react'
-import { TextControl } from '../AdminControls'
+import { Toggle } from '../../ui/Toggle'
+import { StatusTag, TextControl } from '../AdminControls'
+import { Field } from '../EntityEditor'
 
 export function CatalogPictureField({
 	value,
@@ -89,5 +91,40 @@ export function CatalogThumbnail({
 			onError={() => setFailed(true)}
 			className="h-7 w-7 rounded-sm border border-[var(--color-border)] object-cover"
 		/>
+	)
+}
+
+export function CatalogVisibilityField({
+	label,
+	visibleLabel,
+	hiddenLabel,
+	isVisible,
+	onChange,
+	readOnly,
+}: {
+	label: string
+	visibleLabel: string
+	hiddenLabel: string
+	isVisible: boolean
+	onChange: (checked: boolean) => void
+	readOnly: boolean
+}) {
+	const displayLabel = isVisible ? visibleLabel : hiddenLabel
+	return (
+		<Field label={label}>
+			{readOnly ? (
+				<StatusTag
+					label={displayLabel}
+					tone={isVisible ? 'primary' : 'muted'}
+				/>
+			) : (
+				<Toggle
+					isSelected={isVisible}
+					onChange={onChange}
+					label={displayLabel}
+					aria-label={label}
+				/>
+			)}
+		</Field>
 	)
 }

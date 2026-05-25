@@ -1,12 +1,4 @@
 import {
-	appendSetCookieHeaders,
-	createActorServiceRoleClient,
-	createSupabaseServerClient,
-	createSupabaseServiceRoleClient,
-	getSupabaseServerUser,
-	resolveSupabaseRuntimeConfig,
-} from '@hyperquote/auth/server'
-import {
 	type CustomerQuoteCartProductRow,
 	type CustomerQuoteCartRow,
 	type CustomerQuoteCartStore,
@@ -15,72 +7,13 @@ import {
 	type RemoteQuoteCartSnapshot,
 	saveSyncedCustomerQuoteCart,
 } from '@hyperquote/quote-cart/server'
-import { createServerFn, createServerOnlyFn } from '@tanstack/react-start'
-import { getRequest, getResponse } from '@tanstack/react-start/server'
+import { createServerFn } from '@tanstack/react-start'
+import {
+	appendWebsiteAuthCookies,
+	getAuthenticatedWebsiteCustomer,
+	type WebsiteCustomerSupabaseClient,
+} from './customer-auth-context'
 import { logWebsiteServerError } from './server-log'
-
-const getAuthenticatedClient = createServerOnlyFn(async () => {
-	const config = await resolveSupabaseRuntimeConfig(process.env)
-	if (!config) return { error: 'not_configured' as const }
-
-	const request = getRequest()
-	const { client, responseCookies, responseHeaders } =
-		createSupabaseServerClient({
-			request,
-			...config,
-		})
-
-	const {
-		data: { user },
-	} = await getSupabaseServerUser({
-		client,
-		cookieDomain: config.cookieDomain,
-		cookieName: config.cookieName,
-		request,
-		responseHeaders: getResponse().headers,
-	})
-
-	if (!user) return { error: 'not_authenticated' as const }
-
-	const service = await createSupabaseServiceRoleClient(process.env)
-	if (!service) return { error: 'not_configured' as const }
-	const dataClient = createActorServiceRoleClient({
-		actorPool: 'external',
-		actorUserId: user.id,
-		client: service,
-	})
-
-	const { data: customer, error } = await dataClient
-		.from('customers')
-		.select('id')
-		.eq('user_id', user.id)
-		.maybeSingle()
-
-	if (error) throw error
-	if (!customer) return { error: 'customer_required' as const }
-
-	return {
-		client: dataClient,
-		customerId: customer.id,
-		responseCookies,
-		responseHeaders,
-		user,
-	}
-})
-
-type AuthenticatedClient = Exclude<
-	Awaited<ReturnType<typeof getAuthenticatedClient>>,
-	{ error: unknown }
->
-type WebsiteSupabaseClient = AuthenticatedClient['client']
-
-const appendAuthCookies = createServerOnlyFn((auth: AuthenticatedClient) => {
-	appendSetCookieHeaders(
-		getResponse().headers,
-		auth.responseCookies.values(),
-		auth.responseHeaders.entries(),
-	)
-})
 
 export const getWebsiteQuoteCart = createServerFn({ method: 'GET' }).handler(
 	async (): Promise<
@@ -95,7 +28,7 @@ export const getWebsiteQuoteCart = createServerFn({ method: 'GET' }).handler(
 		  }
 	> => {
 		try {
-			const auth = await getAuthenticatedClient()
+			const auth = await getAuthenticatedWebsiteCustomer()
 			if ('error' in auth) {
 				return { success: false, error: auth.error ?? 'load_failed' }
 			}
@@ -104,7 +37,7 @@ export const getWebsiteQuoteCart = createServerFn({ method: 'GET' }).handler(
 				source: 'website',
 				store: createQuoteCartStore(auth.client),
 			})
-			await appendAuthCookies(auth)
+			await appendWebsiteAuthCookies(auth)
 			return { success: true, cart }
 		} catch (error) {
 			logWebsiteServerError(
@@ -133,7 +66,7 @@ export const saveWebsiteQuoteCart = createServerFn({ method: 'POST' })
 			  }
 		> => {
 			try {
-				const auth = await getAuthenticatedClient()
+				const auth = await getAuthenticatedWebsiteCustomer()
 				if ('error' in auth) {
 					return { success: false, error: auth.error ?? 'save_failed' }
 				}
@@ -142,7 +75,7 @@ export const saveWebsiteQuoteCart = createServerFn({ method: 'POST' })
 					input,
 					store: createQuoteCartStore(auth.client),
 				})
-				await appendAuthCookies(auth)
+				await appendWebsiteAuthCookies(auth)
 				return { success: true, cart }
 			} catch (error) {
 				logWebsiteServerError(
@@ -155,7 +88,7 @@ export const saveWebsiteQuoteCart = createServerFn({ method: 'POST' })
 	)
 
 function createQuoteCartStore(
-	client: WebsiteSupabaseClient,
+	client: WebsiteCustomerSupabaseClient,
 ): CustomerQuoteCartStore {
 	// Supabase keeps the app-specific generated table type here; the shared
 	// cart helper owns this narrower projected row contract.

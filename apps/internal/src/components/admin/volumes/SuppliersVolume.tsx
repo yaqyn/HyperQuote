@@ -22,7 +22,11 @@ import {
 	useSupplierSpecialtyCount,
 } from '../SupplierItems'
 import { useAdminExport } from './useAdminExport'
-import { useVolumeEditor, VolumeWorkspace } from './volumeEditor'
+import {
+	promptAdminDeleteReason,
+	useVolumeEditor,
+	VolumeWorkspace,
+} from './volumeEditor'
 
 type SupplierDraft = Omit<SupplierRow, 'id' | 'joinedAt'> & {
 	id?: string
@@ -123,19 +127,14 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 
 	function handleDelete() {
 		if (!draft?.id) return
-		if (
-			typeof window !== 'undefined' &&
-			!window.confirm(t('actions.confirmDelete'))
-		)
-			return
-		const reason =
-			typeof window === 'undefined'
-				? null
-				: window.prompt('Reason for deactivating this supplier')
-		if (!reason || reason.trim().length < 8) return
+		const reason = promptAdminDeleteReason({
+			confirmMessage: t('actions.confirmDelete'),
+			promptMessage: 'Reason for deactivating this supplier',
+		})
+		if (!reason) return
 		deleteMutation.mutate({
 			id: draft.id,
-			reason: reason.trim(),
+			reason,
 		})
 	}
 

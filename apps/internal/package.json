@@ -14,6 +14,7 @@
 	"dependencies": {
 		"@hyperquote/ai": "workspace:*",
 		"@hyperquote/auth": "workspace:*",
+		"@hyperquote/runtime": "workspace:*",
 		"@hyperquote/types": "workspace:*",
 		"@hyperquote/ui": "workspace:*",
 		"@internationalized/date": "^3.12.1",

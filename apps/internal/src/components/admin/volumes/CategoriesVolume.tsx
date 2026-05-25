@@ -9,13 +9,20 @@ import {
 	adminUpdateCategory,
 } from '../../../lib/server/admin'
 import { getVolume } from '../../../types/admin'
-import { Toggle } from '../../ui/Toggle'
 import { StatusTag, TextAreaControl, TextControl } from '../AdminControls'
 import { Field, Section } from '../EntityEditor'
 import type { ColumnDef } from '../EntityIndex'
-import { CatalogPictureField, CatalogThumbnail } from './CatalogImageControls'
+import {
+	CatalogPictureField,
+	CatalogThumbnail,
+	CatalogVisibilityField,
+} from './CatalogImageControls'
 import { useAdminExport } from './useAdminExport'
-import { useVolumeEditor, VolumeWorkspace } from './volumeEditor'
+import {
+	promptAdminDeleteReason,
+	useVolumeEditor,
+	VolumeWorkspace,
+} from './volumeEditor'
 
 type CategoryDraft = AdminCategoryPayload & { id?: string }
 
@@ -131,17 +138,12 @@ export function CategoriesVolume({ onOpenVolumes }: CategoriesVolumeProps) {
 
 	function handleDelete() {
 		if (!draft?.id) return
-		if (
-			typeof window !== 'undefined' &&
-			!window.confirm(t('actions.confirmDelete'))
-		)
-			return
-		const reason =
-			typeof window === 'undefined'
-				? null
-				: window.prompt('Reason for deactivating this category')
-		if (!reason || reason.trim().length < 8) return
-		deleteMutation.mutate({ id: draft.id, reason: reason.trim() })
+		const reason = promptAdminDeleteReason({
+			confirmMessage: t('actions.confirmDelete'),
+			promptMessage: 'Reason for deactivating this category',
+		})
+		if (!reason) return
+		deleteMutation.mutate({ id: draft.id, reason })
 	}
 
 	const columns: ColumnDef<AdminCategoryRow>[] = [
@@ -252,31 +254,14 @@ export function CategoriesVolume({ onOpenVolumes }: CategoriesVolumeProps) {
 					</Field>
 
 					<Section title={t('editor.section.commercial')} />
-					<Field label={t('editor.fields.availabilityStatus')}>
-						{readOnly ? (
-							<StatusTag
-								label={
-									draft.isActive
-										? t('editor.values.visible')
-										: t('editor.values.hidden')
-								}
-								tone={draft.isActive ? 'primary' : 'muted'}
-							/>
-						) : (
-							<Toggle
-								isSelected={draft.isActive}
-								onChange={(checked) =>
-									setDraft({ ...draft, isActive: checked })
-								}
-								label={
-									draft.isActive
-										? t('editor.values.visible')
-										: t('editor.values.hidden')
-								}
-								aria-label={t('editor.fields.availabilityStatus')}
-							/>
-						)}
-					</Field>
+					<CatalogVisibilityField
+						label={t('editor.fields.availabilityStatus')}
+						visibleLabel={t('editor.values.visible')}
+						hiddenLabel={t('editor.values.hidden')}
+						isVisible={draft.isActive}
+						onChange={(checked) => setDraft({ ...draft, isActive: checked })}
+						readOnly={readOnly}
+					/>
 
 					<Field label={t('editor.fields.description')} required>
 						<TextAreaControl

@@ -1,3 +1,4 @@
+import { decodeBase64Payload, sanitizeFileName } from '@hyperquote/runtime/file'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { getInternalSupabaseClient } from './_supabase'
@@ -153,26 +154,6 @@ function proofReferenceFileName(value: string): string {
 	return normalized.split('/').filter(Boolean).pop() ?? normalized
 }
 
-function sanitizeFileName(value: string): string {
-	const sanitized = value
-		.normalize('NFKD')
-		.replace(/[^\w.-]+/g, '-')
-		.replace(/-+/g, '-')
-		.replace(/^-|-$/g, '')
-		.slice(0, 120)
-	return sanitized || 'proof'
-}
-
-function decodeBase64(value: string): Uint8Array {
-	const base64 = value.includes(',') ? value.split(',').pop() || '' : value
-	const binary = atob(base64)
-	const bytes = new Uint8Array(binary.length)
-	for (let index = 0; index < binary.length; index += 1) {
-		bytes[index] = binary.charCodeAt(index)
-	}
-	return bytes
-}
-
 function proofStoragePath({
 	fileName,
 	panel,
@@ -191,7 +172,7 @@ function proofStoragePath({
 		proofType,
 		String(year),
 		month,
-		`${crypto.randomUUID()}-${sanitizeFileName(fileName)}`,
+		`${crypto.randomUUID()}-${sanitizeFileName(fileName, 'proof')}`,
 	].join('/')
 }
 
@@ -200,7 +181,7 @@ export const uploadProofDocument = createServerFn({ method: 'POST' })
 	.handler(async ({ data: input }): Promise<UploadedProofDocument> => {
 		assertAllowedProofMimeType(input.mimeType)
 
-		const bytes = decodeBase64(input.base64)
+		const bytes = decodeBase64Payload(input.base64)
 		if (bytes.byteLength !== input.sizeBytes) {
 			throw new Error('Proof file size mismatch')
 		}

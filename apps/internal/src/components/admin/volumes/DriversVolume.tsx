@@ -11,7 +11,11 @@ import { getVolume } from '../../../types/admin'
 import { SelectControl, StatusTag, TextControl } from '../AdminControls'
 import { Field, Section } from '../EntityEditor'
 import type { ColumnDef } from '../EntityIndex'
-import { useVolumeEditor, VolumeWorkspace } from './volumeEditor'
+import {
+	promptAdminDeleteReason,
+	useVolumeEditor,
+	VolumeWorkspace,
+} from './volumeEditor'
 
 type DriverDraft = Omit<DriverRow, 'id' | 'createdAt'> & {
 	id?: string
@@ -123,17 +127,12 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 
 	function handleDelete() {
 		if (!draft?.id) return
-		if (
-			typeof window !== 'undefined' &&
-			!window.confirm(t('actions.confirmDelete'))
-		)
-			return
-		const reason =
-			typeof window === 'undefined'
-				? null
-				: window.prompt('Reason for disabling this driver')
-		if (!reason || reason.trim().length < 8) return
-		deleteMutation.mutate({ id: draft.id, reason: reason.trim() })
+		const reason = promptAdminDeleteReason({
+			confirmMessage: t('actions.confirmDelete'),
+			promptMessage: 'Reason for disabling this driver',
+		})
+		if (!reason) return
+		deleteMutation.mutate({ id: draft.id, reason })
 	}
 
 	const statusOptions: Array<{ value: DriverRow['status']; label: string }> = [

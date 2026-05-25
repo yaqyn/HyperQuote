@@ -15,6 +15,11 @@ import {
 	DispatchInputClass,
 } from '../../shared/DispatchDialog'
 import { ProofUploadField } from '../../shared/ProofUploadField'
+import {
+	invalidateRfqDecisionQueries,
+	RfqDecisionError,
+	RfqDecisionSummary,
+} from './rfqDialogHelpers'
 
 type DeclineReason =
 	| 'outside_service_area'
@@ -64,9 +69,7 @@ export function DeclineRFQDialog({
 			})
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['rfq-queue'] })
-			queryClient.invalidateQueries({ queryKey: ['sales-rfq-list'] })
-			queryClient.invalidateQueries({ queryKey: ['rfq-detail', rfqId] })
+			invalidateRfqDecisionQueries(queryClient, rfqId)
 			reset()
 			onClose()
 			onDeclined?.()
@@ -87,6 +90,8 @@ export function DeclineRFQDialog({
 	}
 
 	const eyebrow = `RFQ · ${rfqId.toUpperCase()}`
+	const selectedReasonLabel =
+		DECLINE_REASONS.find((r) => r.value === reason)?.label ?? 'Missing reason'
 
 	return (
 		<DispatchDialog
@@ -175,39 +180,14 @@ export function DeclineRFQDialog({
 						/>
 					</div>
 				) : (
-					<div className="space-y-3 font-[family-name:var(--font-archivo)] text-[13.5px] text-[var(--color-text-muted)]">
-						<p>
-							<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-subtle)] block mb-0.5">
-								Reason
-							</span>
-							<span className="text-[var(--color-text)] font-medium">
-								{DECLINE_REASONS.find((r) => r.value === reason)?.label}
-							</span>
-						</p>
-						{note.trim() && (
-							<p>
-								<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-subtle)] block mb-0.5">
-									Note
-								</span>
-								<span className="italic">{note.trim()}</span>
-							</p>
-						)}
-						<p>
-							<span className="mb-0.5 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-subtle)]">
-								Proof
-							</span>
-							<span className="font-medium text-[var(--color-text)]">
-								{proofDocument?.fileName ?? 'Missing proof'}
-							</span>
-						</p>
-					</div>
+					<RfqDecisionSummary
+						reason={selectedReasonLabel}
+						note={note}
+						proofFileName={proofDocument?.fileName}
+					/>
 				)}
 				{mutation.isError && (
-					<p className="mt-4 rounded-md border border-[#B3261E]/30 bg-[#B3261E]/10 px-3 py-2 font-[family-name:var(--font-archivo)] text-[12px] text-[#B3261E]">
-						{mutation.error instanceof Error
-							? mutation.error.message
-							: 'Decline failed.'}
-					</p>
+					<RfqDecisionError error={mutation.error} fallback="Decline failed." />
 				)}
 			</DispatchBody>
 
