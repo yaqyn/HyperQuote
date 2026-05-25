@@ -129,7 +129,7 @@ describe('ResponseComposer email replies', () => {
 			findButtonByText(container, 'Reply').click()
 		})
 		await act(async () => {
-			findButtonByText(container, 'Reply').click()
+			findButtonByText(container, 'Send').click()
 			await Promise.resolve()
 		})
 

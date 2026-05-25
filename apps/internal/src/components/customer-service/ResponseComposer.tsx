@@ -162,9 +162,10 @@ export function ResponseComposer({
 								void handleSend()
 							}}
 							disabled={isSending}
+							aria-label={t('email.send')}
 							className="min-h-8 rounded-md bg-[var(--color-primary)] px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700 disabled:bg-[var(--color-primary)]/35"
 						>
-							{t('email.reply')}
+							{t('email.send')}
 						</button>
 					</div>
 				</div>
@@ -244,16 +245,24 @@ export function ResponseComposer({
 						<EmployeeActionButton
 							onClick={handleReplyClick}
 							disabled={!hasContent || isSending}
-							aria-label={isEmail ? t('email.reply') : t('composer.send')}
+							aria-label={
+								isEmail && isConfirming
+									? t('email.send')
+									: isEmail
+										? t('email.reply')
+										: t('composer.send')
+							}
 							tone="primary"
 							leading={<Send size={14} strokeWidth={2.2} />}
 							fullWidthOnMobile
 						>
 							{isSending
 								? 'Sending reply'
-								: isEmail
-									? t('email.reply')
-									: 'Send reply'}
+								: isEmail && isConfirming
+									? t('email.send')
+									: isEmail
+										? t('email.reply')
+										: 'Send reply'}
 						</EmployeeActionButton>
 					</div>
 				</div>
