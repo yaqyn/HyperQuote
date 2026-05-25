@@ -342,6 +342,7 @@ export async function createAuthenticatedCustomerProfile({
 	user: {
 		id: string
 		email?: string | null
+		email_confirmed_at?: string | null
 		phone?: string | null
 		app_metadata?: unknown
 	}
@@ -379,6 +380,8 @@ export async function createAuthenticatedCustomerProfile({
 		? normalizedEmail(emailCredentials.email)
 		: ''
 	const requestedPassword = emailCredentials?.password ?? ''
+	const confirmedEmail =
+		user.email_confirmed_at && user.email ? normalizedEmail(user.email) : null
 	if (requestedEmail || requestedPassword) {
 		if (!requestedEmail || !requestedPassword) {
 			return { success: false, error: 'email_setup_failed' }
@@ -401,7 +404,7 @@ export async function createAuthenticatedCustomerProfile({
 	const { customerId, error } = await createCustomerProfile({
 		client: dataClient,
 		phone: formattedPhone,
-		email: requestedEmail || user.email || null,
+		email: confirmedEmail,
 		companyName,
 		fullName,
 		userId: user.id,

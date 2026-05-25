@@ -326,11 +326,6 @@ function ProfilePage() {
 
 	function handleForgotPassword() {
 		if (!profile || authEmailActionMutation.isPending) return
-		if (profile.pendingEmail) {
-			setEmailMessage(null)
-			authEmailActionMutation.mutate({ kind: 'pending_confirmation' })
-			return
-		}
 		const resetEmail = confirmedPasswordResetEmail(profile)
 		if (!resetEmail) {
 			setEmailMessage({
@@ -344,6 +339,12 @@ function ProfilePage() {
 			email: resetEmail,
 			kind: 'password_reset',
 		})
+	}
+
+	function handleResendPendingEmailConfirmation() {
+		if (!profile?.pendingEmail || authEmailActionMutation.isPending) return
+		setEmailMessage(null)
+		authEmailActionMutation.mutate({ kind: 'pending_confirmation' })
 	}
 
 	function handleRequestPhoneChange() {
@@ -503,6 +504,7 @@ function ProfilePage() {
 						setEmailMessage(null)
 					}}
 					onForgotPassword={handleForgotPassword}
+					onResendPendingEmail={handleResendPendingEmailConfirmation}
 					onRequest={handleEmailChange}
 				/>
 
@@ -599,6 +601,7 @@ function EmailChangePanel({
 	onNewPasswordChange,
 	onNewPasswordConfirmationChange,
 	onForgotPassword,
+	onResendPendingEmail,
 	onRequest,
 }: {
 	profile: CustomerProfile
@@ -614,12 +617,10 @@ function EmailChangePanel({
 	onNewPasswordChange: (value: string) => void
 	onNewPasswordConfirmationChange: (value: string) => void
 	onForgotPassword: () => void
+	onResendPendingEmail: () => void
 	onRequest: () => void
 }) {
 	const { t } = useTranslation('portal')
-	const authEmailActionLabel = profile.pendingEmail
-		? t('profilePage.resendEmailConfirmation')
-		: t('login.forgotPassword')
 	return (
 		<section className="mt-8 border-t border-[var(--p-border)] pt-6">
 			<div className="mb-4 flex items-start gap-3">
@@ -637,12 +638,24 @@ function EmailChangePanel({
 						{t('profilePage.emailAuthNotice')}
 					</p>
 					{profile.pendingEmail ? (
-						<p className="mt-2 flex items-center gap-2 text-[12px] text-[var(--p-text-muted)]">
-							<Clock size={14} strokeWidth={1.7} />
-							{t('profilePage.pendingEmail', {
-								email: profile.pendingEmail,
-							})}
-						</p>
+						<div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[var(--p-text-muted)]">
+							<span className="inline-flex items-center gap-2">
+								<Clock size={14} strokeWidth={1.7} />
+								{t('profilePage.pendingEmail', {
+									email: profile.pendingEmail,
+								})}
+							</span>
+							<button
+								type="button"
+								onClick={onResendPendingEmail}
+								disabled={isPending || isSendingAuthEmail}
+								className="font-semibold text-[var(--p-accent)] transition-colors hover:text-[var(--p-text)] disabled:pointer-events-none disabled:opacity-50"
+							>
+								{isSendingAuthEmail
+									? t('profilePage.sendingAuthEmail')
+									: t('profilePage.resendEmailConfirmation')}
+							</button>
+						</div>
 					) : null}
 				</div>
 			</div>
@@ -668,7 +681,7 @@ function EmailChangePanel({
 								>
 									{isSendingAuthEmail
 										? t('profilePage.sendingAuthEmail')
-										: authEmailActionLabel}
+										: t('login.forgotPassword')}
 								</button>
 							}
 							value={currentPasswordDraft}
@@ -726,17 +739,17 @@ function EmailChangePanel({
 
 function AuthBadge({ profile }: { profile: CustomerProfile }) {
 	const { t } = useTranslation('portal')
-	const label = profile.pendingEmail
-		? t('profilePage.emailPending')
-		: profile.emailConfirmed
-			? t('profilePage.emailConfirmed')
+	const label = profile.emailConfirmed
+		? t('profilePage.emailConfirmed')
+		: profile.pendingEmail
+			? t('profilePage.emailPending')
 			: t('profilePage.emailUnconfirmed')
 	return (
 		<span className="inline-flex min-h-6 items-center gap-1.5 rounded-full border border-[var(--p-border)] px-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--p-text-muted)]">
-			{profile.pendingEmail ? (
-				<Clock size={12} strokeWidth={1.8} />
-			) : profile.emailConfirmed ? (
+			{profile.emailConfirmed ? (
 				<ShieldCheck size={12} strokeWidth={1.8} />
+			) : profile.pendingEmail ? (
+				<Clock size={12} strokeWidth={1.8} />
 			) : (
 				<Mail size={12} strokeWidth={1.8} />
 			)}
@@ -1037,7 +1050,7 @@ function authUpdateSuccessLabel(
 function hasEmailDraftChange(profile: CustomerProfile, emailDraft: string) {
 	const currentEmail = profile.emailConfirmed
 		? profile.authEmail || profile.email || ''
-		: profile.pendingEmail || ''
+		: ''
 	return (
 		normalizedProfileEmail(emailDraft) !== normalizedProfileEmail(currentEmail)
 	)

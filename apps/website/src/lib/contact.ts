@@ -79,8 +79,9 @@ export const getContactFormDefaults = createServerFn({ method: 'GET' }).handler(
 			return emptyDefaults
 		}
 
+		const confirmedAuthEmail = user.email_confirmed_at ? (user.email ?? '') : ''
 		return {
-			email: data.email ?? (user.email_confirmed_at ? (user.email ?? '') : ''),
+			email: confirmedAuthEmail,
 			name: data.contact_name ?? '',
 			phone: data.phone ?? '',
 		}

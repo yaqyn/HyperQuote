@@ -57,6 +57,11 @@ export const getCustomerProfile = createServerFn().handler(
 		const authEmail = session.user.email
 		const emailConfirmed = Boolean(session.user.email_confirmed_at)
 		const confirmedAuthEmail = emailConfirmed ? authEmail : undefined
+		const pendingEmail =
+			typeof session.user.new_email === 'string' &&
+			session.user.new_email.trim()
+				? session.user.new_email.trim()
+				: undefined
 		const hasPassword = await readCustomerAuthHasPassword(session.user.id)
 		if (
 			confirmedAuthEmail &&
@@ -69,16 +74,16 @@ export const getCustomerProfile = createServerFn().handler(
 		}
 
 		return {
-			authEmail,
+			authEmail: confirmedAuthEmail,
 			id: data.id,
 			companyName: data.company_name,
 			contactName: data.contact_name,
 			phone: data.phone,
-			email: confirmedAuthEmail ?? data.email,
+			email: confirmedAuthEmail,
 			emailChangeSentAt: session.user.email_change_sent_at,
 			emailConfirmed,
 			hasPassword,
-			pendingEmail: session.user.new_email,
+			pendingEmail,
 			phoneConfirmed: Boolean(session.user.phone_confirmed_at),
 			status: data.status,
 			tier: data.tier,
@@ -191,17 +196,16 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 		}> => {
 			const nextEmail = normalizedEmail(input.email)
 			const { session } = await getAuthenticatedPortalCustomer()
-			const currentEmail = session.user.email
-				? normalizedEmail(session.user.email)
-				: ''
+			const activeEmail =
+				session.user.email_confirmed_at && session.user.email
+					? normalizedEmail(session.user.email)
+					: ''
 			const pendingEmail =
 				typeof session.user.new_email === 'string'
 					? normalizedEmail(session.user.new_email)
 					: ''
 			const hasPassword = await readCustomerAuthHasPassword(session.user.id)
-			const emailChanged = session.user.email_confirmed_at
-				? currentEmail !== nextEmail
-				: pendingEmail !== nextEmail
+			const emailChanged = activeEmail !== nextEmail
 			const wantsPasswordChange = Boolean(
 				input.newPassword || input.newPasswordConfirmation,
 			)

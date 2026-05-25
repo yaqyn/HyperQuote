@@ -264,11 +264,6 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 
 	function handleForgotPassword() {
 		if (authEmailActionMutation.isPending) return
-		if (profile.pendingEmail) {
-			setEmailMessage(null)
-			authEmailActionMutation.mutate({ kind: 'pending_confirmation' })
-			return
-		}
 		const resetEmail = confirmedPasswordResetEmail(profile)
 		if (!resetEmail) {
 			setEmailMessage({
@@ -282,6 +277,12 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 			email: resetEmail,
 			kind: 'password_reset',
 		})
+	}
+
+	function handleResendPendingEmailConfirmation() {
+		if (!profile.pendingEmail || authEmailActionMutation.isPending) return
+		setEmailMessage(null)
+		authEmailActionMutation.mutate({ kind: 'pending_confirmation' })
 	}
 
 	function handleLicenseSelect(files: FileList | null) {
@@ -459,9 +460,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 									>
 										{authEmailActionMutation.isPending
 											? t('profilePage.sendingAuthEmail')
-											: profile.pendingEmail
-												? t('profilePage.resendEmailConfirmation')
-												: t('login.forgotPassword')}
+											: t('login.forgotPassword')}
 									</button>
 								</div>
 								<Input
@@ -529,10 +528,24 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 					</div>
 				</div>
 				{profile.pendingEmail && (
-					<p className="flex items-center gap-2 text-[13px] text-[var(--color-text-subtle)]">
-						<Clock size={14} strokeWidth={1.7} />
-						{t('profilePage.pendingEmail', { email: profile.pendingEmail })}
-					</p>
+					<div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[var(--color-text-subtle)]">
+						<span className="inline-flex items-center gap-2">
+							<Clock size={14} strokeWidth={1.7} />
+							{t('profilePage.pendingEmail', { email: profile.pendingEmail })}
+						</span>
+						<button
+							type="button"
+							onClick={handleResendPendingEmailConfirmation}
+							disabled={
+								emailMutation.isPending || authEmailActionMutation.isPending
+							}
+							className="font-semibold text-[#2563EB] transition-colors hover:text-[var(--color-text)] disabled:pointer-events-none disabled:opacity-50"
+						>
+							{authEmailActionMutation.isPending
+								? t('profilePage.sendingAuthEmail')
+								: t('profilePage.resendEmailConfirmation')}
+						</button>
+					</div>
 				)}
 				{emailMessage && (
 					<StatusMessage kind={emailMessage.kind} text={emailMessage.text} />
@@ -590,24 +603,20 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 
 function AuthStateBadge({ profile }: { profile: CustomerProfile }) {
 	const { t } = useTranslation('portal')
-	if (profile.pendingEmail) {
-		return (
-			<span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
-				<Clock size={13} strokeWidth={1.8} />
-				{t('profilePage.emailPending')}
-			</span>
-		)
-	}
 	return (
 		<span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
 			{profile.emailConfirmed ? (
 				<ShieldCheck size={13} strokeWidth={1.8} />
+			) : profile.pendingEmail ? (
+				<Clock size={13} strokeWidth={1.8} />
 			) : (
 				<Mail size={13} strokeWidth={1.8} />
 			)}
 			{profile.emailConfirmed
 				? t('profilePage.emailConfirmed')
-				: t('profilePage.emailUnconfirmed')}
+				: profile.pendingEmail
+					? t('profilePage.emailPending')
+					: t('profilePage.emailUnconfirmed')}
 		</span>
 	)
 }
@@ -734,7 +743,7 @@ function authUpdateSuccessLabel(
 function hasEmailDraftChange(profile: CustomerProfile, emailDraft: string) {
 	const currentEmail = profile.emailConfirmed
 		? profile.authEmail || profile.email || ''
-		: profile.pendingEmail || ''
+		: ''
 	return (
 		normalizedProfileEmail(emailDraft) !== normalizedProfileEmail(currentEmail)
 	)
