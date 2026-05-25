@@ -2,6 +2,11 @@ import type { Order } from '../types/order'
 
 type DatedOrder = Pick<Order, 'date'>
 type OrderHistoryCandidate = Pick<Order, 'date' | 'type' | 'status'>
+const ACTIVE_ORDER_STATUSES = new Set<Order['status']>([
+	'order_confirmed',
+	'out_for_delivery',
+	'submitted',
+])
 
 function orderDateValue(order: DatedOrder): number {
 	const timestamp = Date.parse(order.date)
@@ -28,4 +33,14 @@ export function getOrderHistoryOrders<T extends OrderHistoryCandidate>(
 	orders: readonly T[],
 ): T[] {
 	return sortOrdersByDateDesc(orders.filter(isRealOrderHistoryOrder))
+}
+
+export function isActiveOrder(order: Pick<Order, 'status'>): boolean {
+	return ACTIVE_ORDER_STATUSES.has(order.status)
+}
+
+export function getActiveOrders<T extends OrderHistoryCandidate>(
+	orders: readonly T[],
+): T[] {
+	return sortOrdersByDateDesc(orders.filter(isActiveOrder))
 }
