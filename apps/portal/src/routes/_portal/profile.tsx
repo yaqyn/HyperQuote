@@ -68,9 +68,7 @@ function ProfilePage() {
 	useEffect(() => {
 		if (!profile) return
 		setCompanyName(profile.companyName)
-		setEmailDraft(
-			profile.pendingEmail ?? profile.email ?? profile.authEmail ?? '',
-		)
+		setEmailDraft(profile.email ?? profile.authEmail ?? '')
 		if (profile.emailConfirmed) setEmailPasswordDraft('')
 		setPhoneDraft(toLocalEgyptPhone(profile.phone))
 		setOtpCode('')
@@ -821,7 +819,7 @@ function emailErrorLabel(error: string | undefined, t: TFunction<'portal'>) {
 }
 
 function shouldRequireEmailPassword(profile: CustomerProfile) {
-	return !profile.emailConfirmed
+	return !profile.emailConfirmed && !profile.pendingEmail
 }
 
 function statusLabel(

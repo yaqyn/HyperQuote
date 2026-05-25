@@ -69,7 +69,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 	})
 
 	const [emailDraft, setEmailDraft] = useState(
-		profile.pendingEmail ?? profile.email ?? profile.authEmail ?? '',
+		profile.email ?? profile.authEmail ?? '',
 	)
 	const [emailPasswordDraft, setEmailPasswordDraft] = useState('')
 	const [emailMessage, setEmailMessage] = useState<{
@@ -126,9 +126,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 	)
 
 	useEffect(() => {
-		setEmailDraft(
-			profile.pendingEmail ?? profile.email ?? profile.authEmail ?? '',
-		)
+		setEmailDraft(profile.email ?? profile.authEmail ?? '')
 		if (profile.emailConfirmed) setEmailPasswordDraft('')
 		setPhotoPreview(profile.profilePhotoUrl)
 	}, [profile])
@@ -527,5 +525,5 @@ function emailErrorLabel(error: string | undefined, t: TFunction<'portal'>) {
 }
 
 function shouldRequireEmailPassword(profile: CustomerProfile) {
-	return !profile.emailConfirmed
+	return !profile.emailConfirmed && !profile.pendingEmail
 }

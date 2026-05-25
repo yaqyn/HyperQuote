@@ -305,8 +305,10 @@ test('portal phone-only customer must add email login with password', async ({
 	const phone = '1099999999'
 	const fullPhone = `+20${phone}`
 	const email = `flow-phone-email-${stamp}@example.com`
+	const staleEmail = `flow-phone-stale-${stamp}@example.com`
 	const password = `Flow-phone-email-${stamp}-123456`
 	await resetCustomerByPhoneOrEmail(service, fullPhone, email)
+	await resetCustomerByPhoneOrEmail(service, fullPhone, staleEmail)
 
 	const context = await browser.newContext({
 		viewport: { height: 1000, width: 1440 },
@@ -368,6 +370,26 @@ test('portal phone-only customer must add email login with password', async ({
 	expect(readAuthEmailState(userId)).toEqual({ email: '', emailChange: '' })
 
 	await page.getByLabel(/^Password$/i).fill(password)
+	await page.getByLabel(/^Email$/i).fill(staleEmail)
+	await page.getByRole('button', { name: /send confirmation/i }).click()
+	await expect(page.locator('body')).toContainText(
+		`Confirmation email sent to ${staleEmail}.`,
+		{ timeout: 15_000 },
+	)
+	await latestInbucketConfirmationUrl(staleEmail)
+	expect(readAuthEmailState(userId)).toEqual({
+		email: '',
+		emailChange: staleEmail,
+	})
+
+	await page.reload({ waitUntil: 'domcontentloaded' })
+	await waitForHydration(page)
+	await expect(page.locator('body')).toContainText(
+		`Waiting for confirmation from ${staleEmail}.`,
+	)
+	await expect(page.getByLabel(/^Email$/i)).toHaveValue('')
+	await expect(page.getByLabel(/^Password$/i)).toHaveCount(0)
+	await page.getByLabel(/^Email$/i).fill(email)
 	await page.getByRole('button', { name: /send confirmation/i }).click()
 	await expect(page.locator('body')).toContainText(
 		`Confirmation email sent to ${email}.`,
@@ -2438,6 +2460,7 @@ async function resetCustomerByPhoneOrEmail(
 	for (const user of users.data.users) {
 		const userPhone = (user.phone ?? '').replace(/\D/g, '')
 		const userEmail = (user.email ?? '').toLowerCase()
+		const pendingEmail = (user.new_email ?? '').toLowerCase()
 		const metadataPhone =
 			typeof user.user_metadata?.phone === 'string'
 				? user.user_metadata.phone.replace(/\D/g, '')
@@ -2445,6 +2468,7 @@ async function resetCustomerByPhoneOrEmail(
 		if (
 			userPhone === normalizedPhone ||
 			userEmail === normalizedEmail ||
+			pendingEmail === normalizedEmail ||
 			metadataPhone === normalizedPhone
 		) {
 			const deleted = await service.auth.admin.deleteUser(user.id)

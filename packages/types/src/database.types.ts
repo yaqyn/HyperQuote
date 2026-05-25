@@ -6273,6 +6273,10 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			service_clear_customer_pending_email_change: {
+				Args: { p_expected_pending_email: string; p_user_id: string }
+				Returns: boolean
+			}
 			service_create_manual_order: {
 				Args: {
 					p_actor_pool: string

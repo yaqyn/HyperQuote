@@ -4,6 +4,7 @@
 import {
 	appendSetCookieHeaders,
 	createSupabaseServerClient,
+	createSupabaseServiceRoleClient,
 	getSupabaseServerUser,
 	resolveSupabaseRuntimeConfig,
 } from '@hyperquote/auth/server'
@@ -120,10 +121,14 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 			const currentEmail = session.user.email
 				? normalizedEmail(session.user.email)
 				: ''
+			const pendingEmail =
+				typeof session.user.new_email === 'string'
+					? normalizedEmail(session.user.new_email)
+					: ''
 			if (session.user.email_confirmed_at && currentEmail === nextEmail) {
 				return { email: nextEmail, status: 'unchanged', success: true }
 			}
-			const requiresPassword = !session.user.email_confirmed_at
+			const requiresPassword = !session.user.email_confirmed_at && !pendingEmail
 			if (requiresPassword && !input.password) {
 				return { error: 'password_required', success: false }
 			}
@@ -153,6 +158,26 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 			)
 			if (!user || user.id !== session.user.id) {
 				return { error: 'not_authenticated', success: false }
+			}
+
+			if (pendingEmail && pendingEmail !== nextEmail) {
+				const service = await createSupabaseServiceRoleClient(process.env)
+				if (!service) return { error: 'update_failed', success: false }
+				const { error: clearError } = await service.rpc(
+					'service_clear_customer_pending_email_change',
+					{
+						p_expected_pending_email: pendingEmail,
+						p_user_id: session.user.id,
+					},
+				)
+				if (clearError) return { error: 'update_failed', success: false }
+				const { error: refreshError } = await client.auth.refreshSession()
+				appendSetCookieHeaders(
+					getResponse().headers,
+					responseCookies.values(),
+					responseHeaders.entries(),
+				)
+				if (refreshError) return { error: 'not_authenticated', success: false }
 			}
 
 			const { error: updateError } = await client.auth.updateUser({
