@@ -820,7 +820,7 @@ function PhoneChangePanel({
 }) {
 	const { t } = useTranslation('portal')
 	return (
-		<section className="mt-8 border-t border-[var(--p-border)] pt-6">
+		<section className="mt-8 border-t border-[var(--p-border)] pb-16 pt-6 sm:pb-20">
 			<div className="mb-4 flex items-start gap-3">
 				<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--p-accent-dim)] text-[var(--p-accent)]">
 					<ShieldCheck size={17} strokeWidth={1.8} />
