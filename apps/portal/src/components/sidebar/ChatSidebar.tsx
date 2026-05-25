@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next'
 import { signOutPortalAccount } from '../../lib/auth'
 import { getActiveOrders, getOrderHistoryOrders } from '../../lib/order-history'
 import { getAllCustomerOrders } from '../../lib/server/orders'
+import { getCustomerProfile } from '../../lib/server/settings'
 import { getCurrentPortalTheme, setPortalTheme } from '../../lib/theme'
 import { type Conversation, useChatStore } from '../../stores/chat'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
@@ -58,6 +59,7 @@ const WEBSITE_HREF =
 
 export function ChatSidebar({
 	userName,
+	companyName,
 	hasSupplierRole,
 	closeOnNavigate = false,
 }: ChatSidebarProps) {
@@ -79,9 +81,20 @@ export function ChatSidebar({
 		(s) => s.activeConversationId[activeRole],
 	)
 	const loadConversation = useChatStore((s) => s.loadConversation)
+	const { data: profile } = useQuery({
+		queryKey: ['customer-profile-sidebar'],
+		queryFn: () => getCustomerProfile(),
+		staleTime: 60_000,
+	})
 
 	const favorites = conversations.filter((c) => c.pinned)
-	const displayName = userName?.trim().split(/\s+/)[0] || t('sidebar.user')
+	const profileName = firstText(
+		profile?.contactName,
+		userName,
+		profile?.companyName,
+		companyName,
+	)
+	const displayName = profileName.split(/\s+/)[0] ?? ''
 	const currentPath = matches[matches.length - 1]?.pathname ?? '/'
 
 	useEffect(() => {
@@ -295,16 +308,18 @@ export function ChatSidebar({
 				>
 					<div className="flex min-w-0 items-center gap-3">
 						<ProfileMenu
-							userName={userName}
+							userName={profileName}
 							closeOnNavigate={closeOnNavigate}
 						/>
 						<div className="min-w-0">
 							<p className="truncate text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--p-text-faint)]">
 								{t('sidebar.welcome')}
 							</p>
-							<p className="truncate text-[15px] font-semibold leading-tight text-[var(--p-text)]">
-								{displayName}
-							</p>
+							{displayName && (
+								<p className="truncate text-[15px] font-semibold leading-tight text-[var(--p-text)]">
+									{displayName}
+								</p>
+							)}
 						</div>
 					</div>
 				</motion.footer>
@@ -510,8 +525,9 @@ function ProfileMenu({
 		action: () => void
 	}>
 
-	const displayName = userName.trim() || t('sidebar.user')
-	const initial = Array.from(displayName)[0]?.toUpperCase() ?? 'U'
+	const displayName = userName.trim()
+	const initial = Array.from(displayName)[0]?.toUpperCase() ?? ''
+	const profileLabel = displayName || t('profile.profile')
 
 	return (
 		<div ref={menuRef} className="relative">
@@ -519,11 +535,11 @@ function ProfileMenu({
 				type="button"
 				onClick={() => setOpen(!open)}
 				className="group inline-flex h-10 w-10 items-center justify-center rounded-xl text-start transition-colors hover:bg-[var(--p-hover)]"
-				aria-label={userName}
-				title={userName}
+				aria-label={profileLabel}
+				title={profileLabel}
 			>
 				<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] text-[14px] font-semibold text-[var(--p-text)] transition-colors group-hover:border-[var(--p-border-strong)]">
-					{initial}
+					{initial || <User size={15} strokeWidth={1.7} aria-hidden />}
 				</span>
 			</button>
 
@@ -553,6 +569,10 @@ function ProfileMenu({
 			)}
 		</div>
 	)
+}
+
+function firstText(...values: Array<string | undefined | null>) {
+	return values.find((value) => value?.trim())?.trim() ?? ''
 }
 
 function DraftSection({

@@ -81,8 +81,17 @@ function PortalLayout() {
 		)
 	}
 
-	const userName = auth?.user?.user_metadata?.name ?? ''
-	const companyName = auth?.user?.user_metadata?.company_name ?? undefined
+	const metadata = auth?.user?.user_metadata
+	const userName = firstText(
+		metadataValue(metadata, 'contact_name'),
+		metadataValue(metadata, 'name'),
+		metadataValue(metadata, 'full_name'),
+		metadataValue(metadata, 'display_name'),
+		emailHandle(auth?.user?.email),
+		auth?.user?.phone,
+	)
+	const companyName =
+		firstText(metadataValue(metadata, 'company_name')) || undefined
 	const hasSupplierRole = auth?.roles.includes('supplier') ?? false
 	const sidebarInitialX = i18n.dir() === 'rtl' ? 24 : -24
 
@@ -198,6 +207,24 @@ function PortalLayout() {
 			<PortalShortcuts />
 		</div>
 	)
+}
+
+function metadataValue(metadata: unknown, key: string) {
+	if (!isMetadataRecord(metadata)) return ''
+	const value = metadata[key]
+	return typeof value === 'string' ? value.trim() : ''
+}
+
+function isMetadataRecord(value: unknown): value is Record<string, unknown> {
+	return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function emailHandle(email?: string | null) {
+	return email?.split('@')[0]?.trim() ?? ''
+}
+
+function firstText(...values: Array<string | undefined | null>) {
+	return values.find((value) => value?.trim())?.trim() ?? ''
 }
 
 function useCompactViewport() {
