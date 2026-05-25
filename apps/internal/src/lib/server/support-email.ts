@@ -217,59 +217,64 @@ export function renderSupportEmailHtml(input: SupportEmailRenderInput): string {
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>${subject}</title>
 </head>
-<body style="margin:0;padding:0;background:#f4f1eb;color:#171717;font-family:Arial,Helvetica,sans-serif;">
-	<div style="display:none;max-height:0;overflow:hidden;opacity:0;">A reply from HyperQuote customer service about ${reference}.</div>
-	<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f1eb;margin:0;padding:32px 12px;">
+<body style="margin:0;padding:0;background:#eef2f7;color:#0f172a;font-family:Arial,Helvetica,sans-serif;">
+	<div style="display:none;max-height:0;overflow:hidden;opacity:0;">HyperQuote replied to ${reference}.</div>
+	<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef2f7;margin:0;padding:36px 12px;">
 		<tr>
 			<td align="center">
-				<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:#ffffff;border:1px solid #e7e0d4;border-radius:18px;overflow:hidden;box-shadow:0 24px 80px rgba(23,23,23,0.08);">
+				<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:680px;background:#ffffff;border:1px solid #d9e2ee;border-radius:20px;overflow:hidden;box-shadow:0 28px 90px rgba(15,23,42,0.12);">
 					<tr>
-						<td style="padding:30px 32px 20px;">
+						<td style="background:#0f172a;padding:28px 32px;">
 							<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
 								<tr>
 									<td align="left" style="vertical-align:middle;">
 										<table role="presentation" cellspacing="0" cellpadding="0">
 											<tr>
-												<td style="width:34px;height:34px;border-radius:10px;background:#171717;color:#ffffff;text-align:center;font-size:13px;font-weight:700;letter-spacing:0.08em;">HQ</td>
-												<td style="padding-left:12px;font-size:18px;line-height:1;font-weight:700;letter-spacing:-0.01em;color:#171717;">HyperQuote</td>
+												<td style="width:38px;height:38px;border-radius:12px;background:#ffffff;color:#0f172a;text-align:center;font-size:13px;font-weight:700;letter-spacing:0.08em;">HQ</td>
+												<td style="padding-left:12px;font-size:19px;line-height:1;font-weight:700;letter-spacing:0;color:#ffffff;">HyperQuote</td>
 											</tr>
 										</table>
 									</td>
-									<td align="right" style="font-size:12px;line-height:1.4;color:#817869;">${reference}</td>
+									<td align="right" style="font-size:12px;line-height:1.4;color:#cbd5e1;">${reference}</td>
 								</tr>
 							</table>
 						</td>
 					</tr>
 					<tr>
-						<td style="padding:8px 32px 0;">
-							<p style="margin:0 0 10px;font-size:13px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#9b8d75;">Customer service</p>
-							<h1 style="margin:0;font-size:30px;line-height:1.12;font-weight:700;letter-spacing:-0.03em;color:#171717;">Hi ${customerName}, we are on it.</h1>
-							<p style="margin:16px 0 0;font-size:16px;line-height:1.7;color:#5f574a;">Thank you for reaching out to HyperQuote. Our team reviewed your request and sent the reply below so you can keep moving without waiting on another call.</p>
+						<td style="padding:34px 34px 0;">
+							<p style="margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#64748b;">Customer service</p>
+							<h1 style="margin:0;font-size:30px;line-height:1.18;font-weight:700;letter-spacing:0;color:#0f172a;">Hi ${customerName}, your HyperQuote update is ready.</h1>
+							<p style="margin:16px 0 0;font-size:16px;line-height:1.7;color:#475569;">Our team reviewed your request and replied below. Keep this email for the reference number, or open the portal for the latest quote and order status.</p>
 						</td>
 					</tr>
 					<tr>
-						<td style="padding:28px 32px 8px;">
-							<div style="border:1px solid #ece6dc;border-radius:16px;background:#fffdf9;padding:24px 24px 22px;">
-								<p style="margin:0 0 14px;font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#9b8d75;">${subject}</p>
-								<div style="font-size:16px;line-height:1.78;color:#2b2b2b;">${messageHtml}</div>
+						<td style="padding:28px 34px 8px;">
+							<div style="border:1px solid #dbe3ef;border-radius:18px;background:#fbfdff;padding:24px;">
+								<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:18px;">
+									<tr>
+										<td style="font-size:12px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#64748b;">${subject}</td>
+										<td align="right" style="font-size:12px;color:#64748b;">${reference}</td>
+									</tr>
+								</table>
+								<div style="font-size:16px;line-height:1.78;color:#1e293b;">${messageHtml}</div>
 							</div>
 						</td>
 					</tr>
 					<tr>
-						<td style="padding:22px 32px 30px;">
-							<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #ece6dc;padding-top:20px;">
+						<td style="padding:24px 34px 34px;">
+							<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #dbe3ef;padding-top:22px;">
 								<tr>
-									<td style="font-size:13px;line-height:1.7;color:#817869;">Important links</td>
+									<td style="font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#64748b;">Important links</td>
 								</tr>
 								<tr>
 									<td style="padding-top:12px;">
-										<a href="${portalUrl}" style="display:inline-block;margin:0 8px 8px 0;padding:10px 13px;border-radius:10px;background:#171717;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;">Customer portal</a>
-										<a href="${supportUrl}" style="display:inline-block;margin:0 8px 8px 0;padding:10px 13px;border-radius:10px;background:#f2eee7;color:#171717;text-decoration:none;font-size:13px;font-weight:700;">Support center</a>
-										<a href="${websiteUrl}" style="display:inline-block;margin:0 0 8px 0;padding:10px 13px;border-radius:10px;background:#f2eee7;color:#171717;text-decoration:none;font-size:13px;font-weight:700;">HyperQuote</a>
+										<a href="${portalUrl}" style="display:inline-block;margin:0 8px 8px 0;padding:11px 15px;border-radius:12px;background:#0f172a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:700;">Customer portal</a>
+										<a href="${supportUrl}" style="display:inline-block;margin:0 8px 8px 0;padding:11px 15px;border-radius:12px;background:#e2e8f0;color:#0f172a;text-decoration:none;font-size:13px;font-weight:700;">Support center</a>
+										<a href="${websiteUrl}" style="display:inline-block;margin:0 0 8px 0;padding:11px 15px;border-radius:12px;background:#e2e8f0;color:#0f172a;text-decoration:none;font-size:13px;font-weight:700;">HyperQuote</a>
 									</td>
 								</tr>
 							</table>
-							<p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#9b8d75;">This email was sent by HyperQuote customer service. Reply to this message and it will return to the same support thread.</p>
+							<p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#64748b;">Reply to this email to keep the same support thread. HyperQuote will never ask for your password or one-time verification code by email.</p>
 						</td>
 					</tr>
 				</table>

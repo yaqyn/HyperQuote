@@ -14,11 +14,16 @@ export type SettingsSection =
 	| 'referrals'
 
 export interface CustomerProfile {
+	authEmail?: string
 	id: string
 	companyName: string
 	contactName: string
 	phone: string
 	email?: string
+	emailChangeSentAt?: string
+	emailConfirmed: boolean
+	pendingEmail?: string
+	phoneConfirmed: boolean
 	status: 'unclaimed' | 'claimed' | 'active' | 'inactive'
 	tier: 'A' | 'B' | 'C' | 'new'
 	creditLimit: number

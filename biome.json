@@ -16,7 +16,8 @@
 			"!**/*.gen.ts",
 			"!**/routeTree.gen.ts",
 			"!**/bun.lock",
-			"!**/public"
+			"!**/public",
+			"!supabase/templates/auth/**/*.html"
 		]
 	},
 	"formatter": {

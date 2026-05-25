@@ -80,6 +80,7 @@ const mutatingServerFunctions = [
 		file: 'lib/server/settings.ts',
 		exports: [
 			'updateCustomerProfile',
+			'requestCustomerEmailChange',
 			'uploadTradeLicense',
 			'uploadProfilePhoto',
 			'saveAddress',

@@ -6,8 +6,10 @@
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { TFunction } from 'i18next'
+import { AlertTriangle, Check, Clock, Mail, ShieldCheck } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from 'react-aria-components/Button'
 import { FileTrigger } from 'react-aria-components/FileTrigger'
 import { Input } from 'react-aria-components/Input'
@@ -16,6 +18,7 @@ import { TextField } from 'react-aria-components/TextField'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import {
+	requestCustomerEmailChange,
 	updateCustomerProfile,
 	uploadProfilePhoto,
 	uploadTradeLicense,
@@ -28,7 +31,6 @@ interface ProfileSectionProps {
 
 interface ProfileFormValues {
 	companyName: string
-	email: string
 }
 
 const labelClass =
@@ -44,21 +46,55 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 	const { control, handleSubmit, reset } = useForm<ProfileFormValues>({
 		defaultValues: {
 			companyName: profile.companyName,
-			email: profile.email ?? '',
 		},
 	})
 
 	const watchedValues = useWatch({ control })
 
-	const hasChanges =
-		watchedValues.companyName !== profile.companyName ||
-		watchedValues.email !== (profile.email ?? '')
+	const hasChanges = watchedValues.companyName !== profile.companyName
 
 	const updateMutation = useMutation({
 		mutationFn: (data: ProfileFormValues) => updateCustomerProfile({ data }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['customerProfile'] })
 			reset(watchedValues as ProfileFormValues)
+		},
+	})
+
+	const [emailDraft, setEmailDraft] = useState(
+		profile.pendingEmail ?? profile.email ?? profile.authEmail ?? '',
+	)
+	const [emailMessage, setEmailMessage] = useState<{
+		kind: 'success' | 'error'
+		text: string
+	} | null>(null)
+	const emailMutation = useMutation({
+		mutationFn: (email: string) =>
+			requestCustomerEmailChange({ data: { email } }),
+		onSuccess: (result) => {
+			if (result.success) {
+				queryClient.invalidateQueries({ queryKey: ['customerProfile'] })
+				setEmailMessage({
+					kind: 'success',
+					text:
+						result.status === 'unchanged'
+							? t('profilePage.emailAlreadyCurrent')
+							: t('profilePage.emailConfirmationSent', {
+									email: result.email ?? emailDraft.trim(),
+								}),
+				})
+				return
+			}
+			setEmailMessage({
+				kind: 'error',
+				text: emailErrorLabel(result.error, t),
+			})
+		},
+		onError: () => {
+			setEmailMessage({
+				kind: 'error',
+				text: t('profilePage.emailChangeFailed'),
+			})
 		},
 	})
 
@@ -80,9 +116,29 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 		profile.profilePhotoUrl,
 	)
 
+	useEffect(() => {
+		setEmailDraft(
+			profile.pendingEmail ?? profile.email ?? profile.authEmail ?? '',
+		)
+		setPhotoPreview(profile.profilePhotoUrl)
+	}, [profile])
+
 	const onSubmit = handleSubmit((data) => {
 		updateMutation.mutate(data)
 	})
+
+	function handleEmailChange() {
+		const nextEmail = emailDraft.trim()
+		if (!nextEmail) {
+			setEmailMessage({
+				kind: 'error',
+				text: t('profilePage.emailRequired'),
+			})
+			return
+		}
+		setEmailMessage(null)
+		emailMutation.mutate(nextEmail)
+	}
 
 	function handleLicenseSelect(files: FileList | null) {
 		if (!files || files.length === 0) return
@@ -174,25 +230,6 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 					</p>
 				</div>
 
-				{/* Email */}
-				<Controller
-					name="email"
-					control={control}
-					render={({ field }) => (
-						<TextField
-							value={field.value}
-							onChange={field.onChange}
-							type="email"
-							className="space-y-1.5"
-						>
-							<Label className={labelClass}>
-								{t('settings.profile.email')}
-							</Label>
-							<Input className={underlineInputClass} />
-						</TextField>
-					)}
-				/>
-
 				{/* Save button — only when dirty */}
 				<AnimatePresence>
 					{hasChanges && (
@@ -215,6 +252,81 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 					)}
 				</AnimatePresence>
 			</form>
+
+			{/* Email authentication */}
+			<div className="space-y-4 border-t border-[var(--color-border)] pt-6">
+				<div className="flex items-start justify-between gap-4">
+					<div>
+						<span className={labelClass}>
+							{t('profilePage.emailAuthTitle')}
+						</span>
+						<p className="mt-2 max-w-xl text-[13px] leading-5 text-[var(--color-text-subtle)]">
+							{t('profilePage.emailAuthNotice')}
+						</p>
+					</div>
+					<AuthStateBadge profile={profile} />
+				</div>
+				<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+					<TextField
+						value={emailDraft}
+						onChange={(value) => {
+							setEmailDraft(value)
+							setEmailMessage(null)
+						}}
+						type="email"
+						className="space-y-1.5"
+					>
+						<Label className={labelClass}>{t('settings.profile.email')}</Label>
+						<Input
+							className={underlineInputClass}
+							placeholder={t('profilePage.emailPlaceholder')}
+						/>
+					</TextField>
+					<Button
+						type="button"
+						onPress={handleEmailChange}
+						isDisabled={emailMutation.isPending}
+						className="self-end px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50"
+					>
+						{emailMutation.isPending
+							? t('settings.saving')
+							: t('profilePage.sendEmailConfirmation')}
+					</Button>
+				</div>
+				{profile.pendingEmail && (
+					<p className="flex items-center gap-2 text-[13px] text-[var(--color-text-subtle)]">
+						<Clock size={14} strokeWidth={1.7} />
+						{t('profilePage.pendingEmail', { email: profile.pendingEmail })}
+					</p>
+				)}
+				{emailMessage && (
+					<StatusMessage kind={emailMessage.kind} text={emailMessage.text} />
+				)}
+			</div>
+
+			{/* Account summary */}
+			<div className="grid gap-3 border-t border-[var(--color-border)] pt-6 sm:grid-cols-2">
+				<AccountDatum
+					label={t('profilePage.status')}
+					value={statusLabel(profile.status, t)}
+				/>
+				<AccountDatum
+					label={t('profilePage.tier')}
+					value={tierLabel(profile.tier, t)}
+				/>
+				<AccountDatum
+					label={t('profilePage.creditLimit')}
+					value={new Intl.NumberFormat(undefined, {
+						currency: 'EGP',
+						maximumFractionDigits: 0,
+						style: 'currency',
+					}).format(profile.creditLimit)}
+				/>
+				<AccountDatum
+					label={t('profilePage.paymentHistory')}
+					value={paymentLabel(profile.paymentHistory, t)}
+				/>
+			</div>
 
 			{/* Trade License */}
 			<div className="space-y-3 pt-6 border-t border-[var(--color-border)]">
@@ -241,6 +353,64 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 	)
 }
 
+function AuthStateBadge({ profile }: { profile: CustomerProfile }) {
+	const { t } = useTranslation('portal')
+	if (profile.pendingEmail) {
+		return (
+			<span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+				<Clock size={13} strokeWidth={1.8} />
+				{t('profilePage.emailPending')}
+			</span>
+		)
+	}
+	return (
+		<span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+			{profile.emailConfirmed ? (
+				<ShieldCheck size={13} strokeWidth={1.8} />
+			) : (
+				<Mail size={13} strokeWidth={1.8} />
+			)}
+			{profile.emailConfirmed
+				? t('profilePage.emailConfirmed')
+				: t('profilePage.emailUnconfirmed')}
+		</span>
+	)
+}
+
+function AccountDatum({ label, value }: { label: string; value: string }) {
+	return (
+		<div className="border border-[var(--color-border)] p-3">
+			<p className="text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]">
+				{label}
+			</p>
+			<p className="mt-2 text-sm font-medium text-[var(--color-text)]">
+				{value}
+			</p>
+		</div>
+	)
+}
+
+function StatusMessage({
+	kind,
+	text,
+}: {
+	kind: 'success' | 'error'
+	text: string
+}) {
+	return (
+		<p
+			className={`flex items-center gap-2 text-[13px] ${kind === 'success' ? 'text-[var(--p-success)]' : 'text-[var(--p-error)]'}`}
+		>
+			{kind === 'success' ? (
+				<Check size={14} strokeWidth={1.8} />
+			) : (
+				<AlertTriangle size={14} strokeWidth={1.8} />
+			)}
+			{text}
+		</p>
+	)
+}
+
 function TradeLicenseBadge({
 	status,
 }: {
@@ -260,4 +430,48 @@ function TradeLicenseBadge({
 			{label}
 		</span>
 	)
+}
+
+function statusLabel(
+	status: CustomerProfile['status'],
+	t: TFunction<'portal'>,
+) {
+	const labels: Record<CustomerProfile['status'], string> = {
+		active: t('profilePage.statusActive'),
+		claimed: t('profilePage.statusClaimed'),
+		inactive: t('profilePage.statusInactive'),
+		unclaimed: t('profilePage.statusUnclaimed'),
+	}
+	return labels[status]
+}
+
+function tierLabel(tier: CustomerProfile['tier'], t: TFunction<'portal'>) {
+	const labels: Record<CustomerProfile['tier'], string> = {
+		A: t('profilePage.tierA'),
+		B: t('profilePage.tierB'),
+		C: t('profilePage.tierC'),
+		new: t('profilePage.tierNew'),
+	}
+	return labels[tier]
+}
+
+function paymentLabel(
+	paymentHistory: CustomerProfile['paymentHistory'],
+	t: TFunction<'portal'>,
+) {
+	const labels: Record<CustomerProfile['paymentHistory'], string> = {
+		excellent: t('profilePage.paymentExcellent'),
+		fair: t('profilePage.paymentFair'),
+		good: t('profilePage.paymentGood'),
+		poor: t('profilePage.paymentPoor'),
+	}
+	return labels[paymentHistory]
+}
+
+function emailErrorLabel(error: string | undefined, t: TFunction<'portal'>) {
+	const labels: Record<string, string> = {
+		not_authenticated: t('profilePage.emailAuthRequired'),
+		update_failed: t('profilePage.emailChangeFailed'),
+	}
+	return labels[error ?? ''] ?? t('profilePage.emailChangeFailed')
 }

@@ -6,10 +6,15 @@ import { createFileRoute } from '@tanstack/react-router'
 import type { TFunction } from 'i18next'
 import {
 	AlertTriangle,
+	BadgeCheck,
+	CalendarDays,
 	Check,
+	Clock,
 	KeyRound,
 	Loader2,
 	LockKeyhole,
+	Mail,
+	ReceiptText,
 	Save,
 	ShieldCheck,
 	User,
@@ -22,6 +27,7 @@ import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 import { requestPhoneChange, verifyPhoneChange } from '../../lib/auth'
 import {
 	getCustomerProfile,
+	requestCustomerEmailChange,
 	updateCustomerProfile,
 } from '../../lib/server/settings'
 import type { CustomerProfile } from '../../types/settings'
@@ -36,13 +42,17 @@ function ProfilePage() {
 	const { t } = useTranslation('portal')
 	const queryClient = useQueryClient()
 	const [companyName, setCompanyName] = useState('')
-	const [email, setEmail] = useState('')
+	const [emailDraft, setEmailDraft] = useState('')
 	const [phoneDraft, setPhoneDraft] = useState('')
 	const [otpCode, setOtpCode] = useState('')
 	const [phoneStage, setPhoneStage] = useState<'idle' | 'code'>('idle')
 	const [profileSaved, setProfileSaved] = useState(false)
 	const [profileError, setProfileError] = useState<string | null>(null)
 	const [phoneMessage, setPhoneMessage] = useState<{
+		kind: 'success' | 'error'
+		text: string
+	} | null>(null)
+	const [emailMessage, setEmailMessage] = useState<{
 		kind: 'success' | 'error'
 		text: string
 	} | null>(null)
@@ -57,13 +67,16 @@ function ProfilePage() {
 	useEffect(() => {
 		if (!profile) return
 		setCompanyName(profile.companyName)
-		setEmail(profile.email ?? '')
+		setEmailDraft(
+			profile.pendingEmail ?? profile.email ?? profile.authEmail ?? '',
+		)
 		setPhoneDraft(toLocalEgyptPhone(profile.phone))
 		setOtpCode('')
 		setPhoneStage('idle')
 		setProfileSaved(false)
 		setProfileError(null)
 		setPhoneMessage(null)
+		setEmailMessage(null)
 	}, [profile])
 
 	const updateMutation = useMutation({
@@ -71,7 +84,6 @@ function ProfilePage() {
 			updateCustomerProfile({
 				data: {
 					companyName: companyName.trim(),
-					email: email.trim(),
 				},
 			}),
 		onSuccess: () => {
@@ -82,6 +94,36 @@ function ProfilePage() {
 		},
 		onError: () => {
 			setProfileError(t('profilePage.saveFailed'))
+		},
+	})
+
+	const emailMutation = useMutation({
+		mutationFn: (email: string) =>
+			requestCustomerEmailChange({ data: { email } }),
+		onSuccess: (result) => {
+			if (result.success) {
+				queryClient.invalidateQueries({ queryKey: ['customerProfile'] })
+				setEmailMessage({
+					kind: 'success',
+					text:
+						result.status === 'unchanged'
+							? t('profilePage.emailAlreadyCurrent')
+							: t('profilePage.emailConfirmationSent', {
+									email: result.email ?? emailDraft.trim(),
+								}),
+				})
+				return
+			}
+			setEmailMessage({
+				kind: 'error',
+				text: emailErrorLabel(result.error, t),
+			})
+		},
+		onError: () => {
+			setEmailMessage({
+				kind: 'error',
+				text: t('profilePage.emailChangeFailed'),
+			})
 		},
 	})
 
@@ -138,11 +180,8 @@ function ProfilePage() {
 
 	const hasProfileChanges = useMemo(() => {
 		if (!profile) return false
-		return (
-			companyName.trim() !== profile.companyName ||
-			email.trim() !== (profile.email ?? '')
-		)
-	}, [companyName, email, profile])
+		return companyName.trim() !== profile.companyName
+	}, [companyName, profile])
 
 	function handleProfileSave() {
 		if (!profile || !hasProfileChanges || updateMutation.isPending) return
@@ -153,6 +192,20 @@ function ProfilePage() {
 		setProfileSaved(false)
 		setProfileError(null)
 		updateMutation.mutate()
+	}
+
+	function handleEmailChange() {
+		if (!profile || emailMutation.isPending) return
+		const nextEmail = emailDraft.trim()
+		if (!nextEmail) {
+			setEmailMessage({
+				kind: 'error',
+				text: t('profilePage.emailRequired'),
+			})
+			return
+		}
+		setEmailMessage(null)
+		emailMutation.mutate(nextEmail)
 	}
 
 	function handleRequestPhoneChange() {
@@ -262,17 +315,6 @@ function ProfilePage() {
 							setProfileError(null)
 						}}
 					/>
-					<ProfileField
-						label={t('settings.profile.email')}
-						value={email}
-						type="email"
-						onChange={(event) => {
-							setEmail(event.currentTarget.value)
-							setProfileSaved(false)
-							setProfileError(null)
-						}}
-						placeholder={t('profilePage.emailPlaceholder')}
-					/>
 				</div>
 
 				<div className="mt-6 flex flex-wrap items-center gap-3">
@@ -295,6 +337,20 @@ function ProfilePage() {
 					{profileError && <StatusText kind="error" text={profileError} />}
 				</div>
 
+				<AccountSummary profile={profile} />
+
+				<EmailChangePanel
+					profile={profile}
+					emailDraft={emailDraft}
+					message={emailMessage}
+					isPending={emailMutation.isPending}
+					onEmailChange={(value) => {
+						setEmailDraft(value)
+						setEmailMessage(null)
+					}}
+					onRequest={handleEmailChange}
+				/>
+
 				<PhoneChangePanel
 					currentPhone={profile.phone}
 					phoneDraft={phoneDraft}
@@ -316,6 +372,152 @@ function ProfilePage() {
 				/>
 			</section>
 		</ProfileShell>
+	)
+}
+
+function AccountSummary({ profile }: { profile: CustomerProfile }) {
+	const { t } = useTranslation('portal')
+	const creditLimit = new Intl.NumberFormat(undefined, {
+		currency: 'EGP',
+		maximumFractionDigits: 0,
+		style: 'currency',
+	}).format(profile.creditLimit)
+	return (
+		<section className="mt-8 grid gap-3 border-t border-[var(--p-border)] pt-6 sm:grid-cols-2 lg:grid-cols-4">
+			<SummaryTile
+				icon={<BadgeCheck size={16} strokeWidth={1.8} />}
+				label={t('profilePage.status')}
+				value={statusLabel(profile.status, t)}
+			/>
+			<SummaryTile
+				icon={<ShieldCheck size={16} strokeWidth={1.8} />}
+				label={t('profilePage.tier')}
+				value={tierLabel(profile.tier, t)}
+			/>
+			<SummaryTile
+				icon={<ReceiptText size={16} strokeWidth={1.8} />}
+				label={t('profilePage.creditLimit')}
+				value={creditLimit}
+			/>
+			<SummaryTile
+				icon={<CalendarDays size={16} strokeWidth={1.8} />}
+				label={t('profilePage.paymentHistory')}
+				value={paymentLabel(profile.paymentHistory, t)}
+			/>
+		</section>
+	)
+}
+
+function SummaryTile({
+	icon,
+	label,
+	value,
+}: {
+	icon: ReactNode
+	label: string
+	value: string
+}) {
+	return (
+		<div className="min-w-0 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
+			<div className="mb-3 text-[var(--p-text-muted)]">{icon}</div>
+			<p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--p-text-muted)]">
+				{label}
+			</p>
+			<p className="mt-2 truncate text-[14px] font-semibold text-[var(--p-text)]">
+				{value}
+			</p>
+		</div>
+	)
+}
+
+function EmailChangePanel({
+	profile,
+	emailDraft,
+	message,
+	isPending,
+	onEmailChange,
+	onRequest,
+}: {
+	profile: CustomerProfile
+	emailDraft: string
+	message: { kind: 'success' | 'error'; text: string } | null
+	isPending: boolean
+	onEmailChange: (value: string) => void
+	onRequest: () => void
+}) {
+	const { t } = useTranslation('portal')
+	return (
+		<section className="mt-8 border-t border-[var(--p-border)] pt-6">
+			<div className="mb-4 flex items-start gap-3">
+				<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--p-accent-dim)] text-[var(--p-accent)]">
+					<Mail size={17} strokeWidth={1.8} />
+				</span>
+				<div className="min-w-0">
+					<div className="flex flex-wrap items-center gap-2">
+						<p className="text-[14px] font-semibold text-[var(--p-text)]">
+							{t('profilePage.emailAuthTitle')}
+						</p>
+						<AuthBadge profile={profile} />
+					</div>
+					<p className="mt-1 max-w-2xl text-[12px] leading-5 text-[var(--p-text-muted)]">
+						{t('profilePage.emailAuthNotice')}
+					</p>
+					{profile.pendingEmail ? (
+						<p className="mt-2 flex items-center gap-2 text-[12px] text-[var(--p-text-muted)]">
+							<Clock size={14} strokeWidth={1.7} />
+							{t('profilePage.pendingEmail', {
+								email: profile.pendingEmail,
+							})}
+						</p>
+					) : null}
+				</div>
+			</div>
+
+			<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+				<ProfileField
+					label={t('settings.profile.email')}
+					value={emailDraft}
+					type="email"
+					onChange={(event) => onEmailChange(event.currentTarget.value)}
+					placeholder={t('profilePage.emailPlaceholder')}
+				/>
+				<button
+					type="button"
+					onClick={onRequest}
+					disabled={isPending}
+					className="flex h-11 items-center justify-center gap-2 self-end rounded-xl border border-[var(--p-border)] px-4 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-50"
+				>
+					{isPending ? (
+						<Loader2 size={15} className="animate-spin" />
+					) : (
+						<Mail size={15} strokeWidth={1.8} />
+					)}
+					<span>{t('profilePage.sendEmailConfirmation')}</span>
+				</button>
+			</div>
+			{message && <StatusText kind={message.kind} text={message.text} />}
+		</section>
+	)
+}
+
+function AuthBadge({ profile }: { profile: CustomerProfile }) {
+	const { t } = useTranslation('portal')
+	const label = profile.pendingEmail
+		? t('profilePage.emailPending')
+		: profile.emailConfirmed
+			? t('profilePage.emailConfirmed')
+			: t('profilePage.emailUnconfirmed')
+	return (
+		<span className="inline-flex min-h-6 items-center gap-1.5 rounded-full border border-[var(--p-border)] px-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--p-text-muted)]">
+			{profile.pendingEmail ? (
+				<Clock size={12} strokeWidth={1.8} />
+			) : profile.emailConfirmed ? (
+				<ShieldCheck size={12} strokeWidth={1.8} />
+			) : (
+				<Mail size={12} strokeWidth={1.8} />
+			)}
+			{label}
+		</span>
 	)
 }
 
@@ -568,4 +770,48 @@ function phoneErrorLabel(error: string, t: TFunction<'portal'>) {
 		verify_failed: t('profilePage.phoneChangeFailed'),
 	}
 	return labels[error] ?? t('profilePage.phoneChangeFailed')
+}
+
+function emailErrorLabel(error: string | undefined, t: TFunction<'portal'>) {
+	const labels: Record<string, string> = {
+		not_authenticated: t('profilePage.emailAuthRequired'),
+		update_failed: t('profilePage.emailChangeFailed'),
+	}
+	return labels[error ?? ''] ?? t('profilePage.emailChangeFailed')
+}
+
+function statusLabel(
+	status: CustomerProfile['status'],
+	t: TFunction<'portal'>,
+) {
+	const labels: Record<CustomerProfile['status'], string> = {
+		active: t('profilePage.statusActive'),
+		claimed: t('profilePage.statusClaimed'),
+		inactive: t('profilePage.statusInactive'),
+		unclaimed: t('profilePage.statusUnclaimed'),
+	}
+	return labels[status]
+}
+
+function tierLabel(tier: CustomerProfile['tier'], t: TFunction<'portal'>) {
+	const labels: Record<CustomerProfile['tier'], string> = {
+		A: t('profilePage.tierA'),
+		B: t('profilePage.tierB'),
+		C: t('profilePage.tierC'),
+		new: t('profilePage.tierNew'),
+	}
+	return labels[tier]
+}
+
+function paymentLabel(
+	paymentHistory: CustomerProfile['paymentHistory'],
+	t: TFunction<'portal'>,
+) {
+	const labels: Record<CustomerProfile['paymentHistory'], string> = {
+		excellent: t('profilePage.paymentExcellent'),
+		fair: t('profilePage.paymentFair'),
+		good: t('profilePage.paymentGood'),
+		poor: t('profilePage.paymentPoor'),
+	}
+	return labels[paymentHistory]
 }

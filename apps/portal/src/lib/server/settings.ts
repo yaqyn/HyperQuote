@@ -1,7 +1,14 @@
 /**
  * Settings server functions backed only by Supabase.
  */
+import {
+	appendSetCookieHeaders,
+	createSupabaseServerClient,
+	getSupabaseServerUser,
+	resolveSupabaseRuntimeConfig,
+} from '@hyperquote/auth/server'
 import { createServerFn } from '@tanstack/react-start'
+import { getRequest, getResponse } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import type {
 	ActiveSession,
@@ -15,9 +22,18 @@ import {
 } from './_supabase'
 import { resolveAddressCoordinates } from './address-coordinates'
 
+const emailChangeInput = z.object({
+	email: z.string().trim().email().max(254),
+})
+
+function normalizedEmail(value: string) {
+	return value.trim().toLowerCase()
+}
+
 export const getCustomerProfile = createServerFn().handler(
 	async (): Promise<CustomerProfile> => {
-		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
+		const { customerId, session, supabase } =
+			await getAuthenticatedPortalCustomer()
 		const { data, error } = await supabase
 			.from('customers')
 			.select(
@@ -30,12 +46,30 @@ export const getCustomerProfile = createServerFn().handler(
 			throw new Error(error?.message ?? 'Profile not found')
 		}
 
+		const authEmail = session.user.email
+		const emailConfirmed = Boolean(session.user.email_confirmed_at)
+		const confirmedAuthEmail = emailConfirmed ? authEmail : undefined
+		if (
+			confirmedAuthEmail &&
+			normalizedEmail(data.email ?? '') !== normalizedEmail(confirmedAuthEmail)
+		) {
+			await supabase
+				.from('customers')
+				.update({ email: confirmedAuthEmail })
+				.eq('id', customerId)
+		}
+
 		return {
+			authEmail,
 			id: data.id,
 			companyName: data.company_name,
 			contactName: data.contact_name,
 			phone: data.phone,
-			email: data.email,
+			email: confirmedAuthEmail ?? data.email,
+			emailChangeSentAt: session.user.email_change_sent_at,
+			emailConfirmed,
+			pendingEmail: session.user.new_email,
+			phoneConfirmed: Boolean(session.user.phone_confirmed_at),
 			status: data.status,
 			tier: data.tier,
 			creditLimit: data.credit_limit,
@@ -52,9 +86,6 @@ export const updateCustomerProfile = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({
 			companyName: z.string().trim().min(1).max(200).optional(),
-			email: z
-				.union([z.string().trim().email().max(254), z.literal('')])
-				.optional(),
 		}),
 	)
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
@@ -62,7 +93,6 @@ export const updateCustomerProfile = createServerFn({ method: 'POST' })
 		const updateData: Record<string, unknown> = {}
 		if (input.companyName !== undefined)
 			updateData.company_name = input.companyName
-		if (input.email !== undefined) updateData.email = input.email || null
 
 		const { error } = await supabase
 			.from('customers')
@@ -72,6 +102,73 @@ export const updateCustomerProfile = createServerFn({ method: 'POST' })
 		if (error) throw new Error(error.message)
 		return { success: true }
 	})
+
+export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
+	.inputValidator(emailChangeInput)
+	.handler(
+		async ({
+			data: input,
+		}): Promise<{
+			email?: string
+			error?: 'not_authenticated' | 'update_failed'
+			status?: 'confirmation_sent' | 'unchanged'
+			success: boolean
+		}> => {
+			const nextEmail = normalizedEmail(input.email)
+			const { session } = await getAuthenticatedPortalCustomer()
+			const currentEmail = session.user.email
+				? normalizedEmail(session.user.email)
+				: ''
+			if (session.user.email_confirmed_at && currentEmail === nextEmail) {
+				return { email: nextEmail, status: 'unchanged', success: true }
+			}
+
+			const config = await resolveSupabaseRuntimeConfig(process.env)
+			if (!config) return { error: 'not_authenticated', success: false }
+
+			const request = getRequest()
+			const { client, responseCookies, responseHeaders } =
+				createSupabaseServerClient({
+					request,
+					...config,
+				})
+			const {
+				data: { user },
+			} = await getSupabaseServerUser({
+				client,
+				cookieDomain: config.cookieDomain,
+				cookieName: config.cookieName,
+				request,
+				responseHeaders: getResponse().headers,
+			})
+			appendSetCookieHeaders(
+				getResponse().headers,
+				responseCookies.values(),
+				responseHeaders.entries(),
+			)
+			if (!user || user.id !== session.user.id) {
+				return { error: 'not_authenticated', success: false }
+			}
+
+			const { error: updateError } = await client.auth.updateUser({
+				email: nextEmail,
+			})
+			appendSetCookieHeaders(
+				getResponse().headers,
+				responseCookies.values(),
+				responseHeaders.entries(),
+			)
+			if (updateError) {
+				return { error: 'update_failed', success: false }
+			}
+
+			return {
+				email: nextEmail,
+				status: 'confirmation_sent',
+				success: true,
+			}
+		},
+	)
 
 export const uploadTradeLicense = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ fileUrl: z.string() }))

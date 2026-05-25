@@ -114,6 +114,7 @@ test('website phone signup can attach confirmed email/password for portal login'
 	const service = createLocalServiceClient()
 	const stamp = Date.now().toString(36)
 	const email = `flow-email-${stamp}@example.com`
+	const changedEmail = `flow-email-change-${stamp}@example.com`
 	const password = `Flow-email-${stamp}-123456`
 	const phone = '1011111111'
 	const fullPhone = `+20${phone}`
@@ -210,6 +211,23 @@ test('website phone signup can attach confirmed email/password for portal login'
 		.last()
 		.click()
 	await expect(portalPage).not.toHaveURL(/\/login/, { timeout: 25_000 })
+	await portalPage.goto(`${URLS.portal}/profile`, {
+		waitUntil: 'domcontentloaded',
+	})
+	await waitForHydration(portalPage)
+	await expect(portalPage.locator('body')).toContainText('Email authentication')
+	await portalPage.getByLabel(/^Email$/i).fill(changedEmail)
+	await portalPage.getByRole('button', { name: /send confirmation/i }).click()
+	await expect(portalPage.locator('body')).toContainText(
+		`Confirmation email sent to ${changedEmail}.`,
+		{ timeout: 15_000 },
+	)
+	await latestInbucketConfirmationUrl(changedEmail)
+	const customerAfterEmailChangeRequest = await expectCustomerByEmail(
+		service,
+		email,
+	)
+	expect(customerAfterEmailChangeRequest.id).toBe(emailCustomer.id)
 	await portalPage.goto(`${URLS.portal}/orders`, {
 		waitUntil: 'domcontentloaded',
 	})

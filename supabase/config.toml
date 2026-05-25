@@ -248,16 +248,64 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Uncomment to customize email template
-# [auth.email.template.invite]
-# subject = "You have been invited"
-# content_path = "./supabase/templates/invite.html"
+[auth.email.template.confirmation]
+subject = "Confirm your HyperQuote email"
+content_path = "./supabase/templates/auth/confirmation.html"
 
-# Uncomment to customize notification email template
-# [auth.email.notification.password_changed]
-# enabled = true
-# subject = "Your password has been changed"
-# content_path = "./templates/password_changed_notification.html"
+[auth.email.template.email_change]
+subject = "Confirm your new HyperQuote email"
+content_path = "./supabase/templates/auth/email_change.html"
+
+[auth.email.template.recovery]
+subject = "Reset your HyperQuote password"
+content_path = "./supabase/templates/auth/recovery.html"
+
+[auth.email.template.magic_link]
+subject = "Your HyperQuote sign-in link"
+content_path = "./supabase/templates/auth/magic_link.html"
+
+[auth.email.template.invite]
+subject = "You have been invited to HyperQuote"
+content_path = "./supabase/templates/auth/invite.html"
+
+[auth.email.template.reauthentication]
+subject = "{{ .Token }} is your HyperQuote verification code"
+content_path = "./supabase/templates/auth/reauthentication.html"
+
+[auth.email.notification.password_changed]
+enabled = true
+subject = "Your HyperQuote password was changed"
+content_path = "./templates/auth/password_changed_notification.html"
+
+[auth.email.notification.email_changed]
+enabled = true
+subject = "Your HyperQuote email was changed"
+content_path = "./templates/auth/email_changed_notification.html"
+
+[auth.email.notification.phone_changed]
+enabled = true
+subject = "Your HyperQuote phone number was changed"
+content_path = "./templates/auth/phone_changed_notification.html"
+
+[auth.email.notification.mfa_factor_enrolled]
+enabled = true
+subject = "A verification method was added to HyperQuote"
+content_path = "./templates/auth/mfa_factor_enrolled_notification.html"
+
+[auth.email.notification.mfa_factor_unenrolled]
+enabled = true
+subject = "A verification method was removed from HyperQuote"
+content_path = "./templates/auth/mfa_factor_unenrolled_notification.html"
+
+[auth.email.notification.identity_linked]
+enabled = true
+subject = "A HyperQuote sign-in method was linked"
+content_path = "./templates/auth/identity_linked_notification.html"
+
+[auth.email.notification.identity_unlinked]
+enabled = true
+subject = "A HyperQuote sign-in method was removed"
+content_path = "./templates/auth/identity_unlinked_notification.html"
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
