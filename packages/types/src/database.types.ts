@@ -6408,6 +6408,14 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			service_customer_auth_has_password: {
+				Args: { p_user_id: string }
+				Returns: boolean
+			}
+			service_customer_auth_verify_password: {
+				Args: { p_password: string; p_user_id: string }
+				Returns: boolean
+			}
 			service_customer_decline_quote: {
 				Args: {
 					p_actor_pool: string

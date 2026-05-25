@@ -203,7 +203,6 @@ function LoginPage() {
 														<PasswordResetStep
 															tokenHash={recoveryToken ?? ''}
 															onBack={() => setStep('email')}
-															onComplete={() => handleAuthComplete()}
 														/>
 													</StepFrame>
 												)}
@@ -984,17 +983,16 @@ function EmailPasswordStep({
 function PasswordResetStep({
 	tokenHash,
 	onBack,
-	onComplete,
 }: {
 	tokenHash: string
 	onBack: () => void
-	onComplete: () => void
 }) {
 	const { t } = useTranslation('portal')
 	const [password, setPassword] = useState('')
 	const [passwordConfirmation, setPasswordConfirmation] = useState('')
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
+	const [complete, setComplete] = useState(false)
 
 	async function handleResetPassword() {
 		if (!tokenHash) {
@@ -1019,12 +1017,16 @@ function PasswordResetStep({
 				setError(t('login.passwordResetInvalid'))
 				return
 			}
-			onComplete()
+			setComplete(true)
 		} catch {
 			setError(t('login.passwordResetFailed'))
 		} finally {
 			setLoading(false)
 		}
+	}
+
+	if (complete) {
+		return <PasswordResetSuccessStep />
 	}
 
 	return (
@@ -1070,6 +1072,60 @@ function PasswordResetStep({
 			</div>
 		</div>
 	)
+}
+
+function PasswordResetSuccessStep() {
+	const { t } = useTranslation('portal')
+	return (
+		<div className="flex flex-col">
+			<div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full border border-[var(--atelier-line)] text-[var(--atelier-ink)]">
+				<Check size={22} strokeWidth={1.8} />
+			</div>
+			<AuthStepIntro
+				align="center"
+				heading={t('login.passwordResetCompleteHeading')}
+				body={t('login.passwordResetCompleteSubtitle')}
+			/>
+			<div className="mt-7 grid gap-3 sm:grid-cols-2">
+				<a
+					href={getWebsiteHref('/')}
+					className="inline-flex h-12 items-center justify-center rounded-xl border border-[var(--atelier-line)] px-4 text-[14px] font-semibold text-[var(--atelier-ink)] transition-colors hover:bg-[var(--atelier-paper-soft)]"
+				>
+					{t('login.websiteButton')}
+				</a>
+				<a
+					href={getPortalHref('/')}
+					className="atelier-command inline-flex h-12 items-center justify-center"
+				>
+					{t('login.portalButton')}
+				</a>
+			</div>
+		</div>
+	)
+}
+
+function getWebsiteHref(path = '/') {
+	const suffix = path.startsWith('/') ? path : `/${path}`
+	const configured = import.meta.env.VITE_WEBSITE_URL
+	if (typeof configured === 'string' && configured.length > 0) {
+		return new URL(suffix, configured).toString()
+	}
+	if (
+		typeof window !== 'undefined' &&
+		(window.location.hostname === 'localhost' ||
+			window.location.hostname === '127.0.0.1')
+	) {
+		return new URL(suffix, 'http://localhost:3000/').toString()
+	}
+	return new URL(suffix, 'https://www.hyperquote.net/').toString()
+}
+
+function getPortalHref(path = '/') {
+	const suffix = path.startsWith('/') ? path : `/${path}`
+	if (typeof window !== 'undefined') {
+		return new URL(suffix, window.location.origin).toString()
+	}
+	return new URL(suffix, 'https://portal.hyperquote.net/').toString()
 }
 
 const AtelierTextField = ({

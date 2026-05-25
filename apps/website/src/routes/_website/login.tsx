@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import {
 	ArrowLeft,
 	Building2,
+	Check,
 	FileCheck2,
 	MessageCircle,
 	ShieldCheck,
@@ -34,6 +35,7 @@ import {
 	sendOTP,
 	signInWithEmailPassword,
 } from '../../lib/auth'
+import { getPortalHref } from '../../lib/portal-url'
 
 export const Route = createFileRoute('/_website/login')({
 	validateSearch: z.object({
@@ -161,7 +163,6 @@ function LoginPage() {
 									<PasswordResetStep
 										tokenHash={recoveryToken ?? ''}
 										onBack={() => setStep('email')}
-										onComplete={handleComplete}
 									/>
 								</StepWrapper>
 							)}
@@ -713,17 +714,16 @@ function EmailPasswordStep({
 function PasswordResetStep({
 	tokenHash,
 	onBack,
-	onComplete,
 }: {
 	tokenHash: string
 	onBack: () => void
-	onComplete: () => void
 }) {
 	const { t } = useTranslation('website')
 	const [password, setPassword] = useState('')
 	const [passwordConfirmation, setPasswordConfirmation] = useState('')
 	const [error, setError] = useState<string | null>(null)
 	const [loading, setLoading] = useState(false)
+	const [complete, setComplete] = useState(false)
 
 	async function handleResetPassword() {
 		if (!tokenHash) {
@@ -748,13 +748,15 @@ function PasswordResetStep({
 				setError(t('login.passwordResetInvalid'))
 				return
 			}
-			onComplete()
+			setComplete(true)
 		} catch {
 			setError(t('login.passwordResetFailed'))
 		} finally {
 			setLoading(false)
 		}
 	}
+
+	if (complete) return <PasswordResetSuccessStep />
 
 	return (
 		<div>
@@ -803,6 +805,37 @@ function PasswordResetStep({
 			>
 				{loading ? <Spinner /> : t('login.resetPasswordButton')}
 			</button>
+		</div>
+	)
+}
+
+function PasswordResetSuccessStep() {
+	const { t } = useTranslation('website')
+	return (
+		<div className="text-center">
+			<div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-primary)]">
+				<Check size={22} />
+			</div>
+			<h2 className="text-[28px] font-bold leading-[1.08] tracking-normal text-[var(--color-text)] sm:text-[32px]">
+				{t('login.passwordResetCompleteHeading')}
+			</h2>
+			<p className="mt-3 text-[14px] leading-relaxed text-[var(--color-text-muted)]">
+				{t('login.passwordResetCompleteSubtitle')}
+			</p>
+			<div className="mt-7 grid gap-3 sm:grid-cols-2">
+				<a
+					href="/"
+					className="flex h-12 items-center justify-center rounded-xl border border-[var(--color-border)] px-4 text-[14px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)]"
+				>
+					{t('login.websiteButton')}
+				</a>
+				<a
+					href={getPortalHref('/')}
+					className="flex h-12 items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 text-[14px] font-semibold text-white transition-opacity hover:opacity-90"
+				>
+					{t('login.portalButton')}
+				</a>
+			</div>
 		</div>
 	)
 }

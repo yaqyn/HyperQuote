@@ -22,6 +22,7 @@ export interface CustomerProfile {
 	email?: string
 	emailChangeSentAt?: string
 	emailConfirmed: boolean
+	hasPassword: boolean
 	pendingEmail?: string
 	phoneConfirmed: boolean
 	status: 'unclaimed' | 'claimed' | 'active' | 'inactive'

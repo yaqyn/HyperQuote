@@ -71,26 +71,34 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 	const [emailDraft, setEmailDraft] = useState(
 		profile.email ?? profile.authEmail ?? '',
 	)
-	const [emailPasswordDraft, setEmailPasswordDraft] = useState('')
+	const [currentPasswordDraft, setCurrentPasswordDraft] = useState('')
+	const [newPasswordDraft, setNewPasswordDraft] = useState('')
+	const [newPasswordConfirmationDraft, setNewPasswordConfirmationDraft] =
+		useState('')
 	const [emailMessage, setEmailMessage] = useState<{
 		kind: 'success' | 'error'
 		text: string
 	} | null>(null)
 	const emailMutation = useMutation({
-		mutationFn: (input: { email: string; password?: string }) =>
-			requestCustomerEmailChange({ data: input }),
+		mutationFn: (input: {
+			currentPassword?: string
+			email: string
+			newPassword?: string
+			newPasswordConfirmation?: string
+		}) => requestCustomerEmailChange({ data: input }),
 		onSuccess: (result) => {
 			if (result.success) {
 				queryClient.invalidateQueries({ queryKey: ['customerProfile'] })
-				setEmailPasswordDraft('')
+				setCurrentPasswordDraft('')
+				setNewPasswordDraft('')
+				setNewPasswordConfirmationDraft('')
 				setEmailMessage({
 					kind: 'success',
-					text:
-						result.status === 'unchanged'
-							? t('profilePage.emailAlreadyCurrent')
-							: t('profilePage.emailConfirmationSent', {
-									email: result.email ?? emailDraft.trim(),
-								}),
+					text: authUpdateSuccessLabel(
+						result.status,
+						result.email ?? emailDraft.trim(),
+						t,
+					),
 				})
 				return
 			}
@@ -127,7 +135,9 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 
 	useEffect(() => {
 		setEmailDraft(profile.email ?? profile.authEmail ?? '')
-		if (profile.emailConfirmed) setEmailPasswordDraft('')
+		setCurrentPasswordDraft('')
+		setNewPasswordDraft('')
+		setNewPasswordConfirmationDraft('')
 		setPhotoPreview(profile.profilePhotoUrl)
 	}, [profile])
 
@@ -137,7 +147,10 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 
 	function handleEmailChange() {
 		const nextEmail = emailDraft.trim()
-		const requiresPassword = shouldRequireEmailPassword(profile)
+		const emailChanged = hasEmailDraftChange(profile, nextEmail)
+		const wantsPasswordChange = Boolean(
+			newPasswordDraft || newPasswordConfirmationDraft,
+		)
 		if (!nextEmail) {
 			setEmailMessage({
 				kind: 'error',
@@ -145,17 +158,60 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 			})
 			return
 		}
-		if (requiresPassword && emailPasswordDraft.length < 6) {
+		if (
+			profile.hasPassword &&
+			(emailChanged || wantsPasswordChange) &&
+			currentPasswordDraft.length < 6
+		) {
+			setEmailMessage({
+				kind: 'error',
+				text: t('profilePage.currentPasswordRequired'),
+			})
+			return
+		}
+		if (wantsPasswordChange && newPasswordDraft.length < 6) {
 			setEmailMessage({
 				kind: 'error',
 				text: t('profilePage.emailPasswordRequired'),
 			})
 			return
 		}
+		if (
+			wantsPasswordChange &&
+			newPasswordDraft !== newPasswordConfirmationDraft
+		) {
+			setEmailMessage({
+				kind: 'error',
+				text: t('profilePage.emailPasswordMismatch'),
+			})
+			return
+		}
+		if (!profile.hasPassword && emailChanged && !wantsPasswordChange) {
+			setEmailMessage({
+				kind: 'error',
+				text: t('profilePage.emailPasswordRequired'),
+			})
+			return
+		}
+		if (!emailChanged && !wantsPasswordChange) {
+			setEmailMessage({
+				kind: 'success',
+				text: t('profilePage.noAuthChanges'),
+			})
+			return
+		}
 		setEmailMessage(null)
 		emailMutation.mutate({
+			...(currentPasswordDraft
+				? { currentPassword: currentPasswordDraft }
+				: {}),
 			email: nextEmail,
-			...(requiresPassword ? { password: emailPasswordDraft } : {}),
+			...(wantsPasswordChange
+				? {
+						newPassword: newPasswordDraft,
+						newPasswordConfirmation: newPasswordConfirmationDraft,
+					}
+				: {}),
 		})
 	}
 
@@ -287,9 +343,9 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 				</div>
 				<div
 					className={
-						shouldRequireEmailPassword(profile)
-							? 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]'
-							: 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]'
+						profile.hasPassword
+							? 'grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
+							: 'grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
 					}
 				>
 					<TextField
@@ -307,11 +363,11 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 							placeholder={t('profilePage.emailPlaceholder')}
 						/>
 					</TextField>
-					{shouldRequireEmailPassword(profile) ? (
+					{profile.hasPassword ? (
 						<TextField
-							value={emailPasswordDraft}
+							value={currentPasswordDraft}
 							onChange={(value) => {
-								setEmailPasswordDraft(value)
+								setCurrentPasswordDraft(value)
 								setEmailMessage(null)
 							}}
 							type="password"
@@ -320,15 +376,59 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 							<Label className={labelClass}>
 								<span className="inline-flex items-center gap-2">
 									<KeyRound size={13} strokeWidth={1.8} />
-									{t('profilePage.emailPasswordLabel')}
+									{t('profilePage.currentPasswordLabel')}
 								</span>
 							</Label>
 							<Input
 								className={underlineInputClass}
-								placeholder={t('profilePage.emailPasswordPlaceholder')}
+								placeholder={t('profilePage.currentPasswordPlaceholder')}
 							/>
 						</TextField>
 					) : null}
+					<TextField
+						value={newPasswordDraft}
+						onChange={(value) => {
+							setNewPasswordDraft(value)
+							setEmailMessage(null)
+						}}
+						type="password"
+						className="space-y-1.5"
+					>
+						<Label className={labelClass}>
+							<span className="inline-flex items-center gap-2">
+								<KeyRound size={13} strokeWidth={1.8} />
+								{t('profilePage.newPasswordLabel')}
+							</span>
+						</Label>
+						<Input
+							className={underlineInputClass}
+							placeholder={
+								profile.hasPassword
+									? t('profilePage.newPasswordPlaceholder')
+									: t('profilePage.createPasswordPlaceholder')
+							}
+						/>
+					</TextField>
+					<TextField
+						value={newPasswordConfirmationDraft}
+						onChange={(value) => {
+							setNewPasswordConfirmationDraft(value)
+							setEmailMessage(null)
+						}}
+						type="password"
+						className="space-y-1.5"
+					>
+						<Label className={labelClass}>
+							<span className="inline-flex items-center gap-2">
+								<KeyRound size={13} strokeWidth={1.8} />
+								{t('profilePage.confirmPasswordLabel')}
+							</span>
+						</Label>
+						<Input
+							className={underlineInputClass}
+							placeholder={t('profilePage.confirmPasswordPlaceholder')}
+						/>
+					</TextField>
 					<Button
 						type="button"
 						onPress={handleEmailChange}
@@ -337,7 +437,13 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 					>
 						{emailMutation.isPending
 							? t('settings.saving')
-							: t('profilePage.sendEmailConfirmation')}
+							: authUpdateButtonLabel(
+									profile,
+									emailDraft,
+									newPasswordDraft,
+									newPasswordConfirmationDraft,
+									t,
+								)}
 					</Button>
 				</div>
 				{profile.pendingEmail && (
@@ -517,13 +623,58 @@ function paymentLabel(
 
 function emailErrorLabel(error: string | undefined, t: TFunction<'portal'>) {
 	const labels: Record<string, string> = {
+		current_password_invalid: t('profilePage.currentPasswordInvalid'),
+		current_password_required: t('profilePage.currentPasswordRequired'),
 		not_authenticated: t('profilePage.emailAuthRequired'),
+		password_mismatch: t('profilePage.emailPasswordMismatch'),
 		password_required: t('profilePage.emailPasswordRequired'),
+		password_same: t('profilePage.passwordSame'),
 		update_failed: t('profilePage.emailChangeFailed'),
 	}
 	return labels[error ?? ''] ?? t('profilePage.emailChangeFailed')
 }
 
-function shouldRequireEmailPassword(profile: CustomerProfile) {
-	return !profile.emailConfirmed && !profile.pendingEmail
+function authUpdateSuccessLabel(
+	status: string | undefined,
+	email: string,
+	t: TFunction<'portal'>,
+) {
+	if (status === 'password_updated') return t('profilePage.passwordUpdated')
+	if (status === 'email_confirmation_sent_password_updated') {
+		return t('profilePage.emailAndPasswordUpdated', { email })
+	}
+	if (status === 'email_confirmation_sent') {
+		return t('profilePage.emailConfirmationSent', { email })
+	}
+	return t('profilePage.noAuthChanges')
+}
+
+function authUpdateButtonLabel(
+	profile: CustomerProfile,
+	emailDraft: string,
+	newPassword: string,
+	newPasswordConfirmation: string,
+	t: TFunction<'portal'>,
+) {
+	const emailChanged = hasEmailDraftChange(profile, emailDraft)
+	const passwordChanged = Boolean(newPassword || newPasswordConfirmation)
+	if (emailChanged && passwordChanged) {
+		return t('profilePage.updateEmailAndPasswordButton')
+	}
+	if (emailChanged) return t('profilePage.sendEmailConfirmation')
+	if (passwordChanged) return t('profilePage.updatePasswordButton')
+	return t('profilePage.updateAuthButton')
+}
+
+function hasEmailDraftChange(profile: CustomerProfile, emailDraft: string) {
+	const currentEmail = profile.emailConfirmed
+		? profile.authEmail || profile.email || ''
+		: profile.pendingEmail || ''
+	return (
+		normalizedProfileEmail(emailDraft) !== normalizedProfileEmail(currentEmail)
+	)
+}
+
+function normalizedProfileEmail(value: string | undefined) {
+	return (value ?? '').trim().toLowerCase()
 }

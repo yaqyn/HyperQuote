@@ -24,8 +24,10 @@ import {
 import { resolveAddressCoordinates } from './address-coordinates'
 
 const emailChangeInput = z.object({
+	currentPassword: z.string().max(128).optional(),
 	email: z.string().trim().email().max(254),
-	password: z.string().min(6).max(128).optional(),
+	newPassword: z.string().max(128).optional(),
+	newPasswordConfirmation: z.string().max(128).optional(),
 })
 
 function normalizedEmail(value: string) {
@@ -51,6 +53,7 @@ export const getCustomerProfile = createServerFn().handler(
 		const authEmail = session.user.email
 		const emailConfirmed = Boolean(session.user.email_confirmed_at)
 		const confirmedAuthEmail = emailConfirmed ? authEmail : undefined
+		const hasPassword = await readCustomerAuthHasPassword(session.user.id)
 		if (
 			confirmedAuthEmail &&
 			normalizedEmail(data.email ?? '') !== normalizedEmail(confirmedAuthEmail)
@@ -70,6 +73,7 @@ export const getCustomerProfile = createServerFn().handler(
 			email: confirmedAuthEmail ?? data.email,
 			emailChangeSentAt: session.user.email_change_sent_at,
 			emailConfirmed,
+			hasPassword,
 			pendingEmail: session.user.new_email,
 			phoneConfirmed: Boolean(session.user.phone_confirmed_at),
 			status: data.status,
@@ -112,8 +116,19 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 			data: input,
 		}): Promise<{
 			email?: string
-			error?: 'not_authenticated' | 'password_required' | 'update_failed'
-			status?: 'confirmation_sent' | 'unchanged'
+			error?:
+				| 'current_password_invalid'
+				| 'current_password_required'
+				| 'not_authenticated'
+				| 'password_mismatch'
+				| 'password_required'
+				| 'password_same'
+				| 'update_failed'
+			status?:
+				| 'email_confirmation_sent'
+				| 'email_confirmation_sent_password_updated'
+				| 'password_updated'
+				| 'unchanged'
 			success: boolean
 		}> => {
 			const nextEmail = normalizedEmail(input.email)
@@ -125,12 +140,42 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 				typeof session.user.new_email === 'string'
 					? normalizedEmail(session.user.new_email)
 					: ''
-			if (session.user.email_confirmed_at && currentEmail === nextEmail) {
+			const hasPassword = await readCustomerAuthHasPassword(session.user.id)
+			const emailChanged = session.user.email_confirmed_at
+				? currentEmail !== nextEmail
+				: pendingEmail !== nextEmail
+			const wantsPasswordChange = Boolean(
+				input.newPassword || input.newPasswordConfirmation,
+			)
+			if (!emailChanged && !wantsPasswordChange) {
 				return { email: nextEmail, status: 'unchanged', success: true }
 			}
-			const requiresPassword = !session.user.email_confirmed_at && !pendingEmail
-			if (requiresPassword && !input.password) {
+			if (
+				wantsPasswordChange &&
+				(!input.newPassword || input.newPassword.length < 6)
+			) {
 				return { error: 'password_required', success: false }
+			}
+			if (
+				wantsPasswordChange &&
+				input.newPassword !== input.newPasswordConfirmation
+			) {
+				return { error: 'password_mismatch', success: false }
+			}
+			if (!hasPassword && emailChanged && !wantsPasswordChange) {
+				return { error: 'password_required', success: false }
+			}
+			if (hasPassword && (emailChanged || wantsPasswordChange)) {
+				if (!input.currentPassword) {
+					return { error: 'current_password_required', success: false }
+				}
+				const currentPasswordValid = await verifyCustomerAuthPassword(
+					session.user.id,
+					input.currentPassword,
+				)
+				if (!currentPasswordValid) {
+					return { error: 'current_password_invalid', success: false }
+				}
 			}
 
 			const config = await resolveSupabaseRuntimeConfig(process.env)
@@ -160,7 +205,7 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 				return { error: 'not_authenticated', success: false }
 			}
 
-			if (pendingEmail && pendingEmail !== nextEmail) {
+			if (emailChanged && pendingEmail && pendingEmail !== nextEmail) {
 				const service = await createSupabaseServiceRoleClient(process.env)
 				if (!service) return { error: 'update_failed', success: false }
 				const { error: clearError } = await service.rpc(
@@ -181,11 +226,13 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 			}
 
 			const { error: firstUpdateError } = await client.auth.updateUser({
-				email: nextEmail,
-				...(requiresPassword ? { password: input.password } : {}),
+				...(emailChanged ? { email: nextEmail } : {}),
+				...(wantsPasswordChange ? { password: input.newPassword } : {}),
 			})
 			const updateError =
-				requiresPassword && isSamePasswordError(firstUpdateError)
+				emailChanged &&
+				wantsPasswordChange &&
+				isSamePasswordError(firstUpdateError)
 					? (await client.auth.updateUser({ email: nextEmail })).error
 					: firstUpdateError
 			appendSetCookieHeaders(
@@ -194,16 +241,48 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 				responseHeaders.entries(),
 			)
 			if (updateError) {
-				return { error: 'update_failed', success: false }
+				return {
+					error: isSamePasswordError(updateError)
+						? 'password_same'
+						: 'update_failed',
+					success: false,
+				}
 			}
 
 			return {
 				email: nextEmail,
-				status: 'confirmation_sent',
+				status:
+					emailChanged && wantsPasswordChange
+						? 'email_confirmation_sent_password_updated'
+						: emailChanged
+							? 'email_confirmation_sent'
+							: 'password_updated',
 				success: true,
 			}
 		},
 	)
+
+async function readCustomerAuthHasPassword(userId: string) {
+	const service = await createSupabaseServiceRoleClient(process.env)
+	if (!service) return false
+	const { data, error } = await service.rpc(
+		'service_customer_auth_has_password',
+		{ p_user_id: userId },
+	)
+	if (error) return false
+	return Boolean(data)
+}
+
+async function verifyCustomerAuthPassword(userId: string, password: string) {
+	const service = await createSupabaseServiceRoleClient(process.env)
+	if (!service) return false
+	const { data, error } = await service.rpc(
+		'service_customer_auth_verify_password',
+		{ p_password: password, p_user_id: userId },
+	)
+	if (error) return false
+	return Boolean(data)
+}
 
 function isSamePasswordError(
 	error: { code?: string; message?: string } | null,

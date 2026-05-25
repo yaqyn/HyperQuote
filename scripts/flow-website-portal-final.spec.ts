@@ -224,6 +224,7 @@ test('website phone signup can attach confirmed email/password for portal login'
 	await waitForHydration(portalPage)
 	await expect(portalPage.locator('body')).toContainText('Email authentication')
 	await portalPage.getByLabel(/^Email$/i).fill(changedEmail)
+	await portalPage.getByLabel(/^Current password$/i).fill(password)
 	await portalPage.getByRole('button', { name: /send confirmation/i }).click()
 	await expect(portalPage.locator('body')).toContainText(
 		`Confirmation email sent to ${changedEmail}.`,
@@ -288,7 +289,13 @@ test('website phone signup can attach confirmed email/password for portal login'
 	await resetPage.getByLabel(/^New password$/i).fill(resetPassword)
 	await resetPage.getByLabel(/^Confirm new password$/i).fill(resetPassword)
 	await resetPage.getByRole('button', { name: /update password/i }).click()
-	await expect(resetPage).not.toHaveURL(/\/login/, { timeout: 25_000 })
+	await expect(resetPage.locator('body')).toContainText(/password updated/i, {
+		timeout: 25_000,
+	})
+	await expect(
+		resetPage.getByRole('link', { name: /^Website$/i }),
+	).toBeVisible()
+	await expect(resetPage.getByRole('link', { name: /^Portal$/i })).toBeVisible()
 	await resetGuard.expectClean('portal password reset')
 	await resetContext.close()
 
@@ -366,12 +373,15 @@ test('portal phone-only customer must add email login with password', async ({
 	await expect(page.locator('body')).toContainText('Email authentication')
 	await page.getByLabel(/^Email$/i).fill(email)
 	await page.getByRole('button', { name: /send confirmation/i }).click()
-	await expect(page.locator('body')).toContainText(/password of at least 6/i)
+	await expect(page.locator('body')).toContainText(
+		/new password of at least 6/i,
+	)
 	expect(readAuthEmailState(userId)).toEqual({ email: '', emailChange: '' })
 
-	await page.getByLabel(/^Password$/i).fill(password)
+	await page.getByLabel(/^New password$/i).fill(password)
+	await page.getByLabel(/^Confirm password$/i).fill(password)
 	await page.getByLabel(/^Email$/i).fill(staleEmail)
-	await page.getByRole('button', { name: /send confirmation/i }).click()
+	await page.getByRole('button', { name: /update email and password/i }).click()
 	await expect(page.locator('body')).toContainText(
 		`Confirmation email sent to ${staleEmail}.`,
 		{ timeout: 15_000 },
@@ -388,25 +398,10 @@ test('portal phone-only customer must add email login with password', async ({
 		`Waiting for confirmation from ${staleEmail}.`,
 	)
 	await expect(page.getByLabel(/^Email$/i)).toHaveValue('')
-	await expect(page.getByLabel(/^Password$/i)).toHaveCount(0)
-
-	const clearedPending = await service.rpc(
-		'service_clear_customer_pending_email_change',
-		{
-			p_expected_pending_email: staleEmail,
-			p_user_id: userId,
-		},
-	)
-	expect(clearedPending.error).toBeNull()
-	expect(clearedPending.data).toBe(true)
-	expect(readAuthEmailState(userId)).toEqual({ email: '', emailChange: '' })
-
-	await page.reload({ waitUntil: 'domcontentloaded' })
-	await waitForHydration(page)
-	await expect(page.getByLabel(/^Email$/i)).toHaveValue('')
-	await expect(page.getByLabel(/^Password$/i)).toBeVisible()
+	await expect(page.getByLabel(/^Current password$/i)).toBeVisible()
+	await expect(page.getByLabel(/^New password$/i)).toBeVisible()
 	await page.getByLabel(/^Email$/i).fill(email)
-	await page.getByLabel(/^Password$/i).fill(password)
+	await page.getByLabel(/^Current password$/i).fill(password)
 	await page.getByRole('button', { name: /send confirmation/i }).click()
 	await expect(page.locator('body')).toContainText(
 		`Confirmation email sent to ${email}.`,
