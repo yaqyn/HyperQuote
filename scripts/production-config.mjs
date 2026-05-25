@@ -11,7 +11,7 @@ export const productionUrls = {
 	website: 'https://www.hyperquote.net',
 }
 
-export const productionApps = [
+const productionApps = [
 	{
 		cookieName: 'hyperquote_customer_auth',
 		directory: 'apps/website',
@@ -95,14 +95,15 @@ export function productionBuildEnv(app, env = process.env) {
 	return {
 		VITE_DRIVER_API_BASE: productionUrls.driver,
 		VITE_INTERNAL_URL: productionUrls.internal,
+		VITE_MAPTILER_KEY: env.VITE_MAPTILER_KEY ?? env.MAPTILER_KEY ?? '',
 		VITE_PORTAL_URL: productionUrls.portal,
 		VITE_ROAD_ROUTE_ENDPOINT:
 			env.VITE_ROAD_ROUTE_ENDPOINT ??
 			env.ROAD_ROUTE_ENDPOINT ??
 			'https://router.project-osrm.org/route/v1/driving',
-		VITE_SUPABASE_ANON_KEY: env.VITE_SUPABASE_ANON_KEY ?? env.SUPABASE_ANON_KEY,
+		VITE_SUPABASE_ANON_KEY: env.SUPABASE_ANON_KEY,
 		VITE_SUPABASE_COOKIE_NAME: app.cookieName,
-		VITE_SUPABASE_URL: env.VITE_SUPABASE_URL ?? env.SUPABASE_URL,
+		VITE_SUPABASE_URL: env.SUPABASE_URL,
 		VITE_SUPPORT_EMAIL:
 			env.VITE_SUPPORT_EMAIL ??
 			env.SUPPORT_INBOUND_EMAIL ??

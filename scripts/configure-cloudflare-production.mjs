@@ -7,6 +7,9 @@ const RULE_REF = 'hyperquote-root-to-www'
 const RULE_DESCRIPTION = 'Redirect hyperquote.net to www.hyperquote.net'
 const SUPPORT_RULE_NAME = 'Route support@hyperquote.net to Internal Worker'
 const SUPPORT_WORKER_NAME = 'hyperquote-internal'
+const strictConfig =
+	process.env.HYPERQUOTE_CLOUDFLARE_CONFIG_STRICT === '1' ||
+	process.env.HYPERQUOTE_CLOUDFLARE_CONFIG_STRICT === 'true'
 
 const zoneId = process.env.CLOUDFLARE_ZONE_ID?.trim()
 const token = process.env.CLOUDFLARE_API_TOKEN?.trim()
@@ -89,6 +92,11 @@ async function runOptionalCloudflareStep(label, action, fallback) {
 		await action()
 	} catch (error) {
 		if (!isPermissionError(error)) throw error
+		if (strictConfig) {
+			console.error(`${label} failed: Cloudflare token lacks permission.`)
+			console.error(fallback)
+			process.exit(1)
+		}
 		console.warn(`${label} skipped: Cloudflare token lacks permission.`)
 		console.warn(fallback)
 	}

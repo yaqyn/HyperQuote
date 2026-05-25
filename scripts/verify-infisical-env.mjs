@@ -68,9 +68,10 @@ if (missing.length > 0) {
 	process.exit(1)
 }
 
-const warnings = optionalSecretGroups().filter(
-	(group) => !isGroupConfigured(group),
-)
+const warnings =
+	process.env.HYPERQUOTE_WARN_OPTIONAL_SECRETS === '1'
+		? optionalSecretGroups().filter((group) => !isGroupConfigured(group))
+		: []
 
 console.log(`Infisical ${target.label} has the required secret groups.`)
 for (const group of warnings) {
