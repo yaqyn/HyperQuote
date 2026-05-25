@@ -14,6 +14,38 @@ function formatTimestamp(iso: string): string {
 	return `${hh}:${mm}`
 }
 
+function AttachmentPill({
+	attachment,
+}: {
+	attachment: Message['attachments'][number]
+}) {
+	const content = (
+		<>
+			<span className="min-w-0 break-words">{attachment.name}</span>
+			{attachment.sizeBytes > 0 && (
+				<span className="text-[var(--color-text-subtle)] tabular-nums">
+					{(attachment.sizeBytes / 1024).toFixed(0)}KB
+				</span>
+			)}
+		</>
+	)
+	const className =
+		'inline-flex max-w-full items-center gap-2 rounded-md border border-black/[0.08] px-2 py-1 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)] dark:border-white/[0.1]'
+	if (!attachment.url) {
+		return <span className={className}>{content}</span>
+	}
+	return (
+		<a
+			href={attachment.url}
+			target="_blank"
+			rel="noreferrer"
+			className={`${className} transition-colors hover:border-[var(--color-primary)]/35 hover:text-[var(--color-text)]`}
+		>
+			{content}
+		</a>
+	)
+}
+
 /**
  * A single exchange in a live conversation — rendered as a letter entry,
  * not a chat bubble. The timestamp hangs in the leading margin; the
@@ -93,15 +125,7 @@ export function MessageItem({
 						}`}
 					>
 						{message.attachments.map((att) => (
-							<span
-								key={att.id}
-								className="inline-flex max-w-full items-center gap-2 rounded-md border border-black/[0.08] px-2 py-1 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)] dark:border-white/[0.1]"
-							>
-								<span className="min-w-0 break-words">{att.name}</span>
-								<span className="text-[var(--color-text-subtle)] tabular-nums">
-									{(att.sizeBytes / 1024).toFixed(0)}KB
-								</span>
-							</span>
+							<AttachmentPill key={att.id} attachment={att} />
 						))}
 					</div>
 				)}

@@ -27,9 +27,54 @@ interface EmailComposerProps {
 	variant?: 'dock' | 'screen'
 }
 
+const SUPPORT_EMAIL_ADDRESSES = new Set([
+	'support@hyperquote.net',
+	'support@hyperquote.io',
+	'support@info.moderngroupco.com',
+])
+
 function stringMetadata(message: Message, key: string): string {
 	const value = message.metadata[key]
 	return typeof value === 'string' ? value : ''
+}
+
+function splitEmailValues(value: string): string[] {
+	return value
+		.split(/[;,]/)
+		.map((part) => part.trim())
+		.filter(Boolean)
+}
+
+function emailMetadataList(message: Message, key: string): string[] {
+	const value = message.metadata[key]
+	const rawValues =
+		typeof value === 'string'
+			? [value]
+			: Array.isArray(value)
+				? value.filter((item): item is string => typeof item === 'string')
+				: []
+	const seen = new Set<string>()
+	const emails: string[] = []
+	for (const email of rawValues.flatMap(splitEmailValues)) {
+		const normalized = normalizedEmailAddress(email)
+		if (!normalized || seen.has(normalized)) continue
+		seen.add(normalized)
+		emails.push(email)
+	}
+	return emails
+}
+
+function normalizedEmailAddress(value: string): string {
+	const bracketMatch = /<([^>]+)>/.exec(value)
+	return (bracketMatch?.[1] ?? value).trim().toLowerCase()
+}
+
+function isSameEmail(left: string, right: string): boolean {
+	return normalizedEmailAddress(left) === normalizedEmailAddress(right)
+}
+
+function isSupportEmail(value: string): boolean {
+	return SUPPORT_EMAIL_ADDRESSES.has(normalizedEmailAddress(value))
 }
 
 function deriveFields(
@@ -38,14 +83,14 @@ function deriveFields(
 	action: EmailAction | null,
 ): { to: string; cc: string; subject: string } {
 	const customerEmail = conversation.customer.email ?? ''
-	const supportEmail = 'support@hyperquote.io'
 
 	if (!replyTo || !action) {
 		return { to: customerEmail, cc: '', subject: `Re: ${conversation.subject}` }
 	}
 
-	const originalFrom = stringMetadata(replyTo, 'from')
-	const originalCc = stringMetadata(replyTo, 'cc')
+	const originalFrom = emailMetadataList(replyTo, 'from')[0] ?? ''
+	const originalTo = emailMetadataList(replyTo, 'to')
+	const originalCc = emailMetadataList(replyTo, 'cc')
 	const originalSubject =
 		stringMetadata(replyTo, 'subject') || conversation.subject
 
@@ -68,12 +113,13 @@ function deriveFields(
 				replyTo.direction === 'inbound'
 					? originalFrom || customerEmail
 					: customerEmail
-			const ccList = [
-				originalCc,
-				replyTo.direction === 'inbound' ? '' : originalFrom,
-			]
-				.filter(Boolean)
-				.filter((addr) => addr !== replyTo_ && addr !== supportEmail)
+			const ccCandidates =
+				replyTo.direction === 'inbound'
+					? [...originalTo, ...originalCc]
+					: originalCc
+			const ccList = ccCandidates
+				.filter((addr) => !isSameEmail(addr, replyTo_))
+				.filter((addr) => !isSupportEmail(addr))
 				.join(', ')
 			return {
 				to: replyTo_,

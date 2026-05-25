@@ -45,15 +45,17 @@ describe('customer service email rendering', () => {
 		})
 
 		expect(html).toContain('HyperQuote')
-		expect(html).toContain('Portal App')
+		expect(html).toContain('Portal')
 		expect(html).toContain('Arkan Plaza, Sheikh Zayed, Egypt')
 		expect(html).toContain('<li')
 		expect(html).toContain('Your order is confirmed')
 		expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
 		expect(html).toContain('<img')
+		expect(html).toContain('/email/auth-icons/phone.png')
 		expect(html).toContain(
 			'https://pub-cbfbae308dae4797b95916396d2ff713.r2.dev',
 		)
+		expect(html).not.toContain('TK-LOCAL-AI-001')
 		expect(html).not.toContain('data:image/png;base64,')
 		expect(html).not.toContain('LyonBlack.svg')
 		expect(html).not.toContain('<svg')
@@ -61,17 +63,19 @@ describe('customer service email rendering', () => {
 	})
 
 	it('keeps a useful plain-text fallback', () => {
-		expect(
-			renderSupportEmailText({
-				body: 'We received your request.',
-				customerName: 'Ahmed',
-				reference: 'TK-LOCAL-AI-001',
-				subject: 'Re: Cement delivery',
-			}),
-		).toContain('Customer portal: https://portal.hyperquote.net')
+		const text = renderSupportEmailText({
+			body: 'We received your request.',
+			customerName: 'Ahmed',
+			reference: 'TK-LOCAL-AI-001',
+			subject: 'Re: Cement delivery',
+		})
+
+		expect(text).toContain('Customer portal: https://portal.hyperquote.net')
+		expect(text).not.toContain('Reference:')
+		expect(text).not.toContain('TK-LOCAL-AI-001')
 	})
 
-	it('adds the ticket reference to reply subjects exactly once', () => {
+	it('keeps reply subjects friendly without exposing ticket references', () => {
 		const ticket = {
 			id: '00000000-0000-4000-8000-000000000099',
 			reference: 'TK-2026-ABC123',
@@ -81,11 +85,11 @@ describe('customer service email rendering', () => {
 		}
 
 		expect(supportReplySubject(ticket, 'Re: Delivery update')).toBe(
-			'Re: [TK-2026-ABC123] Delivery update',
+			'Re: Delivery update',
 		)
 		expect(
 			supportReplySubject(ticket, 'Re: [TK-2026-ABC123] Delivery update'),
-		).toBe('Re: [TK-2026-ABC123] Delivery update')
+		).toBe('Re: Delivery update')
 	})
 
 	it('skips local-only recipients without calling Resend', async () => {
@@ -191,7 +195,7 @@ describe('customer service email rendering', () => {
 					'<root-message@customer.test> <inbound-message@customer.test>',
 			},
 			reply_to: 'support@hyperquote.net',
-			subject: 'Re: [TK-LOCAL-AI-003] Delivery update',
+			subject: 'Re: Delivery update',
 			to: ['customer@hyperquote.net'],
 		})
 		expect(body.html).toContain('HyperQuote')
@@ -201,7 +205,16 @@ describe('customer service email rendering', () => {
 
 	it('normalizes Resend received email content for support ingestion', () => {
 		const receivedEmail: GetReceivingEmailResponseSuccess = {
-			attachments: [],
+			attachments: [
+				{
+					content_disposition: 'attachment',
+					content_id: null,
+					content_type: 'image/png',
+					filename: 'site-photo.png',
+					id: 'att_123',
+					size: 2048,
+				},
+			],
 			bcc: null,
 			cc: ['Ops <ops@example.com>'],
 			created_at: '2026-05-25T08:00:00.000Z',
@@ -217,7 +230,14 @@ describe('customer service email rendering', () => {
 			raw: null,
 			reply_to: null,
 			subject: 'Re: [TK-2026-ABC123] Delivery issue',
-			text: 'The delivery issue still needs help.',
+			text: [
+				'The delivery issue still needs help.',
+				'',
+				'[Pasted Content 1,105 chars]',
+				'',
+				'On Mon, May 25, 2026 at 10:15 AM HyperQuote Support <support@hyperquote.net> wrote:',
+				'> Previous HyperQuote support reply',
+			].join('\n'),
 			to: ['HyperQuote Support <support@hyperquote.net>'],
 		}
 
@@ -236,6 +256,14 @@ describe('customer service email rendering', () => {
 		expect(normalized.references).toEqual([
 			'<root@customer.test>',
 			'<reply-target@hyperquote.net>',
+		])
+		expect(normalized.attachments).toEqual([
+			{
+				contentType: 'image/png',
+				fileName: 'site-photo.png',
+				providerAttachmentId: 'att_123',
+				sizeBytes: 2048,
+			},
 		])
 		expect(isAddressedToSupport(normalized, 'support@hyperquote.net')).toBe(
 			true,
@@ -256,6 +284,14 @@ describe('customer service email rendering', () => {
 			'Content-Type: text/plain; charset=utf-8',
 			'',
 			'The delivery issue still needs help.',
+			'',
+			'-----Original Message-----',
+			'From: HyperQuote Support <support@hyperquote.net>',
+			'Sent: Monday, May 25, 2026 10:15 AM',
+			'To: Koko <koko@gmail.com>',
+			'Subject: Re: Delivery issue',
+			'',
+			'Previous HyperQuote support reply',
 		].join('\r\n')
 
 		const normalized = await normalizeCloudflareInboundEmail({

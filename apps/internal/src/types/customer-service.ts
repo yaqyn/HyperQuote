@@ -58,7 +58,7 @@ export interface LinkedQuote {
 
 // ── Message ─────────────────────────────────────────────────────────────────
 
-interface Attachment {
+export interface Attachment {
 	id: string
 	name: string
 	type: string

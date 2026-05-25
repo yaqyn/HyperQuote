@@ -41,6 +41,15 @@ function stringMetadata(message: Message, key: string): string {
 	return typeof value === 'string' ? value : ''
 }
 
+function emailMetadataText(message: Message, key: string): string {
+	const value = message.metadata[key]
+	if (typeof value === 'string') return value
+	if (!Array.isArray(value)) return ''
+	return value
+		.filter((item): item is string => typeof item === 'string')
+		.join(', ')
+}
+
 function deliveryStatus(message: Message): {
 	label: string
 	tone: 'danger' | 'neutral' | 'success' | 'warning'
@@ -62,6 +71,38 @@ function deliveryStatus(message: Message): {
 	}
 }
 
+function AttachmentPill({
+	attachment,
+}: {
+	attachment: Message['attachments'][number]
+}) {
+	const content = (
+		<>
+			<span className="min-w-0 break-words">{attachment.name}</span>
+			{attachment.sizeBytes > 0 && (
+				<span className="text-[var(--color-text-subtle)] tabular-nums">
+					{(attachment.sizeBytes / 1024).toFixed(0)}KB
+				</span>
+			)}
+		</>
+	)
+	const className =
+		'inline-flex max-w-full items-center gap-2 rounded-md border border-black/[0.08] px-2 py-1 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)] dark:border-white/[0.1]'
+	if (!attachment.url) {
+		return <span className={className}>{content}</span>
+	}
+	return (
+		<a
+			href={attachment.url}
+			target="_blank"
+			rel="noreferrer"
+			className={`${className} transition-colors hover:border-[var(--color-primary)]/35 hover:text-[var(--color-text)]`}
+		>
+			{content}
+		</a>
+	)
+}
+
 /**
  * Email in correspondence form. Collapsed: a single line that reads like
  * an index entry in a letter archive. Expanded: a proper letter with
@@ -75,9 +116,9 @@ export function EmailMessage({
 	const { t } = useTranslation('customer-service')
 	const [expanded, setExpanded] = useState(isLatest)
 
-	const from = stringMetadata(message, 'from') || message.senderName
-	const to = stringMetadata(message, 'to')
-	const cc = stringMetadata(message, 'cc')
+	const from = emailMetadataText(message, 'from') || message.senderName
+	const to = emailMetadataText(message, 'to')
+	const cc = emailMetadataText(message, 'cc')
 	const isInbound = message.direction === 'inbound'
 	const status = isInbound ? null : deliveryStatus(message)
 	const providerError =
@@ -204,15 +245,7 @@ export function EmailMessage({
 			{message.attachments.length > 0 && (
 				<div className="flex flex-wrap items-center gap-3 mt-4">
 					{message.attachments.map((att) => (
-						<span
-							key={att.id}
-							className="inline-flex max-w-full items-center gap-2 rounded-md border border-black/[0.08] px-2 py-1 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)] dark:border-white/[0.1]"
-						>
-							<span className="min-w-0 break-words">{att.name}</span>
-							<span className="text-[var(--color-text-subtle)] tabular-nums">
-								{(att.sizeBytes / 1024).toFixed(0)}KB
-							</span>
-						</span>
+						<AttachmentPill key={att.id} attachment={att} />
 					))}
 				</div>
 			)}

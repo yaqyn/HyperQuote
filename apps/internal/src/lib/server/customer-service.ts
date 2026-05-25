@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type {
+	Attachment,
 	ChannelType,
 	Conversation,
 	Customer,
@@ -86,6 +87,14 @@ interface SupabaseSupportMessageRow {
 	provider_error?: string | null
 	metadata?: Record<string, unknown>
 	created_at: string
+}
+
+interface SupabaseSupportAttachmentRow {
+	content_type: string | null
+	created_at: string
+	id: string
+	message_id: string
+	storage_path: string
 }
 
 interface SupportReplyRow {
@@ -219,6 +228,7 @@ function supabaseMessageFromRow(
 	row: SupabaseSupportMessageRow,
 	customer: Customer,
 	employeeNameByUserId: Map<string, string>,
+	attachmentsByMessageId: Map<string, Attachment[]>,
 ): Conversation['messages'][number] {
 	const inbound =
 		row.sender_type === 'customer' || row.sender_type === 'external'
@@ -236,7 +246,7 @@ function supabaseMessageFromRow(
 		content: row.body,
 		senderName: inbound ? customer.name : (employeeName ?? 'Employee'),
 		timestamp: row.created_at,
-		attachments: [],
+		attachments: attachmentsByMessageId.get(row.id) ?? [],
 		read: !inbound,
 		metadata: {
 			...(row.metadata ?? {}),
@@ -262,6 +272,42 @@ async function getSupportEmailTicket(
 		.single()
 	if (error) throw new Error(error.message)
 	return data as unknown as SupportEmailTicket
+}
+
+async function getSupportAttachmentsByMessageId(
+	client: InternalSupportClient,
+	messageIds: string[],
+): Promise<Map<string, Attachment[]>> {
+	const attachmentsByMessageId = new Map<string, Attachment[]>()
+	if (messageIds.length === 0) return attachmentsByMessageId
+
+	const { data, error } = await client
+		.from('support_attachments')
+		.select('id, message_id, storage_path, content_type, created_at')
+		.in('message_id', messageIds)
+		.order('created_at', { ascending: true })
+	if (error) throw new Error(error.message)
+
+	for (const row of (data ?? []) as unknown as SupabaseSupportAttachmentRow[]) {
+		const { data: signedUrl } = await client.storage
+			.from('support-attachments')
+			.createSignedUrl(row.storage_path, 60 * 60)
+		const list = attachmentsByMessageId.get(row.message_id) ?? []
+		list.push({
+			id: row.id,
+			name: supportAttachmentName(row.storage_path),
+			sizeBytes: 0,
+			type: row.content_type ?? 'application/octet-stream',
+			url: signedUrl?.signedUrl ?? '',
+		})
+		attachmentsByMessageId.set(row.message_id, list)
+	}
+	return attachmentsByMessageId
+}
+
+function supportAttachmentName(storagePath: string): string {
+	const fileName = storagePath.split('/').pop()?.trim()
+	return fileName?.replace(/^[0-9]{2}-/, '') || 'attachment'
 }
 
 function supportReplyRow(value: unknown): SupportReplyRow {
@@ -546,6 +592,14 @@ async function getSupabaseConversations() {
 			if (row.user_id) employeeNameByUserId.set(row.user_id, row.full_name)
 		}
 	}
+	const allMessageRows = [
+		...Array.from(ticketMessagesById.values()).flat(),
+		...Array.from(conversationMessagesById.values()).flat(),
+	]
+	const attachmentsByMessageId = await getSupportAttachmentsByMessageId(
+		auth.client,
+		allMessageRows.map((message) => message.id),
+	)
 
 	const ticketConversations: Conversation[] = tickets.map((ticket) => {
 		const customer = supabaseCustomerFromRow(firstRelation(ticket.customers), {
@@ -556,7 +610,12 @@ async function getSupabaseConversations() {
 			createdAt: ticket.created_at,
 		})
 		const messages = (ticketMessagesById.get(ticket.id) ?? []).map((message) =>
-			supabaseMessageFromRow(message, customer, employeeNameByUserId),
+			supabaseMessageFromRow(
+				message,
+				customer,
+				employeeNameByUserId,
+				attachmentsByMessageId,
+			),
 		)
 		const lastMessage = messages[messages.length - 1]
 		const assignedEmployee = firstRelation(ticket.employees)
@@ -602,7 +661,12 @@ async function getSupabaseConversations() {
 			const messages = (
 				conversationMessagesById.get(conversation.id) ?? []
 			).map((message) =>
-				supabaseMessageFromRow(message, customer, employeeNameByUserId),
+				supabaseMessageFromRow(
+					message,
+					customer,
+					employeeNameByUserId,
+					attachmentsByMessageId,
+				),
 			)
 			const lastMessage = messages[messages.length - 1]
 			const assignedEmployee = firstRelation(conversation.employees)
