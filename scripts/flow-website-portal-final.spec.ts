@@ -296,6 +296,65 @@ test('website phone signup can attach confirmed email/password for portal login'
 	await context.close()
 })
 
+test('portal phone-only customer must add email login with password', async ({
+	browser,
+}) => {
+	test.setTimeout(90_000)
+	const service = createLocalServiceClient()
+	const stamp = Date.now().toString(36)
+	const phone = '1099999999'
+	const fullPhone = `+20${phone}`
+	const email = `flow-phone-email-${stamp}@example.com`
+	const password = `Flow-phone-email-${stamp}-123456`
+	await resetCustomerByPhoneOrEmail(service, fullPhone, email)
+
+	const context = await browser.newContext({
+		viewport: { height: 1000, width: 1440 },
+	})
+	const page = await context.newPage()
+	const guard = installBrowserErrorGuard(page)
+	await page.goto(`${URLS.portal}/login`, { waitUntil: 'domcontentloaded' })
+	await waitForHydration(page)
+	await page.locator('#atelier-phone').fill(phone)
+	await page.getByRole('button', { name: /sms/i }).click()
+	await expect(page.getByLabel(/digit 1/i)).toBeVisible({ timeout: 15_000 })
+	await enterOtp(page, '123456')
+	await expect(page.getByLabel(/^Company Name$/i)).toBeVisible({
+		timeout: 20_000,
+	})
+	await page.getByLabel(/^Full Name$/i).fill('Flow Phone Only Customer')
+	await page.getByLabel(/^Company Name$/i).fill('Flow Phone Only Co')
+	await page.getByRole('button', { name: /^Create profile$/i }).click()
+	await expect(page).not.toHaveURL(/\/login/, { timeout: 20_000 })
+
+	const customer = await expectCustomerByPhone(service, fullPhone)
+	expect(customer.user_id).toBeTruthy()
+	const userId = String(customer.user_id)
+	expect(readAuthEmailState(userId)).toEqual({ email: '', emailChange: '' })
+
+	await page.goto(`${URLS.portal}/profile`, { waitUntil: 'domcontentloaded' })
+	await waitForHydration(page)
+	await expect(page.locator('body')).toContainText('Email authentication')
+	await page.getByLabel(/^Email$/i).fill(email)
+	await page.getByRole('button', { name: /send confirmation/i }).click()
+	await expect(page.locator('body')).toContainText(/password of at least 6/i)
+	expect(readAuthEmailState(userId)).toEqual({ email: '', emailChange: '' })
+
+	await page.getByLabel(/^Password$/i).fill(password)
+	await page.getByRole('button', { name: /send confirmation/i }).click()
+	await expect(page.locator('body')).toContainText(
+		`Confirmation email sent to ${email}.`,
+		{ timeout: 15_000 },
+	)
+	await latestInbucketConfirmationUrl(email)
+	expect(readAuthEmailState(userId)).toEqual({
+		email: '',
+		emailChange: email,
+	})
+	await guard.expectClean('portal phone-only email/password add')
+	await context.close()
+})
+
 test('website market search, filter, and sort only return published catalog rows', async ({
 	page,
 }) => {
@@ -2652,6 +2711,24 @@ function readPublicIndexNames(indexNames: string[]) {
 		.split('\n')
 		.map((line) => line.trim())
 		.filter(Boolean)
+}
+
+function readAuthEmailState(userId: string) {
+	const env = readLocalSupabaseEnv()
+	const query = `
+		select coalesce(email, ''), coalesce(email_change, '')
+		from auth.users
+		where id = ${sqlString(userId)};
+	`
+	const result = spawnSync('psql', [env.dbUrl, '-qAtc', query], {
+		encoding: 'utf8',
+		stdio: ['ignore', 'pipe', 'pipe'],
+	})
+	if (result.status !== 0) {
+		throw new Error(result.stderr.trim() || 'Could not inspect auth.users.')
+	}
+	const [email = '', emailChange = ''] = result.stdout.trim().split('|')
+	return { email, emailChange }
 }
 
 function sqlString(value: string) {

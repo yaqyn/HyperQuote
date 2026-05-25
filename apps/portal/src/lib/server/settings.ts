@@ -24,6 +24,7 @@ import { resolveAddressCoordinates } from './address-coordinates'
 
 const emailChangeInput = z.object({
 	email: z.string().trim().email().max(254),
+	password: z.string().min(6).max(128).optional(),
 })
 
 function normalizedEmail(value: string) {
@@ -110,7 +111,7 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 			data: input,
 		}): Promise<{
 			email?: string
-			error?: 'not_authenticated' | 'update_failed'
+			error?: 'not_authenticated' | 'password_required' | 'update_failed'
 			status?: 'confirmation_sent' | 'unchanged'
 			success: boolean
 		}> => {
@@ -121,6 +122,10 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 				: ''
 			if (session.user.email_confirmed_at && currentEmail === nextEmail) {
 				return { email: nextEmail, status: 'unchanged', success: true }
+			}
+			const requiresPassword = !session.user.email_confirmed_at
+			if (requiresPassword && !input.password) {
+				return { error: 'password_required', success: false }
 			}
 
 			const config = await resolveSupabaseRuntimeConfig(process.env)
@@ -152,6 +157,7 @@ export const requestCustomerEmailChange = createServerFn({ method: 'POST' })
 
 			const { error: updateError } = await client.auth.updateUser({
 				email: nextEmail,
+				...(requiresPassword ? { password: input.password } : {}),
 			})
 			appendSetCookieHeaders(
 				getResponse().headers,

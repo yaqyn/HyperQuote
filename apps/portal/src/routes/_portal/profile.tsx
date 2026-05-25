@@ -43,6 +43,7 @@ function ProfilePage() {
 	const queryClient = useQueryClient()
 	const [companyName, setCompanyName] = useState('')
 	const [emailDraft, setEmailDraft] = useState('')
+	const [emailPasswordDraft, setEmailPasswordDraft] = useState('')
 	const [phoneDraft, setPhoneDraft] = useState('')
 	const [otpCode, setOtpCode] = useState('')
 	const [phoneStage, setPhoneStage] = useState<'idle' | 'code'>('idle')
@@ -70,6 +71,7 @@ function ProfilePage() {
 		setEmailDraft(
 			profile.pendingEmail ?? profile.email ?? profile.authEmail ?? '',
 		)
+		if (profile.emailConfirmed) setEmailPasswordDraft('')
 		setPhoneDraft(toLocalEgyptPhone(profile.phone))
 		setOtpCode('')
 		setPhoneStage('idle')
@@ -96,11 +98,12 @@ function ProfilePage() {
 	})
 
 	const emailMutation = useMutation({
-		mutationFn: (email: string) =>
-			requestCustomerEmailChange({ data: { email } }),
+		mutationFn: (input: { email: string; password?: string }) =>
+			requestCustomerEmailChange({ data: input }),
 		onSuccess: (result) => {
 			if (result.success) {
 				queryClient.invalidateQueries({ queryKey: ['customerProfile'] })
+				setEmailPasswordDraft('')
 				setEmailMessage({
 					kind: 'success',
 					text:
@@ -195,6 +198,7 @@ function ProfilePage() {
 	function handleEmailChange() {
 		if (!profile || emailMutation.isPending) return
 		const nextEmail = emailDraft.trim()
+		const requiresPassword = shouldRequireEmailPassword(profile)
 		if (!nextEmail) {
 			setEmailMessage({
 				kind: 'error',
@@ -202,8 +206,18 @@ function ProfilePage() {
 			})
 			return
 		}
+		if (requiresPassword && emailPasswordDraft.length < 6) {
+			setEmailMessage({
+				kind: 'error',
+				text: t('profilePage.emailPasswordRequired'),
+			})
+			return
+		}
 		setEmailMessage(null)
-		emailMutation.mutate(nextEmail)
+		emailMutation.mutate({
+			email: nextEmail,
+			...(requiresPassword ? { password: emailPasswordDraft } : {}),
+		})
 	}
 
 	function handleRequestPhoneChange() {
@@ -340,10 +354,16 @@ function ProfilePage() {
 				<EmailChangePanel
 					profile={profile}
 					emailDraft={emailDraft}
+					emailPasswordDraft={emailPasswordDraft}
+					requiresPassword={shouldRequireEmailPassword(profile)}
 					message={emailMessage}
 					isPending={emailMutation.isPending}
 					onEmailChange={(value) => {
 						setEmailDraft(value)
+						setEmailMessage(null)
+					}}
+					onEmailPasswordChange={(value) => {
+						setEmailPasswordDraft(value)
 						setEmailMessage(null)
 					}}
 					onRequest={handleEmailChange}
@@ -431,19 +451,28 @@ function SummaryTile({
 function EmailChangePanel({
 	profile,
 	emailDraft,
+	emailPasswordDraft,
+	requiresPassword,
 	message,
 	isPending,
 	onEmailChange,
+	onEmailPasswordChange,
 	onRequest,
 }: {
 	profile: CustomerProfile
 	emailDraft: string
+	emailPasswordDraft: string
+	requiresPassword: boolean
 	message: { kind: 'success' | 'error'; text: string } | null
 	isPending: boolean
 	onEmailChange: (value: string) => void
+	onEmailPasswordChange: (value: string) => void
 	onRequest: () => void
 }) {
 	const { t } = useTranslation('portal')
+	const gridClass = requiresPassword
+		? 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]'
+		: 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]'
 	return (
 		<section className="mt-8 border-t border-[var(--p-border)] pt-6">
 			<div className="mb-4 flex items-start gap-3">
@@ -471,7 +500,7 @@ function EmailChangePanel({
 				</div>
 			</div>
 
-			<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+			<div className={gridClass}>
 				<ProfileField
 					label={t('settings.profile.email')}
 					value={emailDraft}
@@ -479,6 +508,18 @@ function EmailChangePanel({
 					onChange={(event) => onEmailChange(event.currentTarget.value)}
 					placeholder={t('profilePage.emailPlaceholder')}
 				/>
+				{requiresPassword ? (
+					<ProfileField
+						label={t('profilePage.emailPasswordLabel')}
+						value={emailPasswordDraft}
+						type="password"
+						onChange={(event) =>
+							onEmailPasswordChange(event.currentTarget.value)
+						}
+						placeholder={t('profilePage.emailPasswordPlaceholder')}
+						icon={<KeyRound size={14} strokeWidth={1.7} />}
+					/>
+				) : null}
 				<button
 					type="button"
 					onClick={onRequest}
@@ -575,7 +616,7 @@ function ProfileField({
 	onChange?: (event: ChangeEvent<HTMLInputElement>) => void
 	placeholder?: string
 	disabled?: boolean
-	type?: 'email' | 'tel' | 'text'
+	type?: 'email' | 'password' | 'tel' | 'text'
 	icon?: ReactNode
 }) {
 	return (
@@ -773,9 +814,14 @@ function phoneErrorLabel(error: string, t: TFunction<'portal'>) {
 function emailErrorLabel(error: string | undefined, t: TFunction<'portal'>) {
 	const labels: Record<string, string> = {
 		not_authenticated: t('profilePage.emailAuthRequired'),
+		password_required: t('profilePage.emailPasswordRequired'),
 		update_failed: t('profilePage.emailChangeFailed'),
 	}
 	return labels[error ?? ''] ?? t('profilePage.emailChangeFailed')
+}
+
+function shouldRequireEmailPassword(profile: CustomerProfile) {
+	return !profile.emailConfirmed
 }
 
 function statusLabel(

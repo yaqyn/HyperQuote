@@ -49,14 +49,25 @@ const verifyOTPInput = z.object({
 		.regex(/^\d{6}$/),
 })
 
-const createAccountInput = z.object({
-	phone: phoneSchema,
-	companyName: z.string().min(1).max(200),
-	fullName: z.string().min(1).max(100),
-	method: z.enum(['phone_otp', 'email_password']).optional(),
-	email: z.string().trim().email().max(254).optional(),
-	password: z.string().min(6).max(128).optional(),
-})
+const createAccountInput = z
+	.object({
+		phone: phoneSchema,
+		companyName: z.string().min(1).max(200),
+		fullName: z.string().min(1).max(100),
+		method: z.enum(['phone_otp', 'email_password']).optional(),
+		email: z.string().trim().email().max(254).optional(),
+		password: z.string().min(6).max(128).optional(),
+	})
+	.superRefine((input, ctx) => {
+		const hasEmail = Boolean(input.email?.trim())
+		const hasPassword = Boolean(input.password)
+		if (hasEmail === hasPassword) return
+		ctx.addIssue({
+			code: 'custom',
+			message: 'Email and password must be provided together.',
+			path: hasEmail ? ['password'] : ['email'],
+		})
+	})
 
 const claimAccountInput = z.object({
 	phone: phoneSchema,

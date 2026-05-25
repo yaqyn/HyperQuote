@@ -7,7 +7,14 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { TFunction } from 'i18next'
-import { AlertTriangle, Check, Clock, Mail, ShieldCheck } from 'lucide-react'
+import {
+	AlertTriangle,
+	Check,
+	Clock,
+	KeyRound,
+	Mail,
+	ShieldCheck,
+} from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { Button } from 'react-aria-components/Button'
@@ -64,16 +71,18 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 	const [emailDraft, setEmailDraft] = useState(
 		profile.pendingEmail ?? profile.email ?? profile.authEmail ?? '',
 	)
+	const [emailPasswordDraft, setEmailPasswordDraft] = useState('')
 	const [emailMessage, setEmailMessage] = useState<{
 		kind: 'success' | 'error'
 		text: string
 	} | null>(null)
 	const emailMutation = useMutation({
-		mutationFn: (email: string) =>
-			requestCustomerEmailChange({ data: { email } }),
+		mutationFn: (input: { email: string; password?: string }) =>
+			requestCustomerEmailChange({ data: input }),
 		onSuccess: (result) => {
 			if (result.success) {
 				queryClient.invalidateQueries({ queryKey: ['customerProfile'] })
+				setEmailPasswordDraft('')
 				setEmailMessage({
 					kind: 'success',
 					text:
@@ -120,6 +129,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 		setEmailDraft(
 			profile.pendingEmail ?? profile.email ?? profile.authEmail ?? '',
 		)
+		if (profile.emailConfirmed) setEmailPasswordDraft('')
 		setPhotoPreview(profile.profilePhotoUrl)
 	}, [profile])
 
@@ -129,6 +139,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 
 	function handleEmailChange() {
 		const nextEmail = emailDraft.trim()
+		const requiresPassword = shouldRequireEmailPassword(profile)
 		if (!nextEmail) {
 			setEmailMessage({
 				kind: 'error',
@@ -136,8 +147,18 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 			})
 			return
 		}
+		if (requiresPassword && emailPasswordDraft.length < 6) {
+			setEmailMessage({
+				kind: 'error',
+				text: t('profilePage.emailPasswordRequired'),
+			})
+			return
+		}
 		setEmailMessage(null)
-		emailMutation.mutate(nextEmail)
+		emailMutation.mutate({
+			email: nextEmail,
+			...(requiresPassword ? { password: emailPasswordDraft } : {}),
+		})
 	}
 
 	function handleLicenseSelect(files: FileList | null) {
@@ -266,7 +287,13 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 					</div>
 					<AuthStateBadge profile={profile} />
 				</div>
-				<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+				<div
+					className={
+						shouldRequireEmailPassword(profile)
+							? 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]'
+							: 'grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]'
+					}
+				>
 					<TextField
 						value={emailDraft}
 						onChange={(value) => {
@@ -282,6 +309,28 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 							placeholder={t('profilePage.emailPlaceholder')}
 						/>
 					</TextField>
+					{shouldRequireEmailPassword(profile) ? (
+						<TextField
+							value={emailPasswordDraft}
+							onChange={(value) => {
+								setEmailPasswordDraft(value)
+								setEmailMessage(null)
+							}}
+							type="password"
+							className="space-y-1.5"
+						>
+							<Label className={labelClass}>
+								<span className="inline-flex items-center gap-2">
+									<KeyRound size={13} strokeWidth={1.8} />
+									{t('profilePage.emailPasswordLabel')}
+								</span>
+							</Label>
+							<Input
+								className={underlineInputClass}
+								placeholder={t('profilePage.emailPasswordPlaceholder')}
+							/>
+						</TextField>
+					) : null}
 					<Button
 						type="button"
 						onPress={handleEmailChange}
@@ -471,7 +520,12 @@ function paymentLabel(
 function emailErrorLabel(error: string | undefined, t: TFunction<'portal'>) {
 	const labels: Record<string, string> = {
 		not_authenticated: t('profilePage.emailAuthRequired'),
+		password_required: t('profilePage.emailPasswordRequired'),
 		update_failed: t('profilePage.emailChangeFailed'),
 	}
 	return labels[error ?? ''] ?? t('profilePage.emailChangeFailed')
+}
+
+function shouldRequireEmailPassword(profile: CustomerProfile) {
+	return !profile.emailConfirmed
 }
