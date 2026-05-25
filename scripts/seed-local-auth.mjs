@@ -509,21 +509,19 @@ async function upsertCustomer(
 	userId,
 	account = LOCAL_ACCOUNTS.customer,
 ) {
-	const { data, error } = await supabase
-		.from('customers')
-		.upsert(
-			{
-				company_name: account.companyName,
-				contact_name: account.contactName,
-				email: account.email,
-				phone: account.phone,
-				status: 'active',
-				user_id: userId,
-			},
-			{ onConflict: 'phone' },
-		)
-		.select('id')
-		.single()
+	const payload = {
+		company_name: account.companyName,
+		contact_name: account.contactName,
+		email: account.email,
+		phone: account.phone,
+		status: 'active',
+		user_id: userId,
+	}
+	const existing = await findExistingCustomer(supabase, userId, account)
+	const query = existing
+		? supabase.from('customers').update(payload).eq('id', existing.id)
+		: supabase.from('customers').insert(payload)
+	const { data, error } = await query.select('id').single()
 
 	if (error || !data) {
 		throw new Error(error?.message ?? 'Failed to upsert local customer')
@@ -560,6 +558,32 @@ async function upsertCustomer(
 		await must(supabase.from('customer_addresses').insert(addressPayload))
 	}
 
+	return data
+}
+
+async function findExistingCustomer(supabase, userId, account) {
+	const byUserId = await maybeSingleBy(
+		supabase.from('customers').select('id').eq('user_id', userId).limit(1),
+	)
+	if (byUserId) return byUserId
+
+	const byPhone = await maybeSingleBy(
+		supabase.from('customers').select('id').eq('phone', account.phone).limit(1),
+	)
+	if (byPhone) return byPhone
+
+	return maybeSingleBy(
+		supabase
+			.from('customers')
+			.select('id')
+			.ilike('email', account.email)
+			.limit(1),
+	)
+}
+
+async function maybeSingleBy(query) {
+	const { data, error } = await query.maybeSingle()
+	if (error) throw new Error(error.message)
 	return data
 }
 
