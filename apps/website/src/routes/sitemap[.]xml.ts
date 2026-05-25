@@ -3,6 +3,13 @@ import { createFileRoute } from '@tanstack/react-router'
 import { DOC_CATEGORIES, WIZARDS } from '../content/registry'
 
 const ORIGIN = 'https://www.hyperquote.net'
+const XML_ENTITY_BY_CHARACTER: Record<string, string> = {
+	'&': '&amp;',
+	'<': '&lt;',
+	'>': '&gt;',
+	'"': '&quot;',
+	"'": '&apos;',
+}
 
 interface SitemapEntry {
 	changefreq: 'daily' | 'monthly' | 'weekly'
@@ -22,7 +29,7 @@ const STATIC_ENTRIES: SitemapEntry[] = [
 	{ path: '/legal/privacy', priority: '0.3', changefreq: 'monthly' },
 ]
 
-export const Route = createFileRoute('/sitemap/xml')({
+export const Route = createFileRoute('/sitemap.xml')({
 	server: {
 		handlers: {
 			GET: async () =>
@@ -117,10 +124,8 @@ function sitemapEntryXml(entry: SitemapEntry) {
 }
 
 function escapeXml(value: string) {
-	return value
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;')
-		.replaceAll("'", '&apos;')
+	return value.replace(
+		/[&<>"']/g,
+		(character) => XML_ENTITY_BY_CHARACTER[character] ?? character,
+	)
 }

@@ -9,7 +9,7 @@ import type { JsonObject } from '../db/types'
 import { getInternalSupabaseAdminClient } from './_supabase'
 import { DEFAULT_SUPPORT_REPLY_TO, readRuntimeEnv } from './support-email'
 
-export interface NormalizedInboundSupportAttachment {
+interface NormalizedInboundSupportAttachment {
 	content?: ArrayBuffer | Uint8Array | string
 	contentEncoding?: 'arraybuffer' | 'base64' | 'utf8'
 	contentType: string
