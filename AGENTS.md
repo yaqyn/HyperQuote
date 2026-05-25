@@ -44,6 +44,18 @@ stale disabled records from old workflow files. Do not re-enable staging.
 Production uses one Supabase Cloud project, `hyperquote-production`, in
 `eu-west-1`. Local Supabase remains the development and proof backend.
 
+Production Workers and domains are:
+
+- `hyperquote-website` -> `www.hyperquote.net`.
+- `hyperquote-portal` -> `portal.hyperquote.net`.
+- `hyperquote-internal` -> `internal.hyperquote.net`.
+- `hyperquote-driver` -> `driver.hyperquote.net`.
+
+The root domain `hyperquote.net` redirects to `https://www.hyperquote.net`.
+Do not replace root MX records; `support@hyperquote.net` is routed through
+Cloudflare Email Routing to the Internal Worker while preserving the existing
+root mail setup.
+
 ## Backend Status And Database Policy
 
 The backend is hardened behind an API boundary. Supabase/Postgres remains the
@@ -54,6 +66,12 @@ signup, login, session refresh, and sign-out.
 Use local Supabase through `supabase/` and the repo scripts for development and
 proof. Production wiring goes only through the source-controlled workflow and
 Infisical `prod`; do not wire apps to staging or preview backends.
+
+Production schema changes must be committed migrations under
+`supabase/migrations/`. The production workflow runs `supabase migration list`
+and `supabase db push` through `bun run deploy:supabase:production`, then runs
+`bun run db:api-boundary` against the production database connection. Production
+never runs `supabase/seed.sql`.
 
 Website, portal, internal, and driver data access must go through React Start
 server functions, local API routes, or server-only helpers. Server code uses
@@ -84,6 +102,39 @@ For database work, run the narrowest meaningful DB verification: usually
 `bun run db:migrate` or `bun run db:reset`, `bun run db:types`, and
 `bun run db:api-boundary`. Broaden to Supabase advisor lint and app flow tests
 when grants, wrappers, generated types, or workflow transitions change.
+
+## Production Push And Deploy Workflow
+
+There is no staging, preview, or Cloudflare Pages deploy path. Pull requests
+and non-`main` branch pushes run `.github/workflows/checks.yml` only.
+
+Pushing to `main` is a production action. `.github/workflows/production.yml`
+runs with `concurrency: production` and performs, in order:
+
+1. Quality gate: `bun install --frozen-lockfile`, `bun run check:ci`,
+   `bun run typecheck`, all four app test suites, local Supabase reset,
+   `bun run db:api-boundary`, gitleaks, forced Turbo build, and
+   `git diff --check`.
+2. Supabase production migration: Infisical `prod` at `/Projects/HyperQuote`,
+   `bun run secrets:check:production`, `bun run deploy:supabase:production`.
+3. Worker secret sync: `bun run deploy:worker-secrets`.
+4. Cloudflare production rule sync:
+   `bun run deploy:cloudflare-rules:production`.
+5. Worker deploy matrix for `website`, `portal`, `internal`, and `driver`
+   through each app's `deploy:worker` script.
+6. Live smoke checks with `bun run smoke:production`.
+
+Do not push unless the user explicitly asks. When a push is requested, run the
+local verification that matches the blast radius first, commit coherently, push
+`main`, then find the run with `gh run list --repo yaqyn/HyperQuote --branch main`.
+Watch it with `gh run watch <run-id> --repo yaqyn/HyperQuote --exit-status`.
+After GitHub succeeds, run `bun run smoke:production` locally when practical
+before claiming the production path is healthy.
+
+Use `workflow_dispatch` on `Production` only to redeploy the same committed
+source. Do not use local `wrangler deploy`, local Supabase `db push` against
+production, or ad hoc Cloudflare changes as a bypass unless the user explicitly
+requests an operator override and the risk is understood.
 
 ## Working Rules
 
@@ -181,12 +232,23 @@ when grants, wrappers, generated types, or workflow transitions change.
   Infisical.
 - Use `bun run secrets:check:dev` or `bun run secrets:check:production` before
   relying on environment-specific runtime secrets.
-- Do not use Cloudflare Secrets Store. GitHub stores only scoped deploy
-  credentials, including the `INFISICAL_TOKEN` production read token.
-- Supabase Auth/project config is pushed manually with
-  `bun run configure:supabase:production` and a transient
-  `SUPABASE_ACCESS_TOKEN`; do not store that token in `/Projects/HyperQuote` or
-  GitHub.
+- Do not use Cloudflare Secrets Store for HyperQuote runtime secrets. GitHub
+  stores only scoped deploy credentials. In the current workflow that is the
+  `INFISICAL_TOKEN` production read token; app runtime, Supabase, Cloudflare,
+  Groq, Resend, Twilio, and support config values live in Infisical
+  `/Projects/HyperQuote` `prod`.
+- Production Worker secrets are synced from Infisical into the four Workers by
+  `bun run deploy:worker-secrets`. The sync script writes only temporary local
+  bulk-secret JSON files and removes them after each Wrangler call. Do not
+  print values or commit `.dev.vars`, generated secret payloads, or downloaded
+  credential files.
+- Production Supabase migrations use `SUPABASE_DB_URL` or
+  `SUPABASE_DB_PASSWORD` plus `SUPABASE_PROJECT_REF` from Infisical. Routine
+  CI deploys do not need a Supabase account access token.
+- `SUPABASE_ACCESS_TOKEN` is only for the admin-only
+  `bun run configure:supabase:production` path that pushes Supabase Auth/project
+  config. Use it transiently from `/MASTER` only when needed for account
+  administration, and do not store it in `/Projects/HyperQuote` or GitHub.
 - Never print, log, paste, write, commit, or expose secrets or master tokens.
   Master credentials are for account administration only.
 - Ask before destructive operations, billing changes, public repo creation,
@@ -222,6 +284,8 @@ when grants, wrappers, generated types, or workflow transitions change.
 - Pushing to `main` is a source-control action that triggers the production
   workflow after checks. Do not auto-push. Do not imply Cloudflare Pages,
   staging, preview, or Supabase cloud changes outside the production workflow.
+  A successful production run migrates Supabase production, syncs Worker
+  secrets, deploys all four Workers, and smoke-checks the live domains.
 - Use `bun run db:start` / `bun run db:reset` and `bun run dev` as the operating
   path. Use local verification scripts before committing.
 
