@@ -277,37 +277,37 @@ content_path = "./supabase/templates/auth/reauthentication.html"
 [auth.email.notification.password_changed]
 enabled = true
 subject = "Your HyperQuote password was changed"
-content_path = "./supabase/templates/auth/password_changed_notification.html"
+content_path = "./templates/auth/password_changed_notification.html"
 
 [auth.email.notification.email_changed]
 enabled = true
 subject = "Your HyperQuote email was changed"
-content_path = "./supabase/templates/auth/email_changed_notification.html"
+content_path = "./templates/auth/email_changed_notification.html"
 
 [auth.email.notification.phone_changed]
 enabled = true
 subject = "Your HyperQuote phone number was changed"
-content_path = "./supabase/templates/auth/phone_changed_notification.html"
+content_path = "./templates/auth/phone_changed_notification.html"
 
 [auth.email.notification.mfa_factor_enrolled]
 enabled = true
 subject = "A verification method was added to HyperQuote"
-content_path = "./supabase/templates/auth/mfa_factor_enrolled_notification.html"
+content_path = "./templates/auth/mfa_factor_enrolled_notification.html"
 
 [auth.email.notification.mfa_factor_unenrolled]
 enabled = true
 subject = "A verification method was removed from HyperQuote"
-content_path = "./supabase/templates/auth/mfa_factor_unenrolled_notification.html"
+content_path = "./templates/auth/mfa_factor_unenrolled_notification.html"
 
 [auth.email.notification.identity_linked]
 enabled = true
 subject = "A HyperQuote sign-in method was linked"
-content_path = "./supabase/templates/auth/identity_linked_notification.html"
+content_path = "./templates/auth/identity_linked_notification.html"
 
 [auth.email.notification.identity_unlinked]
 enabled = true
 subject = "A HyperQuote sign-in method was removed"
-content_path = "./supabase/templates/auth/identity_unlinked_notification.html"
+content_path = "./templates/auth/identity_unlinked_notification.html"
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
