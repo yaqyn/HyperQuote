@@ -29,6 +29,7 @@ type ServerLogEvent =
 	| 'website.quote_request.saved_drafts.unexpected_error'
 	| 'website.quote_request.save.unexpected_error'
 	| 'website.quote_request.submit.unexpected_error'
+	| 'website.support.prefill_failed'
 	| 'website.support.ticket_create_failed'
 	| 'website.support.unexpected_error'
 

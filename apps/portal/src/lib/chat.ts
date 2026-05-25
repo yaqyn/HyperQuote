@@ -349,6 +349,10 @@ interface SupportRequestContext {
 	ticket: SupportTicketRow | null
 }
 
+interface PortalSupportIdentity {
+	verifiedEmail: string | null
+}
+
 interface PendingActionContext {
 	actions: ActionButtonData[]
 	message: string
@@ -439,7 +443,9 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 		const lastMessage = input.messages[input.messages.length - 1]
 		const userText = lastMessage?.content ?? ''
 		const modelMessages = modelChatMessages(input.messages)
-		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
+		const { customerId, session, supabase } =
+			await getAuthenticatedPortalCustomer()
+		const supportIdentity = supportIdentityFromSession(session.user)
 
 		if (input.role === 'supplier') {
 			const chunks = await supplierPortalChunks(userText, modelMessages)
@@ -469,6 +475,7 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 			customerId,
 			route,
 			userText,
+			supportIdentity,
 		)
 		const chunks = await renderPortalCustomerResponse(modelMessages, result)
 
@@ -687,6 +694,7 @@ async function executePortalCustomerToolRequest(
 	customerId: string,
 	route: PortalCustomerToolRequest,
 	userText: string,
+	supportIdentity: PortalSupportIdentity,
 ): Promise<PortalToolResult> {
 	const refusal =
 		route.action === 'refuse'
@@ -708,6 +716,7 @@ async function executePortalCustomerToolRequest(
 		customerId,
 		route,
 		userText,
+		supportIdentity,
 	)
 	if (pendingAction) {
 		return {
@@ -1036,6 +1045,7 @@ async function executePortalCustomerToolRequest(
 				customerId,
 				route,
 				userText,
+				supportIdentity,
 			)
 			return {
 				context: { type: 'support_request', ...support },
@@ -1112,12 +1122,13 @@ async function pendingActionConfirmation(
 	customerId: string,
 	route: PortalCustomerToolRequest,
 	userText: string,
+	supportIdentity: PortalSupportIdentity,
 ): Promise<PendingActionContext | null> {
 	if (!portalCustomerActionNeedsConfirmation(route, userText)) return null
 
 	switch (route.action) {
 		case 'support_request':
-			return pendingSupportTicketConfirmation(route, userText)
+			return pendingSupportTicketConfirmation(route, userText, supportIdentity)
 		case 'delete_draft':
 			return pendingDeleteDraftConfirmation(
 				supabase,
@@ -1165,34 +1176,64 @@ function confirmationReadEntities(route: PortalCustomerToolRequest): string[] {
 function pendingSupportTicketConfirmation(
 	route: PortalCustomerToolRequest,
 	userText: string,
+	supportIdentity: PortalSupportIdentity,
 ): PendingActionContext | null {
 	const message = (route.supportMessage || route.searchQuery || userText).trim()
 	if (!message || message === '/feedback') return null
+	const hasVerifiedEmail = Boolean(supportIdentity.verifiedEmail)
+	const actions: ActionButtonData[] = [
+		hasVerifiedEmail
+			? confirmationButton({
+					command: `/feedback ${commandValue(message)} --confirm`,
+					icon: 'support',
+					label: 'Submit ticket',
+					labelAr: 'إرسال التذكرة',
+				})
+			: {
+					command: `/feedback ${commandValue(message)} --confirm`,
+					icon: 'support',
+					label: 'Submit ticket',
+					labelAr: 'إرسال التذكرة',
+					unavailableMessage: supportVerifiedEmailRequiredMessage(),
+					unavailableMessageAr:
+						'تحتاج إلى إضافة بريد إلكتروني مؤكد في ملفك قبل إرسال تذكرة من ليون. إذا كان الأمر عاجلاً، اتصل بنا بالهاتف.',
+					unavailableTitle: 'Verified email required',
+					unavailableTitleAr: 'مطلوب بريد مؤكد',
+				},
+		{
+			icon: 'profile',
+			label: hasVerifiedEmail ? 'Open profile' : 'Add verified email',
+			labelAr: hasVerifiedEmail ? 'افتح الملف الشخصي' : 'أضف بريداً مؤكداً',
+			route: '/profile',
+		},
+		{
+			icon: hasVerifiedEmail ? 'support' : 'phone',
+			label: hasVerifiedEmail ? 'Support panel' : 'Call options',
+			labelAr: hasVerifiedEmail ? 'لوحة الدعم' : 'خيارات الاتصال',
+			route: '/support',
+		},
+		{
+			href: `${WEBSITE_URL}/docs`,
+			icon: 'book',
+			label: 'Open docs',
+			labelAr: 'افتح الوثائق',
+		},
+	]
+	if (!hasVerifiedEmail && SUPPORT_PHONE_E164) {
+		actions.push({
+			href: `tel:${SUPPORT_PHONE_E164}`,
+			icon: 'phone',
+			label: 'Call support',
+			labelAr: 'اتصل بالدعم',
+		})
+	}
 
 	return {
-		actions: [
-			confirmationButton({
-				command: `/feedback ${commandValue(message)} --confirm`,
-				icon: 'support',
-				label: 'Submit ticket',
-				labelAr: 'إرسال التذكرة',
-			}),
-			{
-				href: `${WEBSITE_URL}/docs`,
-				icon: 'book',
-				label: 'Open docs',
-				labelAr: 'افتح الوثائق',
-			},
-			{
-				icon: 'support',
-				label: 'Support panel',
-				labelAr: 'لوحة الدعم',
-				route: '/support',
-			},
-		],
-		message:
-			'I can send this as a support ticket, but only if you press the button.',
-		title: 'Confirm ticket',
+		actions,
+		message: hasVerifiedEmail
+			? 'I can send this as a support ticket, but only if you press the button.'
+			: 'Support tickets from Lyon require a verified email on your account. Add and confirm email in Profile, or call us by phone.',
+		title: hasVerifiedEmail ? 'Confirm ticket' : 'Ticket needs email',
 	}
 }
 
@@ -3283,6 +3324,7 @@ async function createSupportRequest(
 	customerId: string,
 	route: PortalCustomerToolRequest,
 	userText: string,
+	supportIdentity: PortalSupportIdentity,
 ): Promise<SupportRequestContext> {
 	const profileContext = await loadCustomerProfileContext(supabase, customerId)
 	const message = (route.supportMessage || route.searchQuery || userText).trim()
@@ -3292,10 +3334,9 @@ async function createSupportRequest(
 			ticket: null,
 		}
 	}
-	if (!profileContext.profile.email) {
+	if (!supportIdentity.verifiedEmail) {
 		return {
-			message:
-				'Your profile does not have an email address saved, so I did not create a support ticket from chat.',
+			message: supportVerifiedEmailRequiredMessage(),
 			ticket: null,
 		}
 	}
@@ -3303,7 +3344,7 @@ async function createSupportRequest(
 		route.supportSubject?.trim() || supportSubjectFromMessage(message)
 	const { data, error } = await supabase.rpc('create_support_ticket', {
 		p_message: message,
-		p_requester_email: profileContext.profile.email,
+		p_requester_email: supportIdentity.verifiedEmail,
 		p_requester_name: profileContext.profile.contact_name,
 		p_requester_phone: profileContext.profile.phone,
 		p_source: 'portal',
@@ -3313,6 +3354,20 @@ async function createSupportRequest(
 	return {
 		ticket: data as unknown as SupportTicketRow,
 	}
+}
+
+function supportIdentityFromSession(user: {
+	email?: string | null
+	email_confirmed_at?: string | null
+}): PortalSupportIdentity {
+	const email = user.email?.trim() ?? ''
+	return {
+		verifiedEmail: user.email_confirmed_at && email ? email : null,
+	}
+}
+
+function supportVerifiedEmailRequiredMessage() {
+	return 'You need a verified email on your account before Lyon can submit a support ticket. Add and confirm an email in Profile. If this is urgent, call us by phone.'
 }
 
 function supportSubjectFromMessage(message: string): string {
@@ -4866,6 +4921,32 @@ function contextActionEvents(context: PortalToolContext): StreamChunk[] {
 				}),
 			]
 		case 'support_request':
+			if (!context.ticket) {
+				return [
+					actionButtonEvent({
+						icon: 'profile',
+						label: 'Add verified email',
+						labelAr: 'أضف بريداً مؤكداً',
+						route: '/profile',
+					}),
+					actionButtonEvent({
+						icon: 'support',
+						label: 'Support panel',
+						labelAr: 'لوحة الدعم',
+						route: '/support',
+					}),
+					...(SUPPORT_PHONE_E164
+						? [
+								actionButtonEvent({
+									href: `tel:${SUPPORT_PHONE_E164}`,
+									icon: 'phone',
+									label: 'Call support',
+									labelAr: 'اتصل بالدعم',
+								}),
+							]
+						: []),
+				]
+			}
 			return [
 				actionButtonEvent({
 					icon: 'support',

@@ -57,6 +57,10 @@ export interface ActionButtonData {
 	route?: string
 	params?: Record<string, string>
 	runCommand?: boolean
+	unavailableMessage?: string
+	unavailableMessageAr?: string
+	unavailableTitle?: string
+	unavailableTitleAr?: string
 }
 
 export interface ActiveChatDraftContext {

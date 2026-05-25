@@ -57,16 +57,23 @@ export function ActionButton({ data }: ActionButtonProps) {
 	const { i18n } = useTranslation()
 	const navigate = useNavigate()
 	const [confirmOpen, setConfirmOpen] = useState(false)
+	const [unavailableOpen, setUnavailableOpen] = useState(false)
 	const isArabic = i18n.language === 'ar'
 	const label = isArabic ? data.labelAr : data.label
 	const confirmMessage = isArabic
 		? (data.confirmMessageAr ?? data.confirmMessage)
 		: data.confirmMessage
+	const unavailableMessage = isArabic
+		? (data.unavailableMessageAr ?? data.unavailableMessage)
+		: data.unavailableMessage
+	const unavailableTitle = isArabic
+		? (data.unavailableTitleAr ?? data.unavailableTitle)
+		: data.unavailableTitle
 	const Icon = data.icon ? ACTION_ICONS[data.icon] : undefined
 	const className =
 		'inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] sm:min-h-8'
 
-	if (data.href) {
+	if (data.href && !unavailableMessage) {
 		return (
 			<a
 				href={data.href}
@@ -107,6 +114,10 @@ export function ActionButton({ data }: ActionButtonProps) {
 	}
 
 	const handlePress = () => {
+		if (unavailableMessage) {
+			setUnavailableOpen(true)
+			return
+		}
 		if (data.command && data.runCommand && confirmMessage) {
 			setConfirmOpen(true)
 			return
@@ -121,10 +132,49 @@ export function ActionButton({ data }: ActionButtonProps) {
 
 	return (
 		<>
-			<Button onPress={handlePress} className={className}>
+			<Button
+				onPress={handlePress}
+				data-unavailable={unavailableMessage ? true : undefined}
+				className={`${className} ${unavailableMessage ? 'opacity-60' : ''}`}
+			>
 				{Icon ? <Icon size={14} strokeWidth={1.8} /> : null}
 				<span className="truncate">{label}</span>
 			</Button>
+			{unavailableMessage ? (
+				<ModalOverlay
+					isDismissable
+					isOpen={unavailableOpen}
+					onOpenChange={setUnavailableOpen}
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4 backdrop-blur-sm"
+				>
+					<Modal className="w-full max-w-sm rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] shadow-2xl">
+						<Dialog className="outline-none">
+							<div className="border-b border-[var(--p-rule)] px-5 py-4">
+								<Heading
+									slot="title"
+									className="text-[14px] font-semibold text-[var(--p-text)]"
+								>
+									{unavailableTitle ??
+										(isArabic ? 'الإجراء غير متاح' : 'Action unavailable')}
+								</Heading>
+							</div>
+							<div className="px-5 py-4">
+								<p className="text-[13px] leading-6 text-[var(--p-text-muted)]">
+									{unavailableMessage}
+								</p>
+							</div>
+							<div className="flex justify-end border-t border-[var(--p-rule)] px-5 py-3">
+								<Button
+									onPress={() => setUnavailableOpen(false)}
+									className="min-h-9 rounded-lg px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+								>
+									{isArabic ? 'حسناً' : 'OK'}
+								</Button>
+							</div>
+						</Dialog>
+					</Modal>
+				</ModalOverlay>
+			) : null}
 			{confirmMessage ? (
 				<ModalOverlay
 					isDismissable

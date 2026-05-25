@@ -24,6 +24,69 @@ const contactInput = z.object({
 	message: z.string().min(10).max(2000),
 })
 
+export const getContactFormDefaults = createServerFn({ method: 'GET' }).handler(
+	async (): Promise<{
+		email: string
+		name: string
+		phone: string
+	}> => {
+		const emptyDefaults = { email: '', name: '', phone: '' }
+		const config = await resolveSupabaseRuntimeConfig(process.env)
+		if (!config) return emptyDefaults
+
+		const request = getRequest()
+		const {
+			client: authClient,
+			responseCookies,
+			responseHeaders,
+		} = createSupabaseServerClient({
+			request,
+			...config,
+		})
+		const {
+			data: { user },
+		} = await getSupabaseServerUser({
+			client: authClient,
+			cookieDomain: config.cookieDomain,
+			cookieName: config.cookieName,
+			request,
+			responseHeaders: getResponse().headers,
+		})
+		appendSetCookieHeaders(
+			getResponse().headers,
+			responseCookies.values(),
+			responseHeaders.entries(),
+		)
+		const pool = user?.app_metadata?.pool
+		if (!user || pool === 'internal' || pool === 'driver') return emptyDefaults
+
+		const service = await createSupabaseServiceRoleClient(process.env)
+		if (!service) return emptyDefaults
+		const customerClient = createActorServiceRoleClient({
+			actorPool: 'external',
+			actorUserId: user.id,
+			client: service,
+		})
+		const { data, error } = await customerClient
+			.from('customers')
+			.select('contact_name, email, phone')
+			.eq('user_id', user.id)
+			.maybeSingle()
+		if (error || !data) {
+			if (error) {
+				logWebsiteServerError('website.support.prefill_failed', error)
+			}
+			return emptyDefaults
+		}
+
+		return {
+			email: data.email ?? (user.email_confirmed_at ? (user.email ?? '') : ''),
+			name: data.contact_name ?? '',
+			phone: data.phone ?? '',
+		}
+	},
+)
+
 export const submitContactForm = createServerFn({ method: 'POST' })
 	.inputValidator(contactInput)
 	.handler(async ({ data: input }) => {

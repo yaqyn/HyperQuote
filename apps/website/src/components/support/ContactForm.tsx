@@ -1,7 +1,7 @@
 import { standardSchemaResolver } from '@hyperquote/forms'
 import { Check, Info, Loader2 } from 'lucide-react'
 import { motion } from 'motion/react'
-import { type ReactNode, useCallback, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useState } from 'react'
 import { Button } from 'react-aria-components/Button'
 import { Input } from 'react-aria-components/Input'
 import { Label } from 'react-aria-components/Label'
@@ -13,7 +13,7 @@ import { TextField as AriaTextField } from 'react-aria-components/TextField'
 import { type Control, Controller, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
-import { submitContactForm } from '../../lib/contact'
+import { getContactFormDefaults, submitContactForm } from '../../lib/contact'
 
 const contactSchema = z.object({
 	name: z
@@ -157,6 +157,13 @@ export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
 		},
 		mode: 'onSubmit',
 	})
+	const { control, getValues, setValue } = form
+	const emailValue = useWatch({
+		control,
+		defaultValue: '',
+		name: 'email',
+	})
+	const emailMissing = !emailValue.trim()
 
 	const subjectItems = [
 		{ id: 'general', label: t('support.form.subjects.general') },
@@ -167,6 +174,29 @@ export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
 	]
 
 	const [error, setError] = useState<string | null>(null)
+
+	useEffect(() => {
+		let active = true
+		getContactFormDefaults()
+			.then((defaults) => {
+				if (!active) return
+				if (defaults.name && !getValues('name').trim()) {
+					setValue('name', defaults.name, { shouldDirty: false })
+				}
+				if (defaults.email && !getValues('email').trim()) {
+					setValue('email', defaults.email, { shouldDirty: false })
+				}
+				if (defaults.phone && !getValues('phone')?.trim()) {
+					setValue('phone', contactPhoneInput(defaults.phone), {
+						shouldDirty: false,
+					})
+				}
+			})
+			.catch(() => undefined)
+		return () => {
+			active = false
+		}
+	}, [getValues, setValue])
 
 	// Strip country code if user types it manually
 	const handlePhoneChange = useCallback(
@@ -358,7 +388,7 @@ export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
 			{/* Submit */}
 			<Button
 				type="submit"
-				isDisabled={submitting}
+				isDisabled={submitting || emailMissing}
 				className="mt-2 flex h-12 w-full items-center justify-center rounded-lg bg-[var(--color-primary)] px-10 text-[15px] font-semibold text-white outline-none transition-all duration-200 hover:bg-[var(--color-primary-hover)] focus-visible:shadow-[0_0_0_3px_rgba(37,99,235,0.2)] disabled:opacity-50 md:mt-4"
 			>
 				{submitting ? (
@@ -369,4 +399,12 @@ export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
 			</Button>
 		</form>
 	)
+}
+
+function contactPhoneInput(value: string): string {
+	let cleaned = value.replace(/[^0-9]/g, '')
+	if (cleaned.startsWith('20') && cleaned.length > 10)
+		cleaned = cleaned.slice(2)
+	if (cleaned.startsWith('0') && cleaned.length > 10) cleaned = cleaned.slice(1)
+	return cleaned.slice(0, 10)
 }

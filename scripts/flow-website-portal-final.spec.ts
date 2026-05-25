@@ -332,6 +332,26 @@ test('portal phone-only customer must add email login with password', async ({
 	const userId = String(customer.user_id)
 	expect(readAuthEmailState(userId)).toEqual({ email: '', emailChange: '' })
 
+	await expect(page.locator('textarea[data-chat-input]')).toBeVisible({
+		timeout: 20_000,
+	})
+	await page
+		.locator('textarea[data-chat-input]')
+		.fill('/feedback Need help from portal support.')
+	await page.getByRole('button', { name: /^Send message$/i }).click()
+	await expect(page.locator('body')).toContainText('Ticket needs email', {
+		timeout: 20_000,
+	})
+	await page.getByRole('button', { name: /^Submit ticket$/i }).click()
+	await expect(page.getByRole('dialog')).toContainText(
+		'Verified email required',
+	)
+	await expect(page.getByRole('dialog')).toContainText(
+		'You need a verified email',
+	)
+	await expect(supportTicketCountByPhone(service, fullPhone)).resolves.toBe(0)
+	await page.keyboard.press('Escape')
+
 	await page.goto(`${URLS.portal}/profile`, { waitUntil: 'domcontentloaded' })
 	await waitForHydration(page)
 	await expect(page.locator('body')).toContainText('Email authentication')
@@ -352,6 +372,36 @@ test('portal phone-only customer must add email login with password', async ({
 		emailChange: email,
 	})
 	await guard.expectClean('portal phone-only email/password add')
+	await context.close()
+})
+
+test('website contact form gates empty email and prefills signed-in customer', async ({
+	browser,
+}) => {
+	test.setTimeout(90_000)
+	const service = createLocalServiceClient()
+	await assertVisitorSupportTicket(service, browser)
+
+	const localCustomer = await expectCustomerByEmail(
+		service,
+		LOCAL_CUSTOMER.email,
+	)
+	const context = await browser.newContext({
+		viewport: { height: 900, width: 1200 },
+	})
+	await context.addCookies(
+		await createAuthCookies(
+			{
+				email: LOCAL_CUSTOMER.email,
+				password: LOCAL_CUSTOMER.password,
+			},
+			URLS.website,
+		),
+	)
+	const page = await context.newPage()
+	const guard = installBrowserErrorGuard(page)
+	await assertSignedInSupportTicket(service, page, localCustomer)
+	await guard.expectClean('signed-in contact form prefill')
 	await context.close()
 })
 
@@ -940,9 +990,9 @@ test('website and portal market, draft, submit, support, and access boundaries p
 	test.setTimeout(180_000)
 	const service = createLocalServiceClient()
 	const activityStartedAt = new Date().toISOString()
-	const localCustomer = await expectCustomerByPhone(
+	const localCustomer = await expectCustomerByEmail(
 		service,
-		LOCAL_CUSTOMER.phone,
+		LOCAL_CUSTOMER.email,
 	)
 	const otherCustomer = await createPasswordCustomer(service, {
 		companyName: 'Flow Other Customer Co',
@@ -977,7 +1027,7 @@ test('website and portal market, draft, submit, support, and access boundaries p
 
 	await assertPublicCatalogBoundary()
 	await assertVisitorSupportTicket(service, browser)
-	await assertSignedInSupportTicket(service, page, localCustomer.id)
+	await assertSignedInSupportTicket(service, page, localCustomer)
 	const product = await firstActiveProduct(service)
 
 	await page.goto(`${URLS.website}/market`, { waitUntil: 'domcontentloaded' })
@@ -1598,12 +1648,12 @@ async function assertVisitorSupportTicket(
 
 	await page.goto(`${URLS.website}/support`, { waitUntil: 'domcontentloaded' })
 	await waitForHydration(page)
-	await page.getByRole('button', { name: /^Send$/ }).click()
-	await expect(page.locator('body')).toContainText(/valid|detail|character/i)
+	const sendButton = page.getByRole('button', { name: /^Send$/ })
+	await expect(sendButton).toBeDisabled()
 	await page.getByLabel('Name').fill('Flow2')
 	await page.getByLabel('Email').fill('not-an-email')
 	await page.getByLabel('Message').fill('short')
-	await page.getByRole('button', { name: /^Send$/ }).click()
+	await sendButton.click()
 	await expect(page.locator('body')).toContainText(/valid email|detail/i)
 	await page.getByLabel('Name').fill('Flow Visitor')
 	await page.getByLabel('Email').fill(email)
@@ -1624,11 +1674,17 @@ async function assertVisitorSupportTicket(
 async function assertSignedInSupportTicket(
 	service: ReturnType<typeof createLocalServiceClient>,
 	page: Page,
-	customerId: string,
+	customer: { id: string; phone: string },
 ) {
 	const email = `flow-signed-in-${Date.now()}@hyperquote.local`
 	await page.goto(`${URLS.website}/support`, { waitUntil: 'domcontentloaded' })
 	await waitForHydration(page)
+	await expect(page.getByLabel('Email')).toHaveValue(LOCAL_CUSTOMER.email, {
+		timeout: 15_000,
+	})
+	await expect(page.getByLabel('Phone')).toHaveValue(
+		phoneDigits(customer.phone).replace(/^20/, ''),
+	)
 	await page.getByLabel('Name').fill('Flow Signed In')
 	await page.getByLabel('Email').fill(email)
 	await page
@@ -1639,7 +1695,7 @@ async function assertSignedInSupportTicket(
 		timeout: 15_000,
 	})
 	const ticket = await expectSupportTicketByEmail(service, email)
-	expect(ticket.customer_id).toBe(customerId)
+	expect(ticket.customer_id).toBe(customer.id)
 }
 
 async function expectSupportTicketByEmail(
@@ -1666,6 +1722,19 @@ async function expectSupportTicketByEmail(
 		.single()
 	expect(error).toBeNull()
 	return data
+}
+
+async function supportTicketCountByPhone(
+	service: ReturnType<typeof createLocalServiceClient>,
+	phone: string,
+) {
+	const { count, error } = await service
+		.from('support_tickets')
+		.select('id', { count: 'exact', head: true })
+		.eq('requester_phone', phone)
+		.eq('source', 'portal')
+	expect(error).toBeNull()
+	return count ?? 0
 }
 
 async function assertPublicCatalogBoundary() {
