@@ -514,23 +514,23 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 							/>
 						</TextField>
 					</div>
-					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-						<Button
-							type="button"
-							onPress={handleEmailChange}
-							isDisabled={emailMutation.isPending}
-							className="min-w-32 px-5 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50"
-						>
-							{emailMutation.isPending
-								? t('settings.saving')
-								: t('profilePage.updateAuthButton')}
-						</Button>
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 						{emailMessage && (
 							<StatusMessage
 								kind={emailMessage.kind}
 								text={emailMessage.text}
 							/>
 						)}
+						<Button
+							type="button"
+							onPress={handleEmailChange}
+							isDisabled={emailMutation.isPending}
+							className="min-w-32 px-5 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50 sm:ml-auto"
+						>
+							{emailMutation.isPending
+								? t('settings.saving')
+								: t('profilePage.updateAuthButton')}
+						</Button>
 					</div>
 				</div>
 				{profile.pendingEmail && (

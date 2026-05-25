@@ -716,12 +716,13 @@ function EmailChangePanel({
 						icon={<KeyRound size={14} strokeWidth={1.7} />}
 					/>
 				</div>
-				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+					{message && <StatusText kind={message.kind} text={message.text} />}
 					<button
 						type="button"
 						onClick={onRequest}
 						disabled={isPending}
-						className="flex h-11 min-w-32 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] px-5 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-50"
+						className="flex h-11 min-w-32 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] px-5 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-50 sm:ml-auto"
 					>
 						{isPending ? (
 							<Loader2 size={15} className="animate-spin" />
@@ -730,7 +731,6 @@ function EmailChangePanel({
 						)}
 						<span>{t('profilePage.updateAuthButton')}</span>
 					</button>
-					{message && <StatusText kind={message.kind} text={message.text} />}
 				</div>
 			</div>
 		</section>
