@@ -99,6 +99,16 @@ function findButtonByText(container: HTMLElement, text: string) {
 	return button
 }
 
+function findButtonByLabel(container: HTMLElement, label: string) {
+	const button = container.querySelector<HTMLButtonElement>(
+		`button[aria-label="${label}"]`,
+	)
+	if (!button) {
+		throw new Error(`Button not found: ${label}`)
+	}
+	return button
+}
+
 describe('ResponseComposer email replies', () => {
 	it('confirms before sending and keeps the draft when cancelled', async () => {
 		const container = await renderEmailComposer()
@@ -112,11 +122,22 @@ describe('ResponseComposer email replies', () => {
 		})
 
 		await act(async () => {
-			findButtonByText(container, 'Reply').click()
+			const mobileReplyButton = findButtonByLabel(container, 'Reply')
+			expect(mobileReplyButton.textContent?.trim()).toBe('')
+			mobileReplyButton.click()
 		})
 
 		expect(customerServiceMocks.sendReply).not.toHaveBeenCalled()
 		expect(container.textContent).toContain('Send this reply?')
+		const mobileConfirmActions = container.querySelector<HTMLElement>(
+			'[data-mobile-email-confirm-actions="true"]',
+		)
+		expect(mobileConfirmActions).toBeInTheDocument()
+		expect(
+			Array.from(mobileConfirmActions?.querySelectorAll('button') ?? []).map(
+				(button) => button.textContent?.trim(),
+			),
+		).toEqual(['Cancel', 'Send'])
 
 		await act(async () => {
 			findButtonByText(container, 'Cancel').click()
@@ -126,10 +147,15 @@ describe('ResponseComposer email replies', () => {
 		expect(textarea.value).toBe('Thanks, we are checking this now.')
 
 		await act(async () => {
-			findButtonByText(container, 'Reply').click()
+			findButtonByLabel(container, 'Reply').click()
 		})
 		await act(async () => {
-			findButtonByText(container, 'Send').click()
+			const actions = container.querySelector<HTMLElement>(
+				'[data-mobile-email-confirm-actions="true"]',
+			)
+			expect(actions).toBeInTheDocument()
+			if (!actions) return
+			findButtonByText(actions, 'Send').click()
 			await Promise.resolve()
 		})
 

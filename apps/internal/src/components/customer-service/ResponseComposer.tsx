@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, Paperclip, Send } from 'lucide-react'
+import { AlertTriangle, Paperclip, Reply, Send } from 'lucide-react'
 import {
 	type ChangeEvent,
 	type KeyboardEvent,
@@ -132,27 +132,16 @@ export function ResponseComposer({
 					rows={1}
 					className="max-h-28 min-h-10 min-w-0 flex-1 resize-none rounded-md border border-black/[0.08] bg-[var(--color-surface)] px-3 py-2.5 font-[family-name:var(--font-archivo)] text-[14px] leading-snug text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]/45 focus:ring-2 focus:ring-[var(--color-primary)]/12 dark:border-white/[0.1]"
 				/>
-				<button
-					type="button"
-					onClick={handleReplyClick}
-					disabled={!hasContent || isSending}
-					aria-label={isEmail ? t('email.reply') : t('composer.send')}
-					className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--color-primary)] text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:bg-[var(--color-primary)]/35 disabled:text-white/75"
-				>
-					<Send size={15} strokeWidth={2.2} />
-				</button>
-			</div>
-
-			{isEmail && isConfirming && (
-				<div className="mt-2 flex items-center justify-between gap-2 rounded-md border border-black/[0.08] bg-black/[0.015] p-2 dark:border-white/[0.1] dark:bg-white/[0.03] lg:hidden">
-					<span className="min-w-0 font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text-muted)]">
-						{t('email.confirmReply')}
-					</span>
-					<div className="flex shrink-0 items-center gap-2">
+				{isEmail && isConfirming ? (
+					<div
+						data-mobile-email-confirm-actions="true"
+						className="grid w-[116px] shrink-0 grid-cols-2 gap-1"
+					>
 						<button
 							type="button"
 							onClick={handleCancelConfirm}
-							className="min-h-8 rounded-md border border-black/[0.08] px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] dark:border-white/[0.1]"
+							aria-label={t('email.cancel')}
+							className="h-10 rounded-md border border-black/[0.08] px-2 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 dark:border-white/[0.1]"
 						>
 							{t('email.cancel')}
 						</button>
@@ -163,13 +152,27 @@ export function ResponseComposer({
 							}}
 							disabled={isSending}
 							aria-label={t('email.send')}
-							className="min-h-8 rounded-md bg-[var(--color-primary)] px-3 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700 disabled:bg-[var(--color-primary)]/35"
+							className="h-10 rounded-md bg-[var(--color-primary)] px-2 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.06em] text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:bg-[var(--color-primary)]/35"
 						>
 							{t('email.send')}
 						</button>
 					</div>
-				</div>
-			)}
+				) : (
+					<button
+						type="button"
+						onClick={handleReplyClick}
+						disabled={!hasContent || isSending}
+						aria-label={isEmail ? t('email.reply') : t('composer.send')}
+						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--color-primary)] text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:bg-[var(--color-primary)]/35 disabled:text-white/75"
+					>
+						{isEmail ? (
+							<Reply size={15} strokeWidth={2.2} />
+						) : (
+							<Send size={15} strokeWidth={2.2} />
+						)}
+					</button>
+				)}
+			</div>
 
 			{error && (
 				<div className="mt-2 lg:hidden">
