@@ -6,6 +6,9 @@
 	"scripts": {
 		"dev": "NODE_OPTIONS=--max-http-header-size=32768 node ../../scripts/with-dev-secrets.mjs vite dev --port 3002",
 		"build": "vite build",
+		"build:worker": "node ../../scripts/build-worker.mjs internal",
+		"cf-typegen": "wrangler types",
+		"deploy:worker": "bun run build:worker && wrangler deploy",
 		"routes:generate": "tsr generate",
 		"typecheck": "bun run routes:generate && tsc --noEmit",
 		"test": "NODE_OPTIONS=--localstorage-file=/tmp/hyperquote-internal-vitest-localstorage vitest run",
@@ -29,6 +32,7 @@
 		"lucide-react": "^1.16.0",
 		"maplibre-gl": "^5.24.0",
 		"motion": "^12.38.0",
+		"postal-mime": "^2.7.4",
 		"react": "^19.2.6",
 		"react-aria-components": "^1.17.0",
 		"react-dom": "^19.2.6",

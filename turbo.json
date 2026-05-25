@@ -12,6 +12,37 @@
 			],
 			"outputs": [".output/**", "dist/**"]
 		},
+		"build:worker": {
+			"dependsOn": ["^build"],
+			"passThroughEnv": [
+				"ROAD_ROUTE_ENDPOINT",
+				"SUPABASE_ANON_KEY",
+				"SUPABASE_URL",
+				"SUPPORT_INBOUND_EMAIL",
+				"SUPPORT_PHONE_E164",
+				"SUPPORT_PHONE_LABEL",
+				"SUPPORT_WHATSAPP_E164",
+				"USE_AI",
+				"VITE_ROAD_ROUTE_ENDPOINT",
+				"VITE_SUPABASE_ANON_KEY",
+				"VITE_SUPABASE_URL",
+				"VITE_SUPPORT_EMAIL",
+				"VITE_SUPPORT_PHONE_E164",
+				"VITE_SUPPORT_PHONE_LABEL",
+				"VITE_SUPPORT_WHATSAPP_E164",
+				"VITE_USE_AI"
+			],
+			"inputs": [
+				"$TURBO_DEFAULT$",
+				"$TURBO_ROOT$/packages/*/package.json",
+				"$TURBO_ROOT$/packages/*/src/**",
+				"$TURBO_ROOT$/packages/*/tsconfig.json",
+				"$TURBO_ROOT$/scripts/build-worker.mjs",
+				"$TURBO_ROOT$/scripts/production-config.mjs",
+				"$TURBO_ROOT$/tooling/vite/**"
+			],
+			"outputs": [".output/**", "dist/**"]
+		},
 		"dev": {
 			"cache": false,
 			"persistent": true

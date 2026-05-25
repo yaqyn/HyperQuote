@@ -11,6 +11,7 @@ import {
 } from '../lib/server/support-email'
 import {
 	isAddressedToSupport,
+	normalizeCloudflareInboundEmail,
 	normalizeResendReceivedEmail,
 } from '../lib/server/support-email-inbound'
 
@@ -240,5 +241,52 @@ describe('customer service email rendering', () => {
 			true,
 		)
 		expect(isAddressedToSupport(normalized, 'other@hyperquote.net')).toBe(false)
+	})
+
+	it('normalizes Cloudflare Email Routing messages for support ingestion', async () => {
+		const rawEmail = [
+			'From: Koko <KOKO@gmail.com>',
+			'To: HyperQuote Support <support@hyperquote.net>',
+			'Cc: Ops <ops@example.com>',
+			'Subject: Re: [TK-2026-ABC123] Delivery issue',
+			'Message-ID: <cloudflare-message@customer.test>',
+			'In-Reply-To: <reply-target@hyperquote.net>',
+			'References: <root@customer.test> <reply-target@hyperquote.net>',
+			'Date: Mon, 25 May 2026 08:00:00 +0000',
+			'Content-Type: text/plain; charset=utf-8',
+			'',
+			'The delivery issue still needs help.',
+		].join('\r\n')
+
+		const normalized = await normalizeCloudflareInboundEmail({
+			from: 'koko@gmail.com',
+			headers: new Headers({
+				'Message-ID': '<cloudflare-message@customer.test>',
+			}),
+			raw: new Response(rawEmail).body ?? new ReadableStream(),
+			rawSize: rawEmail.length,
+			setReject: vi.fn(),
+			to: 'support@hyperquote.net',
+		})
+
+		expect(normalized).toMatchObject({
+			body: 'The delivery issue still needs help.',
+			ccEmails: ['ops@example.com'],
+			fromEmail: 'koko@gmail.com',
+			fromName: 'Koko',
+			inReplyTo: '<reply-target@hyperquote.net>',
+			messageId: '<cloudflare-message@customer.test>',
+			providerEmailId: 'cloudflare:<cloudflare-message@customer.test>',
+			receivedAt: '2026-05-25T08:00:00.000Z',
+			subject: 'Re: [TK-2026-ABC123] Delivery issue',
+			toEmails: ['support@hyperquote.net'],
+		})
+		expect(normalized.references).toEqual([
+			'<root@customer.test>',
+			'<reply-target@hyperquote.net>',
+		])
+		expect(isAddressedToSupport(normalized, 'support@hyperquote.net')).toBe(
+			true,
+		)
 	})
 })

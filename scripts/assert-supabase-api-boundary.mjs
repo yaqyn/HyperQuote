@@ -46,13 +46,14 @@ const assertions = [
 		`,
 	},
 	{
-		name: 'future public defaults for anon/authenticated/public',
+		name: 'controllable future public defaults for anon/authenticated/public',
 		sql: `
 			select count(*)
 			from pg_default_acl d
 			join pg_namespace n on n.oid = d.defaclnamespace
 			cross join lateral aclexplode(d.defaclacl) acl
 			where n.nspname = 'public'
+			  and pg_get_userbyid(d.defaclrole) <> 'supabase_admin'
 			  and (
 				acl.grantee = 0
 				or acl.grantee in (

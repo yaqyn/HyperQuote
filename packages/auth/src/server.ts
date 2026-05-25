@@ -345,6 +345,52 @@ export async function createSupabaseServiceRoleClient(
 	})
 }
 
+export async function supabaseHealthResponse({
+	app,
+	fallbackEnv = {},
+	timeoutMs = 5000,
+}: {
+	app: string
+	fallbackEnv?: Record<string, RuntimeEnvValue>
+	timeoutMs?: number
+}): Promise<Response> {
+	const config = await resolveSupabaseRuntimeConfig(fallbackEnv)
+	if (!config) {
+		return healthJson({ app, ok: false, supabase: 'not_configured' }, 503)
+	}
+
+	try {
+		const response = await fetch(
+			new URL('/auth/v1/settings', config.supabaseUrl),
+			{
+				headers: { apikey: config.supabaseAnonKey },
+				signal: AbortSignal.timeout(timeoutMs),
+			},
+		)
+		if (!response.ok) {
+			return healthJson(
+				{
+					app,
+					ok: false,
+					status: response.status,
+					supabase: 'unreachable',
+				},
+				502,
+			)
+		}
+		return healthJson({ app, ok: true, supabase: 'reachable' })
+	} catch {
+		return healthJson({ app, ok: false, supabase: 'unreachable' }, 502)
+	}
+}
+
+function healthJson(payload: Record<string, unknown>, status = 200): Response {
+	return new Response(JSON.stringify(payload), {
+		headers: { 'content-type': 'application/json; charset=utf-8' },
+		status,
+	})
+}
+
 type ServiceRoleClient = NonNullable<
 	Awaited<ReturnType<typeof createSupabaseServiceRoleClient>>
 >

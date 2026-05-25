@@ -7,8 +7,14 @@ before the hosted push/deploy session.
 
 - Local commit: `6b2766d` (`Add support email threading`).
 - Internal inbound endpoint: `POST /api/email/inbound/resend`.
+- Internal Cloudflare Email Worker handler: `apps/internal/src/server.ts`
+  exports `email(message, env)` and shares the same support-email ingest logic.
 - Inbound provider: Resend `email.received` webhook with Svix signature
   verification using `RESEND_WEBHOOK_SECRET`.
+- Production inbound provider: Cloudflare Email Routing sends only
+  `support@hyperquote.net` to the Internal Worker; the Worker parses the raw
+  message, normalizes sender, recipients, subject, body, and headers, rejects
+  unsupported recipients, and dedupes retries.
 - Inbound fetch: the handler fetches received email content from Resend using
   `RESEND_API_KEY`, normalizes sender, recipients, subject, body, and headers,
   rejects mail not addressed to `support@hyperquote.net`, and dedupes retries.
@@ -53,7 +59,6 @@ As of 2026-05-25:
   - Type: `MX`
   - Value: `inbound-smtp.eu-west-1.amazonaws.com`
   - Priority: `10`
-- No Cloudflare DNS records were changed.
 - Cloudflare Email Routing is already enabled for `hyperquote.net` with root
   MX records:
   - `route1.mx.cloudflare.net`
@@ -62,22 +67,22 @@ As of 2026-05-25:
 - Existing Cloudflare Email Routing rules:
   - `hq@hyperquote.net` forwards to the existing Proton destination.
   - Catch-all is enabled and forwards to the existing Proton destination.
+- The production workflow configures or updates a support-only Email Routing
+  rule for `support@hyperquote.net` to the `hyperquote-internal` Worker without
+  changing root MX or catch-all behavior.
 
-## Current Blockers
+## Production Activation
 
-- `internal.hyperquote.net` does not resolve publicly yet, so Resend cannot
-  reach the configured webhook endpoint.
-- The repo still has no active hosted deploy workflow. Pushing code is only a
-  source-control action until a hosted Internal app runtime is designed and
-  deployed.
-- The stored Cloudflare API token in `/MASTER` can read the zone metadata but
-  failed DNS-record API access. Wrangler OAuth can inspect Email Routing.
-- Switching the root MX from Cloudflare Email Routing to Resend would affect
-  every `@hyperquote.net` address, not only `support@hyperquote.net`.
+The selected path is Option B: preserve Cloudflare Email Routing and add
+support-only routing. Production activation now depends on the production
+workflow deploying `hyperquote-internal`, syncing its secrets, configuring the
+Email Routing rule, and passing the live smoke checks.
+
+The Resend inbound webhook route stays for compatibility. Do not replace root
+MX with Resend receiving MX unless the whole `@hyperquote.net` inbound domain is
+intentionally migrated away from Cloudflare Email Routing.
 
 ## Activation Options
-
-Choose one path in the hosted setup session.
 
 ### Option A: Use Resend Receiving For The Whole Domain
 
@@ -103,20 +108,18 @@ Resend.
 ### Option B: Preserve Cloudflare Email Routing And Add Support-Only Routing
 
 This preserves the existing `hq@` route and catch-all, but it needs one more
-implementation because the current inbound endpoint is Resend-specific.
+implementation because the original inbound endpoint was Resend-specific.
 
 Required steps:
 
 1. Keep Cloudflare Email Routing MX records in place.
 2. Add a Cloudflare Email Worker route for only `support@hyperquote.net`.
-3. Add a separate Internal inbound handler for Cloudflare Email Worker payloads,
-   or have the Worker transform the raw message into a signed app-owned
-   webhook format.
-4. Reuse the same database ingest RPC after normalizing the raw email.
-5. Enable the `support@hyperquote.net` Email Routing rule only after the
+3. Reuse the same database ingest RPC after normalizing the raw email.
+4. Enable the `support@hyperquote.net` Email Routing rule only after the
    Internal host is reachable.
 
-Use this if the existing Cloudflare catch-all must keep working unchanged.
+This is now implemented by `scripts/configure-cloudflare-production.mjs` and the
+Internal Worker email handler.
 
 ## Verification Already Run
 
@@ -133,4 +136,3 @@ Use this if the existing Cloudflare catch-all must keep working unchanged.
 - `bun run check:ci`
 - `git diff --check`
 - Pre-commit `gitleaks`
-

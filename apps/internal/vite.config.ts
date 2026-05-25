@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import { cloudflare } from '@cloudflare/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
@@ -6,6 +7,8 @@ import { nitro } from 'nitro/vite'
 import type { PluginOption } from 'vite'
 import { defineConfig } from 'vite'
 import { hyperquoteManualChunks } from '../../tooling/vite/manual-chunks'
+
+const isCloudflareTarget = process.env.HYPERQUOTE_DEPLOY_TARGET === 'cloudflare'
 
 // Client-only shims for server modules that leak into the client module graph.
 // TanStack Start can expose server-only modules during dev. These shims provide
@@ -53,10 +56,13 @@ export default defineConfig({
 		},
 	},
 	plugins: [
+		...(isCloudflareTarget
+			? [cloudflare({ viteEnvironment: { name: 'ssr' } })]
+			: []),
 		tailwindcss(),
 		clientOnlyShims(),
 		tanstackStart(),
 		viteReact(),
-		nitro(),
+		...(isCloudflareTarget ? [] : [nitro()]),
 	],
 })

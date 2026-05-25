@@ -1,3 +1,4 @@
+import PostalMime, { type Address, type Email } from 'postal-mime'
 import { type GetReceivingEmailResponseSuccess, Resend } from 'resend'
 import type { JsonObject } from '../db/types'
 import { getInternalSupabaseAdminClient } from './_supabase'
@@ -22,6 +23,15 @@ interface WebhookHeaders {
 	id: string
 	signature: string
 	timestamp: string
+}
+
+export interface CloudflareInboundEmailMessage {
+	from: string
+	headers: Headers
+	raw: ReadableStream
+	rawSize: number
+	setReject(reason: string): void
+	to: string
 }
 
 const MAX_INBOUND_BODY_LENGTH = 12_000
@@ -78,41 +88,30 @@ export async function handleResendInboundEmailWebhook(
 		)
 	}
 
-	const client = await getInternalSupabaseAdminClient()
-	const { data, error } = await client.rpc(
-		'service_ingest_support_email_message',
-		{
-			p_body: email.body,
-			p_cc_emails: email.ccEmails,
-			p_from_email: email.fromEmail,
-			p_from_name: email.fromName ?? undefined,
-			p_headers: email.headers satisfies JsonObject,
-			p_in_reply_to: email.inReplyTo ?? undefined,
-			p_internet_message_id: email.messageId ?? undefined,
-			p_provider: 'resend',
-			p_provider_email_id: email.providerEmailId,
-			p_received_at: email.receivedAt,
-			p_references: email.references,
-			p_subject: email.subject,
-			p_to_emails: email.toEmails,
-		},
-	)
-	if (error) {
+	try {
+		return jsonResponse(await ingestNormalizedSupportEmail(email, 'resend'))
+	} catch (error) {
 		return jsonResponse(
-			{ error: 'support_email_ingest_failed', message: error.message },
+			{
+				error: 'support_email_ingest_failed',
+				message: error instanceof Error ? error.message : String(error),
+			},
 			500,
 		)
 	}
+}
 
-	const row = Array.isArray(data) ? data[0] : null
-	return jsonResponse({
-		createdTicket: row?.created_ticket ?? false,
-		duplicate: row?.duplicate ?? false,
-		messageId: row?.message_id ?? null,
-		ok: true,
-		ticketId: row?.ticket_id ?? null,
-		ticketReference: row?.ticket_reference ?? null,
-	})
+export async function handleCloudflareInboundEmail(
+	message: CloudflareInboundEmailMessage,
+): Promise<void> {
+	const email = await normalizeCloudflareInboundEmail(message)
+	const supportEmail =
+		(await readRuntimeEnv('SUPPORT_INBOUND_EMAIL')) ?? DEFAULT_SUPPORT_REPLY_TO
+	if (!isAddressedToSupport(email, supportEmail)) {
+		message.setReject('recipient_not_supported')
+		return
+	}
+	await ingestNormalizedSupportEmail(email, 'cloudflare_email_routing')
 }
 
 export function normalizeResendReceivedEmail(
@@ -140,6 +139,80 @@ export function normalizeResendReceivedEmail(
 		references,
 		subject: email.subject.trim() || '(no subject)',
 		toEmails: normalizeEmailList(email.to),
+	}
+}
+
+export async function normalizeCloudflareInboundEmail(
+	message: CloudflareInboundEmailMessage,
+): Promise<NormalizedInboundSupportEmail> {
+	const rawEmail = await new Response(message.raw).arrayBuffer()
+	const parsed = await PostalMime.parse(rawEmail)
+	const headers = normalizePostalHeaders(parsed.headers, message.headers)
+	const parsedFrom =
+		parsedEmailAddress(parsed.from) ?? parseEmailAddress(message.from)
+	const inReplyTo = firstMessageId(
+		parsed.inReplyTo ?? headerValue(headers, 'in-reply-to'),
+	)
+	const references = parseMessageIdList(
+		parsed.references ?? headerValue(headers, 'references'),
+	)
+	const messageId =
+		normalizeMessageId(parsed.messageId) ??
+		firstMessageId(headerValue(headers, 'message-id'))
+	const providerEmailId = `cloudflare:${messageId ?? (await sha256Hex(rawEmail))}`
+	const toEmails = normalizePostalEmailList(parsed.to)
+	const envelopeTo = normalizeEmail(message.to)
+	if (toEmails.length === 0 && envelopeTo) toEmails.push(envelopeTo)
+
+	return {
+		body: inboundBody(parsed.text ?? null, parsed.html ?? null),
+		ccEmails: normalizePostalEmailList(parsed.cc),
+		fromEmail: parsedFrom.email,
+		fromName: parsedFrom.name,
+		headers,
+		inReplyTo,
+		messageId,
+		providerEmailId,
+		receivedAt: receivedAtFromHeader(parsed.date),
+		references,
+		subject: parsed.subject?.trim() || '(no subject)',
+		toEmails,
+	}
+}
+
+async function ingestNormalizedSupportEmail(
+	email: NormalizedInboundSupportEmail,
+	provider: string,
+): Promise<JsonObject> {
+	const client = await getInternalSupabaseAdminClient()
+	const { data, error } = await client.rpc(
+		'service_ingest_support_email_message',
+		{
+			p_body: email.body,
+			p_cc_emails: email.ccEmails,
+			p_from_email: email.fromEmail,
+			p_from_name: email.fromName ?? undefined,
+			p_headers: email.headers satisfies JsonObject,
+			p_in_reply_to: email.inReplyTo ?? undefined,
+			p_internet_message_id: email.messageId ?? undefined,
+			p_provider: provider,
+			p_provider_email_id: email.providerEmailId,
+			p_received_at: email.receivedAt,
+			p_references: email.references,
+			p_subject: email.subject,
+			p_to_emails: email.toEmails,
+		},
+	)
+	if (error) throw new Error(error.message)
+
+	const row = Array.isArray(data) ? data[0] : null
+	return {
+		createdTicket: row?.created_ticket ?? false,
+		duplicate: row?.duplicate ?? false,
+		messageId: row?.message_id ?? null,
+		ok: true,
+		ticketId: row?.ticket_id ?? null,
+		ticketReference: row?.ticket_reference ?? null,
 	}
 }
 
@@ -175,6 +248,24 @@ function normalizeHeaders(
 	return normalized
 }
 
+function normalizePostalHeaders(
+	headers: Email['headers'],
+	fallbackHeaders: Headers,
+): Record<string, string> {
+	const normalized: Record<string, string> = {}
+	for (const header of headers) {
+		const key = header.originalKey.trim() || header.key.trim()
+		if (!key) continue
+		normalized[key] = header.value.trim()
+	}
+	if (Object.keys(normalized).length > 0) return normalized
+
+	fallbackHeaders.forEach((value, key) => {
+		if (key.trim()) normalized[key] = value.trim()
+	})
+	return normalized
+}
+
 function headerValue(
 	headers: Record<string, string>,
 	name: string,
@@ -196,6 +287,46 @@ function normalizeEmailList(values: string[] | null | undefined): string[] {
 		emails.push(parsed.email)
 	}
 	return emails
+}
+
+function normalizePostalEmailList(values: Address[] | undefined): string[] {
+	const seen = new Set<string>()
+	const emails: string[] = []
+	for (const value of values ?? []) {
+		for (const mailbox of mailboxAddresses(value)) {
+			const email = normalizeEmail(mailbox.address)
+			if (!email || seen.has(email)) continue
+			seen.add(email)
+			emails.push(email)
+		}
+	}
+	return emails
+}
+
+function parsedEmailAddress(
+	value: Address | undefined,
+): { email: string; name: string | null } | null {
+	for (const mailbox of value ? mailboxAddresses(value) : []) {
+		const email = normalizeEmail(mailbox.address)
+		if (!email) continue
+		return {
+			email,
+			name: mailbox.name.trim() || null,
+		}
+	}
+	return null
+}
+
+function mailboxAddresses(
+	value: Address,
+): Array<{ address: string; name: string }> {
+	if ('group' in value && Array.isArray(value.group)) {
+		return value.group.map((mailbox) => ({
+			address: mailbox.address,
+			name: mailbox.name,
+		}))
+	}
+	return value.address ? [{ address: value.address, name: value.name }] : []
 }
 
 function parseEmailAddress(value: string): {
@@ -262,6 +393,21 @@ function firstMessageId(value: string | null): string | null {
 function normalizeMessageId(value: string | null | undefined): string | null {
 	const trimmed = value?.trim()
 	return trimmed ? trimmed : null
+}
+
+function receivedAtFromHeader(value: string | undefined): string {
+	if (value) {
+		const parsed = new Date(value)
+		if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+	}
+	return new Date().toISOString()
+}
+
+async function sha256Hex(value: ArrayBuffer): Promise<string> {
+	const digest = await crypto.subtle.digest('SHA-256', value)
+	return Array.from(new Uint8Array(digest), (byte) =>
+		byte.toString(16).padStart(2, '0'),
+	).join('')
 }
 
 function jsonResponse(payload: JsonObject, status = 200): Response {

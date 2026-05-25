@@ -10,8 +10,6 @@ const ENV_ALIASES = new Map([
 	['dev', { infisicalEnv: 'dev', label: 'local dev' }],
 	['local', { infisicalEnv: 'dev', label: 'local dev' }],
 	['local-dev', { infisicalEnv: 'dev', label: 'local dev' }],
-	['staging', { infisicalEnv: 'staging', label: 'staging' }],
-	['stage', { infisicalEnv: 'staging', label: 'staging' }],
 	['production', { infisicalEnv: 'prod', label: 'production' }],
 	['prod', { infisicalEnv: 'prod', label: 'production' }],
 ])
@@ -21,7 +19,7 @@ const target = ENV_ALIASES.get(requestedEnv)
 
 if (!target) {
 	console.error(
-		`Unknown Infisical environment "${requestedEnv}". Use dev, staging, or production.`,
+		`Unknown Infisical environment "${requestedEnv}". Use dev or production.`,
 	)
 	process.exit(1)
 }
@@ -117,6 +115,36 @@ function requiredSecretGroups(infisicalEnv) {
 		...twilioVerify,
 		...resendEmail,
 		{
+			label: 'Resend inbound webhook secret (RESEND_WEBHOOK_SECRET)',
+			names: ['RESEND_WEBHOOK_SECRET'],
+			isValid: (value) => value.length > 0,
+		},
+		{
+			label: 'Production cookie domain (COOKIE_DOMAIN=.hyperquote.net)',
+			names: ['COOKIE_DOMAIN'],
+			isValid: (value) => value === '.hyperquote.net',
+		},
+		{
+			label: 'Support inbound email (SUPPORT_INBOUND_EMAIL)',
+			names: ['SUPPORT_INBOUND_EMAIL'],
+			isValid: isEmail,
+		},
+		{
+			label: 'Support reply-to email (SUPPORT_REPLY_TO)',
+			names: ['SUPPORT_REPLY_TO'],
+			isValid: isEmail,
+		},
+		{
+			label: 'Support sender (SUPPORT_EMAIL_FROM)',
+			names: ['SUPPORT_EMAIL_FROM'],
+			isValid: (value) => value.length > 0,
+		},
+		{
+			label: 'Support URL (SUPPORT_URL, https URL)',
+			names: ['SUPPORT_URL'],
+			isValid: (value) => value.startsWith('https://'),
+		},
+		{
 			label: 'Hosted Supabase URL (SUPABASE_URL, https URL)',
 			names: ['SUPABASE_URL'],
 			isValid: (value) => value.startsWith('https://'),
@@ -131,14 +159,54 @@ function requiredSecretGroups(infisicalEnv) {
 			names: ['SUPABASE_SERVICE_ROLE_KEY'],
 			isValid: (value) => value.length > 0,
 		},
+		{
+			label:
+				'Supabase production database URL or password (SUPABASE_DB_URL or SUPABASE_DB_PASSWORD)',
+			names: ['SUPABASE_DB_URL', 'SUPABASE_DB_PASSWORD'],
+			isValid: (value) =>
+				value.length > 0 &&
+				(value === process.env.SUPABASE_DB_PASSWORD?.trim() ||
+					value.startsWith('postgres://') ||
+					value.startsWith('postgresql://')),
+		},
+		{
+			label: 'Supabase production project ref (SUPABASE_PROJECT_REF)',
+			names: ['SUPABASE_PROJECT_REF'],
+			isValid: (value) => value.length > 0,
+		},
+		{
+			label: 'Cloudflare account ID (CLOUDFLARE_ACCOUNT_ID)',
+			names: ['CLOUDFLARE_ACCOUNT_ID'],
+			isValid: (value) => value.length > 0,
+		},
+		{
+			label: 'Cloudflare zone ID (CLOUDFLARE_ZONE_ID)',
+			names: ['CLOUDFLARE_ZONE_ID'],
+			isValid: (value) => value.length > 0,
+		},
+		{
+			label: 'Cloudflare deploy token (CLOUDFLARE_API_TOKEN)',
+			names: ['CLOUDFLARE_API_TOKEN'],
+			isValid: (value) => value.length > 0,
+		},
+		{
+			label: 'Groq API key (GROQ_API_KEY)',
+			names: ['GROQ_API_KEY'],
+			isValid: (value) => value.length > 0,
+		},
 	]
 }
 
 function optionalSecretGroups() {
 	return [
 		{
-			label: 'AI provider key (GROQ_API_KEY)',
-			names: ['GROQ_API_KEY'],
+			label: 'MapTiler browser key (MAPTILER_KEY)',
+			names: ['MAPTILER_KEY', 'VITE_MAPTILER_KEY'],
+			isValid: (value) => value.length > 0,
+		},
+		{
+			label: 'Road-route endpoint override (ROAD_ROUTE_ENDPOINT)',
+			names: ['ROAD_ROUTE_ENDPOINT', 'VITE_ROAD_ROUTE_ENDPOINT'],
 			isValid: (value) => value.length > 0,
 		},
 	]
@@ -149,4 +217,8 @@ function isGroupConfigured(group) {
 		const value = process.env[name]?.trim()
 		return value ? group.isValid(value) : false
 	})
+}
+
+function isEmail(value) {
+	return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value)
 }

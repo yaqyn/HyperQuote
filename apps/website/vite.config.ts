@@ -1,3 +1,4 @@
+import { cloudflare } from '@cloudflare/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
@@ -18,6 +19,8 @@ function websiteManualChunks(id: string) {
 	return hyperquoteManualChunks(id)
 }
 
+const isCloudflareTarget = process.env.HYPERQUOTE_DEPLOY_TARGET === 'cloudflare'
+
 export default defineConfig({
 	server: { port: 3000 },
 	assetsInclude: ['**/*.md'],
@@ -37,6 +40,9 @@ export default defineConfig({
 		},
 	},
 	plugins: [
+		...(isCloudflareTarget
+			? [cloudflare({ viteEnvironment: { name: 'ssr' } })]
+			: []),
 		tailwindcss(),
 		tanstackStart({
 			prerender: {
@@ -47,6 +53,6 @@ export default defineConfig({
 			pages: [{ path: '/' }, { path: '/about' }],
 		}),
 		viteReact(),
-		nitro(),
+		...(isCloudflareTarget ? [] : [nitro()]),
 	],
 })

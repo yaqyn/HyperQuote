@@ -6,9 +6,12 @@
 	"scripts": {
 		"dev": "NODE_OPTIONS=--max-http-header-size=32768 vite dev --port 3003",
 		"build": "vite build",
+		"build:worker": "node ../../scripts/build-worker.mjs driver",
 		"typecheck": "tsc --noEmit",
 		"test": "vitest run",
 		"preview": "vite preview",
+		"cf-typegen": "wrangler types",
+		"deploy:worker": "bun run build:worker && wrangler deploy",
 		"cap:sync": "cap sync",
 		"cap:open:ios": "cap open ios",
 		"cap:open:android": "cap open android"

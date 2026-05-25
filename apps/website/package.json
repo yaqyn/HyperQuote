@@ -6,6 +6,9 @@
 	"scripts": {
 		"dev": "NODE_OPTIONS=--max-http-header-size=32768 node ../../scripts/with-dev-secrets.mjs vite dev --port 3000",
 		"build": "vite build",
+		"build:worker": "node ../../scripts/build-worker.mjs website",
+		"cf-typegen": "wrangler types",
+		"deploy:worker": "bun run build:worker && wrangler deploy",
 		"routes:generate": "tsr generate",
 		"typecheck": "bun run routes:generate && tsc --noEmit",
 		"test": "bun test src/lib/chat.test.ts && bun run --cwd ../../packages/docs test",

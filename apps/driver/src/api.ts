@@ -3,6 +3,7 @@ import {
 	createSupabaseServiceRoleClient,
 	type RuntimeEnvValue,
 	runtimeEnvValue,
+	supabaseHealthResponse,
 } from '@hyperquote/auth/server'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
@@ -505,10 +506,19 @@ async function handleDriverApi(request: Request, env: DriverApiEnv) {
 }
 
 export default {
-	fetch(request: Request, env: DriverApiEnv): Promise<Response> {
+	async fetch(request: Request, env: DriverApiEnv): Promise<Response> {
 		const url = new URL(request.url)
+		if (url.pathname === '/api/health') {
+			return supabaseHealthResponse({
+				app: 'driver',
+				fallbackEnv: await driverApiEnvRecord(env),
+			})
+		}
 		if (url.pathname.startsWith('/api/driver/')) {
 			return handleDriverApi(request, env)
+		}
+		if (url.pathname.startsWith('/api/')) {
+			return errorJson(404, 'not_found')
 		}
 		return env.ASSETS.fetch(request)
 	},

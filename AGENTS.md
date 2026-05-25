@@ -28,24 +28,21 @@ or checkout away changes you did not make.
 
 ## External Resource State
 
-HyperQuote is local-first after the cloud reset. Do not recreate Cloudflare,
-GitHub Actions deploy, or hosted Supabase runtime resources unless the user
-explicitly reopens hosted architecture.
+HyperQuote hosted architecture is reopened as production-only. Do not create
+staging, preview, or Cloudflare Pages deploy paths unless the user explicitly
+reopens architecture again.
 
 Leave the retained non-HyperQuote Cloudflare resources alone unless the user
 names them directly: the `modern` Worker, `modern` R2 bucket, `modern_*`
 Secrets Store entries, and `othren-assets` R2 bucket. Also leave the GitHub
 repos `yaqyn/Modern`, `yaqyn/qv`, and `yaqyn/HyperQuote`.
 
-If GitHub still lists `Deploy Staging Workers` or `Deploy Production Workers`,
-treat those as stale disabled records from old workflow files. Do not re-enable
-them. Removing them from GitHub requires the source deletion of
-`.github/workflows/*` to reach the default branch, or a newly designed deploy
-workflow.
+Production deploys are source-controlled in `.github/workflows/production.yml`.
+If GitHub still lists old `Deploy Staging Workers` records, treat those as
+stale disabled records from old workflow files. Do not re-enable staging.
 
-Supabase cloud projects may exist in the account inventory, but this repo must
-use local Supabase for runtime, development, and proof until hosted backend
-architecture is explicitly reopened.
+Production uses one Supabase Cloud project, `hyperquote-production`, in
+`eu-west-1`. Local Supabase remains the development and proof backend.
 
 ## Backend Status And Database Policy
 
@@ -54,9 +51,9 @@ source of truth, but browser/native clients must not read or write public tables
 or call business RPCs directly. Client apps may use Supabase Auth only for
 signup, login, session refresh, and sign-out.
 
-This repo is local-only until the user explicitly reopens hosted architecture.
-Use local Supabase through `supabase/` and the repo scripts. Do not wire apps to
-hosted staging or production from this codebase.
+Use local Supabase through `supabase/` and the repo scripts for development and
+proof. Production wiring goes only through the source-controlled workflow and
+Infisical `prod`; do not wire apps to staging or preview backends.
 
 Website, portal, internal, and driver data access must go through React Start
 server functions, local API routes, or server-only helpers. Server code uses
@@ -92,11 +89,12 @@ when grants, wrappers, generated types, or workflow transitions change.
 
 - Read named files before making claims; read nearby patterns and 1-2 analogs
   before adding modules, components, routes, stores, or scripts.
-- Backend work follows `STACK.md`: local Supabase/Postgres is the active source
-  of truth. Do not add or recreate Cloudflare Workers, D1, Pages, Secrets
-  Store, Vectorize, Hyperdrive, AI Gateway, GitHub deploy workflows, hosted
-  Supabase projects, Convex, Neon, Clerk, or another backend/deploy target
-  unless the user explicitly reopens architecture.
+- Backend work follows `STACK.md`: Supabase/Postgres is the source of truth.
+  Production is limited to the four Cloudflare Workers, the
+  `hyperquote-production` Supabase project, and the production workflow. Do not
+  add staging/preview, Pages, D1, Secrets Store, Vectorize, Hyperdrive, AI
+  Gateway, Convex, Neon, Clerk, or another backend/deploy target unless the
+  user explicitly reopens architecture.
 - Supplier auth is out of scope for v1. Treat suppliers as business records
   managed by employees, not as portal/auth users.
 - Make the smallest coherent root-cause change. Do not refactor unrelated code.
@@ -171,9 +169,9 @@ when grants, wrappers, generated types, or workflow transitions change.
 
 ## Security And Credentials
 
-- Infisical is the source of truth for local dev, staging, and production
-  secrets. Local commands use the Infisical `dev` environment explicitly;
-  staging uses `staging`; production uses the existing `prod` slug.
+- Infisical is the source of truth for local dev and production secrets. Local
+  commands use the Infisical `dev` environment explicitly; production uses the
+  existing `prod` slug.
 - HyperQuote runtime secrets must be read only from
   `/Projects/HyperQuote`. The `/MASTER` folder is reserved for operator/admin
   credentials and must never be injected into app, Supabase, CI, deploy, test,
@@ -181,11 +179,14 @@ when grants, wrappers, generated types, or workflow transitions change.
 - Local Supabase URL, anon key, and service-role key come from local Supabase
   status during local dev. Do not store those generated local values in
   Infisical.
-- Use `bun run secrets:check:dev`, `bun run secrets:check:staging`, or
-  `bun run secrets:check:production` before relying on environment-specific
-  runtime secrets.
-- Do not use Cloudflare Secrets Store or GitHub deployment secrets for this
-  repo while it is local-only.
+- Use `bun run secrets:check:dev` or `bun run secrets:check:production` before
+  relying on environment-specific runtime secrets.
+- Do not use Cloudflare Secrets Store. GitHub stores only scoped deploy
+  credentials, including the `INFISICAL_TOKEN` production read token.
+- Supabase Auth/project config is pushed manually with
+  `bun run configure:supabase:production` and a transient
+  `SUPABASE_ACCESS_TOKEN`; do not store that token in `/Projects/HyperQuote` or
+  GitHub.
 - Never print, log, paste, write, commit, or expose secrets or master tokens.
   Master credentials are for account administration only.
 - Ask before destructive operations, billing changes, public repo creation,
@@ -216,12 +217,11 @@ when grants, wrappers, generated types, or workflow transitions change.
   commits, PRs, releases, or project files unless explicitly asked.
 - Do not amend commits, skip hooks, force-push, hard reset, checkout away work,
   delete branches/files, or create GitHub repos unless explicitly asked.
-- There is no active staging or production deploy path in this repo. If the
-  user says "push to staging" or "push to production", stop and design the new
-  workflow first.
-- Pushing is only a source-control action. It must not imply hosted deploy,
-  Cloudflare resource creation, Supabase cloud usage, or GitHub workflow
-  reactivation unless that workflow has been explicitly designed.
+- There is no staging deploy path. If the user says "push to staging", stop and
+  design the workflow first.
+- Pushing to `main` is a source-control action that triggers the production
+  workflow after checks. Do not auto-push. Do not imply Cloudflare Pages,
+  staging, preview, or Supabase cloud changes outside the production workflow.
 - Use `bun run db:start` / `bun run db:reset` and `bun run dev` as the operating
   path. Use local verification scripts before committing.
 

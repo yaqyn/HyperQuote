@@ -5,13 +5,19 @@ verification. `package.json` and `bun.lock` remain the live version authority.
 
 ## Active Apps
 
-- `apps/website`: TanStack Start on local Vite/Nitro, EN + AR, light + dark.
-- `apps/portal`: TanStack Start on local Vite/Nitro, EN + AR, light + dark.
-- `apps/internal`: TanStack Start on local Vite/Nitro, EN, light + dark.
-- `apps/driver`: Vite SPA + Capacitor, EN + AR, light + dark.
+- `apps/website`: TanStack Start on local Vite/Nitro and production Workers,
+  EN + AR, light + dark.
+- `apps/portal`: TanStack Start on local Vite/Nitro and production Workers,
+  EN + AR, light + dark.
+- `apps/internal`: TanStack Start on local Vite/Nitro and production Workers,
+  EN, light + dark.
+- `apps/driver`: Vite SPA + Capacitor locally and static assets on production
+  Workers, EN + AR, light + dark.
 
-The repo is local-only. There is no active hosted staging, hosted production,
-Cloudflare Worker, GitHub Actions deploy, or promotion workflow.
+Hosted architecture is reopened as production-only. There is no staging,
+preview, or Cloudflare Pages deploy path. Protected `main` runs checks,
+production Supabase migrations/config, Worker secret sync, Worker deploys, and
+live smoke checks through `.github/workflows/production.yml`.
 
 ## External Resource Baseline
 
@@ -28,15 +34,23 @@ alone unless the user names them directly:
 - Cloudflare Secrets Store entries: `modern_*`.
 - GitHub repos: `yaqyn/Modern`, `yaqyn/qv`, `yaqyn/HyperQuote`.
 
-GitHub deploy secrets, deploy variables, Actions artifacts, and Actions caches
-for HyperQuote were cleared. If `Deploy Staging Workers` or
-`Deploy Production Workers` still appears in GitHub, it is a stale disabled
-workflow record until the workflow-file deletion reaches the default branch.
-Do not re-enable those workflows.
+Current HyperQuote production resources are source-controlled from this repo:
 
-Supabase cloud projects can exist as account inventory, but they are not this
-repo's runtime. Do not point apps, tests, seed scripts, or generated config at
-hosted Supabase unless hosted backend architecture is reopened.
+- Cloudflare Workers: `hyperquote-website`, `hyperquote-portal`,
+  `hyperquote-internal`, and `hyperquote-driver`.
+- Custom domains: `www.hyperquote.net`, `portal.hyperquote.net`,
+  `internal.hyperquote.net`, and `driver.hyperquote.net`.
+- Cloudflare redirect rule: `hyperquote.net/*` to
+  `https://www.hyperquote.net/$1`.
+- Cloudflare Email Routing rule: `support@hyperquote.net` to the Internal
+  Worker, preserving the existing root MX/catch-all setup.
+- Supabase Cloud project: `hyperquote-production` in `eu-west-1`.
+
+If old `Deploy Staging Workers` records still appear in GitHub, they are stale.
+Do not re-enable staging or preview workflows.
+
+Production Supabase is migrated only from committed migrations with
+`supabase db push`; production never runs `supabase/seed.sql`.
 
 Cloudflare DNS records and Pipelines were not part of the verified reset
 because the available tokens did not allow full inspection. Re-inventory before
@@ -53,8 +67,9 @@ Cloudflare resources must not be recreated automatically.
 
 ## Backend Boundary
 
-Local Supabase/Postgres is the active source of truth. The checked-in
-`supabase/` directory is the real backend migration surface.
+Supabase/Postgres is the source of truth. Local Supabase is the development and
+proof backend; production uses the `hyperquote-production` Supabase project.
+The checked-in `supabase/` directory is the real backend migration surface.
 
 Browser/native clients must not read or write public tables or call business
 RPCs directly. Client apps may use Supabase Auth only for signup, login, session
@@ -84,10 +99,11 @@ transition, timestamp, and request context where practical.
 Delivery signatures and generated documents use Supabase Storage locally unless
 a later scoped decision chooses a different object store.
 
-Do not introduce hosted Supabase projects, Cloudflare Workers, Cloudflare D1,
+Do not introduce staging/preview environments, Cloudflare Pages, Cloudflare D1,
 Cloudflare Secrets Store, Cloudflare Vectorize, Cloudflare Hyperdrive,
-Cloudflare AI Gateway, GitHub deploy workflows, Convex, Neon, Clerk, or a custom
-auth system unless the user explicitly reopens architecture.
+Cloudflare AI Gateway, Convex, Neon, Clerk, or a custom auth system unless the
+user explicitly reopens architecture again. Keep Cloudflare Workers limited to
+the four production apps above unless a new production surface is designed.
 
 ## Core Pins
 
@@ -100,6 +116,7 @@ auth system unless the user explicitly reopens architecture.
 | Build | Vite `~7.3.3` | Stay on Vite 7; no Vite 8 yet |
 | Framework | `@tanstack/react-start` `^1.168.6` | Use this package, not `@tanstack/start` |
 | Server runtime | Nitro `^3.0.260522-beta` | Local Node server output for Start apps |
+| Production runtime | Cloudflare Workers / Wrangler `^4.92.0` | Production-only app origins |
 | Router | `@tanstack/react-router` `^1.170.4` | URL state via validated search params |
 | Server state | `@tanstack/react-query` `^5.100.10` | App-local where used |
 | Styling | Tailwind CSS / `@tailwindcss/vite` `^4.3.0` | CSS-first Tailwind v4 |
@@ -142,9 +159,9 @@ auth system unless the user explicitly reopens architecture.
 - Wrap MapLibre, Capacitor APIs, and anything touching `window` in `ClientOnly`.
 - Pass locale explicitly to React Aria `I18nProvider`.
 - Zustand persisted stores use `skipHydration: true` plus manual `rehydrate()`.
-- No `cloudflare:workers` imports, Wrangler configs, Cloudflare Secrets Store
-  bindings, Vectorize/Hyperdrive/AI Gateway bindings, or deploy scripts in the
-  active app path.
+- Wrangler configs live only under `apps/{website,portal,internal,driver}` for
+  production. Do not add Cloudflare Secrets Store, Vectorize, Hyperdrive, AI
+  Gateway, D1, KV, or Pages bindings.
 - Supabase auth checks use `getUser()`, not `getSession()`.
 - Supabase browser and server clients stay separate.
 - Each app declares its own React/Node/Vite type dependencies and
@@ -158,23 +175,28 @@ auth system unless the user explicitly reopens architecture.
 1. Start or reset local Supabase with `bun run db:start` or `bun run db:reset`.
 2. Start all app surfaces with `bun run dev`.
 3. Use ports: website `3000`, portal `3001`, internal `3002`, driver `3003`.
-4. Infisical is the secret source for local dev, staging, and production.
-   Local commands must request the `dev` Infisical environment explicitly.
-   Staging uses `staging`; production uses the existing Infisical `prod` slug.
+4. Infisical is the secret source for local dev and production. Local commands
+   must request the `dev` Infisical environment explicitly. Production uses the
+   existing Infisical `prod` slug.
 5. HyperQuote runtime secrets must be scoped to `/Projects/HyperQuote`.
    `/MASTER` is for operator/admin credentials only and must never be injected
    into app, Supabase, CI, deploy, test, or verification processes.
 6. Local Supabase URL, anon key, and service-role key still come from
    `supabase status` during local dev because they are generated by the local
-   runtime. Hosted Supabase runtime values belong in Infisical staging/prod
-   only after hosted backend architecture is reopened.
-7. Use `bun run secrets:check:dev`, `bun run secrets:check:staging`, and
-   `bun run secrets:check:production` to verify required secret groups without
-   printing values.
-8. Cloudflare Secrets Store and GitHub deployment secrets are not runtime
-   sources for this repo.
-9. There is no hosted deploy command. Designing a new deploy workflow is a
-   separate architecture task.
+   runtime. Production Supabase values live in Infisical `prod`.
+7. Use `bun run secrets:check:dev` and `bun run secrets:check:production` to
+   verify required secret groups without printing values.
+8. Cloudflare Secrets Store is not a runtime source for this repo. GitHub stores
+   only scoped deploy credentials, including the `INFISICAL_TOKEN` production
+   read token.
+9. Production deploy commands are run by GitHub Actions. Local equivalents are
+   `bun run deploy:supabase:production`, `bun run deploy:worker-secrets`,
+   `bun run deploy:cloudflare-rules:production`, and app-local
+   `bun run deploy:worker`.
+10. Supabase Auth/project config is pushed only as an admin operation with
+   `bun run configure:supabase:production`. It needs a transient
+   `SUPABASE_ACCESS_TOKEN`; do not store that token in `/Projects/HyperQuote`
+   or GitHub.
 
 ## Verification Gates
 
@@ -191,8 +213,9 @@ App tests: `bun run --cwd apps/internal test`,
 `scan:duplicates` can exit 0 while reporting active-code clone clusters.
 Classify those manually before abstracting.
 
-## Open Workflow Gaps
+## Production Workflow Gaps
 
-- A new hosted workflow has not been designed.
+- Branch protection for `main` must be enforced in GitHub settings if it is not
+  already active.
 - Hosted resource deletion must be confirmed against an exact inventory before
   any Cloudflare, GitHub, or Supabase resource is destroyed.
