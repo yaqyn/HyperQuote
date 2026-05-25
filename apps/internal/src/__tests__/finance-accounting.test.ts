@@ -1,0 +1,49 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+const migrationSql = readRepoFile(
+	'supabase/migrations/20260525215935_finance_accounting_subledger.sql',
+)
+const financeModuleSource = readRepoFile(
+	'apps/internal/src/components/finance/FinanceModule.tsx',
+)
+const financeTabsSource = readRepoFile(
+	'apps/internal/src/components/finance/FinanceTabStrip.tsx',
+)
+
+function readRepoFile(relativePath: string) {
+	return readFileSync(resolve(process.cwd(), '../..', relativePath), 'utf8')
+}
+
+describe('finance accounting rebuild', () => {
+	it('guards posted journals as balanced double-entry records', () => {
+		expect(migrationSql).toContain('finance_journal_lines_one_side')
+		expect(migrationSql).toContain('finance_journal_entry_is_balanced')
+		expect(migrationSql).toContain('finance_enforce_posted_entry_balance')
+		expect(migrationSql).toContain('finance_posted_journal_lines_are_locked')
+	})
+
+	it('makes payment-source backfill idempotent', () => {
+		expect(migrationSql).toContain('unique (source_type, source_id, link_role)')
+		expect(migrationSql).toContain("link.link_role = 'cash_movement'")
+		expect(migrationSql).toContain('finance_backfill_accounting_sources')
+	})
+
+	it('keeps accountant sign-off and payroll visibility explicit', () => {
+		expect(migrationSql).toContain('requires_accountant_signoff')
+		expect(migrationSql).toContain('finance_accountant_signoff_required')
+		expect(migrationSql).toContain('can_view_salary_detail')
+		expect(migrationSql).toContain(
+			'Payroll, tax, and social-insurance accruals require accountant/legal sign-off.',
+		)
+	})
+
+	it('replaces the stale Finance history placeholder with Accounting', () => {
+		expect(financeModuleSource).not.toContain('HistoryPlaceholder')
+		expect(financeModuleSource).not.toContain('History is not connected yet')
+		expect(financeTabsSource).toContain("title: 'Payments'")
+		expect(financeTabsSource).toContain("title: 'Accounting'")
+		expect(financeTabsSource).not.toContain('Live ledger')
+	})
+})

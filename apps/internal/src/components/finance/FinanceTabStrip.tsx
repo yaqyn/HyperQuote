@@ -1,4 +1,4 @@
-import { BookOpen, History, type LucideIcon } from 'lucide-react'
+import { BookOpenCheck, type LucideIcon, ReceiptText } from 'lucide-react'
 import { Button } from 'react-aria-components/Button'
 import { type FinanceTab, useFinanceStore } from '../../stores/finance'
 
@@ -12,18 +12,18 @@ interface Register {
 
 const REGISTERS: Register[] = [
 	{
-		id: 'deals-orders',
+		id: 'payments',
 		mark: 'i',
-		title: 'Live ledger',
-		dek: 'payments to record',
-		icon: BookOpen,
+		title: 'Payments',
+		dek: 'receipts and supplier pay',
+		icon: ReceiptText,
 	},
 	{
-		id: 'history',
+		id: 'accounting',
 		mark: 'ii',
-		title: 'History',
-		dek: 'settled records',
-		icon: History,
+		title: 'Accounting',
+		dek: 'journals and reports',
+		icon: BookOpenCheck,
 	},
 ]
 

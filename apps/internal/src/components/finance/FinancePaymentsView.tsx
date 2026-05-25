@@ -48,8 +48,8 @@ function toRoman(n: number): string {
 }
 
 type FinanceDirection = 'all' | 'in' | 'out'
-type LedgerPaymentTone = 'neutral' | 'chase' | 'in' | 'out'
-const LEDGER_STATUS_TONE: Record<LedgerPaymentTone, 'success' | 'warning'> = {
+type PaymentTone = 'neutral' | 'chase' | 'in' | 'out'
+const PAYMENT_STATUS_TONE: Record<PaymentTone, 'success' | 'warning'> = {
 	neutral: 'warning',
 	chase: 'warning',
 	in: 'success',
@@ -58,7 +58,7 @@ const LEDGER_STATUS_TONE: Record<LedgerPaymentTone, 'success' | 'warning'> = {
 
 // ─── View ────────────────────────────────────────────────
 
-export function FinanceDealsOrdersView() {
+export function FinancePaymentsView() {
 	const { data, isError, isLoading } = useQuery({
 		queryKey: ['finance-inbox'],
 		queryFn: () => getFinanceInbox({ data: {} }),
@@ -68,10 +68,10 @@ export function FinanceDealsOrdersView() {
 		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
-	const [ledgerDirection, setLedgerDirection] =
+	const [paymentDirection, setPaymentDirection] =
 		useState<FinanceDirection>('all')
-	const ledgerInSectionRef = useRef<HTMLElement | null>(null)
-	const ledgerOutSectionRef = useRef<HTMLElement | null>(null)
+	const paymentInSectionRef = useRef<HTMLElement | null>(null)
+	const paymentOutSectionRef = useRef<HTMLElement | null>(null)
 	const selectedOrderId = useFinanceStore((s) => s.selectedOrderId)
 	const setSelectedOrderId = useFinanceStore((s) => s.setSelectedOrderId)
 	const selectedDealId = useFinanceStore((s) => s.selectedDealId)
@@ -112,7 +112,7 @@ export function FinanceDealsOrdersView() {
 	if (isError) {
 		return (
 			<FinanceStateMessage
-				title="Ledger did not open"
+				title="Payments did not load"
 				copy="Refresh and try again. No payment record was changed."
 			/>
 		)
@@ -121,31 +121,31 @@ export function FinanceDealsOrdersView() {
 	if (isLoading || !data) {
 		return (
 			<FinanceStateMessage
-				title="Opening ledger"
+				title="Loading payments"
 				copy="Loading customer receipts and supplier payments."
 			/>
 		)
 	}
 
-	const ledgerTotal =
-		ledgerDirection === 'all'
+	const paymentTotal =
+		paymentDirection === 'all'
 			? liveOrders.length + liveDeals.length
-			: ledgerDirection === 'in'
+			: paymentDirection === 'in'
 				? liveOrders.length
 				: liveDeals.length
 
 	const liveReceivable = liveOrders.reduce((s, o) => s + o.totalDue, 0)
 	const livePayable = liveDeals.reduce((s, d) => s + d.totalDue, 0)
 	const handleDirectionSelect = (direction: FinanceDirection) => {
-		setLedgerDirection(direction)
+		setPaymentDirection(direction)
 		window.requestAnimationFrame(() => {
 			window.requestAnimationFrame(() => {
 				const target =
 					direction === 'out'
-						? ledgerOutSectionRef.current
+						? paymentOutSectionRef.current
 						: direction === 'in'
-							? ledgerInSectionRef.current
-							: (ledgerInSectionRef.current ?? ledgerOutSectionRef.current)
+							? paymentInSectionRef.current
+							: (paymentInSectionRef.current ?? paymentOutSectionRef.current)
 				const behavior = window.matchMedia('(prefers-reduced-motion: reduce)')
 					.matches
 					? 'auto'
@@ -158,26 +158,26 @@ export function FinanceDealsOrdersView() {
 	return (
 		<div className="relative">
 			<div className="mx-auto flex max-w-[1040px] flex-col px-4 pt-6 pb-16 sm:px-6 lg:px-12 lg:pt-10">
-				<LedgerMasthead
+				<PaymentsMasthead
 					totalOutstanding={data.totals.totalOutstanding}
 					chaseCount={data.totals.deliveredPartialCount}
 				/>
 
 				<DirectionStrip
-					active={ledgerDirection}
+					active={paymentDirection}
 					onSelect={handleDirectionSelect}
 					inCount={liveOrders.length}
 					outCount={liveDeals.length}
 				/>
 
-				{ledgerTotal === 0 ? (
-					<DirectionEmpty direction={ledgerDirection} />
+				{paymentTotal === 0 ? (
+					<DirectionEmpty direction={paymentDirection} />
 				) : (
 					<>
-						{(ledgerDirection === 'all' || ledgerDirection === 'in') &&
+						{(paymentDirection === 'all' || paymentDirection === 'in') &&
 							liveOrders.length > 0 && (
-								<LedgerSection
-									sectionRef={ledgerInSectionRef}
+								<PaymentSection
+									sectionRef={paymentInSectionRef}
 									heading="Money in"
 									dek="customer orders"
 									count={liveOrders.length}
@@ -196,12 +196,12 @@ export function FinanceDealsOrdersView() {
 										value={liveReceivable}
 										tone="in"
 									/>
-								</LedgerSection>
+								</PaymentSection>
 							)}
-						{(ledgerDirection === 'all' || ledgerDirection === 'out') &&
+						{(paymentDirection === 'all' || paymentDirection === 'out') &&
 							liveDeals.length > 0 && (
-								<LedgerSection
-									sectionRef={ledgerOutSectionRef}
+								<PaymentSection
+									sectionRef={paymentOutSectionRef}
 									heading="Money out"
 									dek="supplier deals"
 									count={liveDeals.length}
@@ -220,7 +220,7 @@ export function FinanceDealsOrdersView() {
 										value={livePayable}
 										tone="out"
 									/>
-								</LedgerSection>
+								</PaymentSection>
 							)}
 					</>
 				)}
@@ -262,7 +262,7 @@ function FinanceStateMessage({ title, copy }: { title: string; copy: string }) {
 
 // ─── Masthead ────────────────────────────────────────────
 
-function LedgerMasthead({
+function PaymentsMasthead({
 	totalOutstanding,
 	chaseCount,
 }: {
@@ -321,7 +321,7 @@ function DirectionStrip({
 
 	return (
 		<fieldset className="sticky top-0 z-10 -mx-4 mt-5 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 pt-3 pb-4 backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:bg-transparent lg:px-0 lg:pt-0 lg:backdrop-blur-none">
-			<legend className="sr-only">Ledger direction</legend>
+			<legend className="sr-only">Payment direction</legend>
 			<div className="grid grid-cols-3 gap-2">
 				{entries.map((entry) => {
 					const isAllActive = entry.id === 'all' && active === 'all'
@@ -349,7 +349,7 @@ function DirectionStrip({
 
 // ─── Section ─────────────────────────────────────────────
 
-function LedgerSection({
+function PaymentSection({
 	sectionRef,
 	heading,
 	dek,
@@ -469,7 +469,7 @@ function followUpContext(
 	return `${followUp.followUpState} follow-up due ${due}`
 }
 
-function LedgerEntry({
+function PaymentEntry({
 	index,
 	counterparty,
 	reference,
@@ -490,13 +490,13 @@ function LedgerEntry({
 	ageLabel: string
 	amount: number
 	paymentLabel: string
-	paymentTone: LedgerPaymentTone
+	paymentTone: PaymentTone
 	actionLabel: string
 	actionTone: 'primary' | 'neutral'
 	actionKind: 'record' | 'open'
 	onPress: () => void
 }) {
-	const statusTone = LEDGER_STATUS_TONE[paymentTone]
+	const statusTone = PAYMENT_STATUS_TONE[paymentTone]
 	const ActionIcon = actionKind === 'record' ? ReceiptText : BookOpen
 
 	return (
@@ -654,7 +654,7 @@ function OrderEntry({
 		: order.quoteNumber
 
 	return (
-		<LedgerEntry
+		<PaymentEntry
 			index={index}
 			counterparty={order.customerName}
 			reference={reference}
@@ -699,7 +699,7 @@ function DealEntry({
 	const context = followUp ? `${productContext} · ${followUp}` : productContext
 
 	return (
-		<LedgerEntry
+		<PaymentEntry
 			index={index}
 			counterparty={deal.supplierName}
 			reference={deal.dealId}

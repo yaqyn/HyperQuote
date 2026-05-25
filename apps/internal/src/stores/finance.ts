@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type FinanceTab = 'deals-orders' | 'history'
+export type FinanceTab = 'payments' | 'accounting'
 
 type FinanceInboxFilter = 'unpaid' | 'partial' | 'paid'
 
@@ -24,7 +24,7 @@ interface FinanceStore {
 
 export const useFinanceStore = create<FinanceStore>()(
 	(set) => ({
-		activeTab: 'deals-orders',
+		activeTab: 'payments',
 		setActiveTab: (tab) => set({ activeTab: tab }),
 
 		inboxFilter: 'unpaid',

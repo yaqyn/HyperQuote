@@ -32,6 +32,14 @@ const FINANCE_FOLLOWUP_CHANNELS = [
 ] as const
 const FINANCE_FOLLOWUP_STATES = ['open', 'waiting', 'closed'] as const
 const FINANCE_LOOKUP_CHUNK_SIZE = 50
+const FINANCE_ADJUSTMENT_TYPES = [
+	'company_expense',
+	'damage',
+	'refund',
+	'write_off',
+	'credit_adjustment',
+	'debit_adjustment',
+] as const
 
 function isUuid(value: string | undefined): value is string {
 	return Boolean(value && UUID_RE.test(value))
@@ -132,6 +140,137 @@ interface FinanceInboxTotals {
 	supplierPaid: number
 	totalOutstanding: number
 	deliveredPartialCount: number
+}
+
+export interface FinanceAccountingOverview {
+	basis: string
+	cashBalance: number
+	cashMovement: number
+	receivables: number
+	payables: number
+	unpostedCount: number
+	reviewRequiredCount: number
+}
+
+export interface FinanceAccountingIncomeStatement {
+	revenue: number
+	expenses: number
+	netPerformance: number | null
+	warnings: string[]
+}
+
+export interface FinanceAccountingCashFlow {
+	customerReceipts: number
+	supplierPayments: number
+	manualCashAdjustments: number
+	netCashMovement: number
+}
+
+export interface FinanceAccountingReceivable {
+	orderId: string
+	orderNumber: string
+	customerName: string
+	total: number
+	paid: number
+	remaining: number
+	ageDays: number
+	status: string
+	isDelivered: boolean
+}
+
+export interface FinanceAccountingPayable {
+	refillRequestId: string
+	supplierName: string
+	productName: string
+	total: number
+	paid: number
+	remaining: number
+	ageDays: number
+	status: string
+}
+
+export interface FinanceAccountingPayroll {
+	canViewDetail: boolean
+	employeeCount: number
+	monthlyBaseSalary: number
+	monthlySocialInsuranceSalary: number
+	details: Array<{
+		employeeId: string
+		employeeName: string
+		department: string | null
+		title: string | null
+		baseSalary: number | null
+		socialInsuranceSalary: number | null
+		currency: string
+	}>
+}
+
+export interface FinanceAccountingAdjustment {
+	id: string
+	type: string
+	category: string
+	description: string
+	amount: number
+	status: string
+	proofPath: string | null
+	journalEntryId: string | null
+	createdAt: string
+}
+
+export interface FinanceAccountingJournalLine {
+	lineNumber: number
+	accountCode: string
+	accountName: string
+	debit: number
+	credit: number
+	memo: string | null
+}
+
+export interface FinanceAccountingJournalEntry {
+	id: string
+	entryNumber: string
+	accountingDate: string
+	accountingPeriod: string
+	status: 'draft' | 'posted' | 'voided' | 'reversed'
+	description: string
+	sourceType: string | null
+	sourceId: string | null
+	requiresAccountantSignoff: boolean
+	signoffReason: string | null
+	postedAt: string | null
+	lines: FinanceAccountingJournalLine[]
+	sourceLinks: Array<{
+		sourceType: string
+		sourceId: string
+		linkRole: string
+		sourceLabel: string | null
+	}>
+	proofLinks: Array<{
+		proofDocumentId: string | null
+		proofPath: string | null
+		linkRole: string
+	}>
+}
+
+export interface FinanceAccountingDashboard {
+	period: {
+		start: string
+		end: string
+	}
+	overview: FinanceAccountingOverview
+	incomeStatement: FinanceAccountingIncomeStatement
+	cashFlow: FinanceAccountingCashFlow
+	receivables: FinanceAccountingReceivable[]
+	payables: FinanceAccountingPayable[]
+	payroll: FinanceAccountingPayroll
+	adjustments: FinanceAccountingAdjustment[]
+	journal: FinanceAccountingJournalEntry[]
+}
+
+export interface FinanceAccountingBackfillResult {
+	customerPaymentEntries: number
+	supplierPaymentEntries: number
+	reviewRequiredEntries: number
 }
 
 interface SupabaseFinanceCustomerRow {
@@ -664,6 +803,146 @@ export const getFinanceInbox = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
 		return getSupabaseFinanceInbox()
+	})
+
+const accountingDashboardInput = z.object({
+	periodStart: z.string().trim().optional(),
+	periodEnd: z.string().trim().optional(),
+})
+
+const createAdjustmentInput = z.object({
+	adjustmentType: z.enum(FINANCE_ADJUSTMENT_TYPES),
+	category: z.string().trim().min(2).max(80),
+	description: z.string().trim().min(5).max(500),
+	amount: z.number().positive(),
+	proofPath: z.string().trim().optional(),
+	proofDocumentId: z.string().trim().optional(),
+})
+
+const journalEntryActionInput = z.object({
+	entryId: z.string().regex(UUID_RE),
+	reason: z.string().trim().min(5).max(500).optional(),
+})
+
+function optionalDate(value: string | undefined): string | null {
+	if (!value) return null
+	const parsed = new Date(`${value}T00:00:00.000Z`)
+	if (Number.isNaN(parsed.getTime())) {
+		throw new Error('Accounting period date is invalid')
+	}
+	return value
+}
+
+function optionalUuid(value: string | undefined): string | null {
+	if (!value) return null
+	if (!isUuid(value)) throw new Error('Proof document id is invalid')
+	return value
+}
+
+function requireJsonObject<T>(value: unknown, label: string): T {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new Error(`${label} response was invalid`)
+	}
+	// Supabase returns RPC jsonb as unknown; the SQL function owns this boundary.
+	return value as T
+}
+
+export const getFinanceAccountingDashboard = createServerFn({ method: 'POST' })
+	.inputValidator(accountingDashboardInput)
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		const { data: dashboard, error } = await auth.client.rpc(
+			'finance_accounting_dashboard',
+			{
+				p_period_start: optionalDate(data.periodStart),
+				p_period_end: optionalDate(data.periodEnd),
+			},
+		)
+		if (error) throw new Error(error.message)
+		return requireJsonObject<FinanceAccountingDashboard>(
+			dashboard,
+			'Finance accounting dashboard',
+		)
+	})
+
+export const backfillFinanceAccountingSources = createServerFn({
+	method: 'POST',
+})
+	.inputValidator(z.object({}))
+	.handler(async () => {
+		const auth = await getInternalSupabaseClient()
+		const { data, error } = await auth.client.rpc(
+			'finance_backfill_accounting_sources',
+		)
+		if (error) throw new Error(error.message)
+		return requireJsonObject<FinanceAccountingBackfillResult>(
+			data,
+			'Finance accounting backfill',
+		)
+	})
+
+export const createFinanceAdjustment = createServerFn({ method: 'POST' })
+	.inputValidator(createAdjustmentInput)
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		const { data: adjustment, error } = await auth.client.rpc(
+			'finance_create_adjustment',
+			{
+				p_adjustment_type: data.adjustmentType,
+				p_category: data.category,
+				p_description: data.description,
+				p_amount: data.amount,
+				p_proof_path: data.proofPath?.trim() || null,
+				p_proof_document_id: optionalUuid(data.proofDocumentId),
+			},
+		)
+		if (error) throw new Error(error.message)
+		return { success: true as const, adjustmentId: adjustment?.id ?? null }
+	})
+
+export const postFinanceJournalEntry = createServerFn({ method: 'POST' })
+	.inputValidator(journalEntryActionInput)
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		const { error } = await auth.client.rpc('finance_post_journal_entry', {
+			p_entry_id: data.entryId,
+		})
+		if (error) throw new Error(error.message)
+		return { success: true as const, entryId: data.entryId }
+	})
+
+export const reverseFinanceJournalEntry = createServerFn({ method: 'POST' })
+	.inputValidator(journalEntryActionInput.required({ reason: true }))
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		const { data: reversal, error } = await auth.client.rpc(
+			'finance_reverse_journal_entry',
+			{
+				p_entry_id: data.entryId,
+				p_reason: data.reason,
+			},
+		)
+		if (error) throw new Error(error.message)
+		return {
+			success: true as const,
+			entryId: data.entryId,
+			reversalEntryId: reversal?.id ?? null,
+		}
+	})
+
+export const voidFinanceDraftJournalEntry = createServerFn({ method: 'POST' })
+	.inputValidator(journalEntryActionInput.required({ reason: true }))
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		const { error } = await auth.client.rpc(
+			'finance_void_draft_journal_entry',
+			{
+				p_entry_id: data.entryId,
+				p_reason: data.reason,
+			},
+		)
+		if (error) throw new Error(error.message)
+		return { success: true as const, entryId: data.entryId }
 	})
 
 // ─── Mutations ────────────────────────────────────────────

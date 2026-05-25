@@ -554,7 +554,7 @@ function PanelMasthead({
 						color: 'var(--color-primary)',
 					}}
 				>
-					Ledger entry
+					Payment record
 				</span>
 				<span
 					className="font-[family-name:var(--font-bricolage)] italic"

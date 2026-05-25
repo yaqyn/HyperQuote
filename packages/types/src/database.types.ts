@@ -1303,6 +1303,480 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			finance_accounts: {
+				Row: {
+					account_class: Database['public']['Enums']['finance_account_class']
+					code: string
+					created_at: string
+					id: string
+					is_active: boolean
+					is_system: boolean
+					name: string
+					normal_balance: Database['public']['Enums']['finance_normal_balance']
+					parent_account_id: string | null
+					updated_at: string
+				}
+				Insert: {
+					account_class: Database['public']['Enums']['finance_account_class']
+					code: string
+					created_at?: string
+					id?: string
+					is_active?: boolean
+					is_system?: boolean
+					name: string
+					normal_balance: Database['public']['Enums']['finance_normal_balance']
+					parent_account_id?: string | null
+					updated_at?: string
+				}
+				Update: {
+					account_class?: Database['public']['Enums']['finance_account_class']
+					code?: string
+					created_at?: string
+					id?: string
+					is_active?: boolean
+					is_system?: boolean
+					name?: string
+					normal_balance?: Database['public']['Enums']['finance_normal_balance']
+					parent_account_id?: string | null
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'finance_accounts_parent_account_id_fkey'
+						columns: ['parent_account_id']
+						isOneToOne: false
+						referencedRelation: 'finance_accounts'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			finance_adjustments: {
+				Row: {
+					adjustment_type: Database['public']['Enums']['finance_adjustment_type']
+					amount: number
+					category: string
+					counterparty_id: string | null
+					counterparty_type: string | null
+					created_at: string
+					created_by_employee_id: string | null
+					currency: string
+					description: string
+					id: string
+					journal_entry_id: string | null
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					status: Database['public']['Enums']['finance_adjustment_status']
+					updated_at: string
+					void_reason: string | null
+					voided_at: string | null
+					voided_by_employee_id: string | null
+				}
+				Insert: {
+					adjustment_type: Database['public']['Enums']['finance_adjustment_type']
+					amount: number
+					category: string
+					counterparty_id?: string | null
+					counterparty_type?: string | null
+					created_at?: string
+					created_by_employee_id?: string | null
+					currency?: string
+					description: string
+					id?: string
+					journal_entry_id?: string | null
+					posted_at?: string | null
+					posted_by_employee_id?: string | null
+					proof_document_id?: string | null
+					proof_path?: string | null
+					status?: Database['public']['Enums']['finance_adjustment_status']
+					updated_at?: string
+					void_reason?: string | null
+					voided_at?: string | null
+					voided_by_employee_id?: string | null
+				}
+				Update: {
+					adjustment_type?: Database['public']['Enums']['finance_adjustment_type']
+					amount?: number
+					category?: string
+					counterparty_id?: string | null
+					counterparty_type?: string | null
+					created_at?: string
+					created_by_employee_id?: string | null
+					currency?: string
+					description?: string
+					id?: string
+					journal_entry_id?: string | null
+					posted_at?: string | null
+					posted_by_employee_id?: string | null
+					proof_document_id?: string | null
+					proof_path?: string | null
+					status?: Database['public']['Enums']['finance_adjustment_status']
+					updated_at?: string
+					void_reason?: string | null
+					voided_at?: string | null
+					voided_by_employee_id?: string | null
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'finance_adjustments_created_by_employee_id_fkey'
+						columns: ['created_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_adjustments_created_by_employee_id_fkey'
+						columns: ['created_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_adjustments_journal_entry_id_fkey'
+						columns: ['journal_entry_id']
+						isOneToOne: true
+						referencedRelation: 'finance_journal_entries'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_adjustments_posted_by_employee_id_fkey'
+						columns: ['posted_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_adjustments_posted_by_employee_id_fkey'
+						columns: ['posted_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_adjustments_proof_document_id_fkey'
+						columns: ['proof_document_id']
+						isOneToOne: false
+						referencedRelation: 'proof_documents'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_adjustments_voided_by_employee_id_fkey'
+						columns: ['voided_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_adjustments_voided_by_employee_id_fkey'
+						columns: ['voided_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			finance_journal_entries: {
+				Row: {
+					accounting_date: string
+					accounting_period: string
+					actor_employee_id: string | null
+					created_at: string
+					description: string
+					entry_number: string
+					id: string
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					requires_accountant_signoff: boolean
+					reversal_entry_id: string | null
+					reversed_at: string | null
+					reversed_by_employee_id: string | null
+					reversed_from_entry_id: string | null
+					signoff_reason: string | null
+					source_id: string | null
+					source_type:
+						| Database['public']['Enums']['finance_journal_source_type']
+						| null
+					status: Database['public']['Enums']['finance_journal_status']
+					updated_at: string
+					void_reason: string | null
+					voided_at: string | null
+					voided_by_employee_id: string | null
+				}
+				Insert: {
+					accounting_date?: string
+					accounting_period?: string
+					actor_employee_id?: string | null
+					created_at?: string
+					description: string
+					entry_number?: string
+					id?: string
+					posted_at?: string | null
+					posted_by_employee_id?: string | null
+					requires_accountant_signoff?: boolean
+					reversal_entry_id?: string | null
+					reversed_at?: string | null
+					reversed_by_employee_id?: string | null
+					reversed_from_entry_id?: string | null
+					signoff_reason?: string | null
+					source_id?: string | null
+					source_type?:
+						| Database['public']['Enums']['finance_journal_source_type']
+						| null
+					status?: Database['public']['Enums']['finance_journal_status']
+					updated_at?: string
+					void_reason?: string | null
+					voided_at?: string | null
+					voided_by_employee_id?: string | null
+				}
+				Update: {
+					accounting_date?: string
+					accounting_period?: string
+					actor_employee_id?: string | null
+					created_at?: string
+					description?: string
+					entry_number?: string
+					id?: string
+					posted_at?: string | null
+					posted_by_employee_id?: string | null
+					requires_accountant_signoff?: boolean
+					reversal_entry_id?: string | null
+					reversed_at?: string | null
+					reversed_by_employee_id?: string | null
+					reversed_from_entry_id?: string | null
+					signoff_reason?: string | null
+					source_id?: string | null
+					source_type?:
+						| Database['public']['Enums']['finance_journal_source_type']
+						| null
+					status?: Database['public']['Enums']['finance_journal_status']
+					updated_at?: string
+					void_reason?: string | null
+					voided_at?: string | null
+					voided_by_employee_id?: string | null
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'finance_journal_entries_actor_employee_id_fkey'
+						columns: ['actor_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_journal_entries_actor_employee_id_fkey'
+						columns: ['actor_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_journal_entries_posted_by_employee_id_fkey'
+						columns: ['posted_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_journal_entries_posted_by_employee_id_fkey'
+						columns: ['posted_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_journal_entries_reversal_entry_id_fkey'
+						columns: ['reversal_entry_id']
+						isOneToOne: false
+						referencedRelation: 'finance_journal_entries'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_journal_entries_reversed_by_employee_id_fkey'
+						columns: ['reversed_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_journal_entries_reversed_by_employee_id_fkey'
+						columns: ['reversed_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_journal_entries_reversed_from_entry_id_fkey'
+						columns: ['reversed_from_entry_id']
+						isOneToOne: false
+						referencedRelation: 'finance_journal_entries'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_journal_entries_voided_by_employee_id_fkey'
+						columns: ['voided_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_journal_entries_voided_by_employee_id_fkey'
+						columns: ['voided_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			finance_journal_lines: {
+				Row: {
+					account_id: string
+					counterparty_id: string | null
+					counterparty_type: string | null
+					created_at: string
+					credit: number
+					currency: string
+					debit: number
+					entry_id: string
+					id: string
+					line_number: number
+					memo: string | null
+					source_id: string | null
+					source_type:
+						| Database['public']['Enums']['finance_journal_source_type']
+						| null
+				}
+				Insert: {
+					account_id: string
+					counterparty_id?: string | null
+					counterparty_type?: string | null
+					created_at?: string
+					credit?: number
+					currency?: string
+					debit?: number
+					entry_id: string
+					id?: string
+					line_number: number
+					memo?: string | null
+					source_id?: string | null
+					source_type?:
+						| Database['public']['Enums']['finance_journal_source_type']
+						| null
+				}
+				Update: {
+					account_id?: string
+					counterparty_id?: string | null
+					counterparty_type?: string | null
+					created_at?: string
+					credit?: number
+					currency?: string
+					debit?: number
+					entry_id?: string
+					id?: string
+					line_number?: number
+					memo?: string | null
+					source_id?: string | null
+					source_type?:
+						| Database['public']['Enums']['finance_journal_source_type']
+						| null
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'finance_journal_lines_account_id_fkey'
+						columns: ['account_id']
+						isOneToOne: false
+						referencedRelation: 'finance_accounts'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_journal_lines_entry_id_fkey'
+						columns: ['entry_id']
+						isOneToOne: false
+						referencedRelation: 'finance_journal_entries'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			finance_journal_proof_links: {
+				Row: {
+					created_at: string
+					entry_id: string
+					id: string
+					link_role: string
+					proof_document_id: string | null
+					proof_path: string | null
+				}
+				Insert: {
+					created_at?: string
+					entry_id: string
+					id?: string
+					link_role?: string
+					proof_document_id?: string | null
+					proof_path?: string | null
+				}
+				Update: {
+					created_at?: string
+					entry_id?: string
+					id?: string
+					link_role?: string
+					proof_document_id?: string | null
+					proof_path?: string | null
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'finance_journal_proof_links_entry_id_fkey'
+						columns: ['entry_id']
+						isOneToOne: false
+						referencedRelation: 'finance_journal_entries'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'finance_journal_proof_links_proof_document_id_fkey'
+						columns: ['proof_document_id']
+						isOneToOne: false
+						referencedRelation: 'proof_documents'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			finance_journal_source_links: {
+				Row: {
+					created_at: string
+					entry_id: string
+					id: string
+					link_role: string
+					source_id: string
+					source_label: string | null
+					source_type: Database['public']['Enums']['finance_journal_source_type']
+				}
+				Insert: {
+					created_at?: string
+					entry_id: string
+					id?: string
+					link_role?: string
+					source_id: string
+					source_label?: string | null
+					source_type: Database['public']['Enums']['finance_journal_source_type']
+				}
+				Update: {
+					created_at?: string
+					entry_id?: string
+					id?: string
+					link_role?: string
+					source_id?: string
+					source_label?: string | null
+					source_type?: Database['public']['Enums']['finance_journal_source_type']
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'finance_journal_source_links_entry_id_fkey'
+						columns: ['entry_id']
+						isOneToOne: false
+						referencedRelation: 'finance_journal_entries'
+						referencedColumns: ['id']
+					},
+				]
+			}
 			finance_payment_followups: {
 				Row: {
 					contact_channel: string
@@ -5396,6 +5870,11 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			finance_accounting_dashboard: {
+				Args: { p_period_end?: string; p_period_start?: string }
+				Returns: Json
+			}
+			finance_backfill_accounting_sources: { Args: never; Returns: Json }
 			finance_cancel_customer_order: {
 				Args: { p_order_id: string; p_proof?: Json; p_reason: string }
 				Returns: {
@@ -5435,6 +5914,149 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'refill_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			finance_create_adjustment: {
+				Args: {
+					p_adjustment_type: string
+					p_amount: number
+					p_category: string
+					p_description: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+				}
+				Returns: {
+					adjustment_type: Database['public']['Enums']['finance_adjustment_type']
+					amount: number
+					category: string
+					counterparty_id: string | null
+					counterparty_type: string | null
+					created_at: string
+					created_by_employee_id: string | null
+					currency: string
+					description: string
+					id: string
+					journal_entry_id: string | null
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					status: Database['public']['Enums']['finance_adjustment_status']
+					updated_at: string
+					void_reason: string | null
+					voided_at: string | null
+					voided_by_employee_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'finance_adjustments'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			finance_post_journal_entry: {
+				Args: { p_entry_id: string }
+				Returns: {
+					accounting_date: string
+					accounting_period: string
+					actor_employee_id: string | null
+					created_at: string
+					description: string
+					entry_number: string
+					id: string
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					requires_accountant_signoff: boolean
+					reversal_entry_id: string | null
+					reversed_at: string | null
+					reversed_by_employee_id: string | null
+					reversed_from_entry_id: string | null
+					signoff_reason: string | null
+					source_id: string | null
+					source_type:
+						| Database['public']['Enums']['finance_journal_source_type']
+						| null
+					status: Database['public']['Enums']['finance_journal_status']
+					updated_at: string
+					void_reason: string | null
+					voided_at: string | null
+					voided_by_employee_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'finance_journal_entries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			finance_reverse_journal_entry: {
+				Args: { p_entry_id: string; p_reason: string }
+				Returns: {
+					accounting_date: string
+					accounting_period: string
+					actor_employee_id: string | null
+					created_at: string
+					description: string
+					entry_number: string
+					id: string
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					requires_accountant_signoff: boolean
+					reversal_entry_id: string | null
+					reversed_at: string | null
+					reversed_by_employee_id: string | null
+					reversed_from_entry_id: string | null
+					signoff_reason: string | null
+					source_id: string | null
+					source_type:
+						| Database['public']['Enums']['finance_journal_source_type']
+						| null
+					status: Database['public']['Enums']['finance_journal_status']
+					updated_at: string
+					void_reason: string | null
+					voided_at: string | null
+					voided_by_employee_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'finance_journal_entries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			finance_void_draft_journal_entry: {
+				Args: { p_entry_id: string; p_reason: string }
+				Returns: {
+					accounting_date: string
+					accounting_period: string
+					actor_employee_id: string | null
+					created_at: string
+					description: string
+					entry_number: string
+					id: string
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					requires_accountant_signoff: boolean
+					reversal_entry_id: string | null
+					reversed_at: string | null
+					reversed_by_employee_id: string | null
+					reversed_from_entry_id: string | null
+					signoff_reason: string | null
+					source_id: string | null
+					source_type:
+						| Database['public']['Enums']['finance_journal_source_type']
+						| null
+					status: Database['public']['Enums']['finance_journal_status']
+					updated_at: string
+					void_reason: string | null
+					voided_at: string | null
+					voided_by_employee_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'finance_journal_entries'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -7025,6 +7647,19 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			service_finance_accounting_dashboard: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_period_end?: string
+					p_period_start?: string
+				}
+				Returns: Json
+			}
+			service_finance_backfill_accounting_sources: {
+				Args: { p_actor_pool: string; p_actor_user_id: string }
+				Returns: Json
+			}
 			service_finance_cancel_customer_order: {
 				Args: {
 					p_actor_pool: string
@@ -7076,6 +7711,165 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'refill_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_finance_create_adjustment: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_adjustment_type: string
+					p_amount: number
+					p_category: string
+					p_description: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+				}
+				Returns: {
+					adjustment_type: Database['public']['Enums']['finance_adjustment_type']
+					amount: number
+					category: string
+					counterparty_id: string | null
+					counterparty_type: string | null
+					created_at: string
+					created_by_employee_id: string | null
+					currency: string
+					description: string
+					id: string
+					journal_entry_id: string | null
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					status: Database['public']['Enums']['finance_adjustment_status']
+					updated_at: string
+					void_reason: string | null
+					voided_at: string | null
+					voided_by_employee_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'finance_adjustments'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_finance_post_journal_entry: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_entry_id: string
+				}
+				Returns: {
+					accounting_date: string
+					accounting_period: string
+					actor_employee_id: string | null
+					created_at: string
+					description: string
+					entry_number: string
+					id: string
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					requires_accountant_signoff: boolean
+					reversal_entry_id: string | null
+					reversed_at: string | null
+					reversed_by_employee_id: string | null
+					reversed_from_entry_id: string | null
+					signoff_reason: string | null
+					source_id: string | null
+					source_type:
+						| Database['public']['Enums']['finance_journal_source_type']
+						| null
+					status: Database['public']['Enums']['finance_journal_status']
+					updated_at: string
+					void_reason: string | null
+					voided_at: string | null
+					voided_by_employee_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'finance_journal_entries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_finance_reverse_journal_entry: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_entry_id: string
+					p_reason: string
+				}
+				Returns: {
+					accounting_date: string
+					accounting_period: string
+					actor_employee_id: string | null
+					created_at: string
+					description: string
+					entry_number: string
+					id: string
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					requires_accountant_signoff: boolean
+					reversal_entry_id: string | null
+					reversed_at: string | null
+					reversed_by_employee_id: string | null
+					reversed_from_entry_id: string | null
+					signoff_reason: string | null
+					source_id: string | null
+					source_type:
+						| Database['public']['Enums']['finance_journal_source_type']
+						| null
+					status: Database['public']['Enums']['finance_journal_status']
+					updated_at: string
+					void_reason: string | null
+					voided_at: string | null
+					voided_by_employee_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'finance_journal_entries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_finance_void_draft_journal_entry: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_entry_id: string
+					p_reason: string
+				}
+				Returns: {
+					accounting_date: string
+					accounting_period: string
+					actor_employee_id: string | null
+					created_at: string
+					description: string
+					entry_number: string
+					id: string
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					requires_accountant_signoff: boolean
+					reversal_entry_id: string | null
+					reversed_at: string | null
+					reversed_by_employee_id: string | null
+					reversed_from_entry_id: string | null
+					signoff_reason: string | null
+					source_id: string | null
+					source_type:
+						| Database['public']['Enums']['finance_journal_source_type']
+						| null
+					status: Database['public']['Enums']['finance_journal_status']
+					updated_at: string
+					void_reason: string | null
+					voided_at: string | null
+					voided_by_employee_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'finance_journal_entries'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -8640,6 +9434,11 @@ export type Database = {
 				| 'driver_delivery_route_reopened'
 				| 'inventory_availability_updated'
 				| 'inventory_price_marked_outdated'
+				| 'finance_adjustment_created'
+				| 'finance_journal_posted'
+				| 'finance_journal_reversed'
+				| 'finance_journal_voided'
+				| 'finance_accounting_backfilled'
 			catalog_availability_status:
 				| 'available'
 				| 'low_stock'
@@ -8685,6 +9484,37 @@ export type Database = {
 				| 'customer_service'
 				| 'driver_manager'
 				| 'ceo'
+			finance_account_class:
+				| 'asset'
+				| 'liability'
+				| 'equity'
+				| 'revenue'
+				| 'expense'
+			finance_adjustment_status:
+				| 'draft'
+				| 'review_required'
+				| 'posted'
+				| 'voided'
+			finance_adjustment_type:
+				| 'company_expense'
+				| 'damage'
+				| 'refund'
+				| 'write_off'
+				| 'credit_adjustment'
+				| 'debit_adjustment'
+			finance_journal_source_type:
+				| 'customer_payment'
+				| 'supplier_payment'
+				| 'order'
+				| 'refill_request'
+				| 'employee_compensation'
+				| 'proof_document'
+				| 'activity_event'
+				| 'manual_adjustment'
+				| 'warehouse_receiving'
+				| 'dispatch_delivery'
+			finance_journal_status: 'draft' | 'posted' | 'voided' | 'reversed'
+			finance_normal_balance: 'debit' | 'credit'
 			inventory_reservation_status: 'reserved' | 'released' | 'consumed'
 			loading_task_status: 'pending' | 'loading' | 'approved' | 'rejected'
 			notification_channel: 'email' | 'sms' | 'whatsapp' | 'push'
@@ -9053,6 +9883,11 @@ export const Constants = {
 				'driver_delivery_route_reopened',
 				'inventory_availability_updated',
 				'inventory_price_marked_outdated',
+				'finance_adjustment_created',
+				'finance_journal_posted',
+				'finance_journal_reversed',
+				'finance_journal_voided',
+				'finance_accounting_backfilled',
 			],
 			catalog_availability_status: [
 				'available',
@@ -9104,6 +9939,41 @@ export const Constants = {
 				'driver_manager',
 				'ceo',
 			],
+			finance_account_class: [
+				'asset',
+				'liability',
+				'equity',
+				'revenue',
+				'expense',
+			],
+			finance_adjustment_status: [
+				'draft',
+				'review_required',
+				'posted',
+				'voided',
+			],
+			finance_adjustment_type: [
+				'company_expense',
+				'damage',
+				'refund',
+				'write_off',
+				'credit_adjustment',
+				'debit_adjustment',
+			],
+			finance_journal_source_type: [
+				'customer_payment',
+				'supplier_payment',
+				'order',
+				'refill_request',
+				'employee_compensation',
+				'proof_document',
+				'activity_event',
+				'manual_adjustment',
+				'warehouse_receiving',
+				'dispatch_delivery',
+			],
+			finance_journal_status: ['draft', 'posted', 'voided', 'reversed'],
+			finance_normal_balance: ['debit', 'credit'],
 			inventory_reservation_status: ['reserved', 'released', 'consumed'],
 			loading_task_status: ['pending', 'loading', 'approved', 'rejected'],
 			notification_channel: ['email', 'sms', 'whatsapp', 'push'],
