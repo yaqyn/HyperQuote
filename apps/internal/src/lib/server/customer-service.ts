@@ -11,8 +11,11 @@ import { getInternalSupabaseClient } from './_supabase'
 import {
 	buildSupportEmailEnvelope,
 	deliverSupportEmail,
+	normalizeSupportEmailSubjectForThread,
+	parseEmailList,
 	type SupportEmailDeliveryResult,
 	type SupportEmailEnvelope,
+	type SupportEmailThreadHeaders,
 	type SupportEmailTicket,
 	supportEmailFailedDelivery,
 	supportEmailMetadata,
@@ -288,6 +291,60 @@ async function updateSupportReplyDelivery(
 		.eq('id', messageId)
 	if (error && delivery.providerStatus !== 'sent') {
 		throw new Error(error.message)
+	}
+}
+
+async function getLatestInboundEmailThread(
+	client: InternalSupportClient,
+	ticketId: string,
+): Promise<SupportEmailThreadHeaders | null> {
+	const { data, error } = await client
+		.from('support_email_threads')
+		.select('internet_message_id, reference_message_ids')
+		.eq('ticket_id', ticketId)
+		.eq('direction', 'inbound')
+		.not('internet_message_id', 'is', null)
+		.order('created_at', { ascending: false })
+		.limit(1)
+		.maybeSingle()
+	if (error) throw new Error(error.message)
+	if (!data?.internet_message_id) return null
+	return {
+		inReplyTo: data.internet_message_id,
+		references: data.reference_message_ids ?? [],
+	}
+}
+
+async function recordOutboundSupportEmailThread(
+	client: InternalSupportClient,
+	messageId: string,
+	envelope: SupportEmailEnvelope,
+	delivery: SupportEmailDeliveryResult,
+): Promise<void> {
+	if (!delivery.externalMessageId) return
+	const sender = parseEmailList(envelope.from)[0] ?? envelope.from.toLowerCase()
+	const recipients = [...envelope.to, ...envelope.cc, ...envelope.bcc]
+	const { error } = await client.from('support_email_threads').insert({
+		cc_emails: envelope.cc,
+		direction: 'outbound',
+		headers: envelope.headers,
+		in_reply_to: envelope.headers['In-Reply-To'] ?? null,
+		internet_message_id: null,
+		normalized_subject: normalizeSupportEmailSubjectForThread(envelope.subject),
+		provider: 'resend',
+		provider_email_id: delivery.externalMessageId,
+		recipient_emails: recipients,
+		reference_message_ids: envelope.headers.References
+			? envelope.headers.References.split(/\s+/).filter(Boolean)
+			: [],
+		sender_email: sender,
+		support_message_id: messageId,
+		ticket_id: envelope.ticket.id,
+	})
+	if (error) {
+		// The email is already sent at this point; do not make the UI retry and
+		// send a duplicate message because thread metadata storage failed.
+		return
 	}
 }
 
@@ -608,9 +665,11 @@ export const sendReply = createServerFn({ method: 'POST' })
 				throw new Error('Supabase support record required')
 			if (ref.kind === 'ticket') {
 				const ticket = await getSupportEmailTicket(auth.client, ref.id)
+				const thread = await getLatestInboundEmailThread(auth.client, ref.id)
 				const envelope = await buildSupportEmailEnvelope({
 					body: data.content,
 					metadata: data.metadata,
+					thread,
 					ticket,
 				})
 				const metadata = {
@@ -640,6 +699,12 @@ export const sendReply = createServerFn({ method: 'POST' })
 						envelope,
 						delivery,
 						reply.metadata,
+					)
+					await recordOutboundSupportEmailThread(
+						auth.client,
+						reply.id,
+						envelope,
+						delivery,
 					)
 				} catch (deliveryError) {
 					try {

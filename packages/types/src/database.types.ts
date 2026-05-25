@@ -3494,6 +3494,75 @@ export type Database = {
 					},
 				]
 			}
+			support_email_threads: {
+				Row: {
+					cc_emails: string[]
+					created_at: string
+					direction: string
+					headers: Json
+					id: string
+					in_reply_to: string | null
+					internet_message_id: string | null
+					normalized_subject: string
+					provider: string
+					provider_email_id: string
+					recipient_emails: string[]
+					reference_message_ids: string[]
+					sender_email: string
+					support_message_id: string
+					ticket_id: string
+				}
+				Insert: {
+					cc_emails?: string[]
+					created_at?: string
+					direction: string
+					headers?: Json
+					id?: string
+					in_reply_to?: string | null
+					internet_message_id?: string | null
+					normalized_subject: string
+					provider?: string
+					provider_email_id: string
+					recipient_emails?: string[]
+					reference_message_ids?: string[]
+					sender_email: string
+					support_message_id: string
+					ticket_id: string
+				}
+				Update: {
+					cc_emails?: string[]
+					created_at?: string
+					direction?: string
+					headers?: Json
+					id?: string
+					in_reply_to?: string | null
+					internet_message_id?: string | null
+					normalized_subject?: string
+					provider?: string
+					provider_email_id?: string
+					recipient_emails?: string[]
+					reference_message_ids?: string[]
+					sender_email?: string
+					support_message_id?: string
+					ticket_id?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'support_email_threads_support_message_id_fkey'
+						columns: ['support_message_id']
+						isOneToOne: false
+						referencedRelation: 'support_messages'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'support_email_threads_ticket_id_fkey'
+						columns: ['ticket_id']
+						isOneToOne: false
+						referencedRelation: 'support_tickets'
+						referencedColumns: ['id']
+					},
+				]
+			}
 			support_messages: {
 				Row: {
 					body: string
@@ -5378,6 +5447,30 @@ export type Database = {
 					user_id: string
 				}[]
 			}
+			ingest_support_email_message: {
+				Args: {
+					p_body?: string
+					p_cc_emails?: string[]
+					p_from_email?: string
+					p_from_name?: string
+					p_headers?: Json
+					p_in_reply_to?: string
+					p_internet_message_id?: string
+					p_provider: string
+					p_provider_email_id: string
+					p_received_at?: string
+					p_references?: string[]
+					p_subject?: string
+					p_to_emails?: string[]
+				}
+				Returns: {
+					created_ticket: boolean
+					duplicate: boolean
+					message_id: string
+					ticket_id: string
+					ticket_reference: string
+				}[]
+			}
 			ingest_whatsapp_message: {
 				Args: {
 					p_body: string
@@ -6993,6 +7086,30 @@ export type Database = {
 					company_name: string
 					id: string
 					user_id: string
+				}[]
+			}
+			service_ingest_support_email_message: {
+				Args: {
+					p_body?: string
+					p_cc_emails?: string[]
+					p_from_email?: string
+					p_from_name?: string
+					p_headers?: Json
+					p_in_reply_to?: string
+					p_internet_message_id?: string
+					p_provider: string
+					p_provider_email_id: string
+					p_received_at?: string
+					p_references?: string[]
+					p_subject?: string
+					p_to_emails?: string[]
+				}
+				Returns: {
+					created_ticket: boolean
+					duplicate: boolean
+					message_id: string
+					ticket_id: string
+					ticket_reference: string
 				}[]
 			}
 			service_internal_ai_search_documents: {
@@ -8632,7 +8749,12 @@ export type Database = {
 			support_conversation_status: 'open' | 'closed'
 			support_message_channel: 'email' | 'whatsapp' | 'portal' | 'website'
 			support_sender_type: 'customer' | 'employee' | 'system' | 'external'
-			support_ticket_source: 'website' | 'portal' | 'whatsapp' | 'internal'
+			support_ticket_source:
+				| 'website'
+				| 'portal'
+				| 'whatsapp'
+				| 'internal'
+				| 'email'
 			support_ticket_status: 'open' | 'pending' | 'closed'
 			team_invite_status: 'pending' | 'accepted' | 'revoked'
 			team_member_role: 'owner' | 'admin' | 'member'
@@ -9050,7 +9172,13 @@ export const Constants = {
 			support_conversation_status: ['open', 'closed'],
 			support_message_channel: ['email', 'whatsapp', 'portal', 'website'],
 			support_sender_type: ['customer', 'employee', 'system', 'external'],
-			support_ticket_source: ['website', 'portal', 'whatsapp', 'internal'],
+			support_ticket_source: [
+				'website',
+				'portal',
+				'whatsapp',
+				'internal',
+				'email',
+			],
 			support_ticket_status: ['open', 'pending', 'closed'],
 			team_invite_status: ['pending', 'accepted', 'revoked'],
 			team_member_role: ['owner', 'admin', 'member'],

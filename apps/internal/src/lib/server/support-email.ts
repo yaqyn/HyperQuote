@@ -17,10 +17,16 @@ export interface SupportEmailEnvelope {
 	body: string
 	cc: string[]
 	from: string
+	headers: Record<string, string>
 	replyTo: string
 	subject: string
 	ticket: SupportEmailTicket
 	to: string[]
+}
+
+export interface SupportEmailThreadHeaders {
+	inReplyTo: string | null
+	references: string[]
 }
 
 export interface SupportEmailRenderInput {
@@ -57,7 +63,7 @@ interface ResendResponse {
 const RESEND_EMAIL_ENDPOINT = 'https://api.resend.com/emails'
 const EMAIL_ASSET_URL = 'https://pub-cbfbae308dae4797b95916396d2ff713.r2.dev'
 const DEFAULT_SUPPORT_FROM = 'HyperQuote <support@info.moderngroupco.com>'
-const DEFAULT_SUPPORT_REPLY_TO = 'support@hyperquote.net'
+export const DEFAULT_SUPPORT_REPLY_TO = 'support@hyperquote.net'
 const DEFAULT_WEBSITE_URL = 'https://hyperquote.net'
 const DEFAULT_PORTAL_URL = 'https://portal.hyperquote.net'
 const DEFAULT_SUPPORT_URL = 'https://hyperquote.net/support#contact'
@@ -93,6 +99,7 @@ const LOCAL_ONLY_DOMAINS = new Set([
 export async function buildSupportEmailEnvelope(input: {
 	body: string
 	metadata?: JsonObject
+	thread?: SupportEmailThreadHeaders | null
 	ticket: SupportEmailTicket
 }): Promise<SupportEmailEnvelope> {
 	const metadata = input.metadata ?? {}
@@ -102,8 +109,10 @@ export async function buildSupportEmailEnvelope(input: {
 		to.push(validEmailOrThrow(input.ticket.requester_email, 'to'))
 	}
 
-	const subject =
-		metadataString(metadata, 'subject') || normalizedReplySubject(input.ticket)
+	const subject = supportReplySubject(
+		input.ticket,
+		metadataString(metadata, 'subject'),
+	)
 	if (!subject.trim()) throw new Error('support_email_subject_required')
 	if (subject.length > MAX_SUPPORT_EMAIL_SUBJECT_LENGTH) {
 		throw new Error('support_email_subject_too_long')
@@ -116,13 +125,16 @@ export async function buildSupportEmailEnvelope(input: {
 	const from =
 		(await readRuntimeEnv('SUPPORT_EMAIL_FROM')) ?? DEFAULT_SUPPORT_FROM
 	const replyTo =
-		(await readRuntimeEnv('SUPPORT_REPLY_TO')) ?? DEFAULT_SUPPORT_REPLY_TO
+		(await readRuntimeEnv('SUPPORT_INBOUND_EMAIL')) ??
+		(await readRuntimeEnv('SUPPORT_REPLY_TO')) ??
+		DEFAULT_SUPPORT_REPLY_TO
 
 	const envelope: SupportEmailEnvelope = {
 		bcc: parseEmailField(metadataString(metadata, 'bcc'), 'bcc'),
 		body,
 		cc: parseEmailField(metadataString(metadata, 'cc'), 'cc'),
 		from,
+		headers: supportThreadHeaders(input.thread),
 		replyTo,
 		subject,
 		ticket: input.ticket,
@@ -164,6 +176,8 @@ export async function deliverSupportEmail(
 			cc: envelope.cc.length > 0 ? envelope.cc : undefined,
 			from: envelope.from,
 			html: renderSupportEmailHtml(renderInput),
+			headers:
+				Object.keys(envelope.headers).length > 0 ? envelope.headers : undefined,
 			reply_to: envelope.replyTo,
 			subject: envelope.subject,
 			tags: [
@@ -212,6 +226,28 @@ export function parseEmailList(value: string | null | undefined): string[] {
 		emails.push(normalized)
 	}
 	return emails
+}
+
+export function supportReplySubject(
+	ticket: SupportEmailTicket,
+	candidateSubject?: string | null,
+): string {
+	const base = supportSubjectBase(candidateSubject || ticket.subject)
+	const reference = `[${ticket.reference}]`
+	const availableBaseLength =
+		MAX_SUPPORT_EMAIL_SUBJECT_LENGTH - 'Re: '.length - reference.length - 1
+	const trimmedBase =
+		base.length > availableBaseLength
+			? base.slice(0, Math.max(1, availableBaseLength)).trim()
+			: base
+	return `Re: ${reference} ${trimmedBase || 'Support request'}`
+}
+
+export function normalizeSupportEmailSubjectForThread(subject: string): string {
+	return (
+		supportSubjectBase(subject).toLowerCase().replace(/\s+/g, ' ').trim() ||
+		'(no subject)'
+	)
 }
 
 export function supportEmailFailedDelivery(
@@ -366,8 +402,11 @@ export function supportEmailMetadata(
 		cc: envelope.cc.join(', ') || null,
 		external_message_id: delivery.externalMessageId,
 		from: envelope.from,
+		headers: envelope.headers,
+		in_reply_to: envelope.headers['In-Reply-To'] ?? null,
 		provider_error: delivery.providerError,
 		provider_status: delivery.providerStatus,
+		references: envelope.headers.References ?? null,
 		reply_to: envelope.replyTo,
 		subject: envelope.subject,
 		to: envelope.to.join(', '),
@@ -431,16 +470,46 @@ function metadataString(metadata: JsonObject, key: string): string {
 	return typeof value === 'string' ? value.trim() : ''
 }
 
-function normalizedReplySubject(ticket: SupportEmailTicket): string {
-	return ticket.subject.startsWith('Re:')
-		? ticket.subject
-		: `Re: ${ticket.subject}`
-}
-
 function emailAddressFromToken(token: string): string {
 	const trimmed = token.trim()
 	const bracketMatch = /<([^>]+)>/.exec(trimmed)
 	return (bracketMatch?.[1] ?? trimmed).trim()
+}
+
+function supportThreadHeaders(
+	thread: SupportEmailThreadHeaders | null | undefined,
+): Record<string, string> {
+	if (!thread?.inReplyTo) return {}
+	const inReplyTo = thread.inReplyTo.trim()
+	if (!inReplyTo) return {}
+	const references = uniqueMessageIds([...(thread.references ?? []), inReplyTo])
+	return {
+		'In-Reply-To': inReplyTo,
+		References: references.join(' '),
+	}
+}
+
+function uniqueMessageIds(values: string[]): string[] {
+	const seen = new Set<string>()
+	const ids: string[] = []
+	for (const value of values) {
+		const id = value.trim()
+		if (!id || seen.has(id)) continue
+		seen.add(id)
+		ids.push(id)
+	}
+	return ids
+}
+
+function supportSubjectBase(subject: string): string {
+	const withoutReference = subject
+		.replace(/\[\s*TK-[0-9]{4}-[a-z0-9]{6}\s*\]/gi, '')
+		.replace(/\bTK-[0-9]{4}-[a-z0-9]{6}\b/gi, '')
+	const withoutReplyPrefix = withoutReference.replace(
+		/^((re|fw|fwd)\s*:\s*)+/i,
+		'',
+	)
+	return withoutReplyPrefix.replace(/\s+/g, ' ').trim() || 'Support request'
 }
 
 function isLocalOnlyEmail(email: string): boolean {
@@ -576,7 +645,9 @@ function escapeHtml(value: string): string {
 	)
 }
 
-async function readRuntimeEnv(name: string): Promise<string | undefined> {
+export async function readRuntimeEnv(
+	name: string,
+): Promise<string | undefined> {
 	const processValue = process.env[name]?.trim()
 	if (processValue) return processValue
 	const installedValue = await runtimeStringEnvValue(

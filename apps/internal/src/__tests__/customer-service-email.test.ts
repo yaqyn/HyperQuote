@@ -1,3 +1,4 @@
+import type { GetReceivingEmailResponseSuccess } from 'resend'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
 	buildSupportEmailEnvelope,
@@ -6,7 +7,12 @@ import {
 	renderSupportEmailHtml,
 	renderSupportEmailText,
 	supportEmailMetadata,
+	supportReplySubject,
 } from '../lib/server/support-email'
+import {
+	isAddressedToSupport,
+	normalizeResendReceivedEmail,
+} from '../lib/server/support-email-inbound'
 
 const originalFetch = globalThis.fetch
 const originalResendApiKey = process.env.RESEND_API_KEY
@@ -62,6 +68,23 @@ describe('customer service email rendering', () => {
 				subject: 'Re: Cement delivery',
 			}),
 		).toContain('Customer portal: https://portal.hyperquote.net')
+	})
+
+	it('adds the ticket reference to reply subjects exactly once', () => {
+		const ticket = {
+			id: '00000000-0000-4000-8000-000000000099',
+			reference: 'TK-2026-ABC123',
+			requester_email: 'customer@hyperquote.net',
+			requester_name: 'Ahmed',
+			subject: 'Delivery update',
+		}
+
+		expect(supportReplySubject(ticket, 'Re: Delivery update')).toBe(
+			'Re: [TK-2026-ABC123] Delivery update',
+		)
+		expect(
+			supportReplySubject(ticket, 'Re: [TK-2026-ABC123] Delivery update'),
+		).toBe('Re: [TK-2026-ABC123] Delivery update')
 	})
 
 	it('skips local-only recipients without calling Resend', async () => {
@@ -125,6 +148,10 @@ describe('customer service email rendering', () => {
 				subject: 'Re: Delivery update',
 				to: 'customer@hyperquote.net',
 			},
+			thread: {
+				inReplyTo: '<inbound-message@customer.test>',
+				references: ['<root-message@customer.test>'],
+			},
 			ticket: {
 				id: '00000000-0000-4000-8000-000000000003',
 				reference: 'TK-LOCAL-AI-003',
@@ -157,12 +184,61 @@ describe('customer service email rendering', () => {
 		expect(body).toMatchObject({
 			cc: ['ops@hyperquote.net'],
 			from: 'HyperQuote <support@info.moderngroupco.com>',
+			headers: {
+				'In-Reply-To': '<inbound-message@customer.test>',
+				References:
+					'<root-message@customer.test> <inbound-message@customer.test>',
+			},
 			reply_to: 'support@hyperquote.net',
-			subject: 'Re: Delivery update',
+			subject: 'Re: [TK-LOCAL-AI-003] Delivery update',
 			to: ['customer@hyperquote.net'],
 		})
 		expect(body.html).toContain('HyperQuote')
 		expect(body.html).toContain('Your order update is ready.')
 		expect(body.text).toContain('Customer portal:')
+	})
+
+	it('normalizes Resend received email content for support ingestion', () => {
+		const receivedEmail: GetReceivingEmailResponseSuccess = {
+			attachments: [],
+			bcc: null,
+			cc: ['Ops <ops@example.com>'],
+			created_at: '2026-05-25T08:00:00.000Z',
+			from: 'Koko <KOKO@gmail.com>',
+			headers: {
+				'In-Reply-To': '<reply-target@hyperquote.net>',
+				References: '<root@customer.test> <reply-target@hyperquote.net>',
+			},
+			html: null,
+			id: 'email_received_123',
+			message_id: '<customer-reply@gmail.com>',
+			object: 'email',
+			raw: null,
+			reply_to: null,
+			subject: 'Re: [TK-2026-ABC123] Delivery issue',
+			text: 'The delivery issue still needs help.',
+			to: ['HyperQuote Support <support@hyperquote.net>'],
+		}
+
+		const normalized = normalizeResendReceivedEmail(receivedEmail)
+
+		expect(normalized).toMatchObject({
+			body: 'The delivery issue still needs help.',
+			fromEmail: 'koko@gmail.com',
+			fromName: 'Koko',
+			inReplyTo: '<reply-target@hyperquote.net>',
+			messageId: '<customer-reply@gmail.com>',
+			providerEmailId: 'email_received_123',
+			subject: 'Re: [TK-2026-ABC123] Delivery issue',
+			toEmails: ['support@hyperquote.net'],
+		})
+		expect(normalized.references).toEqual([
+			'<root@customer.test>',
+			'<reply-target@hyperquote.net>',
+		])
+		expect(isAddressedToSupport(normalized, 'support@hyperquote.net')).toBe(
+			true,
+		)
+		expect(isAddressedToSupport(normalized, 'other@hyperquote.net')).toBe(false)
 	})
 })
