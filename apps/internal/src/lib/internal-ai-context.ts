@@ -29,6 +29,38 @@ const NORMAL_PANEL_EXCLUDED_ENTITY_TYPES = new Set(['activity', 'employee'])
 const MAX_ROWS_PER_ENTITY = 6
 const MAX_CONTEXT_LINES = 80
 const MAX_FIELD_VALUE_LENGTH = 160
+const INTERNAL_AI_QUERY_STOP_TOKENS = new Set([
+	'a',
+	'all',
+	'an',
+	'are',
+	'as',
+	'at',
+	'about',
+	'for',
+	'from',
+	'give',
+	'in',
+	'is',
+	'latest',
+	'list',
+	'me',
+	'need',
+	'needs',
+	'of',
+	'on',
+	'please',
+	'recent',
+	'show',
+	'summarize',
+	'summary',
+	'tell',
+	'the',
+	'to',
+	'view',
+	'what',
+	'with',
+])
 
 const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 	{
@@ -206,6 +238,28 @@ export function requestedInternalAiEntityTypes({
 	)
 }
 
+export function searchTokensForInternalAiRows(
+	query: string,
+	options: {
+		requestedEntityTypes: string[]
+		vtables: InternalAiVtable[]
+	},
+): string[] {
+	const typeTokens = new Set<string>()
+	for (const vtable of options.vtables) {
+		if (!options.requestedEntityTypes.includes(vtable.entityType)) continue
+		for (const keyword of vtable.keywords) {
+			for (const token of queryTokensForAi(keyword)) {
+				typeTokens.add(token)
+			}
+		}
+	}
+	return searchTokens(query).filter(
+		(token) =>
+			!typeTokens.has(token) && !INTERNAL_AI_QUERY_STOP_TOKENS.has(token),
+	)
+}
+
 export function normalPanelExcludedRequest(userText: string): string | null {
 	const lower = userText.toLowerCase()
 	if (/\b(activities|activity|audit log|audit history)\b/.test(lower)) {
@@ -344,6 +398,8 @@ Internal AI contract:
 - Search panel mode may use all approved vtable context.
 - Never perform writes from chat. If the user asks for an action, point to the authorized panel action.
 - Keep answers natural and specific. Mention exact names, numbers, statuses, dates, and panels when present.
+- Do not tell the user to open another panel just to find records already supplied in context. Answer from the supplied records first.
+- Do not describe the context as the current screen, current data set, or on-screen data.
 - If context is missing, say what is missing instead of guessing.
 
 Approved context:

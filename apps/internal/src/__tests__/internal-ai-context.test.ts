@@ -9,6 +9,7 @@ import {
 	internalAiPolicyRefusal,
 	normalPanelExcludedRequest,
 	resolveInternalAiScope,
+	searchTokensForInternalAiRows,
 } from '../lib/internal-ai-context'
 import type { SearchDisplayIndexRow } from '../lib/search-display'
 
@@ -117,6 +118,25 @@ describe('internal AI vtable context', () => {
 		).toBeNull()
 	})
 
+	it('does not apply polite list commands as required row filters', () => {
+		const orderVtable = allowedInternalAiVtables('employee').filter(
+			(vtable) => vtable.entityType === 'order',
+		)
+
+		expect(
+			searchTokensForInternalAiRows('list orders please', {
+				requestedEntityTypes: ['order'],
+				vtables: orderVtable,
+			}),
+		).toEqual([])
+		expect(
+			searchTokensForInternalAiRows('list accepted orders please', {
+				requestedEntityTypes: ['order'],
+				vtables: orderVtable,
+			}),
+		).toEqual(['accepted'])
+	})
+
 	it('builds business context and audit entities from allowed vtable rows', () => {
 		const row: SearchDisplayIndexRow = {
 			entity_id: 'customer_order:order-1',
@@ -157,5 +177,7 @@ describe('internal AI vtable context', () => {
 		expect(systemPrompt).toContain('except employee information and activities')
 		expect(systemPrompt).not.toContain('Active panel')
 		expect(systemPrompt).not.toContain('Sales')
+		expect(systemPrompt).toContain('Do not tell the user to open another panel')
+		expect(systemPrompt).toContain('current screen')
 	})
 })

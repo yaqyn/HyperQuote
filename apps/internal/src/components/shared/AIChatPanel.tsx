@@ -204,7 +204,7 @@ export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
 									send()
 								}
 							}}
-							placeholder="ask lyon anything on screen…"
+							placeholder="ask lyon anything…"
 							rows={1}
 							className={`min-w-0 flex-1 resize-none bg-transparent font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)] ${
 								isStreaming ? 'cursor-wait opacity-60' : ''

@@ -17,15 +17,13 @@ import {
 	buildInternalAiContextPackage,
 	buildInternalAiSystemPrompt,
 	type InternalAiScope,
-	type InternalAiVtable,
 	internalAiPolicyRefusal,
-	queryTokensForAi,
 	requestedInternalAiEntityTypes,
 	resolveInternalAiScope,
 	searchQueryFromPrompt,
+	searchTokensForInternalAiRows,
 } from './internal-ai-context'
 import type { SearchDisplayIndexRow } from './search-display'
-import { searchTokens } from './search-query'
 import { getInternalSupabaseClient } from './server/_supabase'
 
 const internalChatInput = z.object({
@@ -39,35 +37,6 @@ const internalChatInput = z.object({
 })
 
 const INTERNAL_AI_ENTITY_LIMIT = 8
-const QUERY_STOP_TOKENS = new Set([
-	'a',
-	'all',
-	'an',
-	'are',
-	'as',
-	'at',
-	'about',
-	'for',
-	'from',
-	'in',
-	'is',
-	'latest',
-	'me',
-	'need',
-	'needs',
-	'of',
-	'on',
-	'recent',
-	'show',
-	'summarize',
-	'summary',
-	'tell',
-	'the',
-	'to',
-	'what',
-	'with',
-])
-
 type InternalSupabaseClient = NonNullable<
 	Awaited<ReturnType<typeof getInternalSupabaseClient>>
 >['client']
@@ -233,7 +202,7 @@ async function fetchInternalAiRows(
 	const entityTypesToQuery = requestedEntityTypes.filter((entityType) =>
 		allowedByEntityType.has(entityType),
 	)
-	const tokensToApply = searchTokensForRows(options.query, {
+	const tokensToApply = searchTokensForInternalAiRows(options.query, {
 		requestedEntityTypes: entityTypesToQuery,
 		vtables: [...allowedByEntityType.values()],
 	})
@@ -250,27 +219,6 @@ async function fetchInternalAiRows(
 		queriedEntityTypes: entityTypesToQuery,
 		rows: (data ?? []) as unknown as SearchDisplayIndexRow[],
 	}
-}
-
-function searchTokensForRows(
-	query: string,
-	options: {
-		requestedEntityTypes: string[]
-		vtables: InternalAiVtable[]
-	},
-): string[] {
-	const typeTokens = new Set<string>()
-	for (const vtable of options.vtables) {
-		if (!options.requestedEntityTypes.includes(vtable.entityType)) continue
-		for (const keyword of vtable.keywords) {
-			for (const token of queryTokensForAi(keyword)) {
-				typeTokens.add(token)
-			}
-		}
-	}
-	return searchTokens(query).filter(
-		(token) => !typeTokens.has(token) && !QUERY_STOP_TOKENS.has(token),
-	)
 }
 
 function simpleEmployeeChatAnswer(userText: string): string | null {
