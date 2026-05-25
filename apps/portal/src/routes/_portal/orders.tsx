@@ -52,6 +52,7 @@ import {
 	getOrderHistoryOrders,
 	sortOrdersByDateDesc,
 } from '../../lib/order-history'
+import { portalHead } from '../../lib/page-meta'
 import { getDeliverySecret } from '../../lib/server/deliveries'
 import {
 	deleteOrder,
@@ -80,6 +81,13 @@ const ordersSearchSchema = z.object({
 
 export const Route = createFileRoute('/_portal/orders')({
 	validateSearch: (search) => ordersSearchSchema.parse(search),
+	head: () =>
+		portalHead({
+			title: 'Orders — HyperQuote Portal',
+			description:
+				'Private HyperQuote order workspace for saved drafts, submitted quote requests, confirmed orders, deliveries, and order history.',
+			path: '/orders',
+		}),
 	component: OrdersPage,
 })
 

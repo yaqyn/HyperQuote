@@ -7,8 +7,16 @@ import { useTranslation } from 'react-i18next'
 import { CatalogUploadModal } from '../../components/supplier/CatalogUploadModal'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
 import { WindowShell } from '../../components/windows/WindowShell'
+import { portalHead } from '../../lib/page-meta'
 
 export const Route = createFileRoute('/_portal/supplier/catalog-upload')({
+	head: () =>
+		portalHead({
+			title: 'Catalog Upload — HyperQuote Portal',
+			description:
+				'Private supplier catalog upload workflow for importing, reviewing, and publishing product data in HyperQuote.',
+			path: '/supplier/catalog-upload',
+		}),
 	component: CatalogUploadPage,
 })
 

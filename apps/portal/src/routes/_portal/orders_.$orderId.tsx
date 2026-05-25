@@ -25,6 +25,7 @@ import {
 	customerDeliveryDestinationPlace,
 	describeDriverLocationForCustomer,
 } from '../../lib/delivery-location-copy'
+import { portalHead } from '../../lib/page-meta'
 import {
 	type DeliveryStage,
 	getOrderDetail,
@@ -36,6 +37,13 @@ import { toast } from '../../lib/toast'
 import type { OrderStatus } from '../../types/order'
 
 export const Route = createFileRoute('/_portal/orders_/$orderId')({
+	head: ({ params }) =>
+		portalHead({
+			title: 'Order Detail — HyperQuote Portal',
+			description:
+				'Private HyperQuote order detail with status, items, timeline, documents, delivery tracking, and draft actions.',
+			path: `/orders/${params.orderId}`,
+		}),
 	component: OrderDetailWrapper,
 	errorComponent: OrderDetailError,
 })

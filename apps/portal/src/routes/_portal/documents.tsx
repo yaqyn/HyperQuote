@@ -10,10 +10,18 @@ import { useTranslation } from 'react-i18next'
 import { DocumentTable } from '../../components/documents/DocumentTable'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
 import { WindowShell } from '../../components/windows/WindowShell'
+import { portalHead } from '../../lib/page-meta'
 import { downloadInvoicePDF, getDocuments } from '../../lib/server/documents'
 import type { Document, DocumentType } from '../../types/document'
 
 export const Route = createFileRoute('/_portal/documents')({
+	head: () =>
+		portalHead({
+			title: 'Documents — HyperQuote Portal',
+			description:
+				'Private HyperQuote document center for invoices, delivery notes, quotes, certificates, and downloads.',
+			path: '/documents',
+		}),
 	component: DocumentsWindow,
 })
 

@@ -2,8 +2,16 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { WebsiteFooter } from '../components/layout/WebsiteFooter'
 import { WebsiteHeader } from '../components/layout/WebsiteHeader'
+import { websiteHead } from '../lib/seo'
 
 export const Route = createFileRoute('/_website')({
+	head: () =>
+		websiteHead({
+			title: 'HyperQuote — Building Materials Marketplace',
+			description:
+				'HyperQuote helps construction teams in Egypt source building materials, compare supplier quotes, and track delivery from request to handoff.',
+			path: '/',
+		}),
 	component: WebsiteLayout,
 })
 

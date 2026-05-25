@@ -8,8 +8,16 @@ import { FloatingParticles } from '../../components/login/FloatingParticles'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 import { SidebarTitleButton } from '../../components/shell/SidebarTitleButton'
 import { usePortalThemeSnapshot } from '../../hooks/usePortalThemeSnapshot'
+import { portalHead } from '../../lib/page-meta'
 
 export const Route = createFileRoute('/_portal/about')({
+	head: () =>
+		portalHead({
+			title: 'About — HyperQuote Portal',
+			description:
+				'Private portal app details, legal links, support access, and HyperQuote account information.',
+			path: '/about',
+		}),
 	component: AboutPage,
 })
 

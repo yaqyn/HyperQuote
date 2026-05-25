@@ -20,6 +20,7 @@ import { SecuritySection } from '../../components/settings/SecuritySection'
 import { TeamSection } from '../../components/settings/TeamSection'
 import { WindowShell } from '../../components/windows/WindowShell'
 import { usePortalThemeSnapshot } from '../../hooks/usePortalThemeSnapshot'
+import { portalHead } from '../../lib/page-meta'
 import {
 	getActiveSessions,
 	getAddresses,
@@ -44,6 +45,13 @@ const SECTIONS: Array<{
 ]
 
 export const Route = createFileRoute('/_portal/settings')({
+	head: () =>
+		portalHead({
+			title: 'Settings — HyperQuote Portal',
+			description:
+				'Private HyperQuote settings for profile, addresses, projects, team members, notifications, appearance, security, and referrals.',
+			path: '/settings',
+		}),
 	component: SettingsWindow,
 	validateSearch: (search: Record<string, unknown>) => ({
 		section: (search.section as SettingsSection) ?? 'profile',

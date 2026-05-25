@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next'
 import { POCard } from '../../components/supplier/POCard'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
 import { WindowShell } from '../../components/windows/WindowShell'
+import { portalHead } from '../../lib/page-meta'
 import {
 	getSupplierPOs,
 	uploadDeliveryNote,
@@ -30,6 +31,13 @@ import { toast } from '../../lib/toast'
 import type { SupplierPO } from '../../types/supplier'
 
 export const Route = createFileRoute('/_portal/supplier/orders')({
+	head: () =>
+		portalHead({
+			title: 'Supplier Purchase Orders — HyperQuote Portal',
+			description:
+				'Private supplier purchase order inbox for pending action, confirmed orders, delivery updates, invoices, and history.',
+			path: '/supplier/orders',
+		}),
 	component: SupplierOrdersWindow,
 })
 

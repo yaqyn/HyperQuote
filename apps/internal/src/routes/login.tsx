@@ -14,6 +14,7 @@ import { useState } from 'react'
 import { Button } from 'react-aria-components/Button'
 import { z } from 'zod'
 import { getSafeRedirectPath } from '../lib/login-redirect'
+import { internalHead } from '../lib/page-meta'
 import {
 	getInternalLoginStatus,
 	submitInternalLogin,
@@ -64,6 +65,13 @@ export const Route = createFileRoute('/login')({
 	beforeLoad: async () => ({
 		loginStatus: await getInternalLoginStatus(),
 	}),
+	head: () =>
+		internalHead({
+			title: 'Employee Sign In — HyperQuote Internal Ops',
+			description:
+				'Private HyperQuote employee sign-in for internal sales, procurement, warehouse, finance, dispatch, support, admin, and search operations.',
+			path: '/login',
+		}),
 	component: InternalLoginRoute,
 })
 

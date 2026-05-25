@@ -8,6 +8,7 @@ import {
 	WebsiteJsonLd,
 } from '../../components/shared/JsonLd'
 import { getPublicMarketPreviewCategories } from '../../lib/catalog'
+import { websiteHead } from '../../lib/seo'
 
 export const Route = createFileRoute('/_website/')({
 	loader: async () => ({
@@ -15,26 +16,13 @@ export const Route = createFileRoute('/_website/')({
 			data: { limit: 6 },
 		}),
 	}),
-	head: () => ({
-		meta: [
-			{ title: 'HyperQuote — Building Materials, Simplified' },
-			{
-				name: 'description',
-				content:
-					"Egypt's first digital platform for building materials sourcing. One request, multiple suppliers.",
-			},
-			{
-				property: 'og:title',
-				content: 'HyperQuote — Building Materials, Simplified',
-			},
-			{
-				property: 'og:description',
-				content:
-					"Egypt's first digital platform for building materials sourcing.",
-			},
-			{ property: 'og:type', content: 'website' },
-		],
-	}),
+	head: () =>
+		websiteHead({
+			title: 'HyperQuote — Building Materials, Simplified',
+			description:
+				"Egypt's digital platform for building materials sourcing. One request, multiple suppliers, transparent quotes, and tracked delivery.",
+			path: '/',
+		}),
 	component: HomePage,
 })
 

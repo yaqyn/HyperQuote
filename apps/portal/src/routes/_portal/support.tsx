@@ -17,8 +17,16 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
+import { portalHead } from '../../lib/page-meta'
 
 export const Route = createFileRoute('/_portal/support')({
+	head: () =>
+		portalHead({
+			title: 'Support — HyperQuote Portal',
+			description:
+				'Private HyperQuote support hub for email, WhatsApp, phone, help resources, FAQs, and account help.',
+			path: '/support',
+		}),
 	component: SupportPage,
 })
 

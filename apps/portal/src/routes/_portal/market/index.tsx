@@ -22,6 +22,7 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { DraftQuoteTrigger } from '../../../components/shared/DraftQuoteTrigger'
 import { PortalTitleRow } from '../../../components/shell/PortalTitleRow'
+import { portalHead } from '../../../lib/page-meta'
 import {
 	getMarketCategories,
 	getMarketProducts,
@@ -32,6 +33,13 @@ import { useDraftQuoteStore } from '../../../stores/draft-quote'
 import { usePortalStore } from '../../../stores/portal'
 
 export const Route = createFileRoute('/_portal/market/')({
+	head: () =>
+		portalHead({
+			title: 'Market — HyperQuote Portal',
+			description:
+				'Private HyperQuote market for searching building materials, comparing availability, and adding products to quote drafts.',
+			path: '/market',
+		}),
 	component: MarketGridPage,
 })
 

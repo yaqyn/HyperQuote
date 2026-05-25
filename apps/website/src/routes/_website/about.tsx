@@ -4,18 +4,16 @@ import { ArrowRight } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { revealUp, viewportOnce } from '../../components/shared/motionVariants'
+import { websiteHead } from '../../lib/seo'
 
 export const Route = createFileRoute('/_website/about')({
-	head: () => ({
-		meta: [
-			{ title: 'About — HyperQuote' },
-			{
-				name: 'description',
-				content:
-					'HyperQuote connects contractors with verified suppliers across Egypt. One platform for sourcing, quoting, and delivery.',
-			},
-		],
-	}),
+	head: () =>
+		websiteHead({
+			title: 'About — HyperQuote',
+			description:
+				'HyperQuote connects contractors with verified suppliers across Egypt through one platform for sourcing, quoting, payment coordination, and delivery.',
+			path: '/about',
+		}),
 	component: AboutPage,
 })
 

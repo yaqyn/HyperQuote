@@ -1,18 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { LegalDocumentPage } from '../../../components/legal/LegalDocumentPage'
 import { TERMS_SECTIONS as SECTIONS } from '../../../content/legal'
+import { websiteHead } from '../../../lib/seo'
 
 export const Route = createFileRoute('/_website/legal/terms')({
-	head: () => ({
-		meta: [
-			{ title: 'Terms of Service — HyperQuote' },
-			{
-				name: 'description',
-				content:
-					'HyperQuote terms of service. Read the conditions for using our B2B building materials platform in Egypt.',
-			},
-		],
-	}),
+	head: () =>
+		websiteHead({
+			title: 'Terms of Service — HyperQuote',
+			description:
+				'Read the HyperQuote terms of service for using the B2B building materials platform in Egypt.',
+			path: '/legal/terms',
+		}),
 	component: TermsPage,
 })
 

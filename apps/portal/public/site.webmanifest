@@ -1,9 +1,12 @@
 {
-	"name": "HyperQuote",
-	"short_name": "HyperQuote",
-	"description": "Your materials, one quote",
+	"id": "/",
+	"name": "HyperQuote Portal",
+	"short_name": "HQ Portal",
+	"description": "Private customer portal for HyperQuote quote requests, orders, delivery tracking, documents, support, and account settings.",
 	"start_url": "/",
+	"scope": "/",
 	"display": "standalone",
+	"display_override": ["standalone", "minimal-ui"],
 	"background_color": "#FFFFFF",
 	"theme_color": "#2563EB",
 	"orientation": "portrait-primary",
@@ -28,6 +31,37 @@
 		}
 	],
 	"categories": ["business", "productivity"],
+	"shortcuts": [
+		{
+			"name": "New Quote",
+			"short_name": "Quote",
+			"description": "Create a new HyperQuote request.",
+			"url": "/orders/new",
+			"icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+		},
+		{
+			"name": "Market",
+			"short_name": "Market",
+			"description": "Browse portal materials.",
+			"url": "/market",
+			"icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+		},
+		{
+			"name": "Orders",
+			"short_name": "Orders",
+			"description": "Open saved, submitted, and confirmed orders.",
+			"url": "/orders",
+			"icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+		},
+		{
+			"name": "Support",
+			"short_name": "Support",
+			"description": "Open HyperQuote support.",
+			"url": "/support",
+			"icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+		}
+	],
 	"lang": "en",
-	"dir": "auto"
+	"dir": "auto",
+	"prefer_related_applications": false
 }

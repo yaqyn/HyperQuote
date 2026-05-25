@@ -10,22 +10,16 @@ import {
 	staggerUp,
 	viewportOnce,
 } from '../../components/shared/motionVariants'
+import { websiteHead } from '../../lib/seo'
 
 export const Route = createFileRoute('/_website/careers')({
-	head: () => ({
-		meta: [
-			{ title: 'Careers — HyperQuote' },
-			{
-				name: 'description',
-				content: 'Join the HyperQuote team. Open positions in Cairo, Egypt.',
-			},
-			{ property: 'og:title', content: 'Careers — HyperQuote' },
-			{
-				property: 'og:description',
-				content: 'Join the HyperQuote team. Open positions in Cairo, Egypt.',
-			},
-		],
-	}),
+	head: () =>
+		websiteHead({
+			title: 'Careers — HyperQuote',
+			description:
+				'Join HyperQuote in Cairo and help build the operating layer for Egypt’s building materials market.',
+			path: '/careers',
+		}),
 	component: CareersPage,
 })
 

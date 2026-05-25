@@ -10,6 +10,7 @@ import { InvoiceForm } from '../../components/supplier/InvoiceForm'
 import { InvoiceListTable } from '../../components/supplier/InvoiceListTable'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
 import { WindowShell } from '../../components/windows/WindowShell'
+import { portalHead } from '../../lib/page-meta'
 
 const searchSchema = z.object({
 	poId: z.string().optional(),
@@ -17,6 +18,13 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute('/_portal/supplier/invoices')({
 	validateSearch: (search) => searchSchema.parse(search),
+	head: () =>
+		portalHead({
+			title: 'Supplier Invoices — HyperQuote Portal',
+			description:
+				'Private supplier invoice workspace for submitting invoices and reviewing previously submitted invoices.',
+			path: '/supplier/invoices',
+		}),
 	component: SupplierInvoicesWindow,
 })
 

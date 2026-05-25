@@ -21,6 +21,7 @@ import { Input } from 'react-aria-components/Input'
 import { Label } from 'react-aria-components/Label'
 import { NumberField } from 'react-aria-components/NumberField'
 import { useTranslation } from 'react-i18next'
+import { ProductJsonLd } from '../../../components/shared/JsonLd'
 import { SectionReveal } from '../../../components/shared/SectionReveal'
 import { useChatWidget } from '../../../hooks/useChatWidget'
 import { useQuoteCart } from '../../../hooks/useQuoteCart'
@@ -31,6 +32,7 @@ import {
 } from '../../../lib/catalog'
 import { formatPriceRange } from '../../../lib/price-range'
 import { isAbortedRouteLoad } from '../../../lib/route-loader'
+import { absoluteWebsiteUrl, websiteHead } from '../../../lib/seo'
 
 interface PublicCategory {
 	slug: string
@@ -71,23 +73,22 @@ export const Route = createFileRoute('/_website/market/$productSlug')({
 	head: ({ loaderData }) => {
 		const product = loaderData?.product
 		if (!product) {
-			return {
-				meta: [
-					{ title: 'Product Not Found — HyperQuote' },
-					{ name: 'description', content: 'This product could not be found.' },
-				],
-			}
+			return websiteHead({
+				title: 'Product Not Found — HyperQuote',
+				description: 'This HyperQuote product could not be found.',
+				path: '/market',
+				robots: 'noindex,nofollow',
+			})
 		}
-		return {
-			meta: [
-				{ title: `${product.name} — HyperQuote` },
-				{
-					name: 'description',
-					content:
-						product.description ?? `${product.name} — Available on HyperQuote`,
-				},
-			],
-		}
+		return websiteHead({
+			title: `${product.name} — HyperQuote`,
+			description:
+				product.description ??
+				`${product.name} for Egyptian construction projects. Review specifications, availability, and request a HyperQuote quote.`,
+			path: `/market/${product.slug}`,
+			type: 'product',
+			imagePath: product.image_urls[0] ?? undefined,
+		})
 	},
 	component: ProductDetailPage,
 })
@@ -172,6 +173,15 @@ function ProductDetailPage() {
 
 	return (
 		<>
+			<ProductJsonLd
+				name={product.name}
+				description={product.description}
+				image={images[0] ?? null}
+				priceRangeMin={product.price_range_min}
+				priceRangeMax={product.price_range_max}
+				sku={product.sku}
+				url={absoluteWebsiteUrl(`/market/${product.slug}`)}
+			/>
 			<div className="pt-[72px] pb-24 md:pt-[88px] md:pb-16">
 				{/* Breadcrumb */}
 				<div className="mx-auto mb-6 max-w-[1400px] px-4 sm:px-6 md:mb-8 lg:px-16">

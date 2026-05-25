@@ -22,6 +22,7 @@ import {
 	type PublicProduct,
 } from '../../../lib/catalog'
 import { isAbortedRouteLoad } from '../../../lib/route-loader'
+import { websiteHead } from '../../../lib/seo'
 
 // ── Search schema ──
 // category and price_tier come as comma-separated strings in the URL,
@@ -75,15 +76,13 @@ export const Route = createFileRoute('/_website/market/')({
 			throw error
 		}
 	},
-	head: () => ({
-		meta: [
-			{ title: 'Market — HyperQuote' },
-			{
-				name: 'description',
-				content: 'Browse building materials from verified Egyptian suppliers.',
-			},
-		],
-	}),
+	head: () =>
+		websiteHead({
+			title: 'Building Materials Market — HyperQuote',
+			description:
+				'Browse cement, steel, wood, concrete, and other building materials from verified Egyptian suppliers with live availability and quote-ready product data.',
+			path: '/market',
+		}),
 	component: MarketPage,
 	pendingComponent: MarketLoading,
 	errorComponent: MarketError,

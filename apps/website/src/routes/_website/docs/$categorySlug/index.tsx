@@ -9,15 +9,23 @@ import { cubicBezier, motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { DocsPageShell } from '../../../../components/docs/DocsPageShell'
 import { DOC_CATEGORIES, displayName } from '../../../../content/registry'
+import { titleCaseSlug, websiteHead } from '../../../../lib/seo'
 
 export const Route = createFileRoute('/_website/docs/$categorySlug/')({
-	head: ({ params }) => ({
-		meta: [
-			{
-				title: `${params.categorySlug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} \u2014 Docs \u2014 HyperQuote`,
-			},
-		],
-	}),
+	head: ({ params }) => {
+		const category = DOC_CATEGORIES.find(
+			(item) => item.slug === params.categorySlug,
+		)
+		const title = category
+			? displayName(category.titleKey)
+			: titleCaseSlug(params.categorySlug)
+		return websiteHead({
+			title: `${title} — Docs — HyperQuote`,
+			description: `${title} documentation for HyperQuote customers, suppliers, drivers, and internal building materials workflows.`,
+			path: `/docs/${params.categorySlug}`,
+			robots: category ? 'index,follow' : 'noindex,nofollow',
+		})
+	},
 	component: CategoryIndexPage,
 })
 

@@ -31,6 +31,7 @@ import {
 	ProductQuantitySearchRow,
 	type ProductQuantitySearchRowProduct,
 } from '../../components/shared/ProductQuantitySearchRow'
+import { portalHead } from '../../lib/page-meta'
 import { getMarketProducts } from '../../lib/server/market'
 import { deleteOrder, getAllCustomerOrders } from '../../lib/server/orders'
 import {
@@ -144,6 +145,13 @@ function invalidOrderItems(items: OrderItem[]) {
 }
 
 export const Route = createFileRoute('/_portal/orders_/edit/$orderId')({
+	head: ({ params }) =>
+		portalHead({
+			title: 'Edit Draft Quote — HyperQuote Portal',
+			description:
+				'Private HyperQuote draft quote editor for adjusting products, quantities, and submitting a saved request.',
+			path: `/orders/edit/${params.orderId}`,
+		}),
 	component: EditSavedOrder,
 })
 

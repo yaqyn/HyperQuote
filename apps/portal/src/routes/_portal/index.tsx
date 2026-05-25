@@ -1,11 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { ChatView } from '../../components/chat/ChatView'
+import { portalHead } from '../../lib/page-meta'
 
 export const Route = createFileRoute('/_portal/')({
 	component: PortalHome,
-	head: () => ({
-		links: [{ rel: 'manifest', href: '/manifest.json' }],
-	}),
+	head: () =>
+		portalHead({
+			title: 'Lyon Workspace — HyperQuote Portal',
+			description:
+				'Private HyperQuote portal workspace for customer requests, account help, order answers, and quote drafting with Lyon.',
+			path: '/',
+		}),
 })
 
 function PortalHome() {

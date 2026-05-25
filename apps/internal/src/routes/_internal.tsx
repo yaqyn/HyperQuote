@@ -14,6 +14,8 @@ import { NotificationsWindow } from '../components/shell/NotificationsWindow'
 import { useInternalRealtimeSync } from '../hooks/useInternalRealtimeSync'
 import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications'
 import { InternalAuthProvider } from '../lib/internal-auth'
+import { MODULES } from '../lib/modules'
+import { internalHead } from '../lib/page-meta'
 import { useInternalStore } from '../stores/internal'
 import { keyboardScopeStore } from '../stores/keyboard-scope'
 import { useNotificationStore } from '../stores/notifications'
@@ -42,6 +44,13 @@ const searchCoverFadeMs = 160
 const searchCloseCoverHoldMs = 80
 
 export const Route = createFileRoute('/_internal')({
+	head: () =>
+		internalHead({
+			title: 'HyperQuote Internal Ops',
+			description:
+				'Private HyperQuote operations shell for opening sales, procurement, warehouse, finance, dispatch, customer service, admin, and search panels.',
+			path: '/',
+		}),
 	beforeLoad: async () => {
 		const auth = await getAuthSession()
 		return { auth }
@@ -64,6 +73,19 @@ function InternalLayout() {
 	const searchScreenReceding =
 		(activeModule === 'search' && !searchRevealReady && !isSearchClosing) ||
 		isSearchReturnReceded
+	const activeModuleConfig = MODULES.find(
+		(module) => module.id === activeModule,
+	)
+	const activeModuleTitle = activeModuleConfig
+		? `${activeModuleConfig.id
+				.split('-')
+				.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+				.join(' ')} — HyperQuote Internal Ops`
+		: 'HyperQuote Internal Ops'
+
+	useEffect(() => {
+		document.title = activeModuleTitle
+	}, [activeModuleTitle])
 
 	// Keep the most recently opened module id around during the exit fade
 	// so ModuleWindow still has content to render while it animates out.

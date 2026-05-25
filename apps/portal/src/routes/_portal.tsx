@@ -12,6 +12,7 @@ import { DraftQuoteDrawer } from '../components/shared/DraftQuoteDrawer'
 import { ChatSidebar } from '../components/sidebar/ChatSidebar'
 import { useShortcut } from '../hooks/useShortcut'
 import { checkPortalAuth } from '../lib/auth'
+import { portalHead } from '../lib/page-meta'
 import {
 	getPortalQuoteCart,
 	savePortalQuoteCart,
@@ -23,6 +24,13 @@ const SMOOTH_EASE = cubicBezier(0.22, 1, 0.36, 1)
 const COLLAPSE_EASE = cubicBezier(0.36, 0, 0.66, -0.2)
 
 export const Route = createFileRoute('/_portal')({
+	head: () =>
+		portalHead({
+			title: 'HyperQuote Portal',
+			description:
+				'Private customer workspace for HyperQuote quotes, orders, deliveries, documents, support, and account settings.',
+			path: '/',
+		}),
 	beforeLoad: async ({ location }) => {
 		const { auth, isInternalUser } = await checkPortalAuth()
 

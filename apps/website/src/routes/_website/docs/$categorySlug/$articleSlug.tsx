@@ -7,23 +7,38 @@ import {
 	extractHeadings,
 } from '../../../../components/docs/ArticleRenderer'
 import { DocsPageShell } from '../../../../components/docs/DocsPageShell'
+import { ArticleJsonLd } from '../../../../components/shared/JsonLd'
 import { getContent } from '../../../../content/docs'
 import {
 	displayName,
 	findArticle,
 	getAdjacentArticles,
 } from '../../../../content/registry'
+import {
+	absoluteWebsiteUrl,
+	titleCaseSlug,
+	websiteHead,
+} from '../../../../lib/seo'
 
 export const Route = createFileRoute(
 	'/_website/docs/$categorySlug/$articleSlug',
 )({
-	head: ({ params }) => ({
-		meta: [
-			{
-				title: `${params.articleSlug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} \u2014 Docs \u2014 HyperQuote`,
-			},
-		],
-	}),
+	head: ({ params }) => {
+		const match = findArticle(params.categorySlug, params.articleSlug)
+		const title = match
+			? displayName(match.article.titleKey)
+			: titleCaseSlug(params.articleSlug)
+		const description = match
+			? displayName(match.article.descriptionKey)
+			: 'HyperQuote documentation article.'
+		return websiteHead({
+			title: `${title} — Docs — HyperQuote`,
+			description,
+			path: `/docs/${params.categorySlug}/${params.articleSlug}`,
+			robots: match ? 'index,follow' : 'noindex,nofollow',
+			type: 'article',
+		})
+	},
 	component: ArticlePage,
 })
 
@@ -46,6 +61,12 @@ function ArticlePage() {
 
 	const { article } = match
 	const adjacent = getAdjacentArticles(categorySlug, articleSlug)
+	const articleTitle = t(article.titleKey, {
+		defaultValue: displayName(article.titleKey),
+	})
+	const articleDescription = t(article.descriptionKey, {
+		defaultValue: displayName(article.descriptionKey),
+	})
 
 	return (
 		<DocsPageShell
@@ -53,12 +74,15 @@ function ArticlePage() {
 			activeCategorySlug={categorySlug}
 			activeArticleSlug={articleSlug}
 		>
+			<ArticleJsonLd
+				headline={articleTitle}
+				description={articleDescription}
+				url={absoluteWebsiteUrl(`/docs/${categorySlug}/${articleSlug}`)}
+			/>
 			<ArticleRenderer
 				key={locale}
 				markdown={markdown}
-				articleTitle={t(article.titleKey, {
-					defaultValue: displayName(article.titleKey),
-				})}
+				articleTitle={articleTitle}
 				categorySlug={categorySlug}
 				prev={adjacent.prev}
 				next={adjacent.next}

@@ -13,24 +13,16 @@ import { ContactForm } from '../../components/support/ContactForm'
 import { ContactInfo } from '../../components/support/ContactInfo'
 import { FAQ_DATA, FAQAccordion } from '../../components/support/FAQAccordion'
 import { useChatWidget } from '../../hooks/useChatWidget'
+import { websiteHead } from '../../lib/seo'
 
 export const Route = createFileRoute('/_website/support')({
-	head: () => ({
-		meta: [
-			{ title: 'Support \u2014 HyperQuote' },
-			{
-				name: 'description',
-				content:
-					'Get help with HyperQuote. Contact us via WhatsApp, email, or phone. Browse frequently asked questions.',
-			},
-			{ property: 'og:title', content: 'Support \u2014 HyperQuote' },
-			{
-				property: 'og:description',
-				content:
-					'Get help with HyperQuote. Contact us via WhatsApp, email, or phone.',
-			},
-		],
-	}),
+	head: () =>
+		websiteHead({
+			title: 'Support — HyperQuote',
+			description:
+				'Get HyperQuote help through email, phone, WhatsApp, FAQs, and Lyon guidance for quotes, deliveries, payments, and account questions.',
+			path: '/support',
+		}),
 	component: SupportPage,
 })
 

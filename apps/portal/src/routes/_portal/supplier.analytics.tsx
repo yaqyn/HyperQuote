@@ -15,9 +15,17 @@ import { ProductPerformanceTable } from '../../components/supplier/ProductPerfor
 import { RevenueChart } from '../../components/supplier/RevenueChart'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
 import { WindowShell } from '../../components/windows/WindowShell'
+import { portalHead } from '../../lib/page-meta'
 import { getSupplierAnalytics } from '../../lib/server/supplier-analytics'
 
 export const Route = createFileRoute('/_portal/supplier/analytics')({
+	head: () =>
+		portalHead({
+			title: 'Supplier Analytics — HyperQuote Portal',
+			description:
+				'Private supplier analytics for revenue, order volume, and product performance in HyperQuote.',
+			path: '/supplier/analytics',
+		}),
 	component: AnalyticsPage,
 })
 

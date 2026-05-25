@@ -13,6 +13,7 @@ import { NotificationItem } from '../../components/notifications/NotificationIte
 import { useRealtimeNotifications } from '../../components/notifications/useRealtimeNotifications'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
 import { WindowShell } from '../../components/windows/WindowShell'
+import { portalHead } from '../../lib/page-meta'
 import {
 	getNotifications,
 	markAllNotificationsRead,
@@ -22,6 +23,13 @@ import { useNotificationStore } from '../../stores/notifications'
 import type { Notification } from '../../types/notification'
 
 export const Route = createFileRoute('/_portal/notifications')({
+	head: () =>
+		portalHead({
+			title: 'Notifications — HyperQuote Portal',
+			description:
+				'Private HyperQuote portal notifications for quote, order, delivery, support, and account updates.',
+			path: '/notifications',
+		}),
 	component: NotificationsWindow,
 })
 

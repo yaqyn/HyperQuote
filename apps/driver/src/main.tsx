@@ -4,6 +4,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './lib/i18n'
 import './styles.css'
+import { registerDriverServiceWorker } from './lib/pwa'
 import { router } from './router'
 
 const queryClient = new QueryClient({
@@ -26,3 +27,5 @@ createRoot(root).render(
 		</QueryClientProvider>
 	</StrictMode>,
 )
+
+if (import.meta.env.PROD) registerDriverServiceWorker()

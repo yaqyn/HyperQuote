@@ -36,6 +36,7 @@ import {
 	signInWithEmailPassword,
 } from '../../lib/auth'
 import { getPortalHref } from '../../lib/portal-url'
+import { websiteHead } from '../../lib/seo'
 
 export const Route = createFileRoute('/_website/login')({
 	validateSearch: z.object({
@@ -43,15 +44,14 @@ export const Route = createFileRoute('/_website/login')({
 		type: z.string().optional(),
 	}),
 	component: LoginPage,
-	head: () => ({
-		meta: [
-			{ title: 'Sign In — HyperQuote' },
-			{
-				name: 'description',
-				content: 'Sign in to HyperQuote to get quotes for building materials.',
-			},
-		],
-	}),
+	head: () =>
+		websiteHead({
+			title: 'Sign In — HyperQuote',
+			description:
+				'Sign in to HyperQuote with email and password to request quotes, track orders, and manage building material projects.',
+			path: '/login',
+			robots: 'noindex,nofollow',
+		}),
 })
 
 type AuthStep = 'phone' | 'otp' | 'email' | 'create' | 'claiming' | 'reset'

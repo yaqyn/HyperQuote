@@ -15,6 +15,7 @@ import { steps as forSuppliersSteps } from '../../../../content/wizards/for-supp
 // Eagerly import all wizard step data.
 // When adding a new wizard, add its import here and to the map.
 import { steps as gettingStartedSteps } from '../../../../content/wizards/getting-started'
+import { titleCaseSlug, websiteHead } from '../../../../lib/seo'
 
 const WIZARD_STEPS: Record<string, typeof gettingStartedSteps> = {
 	'getting-started': gettingStartedSteps,
@@ -24,13 +25,22 @@ const WIZARD_STEPS: Record<string, typeof gettingStartedSteps> = {
 }
 
 export const Route = createFileRoute('/_website/docs/guide/$guideSlug')({
-	head: ({ params }) => ({
-		meta: [
-			{
-				title: `${params.guideSlug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} \u2014 Docs \u2014 HyperQuote`,
-			},
-		],
-	}),
+	head: ({ params }) => {
+		const wizard = WIZARDS.find((item) => item.slug === params.guideSlug)
+		const title = wizard
+			? displayName(wizard.titleKey)
+			: titleCaseSlug(params.guideSlug)
+		const description = wizard
+			? displayName(wizard.descriptionKey)
+			: 'HyperQuote step-by-step guide.'
+		return websiteHead({
+			title: `${title} — Guide — HyperQuote`,
+			description,
+			path: `/docs/guide/${params.guideSlug}`,
+			robots: wizard ? 'index,follow' : 'noindex,nofollow',
+			type: 'article',
+		})
+	},
 	component: WizardGuidePage,
 })
 

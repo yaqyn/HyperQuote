@@ -43,6 +43,22 @@
 		}
 	],
 	"categories": ["business", "productivity"],
+	"shortcuts": [
+		{
+			"name": "Operations Canvas",
+			"short_name": "Canvas",
+			"description": "Open the internal operations canvas.",
+			"url": "/",
+			"icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192" }]
+		},
+		{
+			"name": "Employee Sign In",
+			"short_name": "Sign In",
+			"description": "Open employee sign-in.",
+			"url": "/login",
+			"icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192" }]
+		}
+	],
 	"lang": "en",
 	"dir": "ltr",
 	"prefer_related_applications": false

@@ -1,9 +1,12 @@
 {
-	"name": "HyperQuote",
+	"id": "/",
+	"name": "HyperQuote Market",
 	"short_name": "HyperQuote",
-	"description": "Building materials, consolidated",
+	"description": "Egyptian B2B building materials marketplace for quotes, supplier sourcing, and delivery tracking.",
 	"start_url": "/",
+	"scope": "/",
 	"display": "standalone",
+	"display_override": ["standalone", "minimal-ui"],
 	"background_color": "#ffffff",
 	"theme_color": "#2563EB",
 	"orientation": "portrait-primary",
@@ -27,7 +30,31 @@
 			"purpose": "any maskable"
 		}
 	],
-	"categories": ["business"],
+	"categories": ["business", "shopping", "productivity"],
+	"shortcuts": [
+		{
+			"name": "Market",
+			"short_name": "Market",
+			"description": "Browse building materials.",
+			"url": "/market",
+			"icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+		},
+		{
+			"name": "Docs",
+			"short_name": "Docs",
+			"description": "Read HyperQuote documentation.",
+			"url": "/docs",
+			"icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+		},
+		{
+			"name": "Support",
+			"short_name": "Support",
+			"description": "Contact HyperQuote support.",
+			"url": "/support",
+			"icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+		}
+	],
 	"lang": "en",
-	"dir": "ltr"
+	"dir": "auto",
+	"prefer_related_applications": false
 }

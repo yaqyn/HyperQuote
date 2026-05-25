@@ -2,12 +2,20 @@ import { createFileRoute } from '@tanstack/react-router'
 import { QuoteDetail } from '../../components/quote-detail/QuoteDetail'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
+import { portalHead } from '../../lib/page-meta'
 import { getQuoteDetail } from '../../lib/server/quotes'
 
 export const Route = createFileRoute('/_portal/orders_/quotes/$quoteId')({
 	loader: async ({ params }) => {
 		return getQuoteDetail({ data: { quoteId: params.quoteId } })
 	},
+	head: ({ loaderData, params }) =>
+		portalHead({
+			title: `${loaderData?.quoteNumber ?? 'Quote'} — HyperQuote Portal`,
+			description:
+				'Private HyperQuote quote detail with line items, status, pricing, and customer quote actions.',
+			path: `/orders/quotes/${params.quoteId}`,
+		}),
 	component: QuoteDetailRoute,
 })
 

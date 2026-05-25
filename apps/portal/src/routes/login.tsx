@@ -25,6 +25,7 @@ import {
 	signInWithEmailPassword,
 	verifyOTP,
 } from '../lib/auth'
+import { portalHead } from '../lib/page-meta'
 import { type PortalTheme, setPortalTheme } from '../lib/theme'
 import { usePortalStore } from '../stores/portal'
 
@@ -45,6 +46,13 @@ export const Route = createFileRoute('/login')({
 			throw redirect({ to: '/' })
 		}
 	},
+	head: () =>
+		portalHead({
+			title: 'Portal Sign In — HyperQuote',
+			description:
+				'Sign in to the HyperQuote customer portal with email and password to manage quotes, orders, deliveries, support, and account settings.',
+			path: '/login',
+		}),
 	component: LoginPage,
 })
 

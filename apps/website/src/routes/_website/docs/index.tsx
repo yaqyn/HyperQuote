@@ -11,18 +11,16 @@ import {
 } from '../../../components/shared/motionVariants'
 import { SectionNumber } from '../../../components/shared/SectionNumber'
 import { DOC_CATEGORIES, displayName, WIZARDS } from '../../../content/registry'
+import { websiteHead } from '../../../lib/seo'
 
 export const Route = createFileRoute('/_website/docs/')({
-	head: () => ({
-		meta: [
-			{ title: 'Docs \u2014 HyperQuote' },
-			{
-				name: 'description',
-				content:
-					'HyperQuote documentation. Learn how to source building materials, manage quotes, and track deliveries.',
-			},
-		],
-	}),
+	head: () =>
+		websiteHead({
+			title: 'Docs — HyperQuote',
+			description:
+				'HyperQuote documentation for sourcing building materials, managing quotes and orders, tracking deliveries, payments, supplier workflows, and Lyon AI.',
+			path: '/docs',
+		}),
 	component: DocsIndexPage,
 })
 

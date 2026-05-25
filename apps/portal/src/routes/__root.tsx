@@ -11,6 +11,8 @@ import { I18nProvider } from 'react-aria-components/I18nProvider'
 import { I18nextProvider, useTranslation } from 'react-i18next'
 import { SelectionCopy } from '../components/shared/SelectionCopy'
 import { i18n, setupI18n } from '../lib/i18n'
+import { portalHead } from '../lib/page-meta'
+import { registerPortalServiceWorker } from '../lib/pwa'
 import {
 	applyPortalTheme,
 	detectPortalTheme,
@@ -86,45 +88,57 @@ export const Route = createRootRoute({
 		await setupI18n(locale)
 		return { locale, theme }
 	},
-	head: () => ({
-		meta: [
-			{ charSet: 'utf-8' },
-			{ name: 'viewport', content: 'width=device-width, initial-scale=1' },
-			{ name: 'title', content: 'HyperQuote' },
-			{ name: 'mobile-web-app-capable', content: 'yes' },
-			{ name: 'apple-mobile-web-app-capable', content: 'yes' },
-			{ name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
-			{ name: 'apple-mobile-web-app-title', content: 'HyperQuote' },
-		],
-		links: [
-			{
-				rel: 'icon',
-				type: 'image/png',
-				sizes: '96x96',
-				href: '/favicon-96x96.png',
-			},
-			{
-				rel: 'icon',
-				type: 'image/svg+xml',
-				sizes: 'any',
-				href: '/favicon.svg',
-			},
-			{ rel: 'icon', href: '/favicon.ico' },
-			{ rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
-			{ rel: 'manifest', href: '/site.webmanifest' },
-			{ rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-			{
-				rel: 'preconnect',
-				href: 'https://fonts.gstatic.com',
-				crossOrigin: 'anonymous',
-			},
-			{
-				rel: 'stylesheet',
-				href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300..500;1,9..144,300..500&family=Sora:wght@400;500;600;700&display=swap',
-			},
-			{ rel: 'stylesheet', href: styles },
-		],
-	}),
+	head: () => {
+		const baseHead = portalHead({
+			title: 'HyperQuote Portal',
+			description:
+				'Private HyperQuote customer portal for quote requests, order tracking, documents, account settings, and support.',
+			path: '/',
+		})
+		return {
+			...baseHead,
+			meta: [
+				{ charSet: 'utf-8' },
+				{ name: 'viewport', content: 'width=device-width, initial-scale=1' },
+				...baseHead.meta,
+				{ name: 'mobile-web-app-capable', content: 'yes' },
+				{ name: 'apple-mobile-web-app-capable', content: 'yes' },
+				{ name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
+				{ name: 'apple-mobile-web-app-title', content: 'HQ Portal' },
+				{ name: 'format-detection', content: 'telephone=no' },
+				{ name: 'color-scheme', content: 'light dark' },
+			],
+			links: [
+				...baseHead.links,
+				{
+					rel: 'icon',
+					type: 'image/png',
+					sizes: '96x96',
+					href: '/favicon-96x96.png',
+				},
+				{
+					rel: 'icon',
+					type: 'image/svg+xml',
+					sizes: 'any',
+					href: '/favicon.svg',
+				},
+				{ rel: 'icon', href: '/favicon.ico' },
+				{ rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
+				{ rel: 'manifest', href: '/site.webmanifest' },
+				{ rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+				{
+					rel: 'preconnect',
+					href: 'https://fonts.gstatic.com',
+					crossOrigin: 'anonymous',
+				},
+				{
+					rel: 'stylesheet',
+					href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300..500;1,9..144,300..500&family=Sora:wght@400;500;600;700&display=swap',
+				},
+				{ rel: 'stylesheet', href: styles },
+			],
+		}
+	},
 	component: RootComponent,
 })
 
@@ -139,6 +153,7 @@ function RootComponent() {
 
 	useEffect(() => {
 		applyPortalTheme(readStoredPortalTheme() ?? theme)
+		if (import.meta.env.PROD) registerPortalServiceWorker()
 	}, [theme])
 
 	useEffect(() => {

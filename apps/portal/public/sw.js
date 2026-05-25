@@ -1,78 +1,77 @@
-/* eslint-disable no-restricted-globals */
+const CACHE_NAME = 'hyperquote-portal-v1'
 
-import { ExpirationPlugin } from 'workbox-expiration'
-import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
-import { NavigationRoute, registerRoute } from 'workbox-routing'
-import {
-	CacheFirst,
-	NetworkFirst,
-	StaleWhileRevalidate,
-} from 'workbox-strategies'
+const APP_ASSETS = [
+	'/site.webmanifest',
+	'/manifest.json',
+	'/favicon.ico',
+	'/favicon.svg',
+	'/favicon-96x96.png',
+	'/apple-touch-icon.png',
+	'/icon-192.png',
+	'/icon-512.png',
+]
 
-// Precache app shell (injected by workbox-build)
-precacheAndRoute(self.__WB_MANIFEST || [])
+const CACHEABLE_PUBLIC_PATHS = new Set(APP_ASSETS)
 
-// Cleanup old caches from previous versions
-cleanupOutdatedCaches()
-
-// Runtime cache: API responses (stale-while-revalidate, 5min max age)
-registerRoute(
-	({ url }) => url.pathname.startsWith('/api/'),
-	new StaleWhileRevalidate({
-		cacheName: 'api-cache',
-		plugins: [
-			new ExpirationPlugin({
-				maxEntries: 100,
-				maxAgeSeconds: 300, // 5 minutes
-			}),
-		],
-	}),
-)
-
-// Static assets: CacheFirst (long-lived)
-registerRoute(
-	({ request }) =>
-		request.destination === 'style' ||
-		request.destination === 'script' ||
-		request.destination === 'font' ||
-		request.destination === 'image',
-	new CacheFirst({
-		cacheName: 'static-assets',
-		plugins: [
-			new ExpirationPlugin({
-				maxEntries: 200,
-				maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-			}),
-		],
-	}),
-)
-
-// Navigation: NetworkFirst with 3s timeout fallback to cache
-const navigationHandler = new NetworkFirst({
-	cacheName: 'navigation',
-	networkTimeoutSeconds: 3,
+self.addEventListener('install', (event) => {
+	event.waitUntil(
+		caches
+			.open(CACHE_NAME)
+			.then((cache) => cache.addAll(APP_ASSETS))
+			.then(() => self.skipWaiting()),
+	)
 })
-registerRoute(new NavigationRoute(navigationHandler))
 
-// Push notification handler
+self.addEventListener('activate', (event) => {
+	event.waitUntil(
+		caches
+			.keys()
+			.then((keys) =>
+				Promise.all(
+					keys
+						.filter((key) => key !== CACHE_NAME)
+						.map((key) => caches.delete(key)),
+				),
+			)
+			.then(() => self.clients.claim()),
+	)
+})
+
+self.addEventListener('fetch', (event) => {
+	const { request } = event
+	if (request.method !== 'GET') return
+
+	const url = new URL(request.url)
+	if (url.origin !== self.location.origin) return
+	if (url.pathname.startsWith('/api/')) return
+
+	if (isCacheableAsset(request, url)) {
+		event.respondWith(cacheFirstAsset(request))
+		return
+	}
+
+	if (request.mode === 'navigate') {
+		event.respondWith(networkOnlyNavigation(request))
+	}
+})
+
 self.addEventListener('push', (event) => {
 	if (!event.data) return
 
 	const data = event.data.json()
-	const { title, body, icon, url } = data
+	const { body, icon, title, url } = data
 
 	event.waitUntil(
-		self.registration.showNotification(title || 'HyperQuote', {
+		self.registration.showNotification(title || 'HyperQuote Portal', {
 			body: body || '',
-			icon: icon || '/icons/icon-192.png',
-			badge: '/icons/icon-192.png',
+			icon: icon || '/icon-192.png',
+			badge: '/icon-192.png',
 			data: { url: url || '/' },
 			dir: 'auto',
 		}),
 	)
 })
 
-// Notification click: open portal URL
 self.addEventListener('notificationclick', (event) => {
 	event.notification.close()
 
@@ -82,23 +81,47 @@ self.addEventListener('notificationclick', (event) => {
 		self.clients
 			.matchAll({ type: 'window', includeUncontrolled: true })
 			.then((clientList) => {
-				// Focus existing window if available
 				for (const client of clientList) {
 					if (client.url.includes(targetUrl) && 'focus' in client) {
 						return client.focus()
 					}
 				}
-				// Otherwise open new window
 				return self.clients.openWindow(targetUrl)
 			}),
 	)
 })
 
-// Skip waiting and claim clients immediately on activation
-self.addEventListener('install', () => {
-	self.skipWaiting()
-})
+function isCacheableAsset(request, url) {
+	if (CACHEABLE_PUBLIC_PATHS.has(url.pathname)) return true
+	if (!url.pathname.startsWith('/assets/')) return false
 
-self.addEventListener('activate', (event) => {
-	event.waitUntil(self.clients.claim())
-})
+	return (
+		request.destination === 'script' ||
+		request.destination === 'style' ||
+		request.destination === 'font' ||
+		request.destination === 'image'
+	)
+}
+
+async function networkOnlyNavigation(request) {
+	try {
+		return await fetch(request)
+	} catch {
+		return new Response('HyperQuote Portal is offline.', {
+			status: 503,
+			headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+		})
+	}
+}
+
+async function cacheFirstAsset(request) {
+	const cached = await caches.match(request)
+	if (cached) return cached
+
+	const response = await fetch(request)
+	if (response.ok) {
+		const cache = await caches.open(CACHE_NAME)
+		await cache.put(request, response.clone())
+	}
+	return response
+}

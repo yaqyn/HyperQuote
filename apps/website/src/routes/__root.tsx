@@ -13,6 +13,7 @@ import { OfflineBanner } from '../components/layout/OfflineBanner'
 import { SiteContextMenu } from '../components/layout/SiteContextMenu'
 import { SelectionCopy } from '../components/shared/SelectionCopy'
 import { i18n, setupI18n } from '../lib/i18n'
+import { registerWebsiteServiceWorker } from '../lib/pwa'
 import { initTheme } from '../lib/theme'
 import styles from '../styles.css?url'
 
@@ -54,7 +55,9 @@ export const Route = createRootRoute({
 			{ name: 'apple-mobile-web-app-capable', content: 'yes' },
 			{ name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
 			{ name: 'apple-mobile-web-app-title', content: 'HyperQuote' },
-			{ name: 'hyperquote-deploy-test', content: 'frontend-2026-05-25' },
+			{ name: 'application-name', content: 'HyperQuote' },
+			{ name: 'format-detection', content: 'telephone=no' },
+			{ name: 'color-scheme', content: 'light dark' },
 			{
 				name: 'theme-color',
 				content: '#ffffff',
@@ -95,6 +98,7 @@ function RootComponent() {
 
 	useEffect(() => {
 		initTheme()
+		if (import.meta.env.PROD) registerWebsiteServiceWorker()
 	}, [])
 
 	return (

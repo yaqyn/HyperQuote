@@ -13,6 +13,7 @@ import { useTranslation } from 'react-i18next'
 import { StockTable } from '../../components/supplier/StockTable'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
 import { WindowShell } from '../../components/windows/WindowShell'
+import { portalHead } from '../../lib/page-meta'
 import { getSupplierProducts } from '../../lib/server/supplier-stock'
 import type { SupplierProduct } from '../../types/supplier'
 
@@ -25,6 +26,13 @@ const UploadHistoryList = lazy(
 )
 
 export const Route = createFileRoute('/_portal/supplier/stock')({
+	head: () =>
+		portalHead({
+			title: 'Supplier Stock & Pricing — HyperQuote Portal',
+			description:
+				'Private supplier stock and pricing workspace for products, price updates, upload history, and bulk catalog maintenance.',
+			path: '/supplier/stock',
+		}),
 	component: StockWindow,
 })
 

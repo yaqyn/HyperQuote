@@ -29,6 +29,7 @@ import {
 	requestPhoneChange,
 	verifyPhoneChange,
 } from '../../lib/auth'
+import { portalHead } from '../../lib/page-meta'
 import {
 	getCustomerProfile,
 	requestCustomerEmailChange,
@@ -38,6 +39,13 @@ import {
 import type { CustomerProfile } from '../../types/settings'
 
 export const Route = createFileRoute('/_portal/profile')({
+	head: () =>
+		portalHead({
+			title: 'Profile — HyperQuote Portal',
+			description:
+				'Private HyperQuote profile page for company details, contact information, login email, password, and phone settings.',
+			path: '/profile',
+		}),
 	component: ProfilePage,
 })
 

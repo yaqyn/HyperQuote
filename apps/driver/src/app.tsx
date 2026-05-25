@@ -40,11 +40,20 @@ export function DriverApp() {
 	const language = usePreferencesStore((state) => state.language)
 	const theme = usePreferencesStore((state) => state.theme)
 	const [isRestoringSession, setIsRestoringSession] = useState(true)
+	const documentTitle = isRestoringSession
+		? 'Loading Driver Dashboard — HyperQuote Driver'
+		: session
+			? 'HyperQuote Driver'
+			: 'Driver Sign In — HyperQuote Driver'
 
 	useEffect(() => {
 		setDriverLanguage(language)
 		document.documentElement.dataset.theme = theme
 	}, [language, theme])
+
+	useEffect(() => {
+		document.title = documentTitle
+	}, [documentTitle])
 
 	useEffect(() => {
 		function handleContextMenu(event: MouseEvent) {

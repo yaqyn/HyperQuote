@@ -8,9 +8,17 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { PODetail } from '../../components/supplier/PODetail'
 import { WindowShell } from '../../components/windows/WindowShell'
+import { portalHead } from '../../lib/page-meta'
 import { getSupplierPOs } from '../../lib/server/supplier-orders'
 
 export const Route = createFileRoute('/_portal/supplier/orders/$poId')({
+	head: ({ params }) =>
+		portalHead({
+			title: 'Purchase Order Detail — HyperQuote Portal',
+			description:
+				'Private supplier purchase order detail for line items, status, fulfillment, delivery notes, and invoice actions.',
+			path: `/supplier/orders/${params.poId}`,
+		}),
 	component: SupplierOrderDetailWindow,
 })
 

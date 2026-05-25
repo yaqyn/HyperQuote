@@ -235,10 +235,31 @@ export function DriverShell({ session }: DriverShellProps) {
 	const currentDriverId = currentDriver?.id ?? null
 	const activeDeliveryId = activeDelivery?.id ?? null
 	const nextDeliveryId = nextDelivery?.id ?? null
+	const shellDocumentTitle = useMemo(() => {
+		if (openPanel === 'info') return `${t('info.title')} — HyperQuote Driver`
+
+		if (openPanel === 'fleet') {
+			const tabTitle =
+				fleetTab === 'chat'
+					? t('fleet.chat')
+					: fleetTab === 'drivers'
+						? t('fleet.drivers')
+						: t('fleet.deliveries')
+			return `${tabTitle} — ${t('fleet.title')} — HyperQuote Driver`
+		}
+
+		if (activeDelivery) return `${t('active.current')} — HyperQuote Driver`
+		if (nextDelivery) return `${t('active.next')} — HyperQuote Driver`
+		return 'Active Delivery — HyperQuote Driver'
+	}, [activeDelivery, fleetTab, nextDelivery, openPanel, t])
 	const errorMessages = {
 		actionFailed: t('verification.actionFailed'),
 		invalidSecret: t('verification.invalidSecret'),
 	}
+
+	useEffect(() => {
+		document.title = shellDocumentTitle
+	}, [shellDocumentTitle])
 
 	const assignedDriverById = useMemo(() => {
 		const map = new Map<string, DriverProfile>()

@@ -25,10 +25,18 @@ import { Label } from 'react-aria-components/Label'
 import { NumberField } from 'react-aria-components/NumberField'
 import { useTranslation } from 'react-i18next'
 import { PortalTitleRow } from '../../../components/shell/PortalTitleRow'
+import { portalHead } from '../../../lib/page-meta'
 import { getMarketProducts } from '../../../lib/server/market'
 import { useDraftQuoteStore } from '../../../stores/draft-quote'
 
 export const Route = createFileRoute('/_portal/market/$productSlug')({
+	head: ({ params }) =>
+		portalHead({
+			title: 'Product Detail — HyperQuote Portal',
+			description:
+				'Private HyperQuote portal product detail for reviewing specifications and adding material quantities to a quote draft.',
+			path: `/market/${params.productSlug}`,
+		}),
 	component: ProductDetailPage,
 })
 

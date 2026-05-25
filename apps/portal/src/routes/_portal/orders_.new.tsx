@@ -5,8 +5,16 @@ import { QuoteBuilderFlow } from '../../components/quote-builder/QuoteBuilderFlo
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
 import { useQuoteDraft } from '../../hooks/useQuoteDraft'
+import { portalHead } from '../../lib/page-meta'
 
 export const Route = createFileRoute('/_portal/orders_/new')({
+	head: () =>
+		portalHead({
+			title: 'New Quote Request — HyperQuote Portal',
+			description:
+				'Private HyperQuote quote builder for creating a material list, restoring drafts, and submitting new requests.',
+			path: '/orders/new',
+		}),
 	component: NewQuoteRoute,
 })
 
