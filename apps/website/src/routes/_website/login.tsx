@@ -1,5 +1,5 @@
 import { standardSchemaResolver } from '@hyperquote/forms'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useSearch } from '@tanstack/react-router'
 import {
 	ArrowLeft,
 	Building2,
@@ -28,12 +28,18 @@ import { verifyOtpCode } from '../../components/auth/verifyOtpCode'
 import { PRIVACY_SECTIONS, TERMS_SECTIONS } from '../../content/legal'
 import {
 	claimAccount,
+	completePasswordReset,
 	createAccount,
+	requestPasswordReset,
 	sendOTP,
 	signInWithEmailPassword,
 } from '../../lib/auth'
 
 export const Route = createFileRoute('/_website/login')({
+	validateSearch: z.object({
+		token_hash: z.string().optional(),
+		type: z.string().optional(),
+	}),
 	component: LoginPage,
 	head: () => ({
 		meta: [
@@ -46,7 +52,7 @@ export const Route = createFileRoute('/_website/login')({
 	}),
 })
 
-type AuthStep = 'phone' | 'otp' | 'email' | 'create' | 'claiming'
+type AuthStep = 'phone' | 'otp' | 'email' | 'create' | 'claiming' | 'reset'
 
 const RESEND_COOLDOWN = 30
 const EMAIL_ADDRESS_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -59,9 +65,18 @@ const transition = { duration: 0.25, ease: EASE }
 function LoginPage() {
 	const { t } = useTranslation('website')
 	const navigate = useNavigate()
-	const [step, setStep] = useState<AuthStep>('phone')
+	const search = useSearch({ from: '/_website/login' })
+	const recoveryToken =
+		search.type === 'recovery' ? search.token_hash : undefined
+	const [step, setStep] = useState<AuthStep>(() =>
+		recoveryToken ? 'reset' : 'phone',
+	)
 	const [phone, setPhone] = useState('')
 	const [claimableCompany, setClaimableCompany] = useState<string | null>(null)
+
+	useEffect(() => {
+		if (recoveryToken) setStep('reset')
+	}, [recoveryToken])
 
 	const handleComplete = () => {
 		window.dispatchEvent(new Event('hyperquote-account-updated'))
@@ -137,6 +152,15 @@ function LoginPage() {
 								<StepWrapper key="email">
 									<EmailPasswordStep
 										onBack={() => setStep('phone')}
+										onComplete={handleComplete}
+									/>
+								</StepWrapper>
+							)}
+							{step === 'reset' && (
+								<StepWrapper key="reset">
+									<PasswordResetStep
+										tokenHash={recoveryToken ?? ''}
+										onBack={() => setStep('email')}
 										onComplete={handleComplete}
 									/>
 								</StepWrapper>
@@ -547,7 +571,9 @@ function EmailPasswordStep({
 	const [email, setEmail] = useState('')
 	const [password, setPassword] = useState('')
 	const [error, setError] = useState<string | null>(null)
+	const [notice, setNotice] = useState<string | null>(null)
 	const [loading, setLoading] = useState(false)
+	const [resetLoading, setResetLoading] = useState(false)
 
 	function validateEmailPassword(): boolean {
 		if (!EMAIL_ADDRESS_REGEX.test(email.trim())) {
@@ -565,6 +591,7 @@ function EmailPasswordStep({
 		if (!validateEmailPassword()) return
 		setLoading(true)
 		setError(null)
+		setNotice(null)
 		try {
 			const result = await signInWithEmailPassword({
 				data: { email: email.trim(), password },
@@ -584,6 +611,31 @@ function EmailPasswordStep({
 			setError(t('login.emailSignInFailed'))
 		} finally {
 			setLoading(false)
+		}
+	}
+
+	async function handlePasswordResetRequest() {
+		if (!EMAIL_ADDRESS_REGEX.test(email.trim())) {
+			setError(t('login.emailInvalid'))
+			setNotice(null)
+			return
+		}
+		setResetLoading(true)
+		setError(null)
+		setNotice(null)
+		try {
+			const result = await requestPasswordReset({
+				data: { email: email.trim() },
+			})
+			if (!result.success) {
+				setError(t('login.passwordResetFailed'))
+				return
+			}
+			setNotice(t('login.passwordResetSent'))
+		} catch {
+			setError(t('login.passwordResetFailed'))
+		} finally {
+			setResetLoading(false)
 		}
 	}
 
@@ -629,14 +681,127 @@ function EmailPasswordStep({
 					{error}
 				</p>
 			)}
+			{notice && (
+				<p
+					role="status"
+					className="mt-4 text-[13px] text-[var(--color-text-muted)]"
+				>
+					{notice}
+				</p>
+			)}
 
 			<button
 				type="button"
 				onClick={handleSignIn}
-				disabled={loading}
+				disabled={loading || resetLoading}
 				className="mt-6 h-[54px] w-full rounded-xl bg-[var(--color-primary)] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 sm:h-14"
 			>
 				{loading ? <Spinner /> : t('login.emailSignInButton')}
+			</button>
+			<button
+				type="button"
+				onClick={handlePasswordResetRequest}
+				disabled={loading || resetLoading}
+				className="mt-3 min-h-10 w-full text-center text-[13px] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] disabled:opacity-50"
+			>
+				{resetLoading ? <Spinner size={14} /> : t('login.forgotPassword')}
+			</button>
+		</div>
+	)
+}
+
+function PasswordResetStep({
+	tokenHash,
+	onBack,
+	onComplete,
+}: {
+	tokenHash: string
+	onBack: () => void
+	onComplete: () => void
+}) {
+	const { t } = useTranslation('website')
+	const [password, setPassword] = useState('')
+	const [passwordConfirmation, setPasswordConfirmation] = useState('')
+	const [error, setError] = useState<string | null>(null)
+	const [loading, setLoading] = useState(false)
+
+	async function handleResetPassword() {
+		if (!tokenHash) {
+			setError(t('login.passwordResetInvalid'))
+			return
+		}
+		if (password.length < 6) {
+			setError(t('login.passwordInvalid'))
+			return
+		}
+		if (password !== passwordConfirmation) {
+			setError(t('login.passwordMismatch'))
+			return
+		}
+		setLoading(true)
+		setError(null)
+		try {
+			const result = await completePasswordReset({
+				data: { tokenHash, password },
+			})
+			if (!result.success) {
+				setError(t('login.passwordResetInvalid'))
+				return
+			}
+			onComplete()
+		} catch {
+			setError(t('login.passwordResetFailed'))
+		} finally {
+			setLoading(false)
+		}
+	}
+
+	return (
+		<div>
+			<button
+				type="button"
+				onClick={onBack}
+				className="mb-6 flex items-center gap-2 text-[13px] text-[var(--color-text-subtle)] transition-colors hover:text-[var(--color-text)]"
+			>
+				<ArrowLeft size={14} className="icon-end" />
+				<span>{t('login.emailSignInHeading')}</span>
+			</button>
+			<h2 className="text-[28px] font-bold leading-[1.08] tracking-normal text-[var(--color-text)] sm:text-[32px]">
+				{t('login.resetPasswordHeading')}
+			</h2>
+			<p className="mt-3 text-[14px] leading-relaxed text-[var(--color-text-muted)]">
+				{t('login.resetPasswordSubtitle')}
+			</p>
+			<div className="mt-7 flex flex-col gap-4">
+				<AuthTextInput
+					id="reset-password"
+					label={t('login.newPasswordLabel')}
+					type="password"
+					value={password}
+					onChange={setPassword}
+					onEnter={handleResetPassword}
+				/>
+				<AuthTextInput
+					id="reset-password-confirmation"
+					label={t('login.confirmNewPasswordLabel')}
+					type="password"
+					value={passwordConfirmation}
+					onChange={setPasswordConfirmation}
+					onEnter={handleResetPassword}
+				/>
+			</div>
+			{error && (
+				<p role="alert" className="mt-4 text-[13px] text-[var(--color-error)]">
+					{error}
+				</p>
+			)}
+			<button
+				type="button"
+				onClick={handleResetPassword}
+				disabled={loading}
+				className="mt-6 h-[54px] w-full rounded-xl bg-[var(--color-primary)] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 sm:h-14"
+			>
+				{loading ? <Spinner /> : t('login.resetPasswordButton')}
 			</button>
 		</div>
 	)
@@ -688,6 +853,7 @@ const accountSchema = z.object({
 	fullName: z.string().min(1).max(100),
 	email: z.string().optional(),
 	password: z.string().optional(),
+	passwordConfirmation: z.string().optional(),
 })
 
 type AccountFormData = z.infer<typeof accountSchema>
@@ -714,6 +880,7 @@ function CreateStep({
 			email: '',
 			fullName: '',
 			password: '',
+			passwordConfirmation: '',
 		},
 	})
 
@@ -724,13 +891,20 @@ function CreateStep({
 		}
 		const email = data.email?.trim() ?? ''
 		const password = data.password ?? ''
-		const wantsEmailPassword = Boolean(email || password)
+		const passwordConfirmation = data.passwordConfirmation ?? ''
+		const wantsEmailPassword = Boolean(
+			email || password || passwordConfirmation,
+		)
 		if (wantsEmailPassword && !EMAIL_ADDRESS_REGEX.test(email)) {
 			setServerError(t('login.emailInvalid'))
 			return
 		}
 		if (wantsEmailPassword && password.length < 6) {
 			setServerError(t('login.passwordInvalid'))
+			return
+		}
+		if (wantsEmailPassword && password !== passwordConfirmation) {
+			setServerError(t('login.passwordMismatch'))
 			return
 		}
 		setLoading(true)
@@ -853,6 +1027,20 @@ function CreateStep({
 								id="signup-password"
 								type="password"
 								{...register('password')}
+								className="h-[54px] w-full rounded-xl border border-[var(--color-border)] bg-transparent px-4 text-[16px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] sm:h-14"
+							/>
+						</div>
+						<div>
+							<label
+								htmlFor="signup-password-confirmation"
+								className="mb-2 block text-start text-[13px] font-medium text-[var(--color-text-muted)]"
+							>
+								{t('login.passwordConfirmLabel')}
+							</label>
+							<input
+								id="signup-password-confirmation"
+								type="password"
+								{...register('passwordConfirmation')}
 								className="h-[54px] w-full rounded-xl border border-[var(--color-border)] bg-transparent px-4 text-[16px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] sm:h-14"
 							/>
 						</div>

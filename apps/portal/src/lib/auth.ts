@@ -1,6 +1,7 @@
 import type { AuthSession } from '@hyperquote/auth'
 import {
 	claimAuthenticatedCustomerProfile,
+	completeCustomerPasswordReset,
 	createAuthenticatedCustomerProfile,
 	type EmailProfileDefaults,
 	formattedEgyptPhone,
@@ -78,6 +79,15 @@ const emailPasswordInput = z.object({
 	password: z.string().min(6).max(128),
 })
 
+const passwordResetRequestInput = z.object({
+	email: z.string().trim().email().max(254),
+})
+
+const passwordResetCompleteInput = z.object({
+	tokenHash: z.string().min(16).max(512),
+	password: z.string().min(6).max(128),
+})
+
 type EmailAuthError =
 	| 'email_not_confirmed'
 	| 'invalid_credentials'
@@ -96,6 +106,10 @@ function appendPendingAuthCookies(
 	headers: Iterable<[string, string]> = [],
 ) {
 	appendSetCookieHeaders(getResponse().headers, cookies, headers)
+}
+
+function loginRedirectUrl(request: Request) {
+	return new URL('/login', new URL(request.url).origin).toString()
 }
 
 async function createCustomerDataClient(userId: string) {
@@ -212,6 +226,85 @@ export const signInWithEmailPassword = createServerFn({ method: 'POST' })
 			} catch (err) {
 				logPortalError('portal.auth.email_signin.unexpected_error', err)
 				return { success: false, error: 'invalid_credentials' }
+			}
+		},
+	)
+
+export const requestPasswordReset = createServerFn({ method: 'POST' })
+	.inputValidator(passwordResetRequestInput)
+	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
+		try {
+			const config = await getSupabaseConfig()
+			if (!config) return { success: false }
+
+			const request = getRequest()
+			const { client } = createSupabaseServerClient({
+				request,
+				...config,
+			})
+			const { error } = await client.auth.resetPasswordForEmail(input.email, {
+				redirectTo: loginRedirectUrl(request),
+			})
+			if (error) {
+				logPortalError(
+					'portal.auth.password_reset_request.supabase_error',
+					error,
+				)
+			}
+
+			return { success: true }
+		} catch (err) {
+			logPortalError('portal.auth.password_reset_request.unexpected_error', err)
+			return { success: false }
+		}
+	})
+
+export const completePasswordReset = createServerFn({ method: 'POST' })
+	.inputValidator(passwordResetCompleteInput)
+	.handler(
+		async ({
+			data: input,
+		}): Promise<{
+			success: boolean
+			error?: 'invalid_customer' | 'invalid_token' | 'update_failed'
+		}> => {
+			try {
+				const config = await getSupabaseConfig()
+				if (!config) return { success: false, error: 'update_failed' }
+
+				const request = getRequest()
+				const { client, responseCookies, responseHeaders } =
+					createSupabaseServerClient({
+						request,
+						...config,
+					})
+
+				return completeCustomerPasswordReset({
+					client,
+					tokenHash: input.tokenHash,
+					password: input.password,
+					appendAuthCookies: () =>
+						appendPendingAuthCookies(
+							responseCookies.values(),
+							responseHeaders.entries(),
+						),
+					onVerifyError: (error) =>
+						logPortalError(
+							'portal.auth.password_reset_verify.supabase_error',
+							error,
+						),
+					onUpdateError: (error) =>
+						logPortalError(
+							'portal.auth.password_reset_update.supabase_error',
+							error,
+						),
+				})
+			} catch (err) {
+				logPortalError(
+					'portal.auth.password_reset_complete.unexpected_error',
+					err,
+				)
+				return { success: false, error: 'update_failed' }
 			}
 		},
 	)

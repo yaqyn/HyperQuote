@@ -181,6 +181,53 @@ export async function signInCustomerWithEmailPassword({
 	return { success: true, needsAccount: false }
 }
 
+export async function completeCustomerPasswordReset({
+	client,
+	tokenHash,
+	password,
+	appendAuthCookies,
+	onVerifyError,
+	onUpdateError,
+}: {
+	client: CustomerAuthClient
+	tokenHash: string
+	password: string
+	appendAuthCookies: AppendAuthCookies
+	onVerifyError: CustomerAuthLogger
+	onUpdateError: CustomerAuthLogger
+}): Promise<{
+	success: boolean
+	error?: 'invalid_token' | 'invalid_customer' | 'update_failed'
+}> {
+	const { data: recoveryData, error: verifyError } =
+		await client.auth.verifyOtp({
+			token_hash: tokenHash,
+			type: 'recovery',
+		})
+
+	if (verifyError || !recoveryData.user) {
+		onVerifyError(verifyError)
+		return { success: false, error: 'invalid_token' }
+	}
+
+	if (!isCustomerAuthUser(recoveryData.user)) {
+		await client.auth.signOut()
+		appendAuthCookies()
+		return { success: false, error: 'invalid_customer' }
+	}
+
+	appendAuthCookies()
+	const { error: updateError } = await client.auth.updateUser({ password })
+	appendAuthCookies()
+
+	if (updateError) {
+		onUpdateError(updateError)
+		return { success: false, error: 'update_failed' }
+	}
+
+	return { success: true }
+}
+
 export async function sendCustomerOtp({
 	client,
 	formattedPhone,

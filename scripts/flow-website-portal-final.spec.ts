@@ -116,11 +116,15 @@ test('website phone signup can attach confirmed email/password for portal login'
 	const email = `flow-email-${stamp}@example.com`
 	const changedEmail = `flow-email-change-${stamp}@example.com`
 	const password = `Flow-email-${stamp}-123456`
+	const resetPassword = `Flow-email-reset-${stamp}-123456`
 	const phone = '1011111111'
 	const fullPhone = `+20${phone}`
+	const changedPhone = '1088888888'
+	const changedFullPhone = `+20${changedPhone}`
 	const companyName = `Flow Email ${stamp}`
 	const fullName = 'Flow Email Customer'
 	await resetCustomerByPhoneOrEmail(service, fullPhone, email)
+	await resetCustomerByPhone(service, changedFullPhone)
 
 	const context = await browser.newContext({
 		viewport: { height: 1000, width: 1440 },
@@ -142,11 +146,14 @@ test('website phone signup can attach confirmed email/password for portal login'
 	await page.getByLabel(/^Full Name$/i).fill(fullName)
 	await page.getByLabel(/email.*optional/i).fill(email)
 	await page.getByLabel(/password.*optional/i).fill(password)
+	await page.getByLabel(/^Confirm password$/i).fill(password)
 	await page.getByRole('button', { name: /^Create Account$/i }).click()
 	await expect(page).toHaveURL(/\/market/, { timeout: 20_000 })
 
 	const emailCustomer = await expectCustomerByEmail(service, email)
 	expect(emailCustomer.phone).toBe(fullPhone)
+	expect(emailCustomer.user_id).toBeTruthy()
+	const customerUserId = String(emailCustomer.user_id)
 
 	await context.clearCookies()
 	await page.goto(`${URLS.website}/login`, { waitUntil: 'domcontentloaded' })
@@ -228,6 +235,29 @@ test('website phone signup can attach confirmed email/password for portal login'
 		email,
 	)
 	expect(customerAfterEmailChangeRequest.id).toBe(emailCustomer.id)
+	const authBeforePhoneChange =
+		await service.auth.admin.getUserById(customerUserId)
+	expect(authBeforePhoneChange.error).toBeNull()
+	expect(phoneDigits(authBeforePhoneChange.data.user?.phone)).toBe(
+		phoneDigits(fullPhone),
+	)
+	await portalPage.locator('input[placeholder="10xxxxxxxx"]').fill(changedPhone)
+	await portalPage.getByRole('button', { name: /send code/i }).click()
+	await expect(portalPage.locator('body')).toContainText(
+		/verification code sent/i,
+		{ timeout: 15_000 },
+	)
+	const authAfterPhoneChangeRequest =
+		await service.auth.admin.getUserById(customerUserId)
+	expect(authAfterPhoneChangeRequest.error).toBeNull()
+	expect(phoneDigits(authAfterPhoneChangeRequest.data.user?.phone)).toBe(
+		phoneDigits(fullPhone),
+	)
+	const customerAfterPhoneChangeRequest = await expectCustomerByEmail(
+		service,
+		email,
+	)
+	expect(customerAfterPhoneChangeRequest.phone).toBe(fullPhone)
 	await portalPage.goto(`${URLS.portal}/orders`, {
 		waitUntil: 'domcontentloaded',
 	})
@@ -235,6 +265,32 @@ test('website phone signup can attach confirmed email/password for portal login'
 	await expect(portalPage.locator('body')).toContainText(reference)
 	await portalGuard.expectClean('portal email/password customer sign-in')
 	await portalContext.close()
+
+	const resetContext = await browser.newContext({
+		viewport: { height: 1000, width: 1440 },
+	})
+	const resetPage = await resetContext.newPage()
+	const resetGuard = installBrowserErrorGuard(resetPage)
+	await resetPage.goto(`${URLS.portal}/login`, {
+		waitUntil: 'domcontentloaded',
+	})
+	await waitForHydration(resetPage)
+	await resetPage.getByRole('button', { name: /email and password/i }).click()
+	await resetPage.getByLabel(/^Email$/i).fill(email)
+	await resetPage.getByRole('button', { name: /forgot password/i }).click()
+	await expect(resetPage.locator('body')).toContainText(/reset link/i, {
+		timeout: 15_000,
+	})
+	const recoveryUrl = await latestInbucketRecoveryUrl(email)
+	await resetPage.goto(recoveryUrl, { waitUntil: 'domcontentloaded' })
+	await waitForHydration(resetPage)
+	await expect(resetPage.locator('body')).toContainText(/new password/i)
+	await resetPage.getByLabel(/^New password$/i).fill(resetPassword)
+	await resetPage.getByLabel(/^Confirm new password$/i).fill(resetPassword)
+	await resetPage.getByRole('button', { name: /update password/i }).click()
+	await expect(resetPage).not.toHaveURL(/\/login/, { timeout: 25_000 })
+	await resetGuard.expectClean('portal password reset')
+	await resetContext.close()
 
 	await guard.expectClean('website phone signup email confirmation')
 	await context.close()
@@ -2291,6 +2347,31 @@ async function archiveCustomerPhone(
 }
 
 async function latestInbucketConfirmationUrl(email: string) {
+	return latestInbucketUrl(email, {
+		description: 'confirmation URL',
+		matches: (message) =>
+			JSON.stringify(message).toLowerCase().includes(email.toLowerCase()),
+	})
+}
+
+async function latestInbucketRecoveryUrl(email: string) {
+	const normalizedEmail = email.toLowerCase()
+	return latestInbucketUrl(email, {
+		description: 'password recovery URL',
+		matches: (message) => {
+			const raw = JSON.stringify(message).toLowerCase()
+			return (
+				raw.includes(normalizedEmail) &&
+				raw.includes('reset your hyperquote password')
+			)
+		},
+	})
+}
+
+async function latestInbucketUrl(
+	email: string,
+	options: { description: string; matches: (message: unknown) => boolean },
+) {
 	let messageId = ''
 	await expect
 		.poll(
@@ -2298,9 +2379,7 @@ async function latestInbucketConfirmationUrl(email: string) {
 				const payload = await localInbucketJson('/api/v1/messages')
 				if (!payload) return ''
 				const messages = recordsFrom(payload, 'messages')
-				const match = messages.find((message) =>
-					JSON.stringify(message).toLowerCase().includes(email.toLowerCase()),
-				)
+				const match = messages.find(options.matches)
 				messageId = stringField(match, 'id')
 				return messageId
 			},
@@ -2315,7 +2394,7 @@ async function latestInbucketConfirmationUrl(email: string) {
 		if (confirmationUrl) return confirmationUrl
 	}
 
-	throw new Error(`No confirmation URL found for ${email}`)
+	throw new Error(`No ${options.description} found for ${email}`)
 }
 
 function localInbucketUrl(path: string): URL {
@@ -2381,6 +2460,10 @@ function stringField(payload: unknown, key: string): string {
 	if (typeof value === 'string') return value
 	if (typeof value === 'number') return String(value)
 	return ''
+}
+
+function phoneDigits(value: string | null | undefined): string {
+	return (value ?? '').replace(/\D/g, '')
 }
 
 function isIsoTimestamp(value: unknown) {

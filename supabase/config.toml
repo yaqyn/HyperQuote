@@ -160,9 +160,11 @@ additional_redirect_urls = [
   "http://127.0.0.1:3002",
   "http://127.0.0.1:3003",
   "http://127.0.0.1:3000/login",
+  "http://127.0.0.1:3001/login",
   "http://localhost:3000",
   "http://localhost:3000/login",
   "http://localhost:3001",
+  "http://localhost:3001/login",
   "http://localhost:3002",
   "http://localhost:3003"
 ]
@@ -311,7 +313,7 @@ content_path = "./templates/auth/identity_unlinked_notification.html"
 # Allow/disallow new user signups via SMS to your project.
 enable_signup = true
 # If enabled, users need to confirm their phone number before signing in.
-enable_confirmations = false
+enable_confirmations = true
 # Template for sending OTP to users
 template = "Your code is {{ .Code }}"
 # Controls the minimum amount of time that must pass before sending another sms otp.
@@ -322,6 +324,7 @@ max_frequency = "5s"
 201000000000 = "123456"
 201011111111 = "123456"
 201055555555 = "123456"
+201088888888 = "123456"
 201099999999 = "123456"
 
 # Configure logged in session timeouts.

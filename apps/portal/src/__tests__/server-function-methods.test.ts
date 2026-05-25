@@ -31,6 +31,8 @@ const mutatingServerFunctions = [
 		exports: [
 			'signOutPortalAccount',
 			'signInWithEmailPassword',
+			'requestPasswordReset',
+			'completePasswordReset',
 			'sendOTP',
 			'verifyOTP',
 			'createAccount',

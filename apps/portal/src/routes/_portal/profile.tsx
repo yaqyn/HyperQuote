@@ -75,8 +75,6 @@ function ProfilePage() {
 		setPhoneStage('idle')
 		setProfileSaved(false)
 		setProfileError(null)
-		setPhoneMessage(null)
-		setEmailMessage(null)
 	}, [profile])
 
 	const updateMutation = useMutation({

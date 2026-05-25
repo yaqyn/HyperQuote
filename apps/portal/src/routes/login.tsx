@@ -18,7 +18,9 @@ import { usePortalThemeSnapshot } from '../hooks/usePortalThemeSnapshot'
 import {
 	checkSession,
 	claimAccount,
+	completePasswordReset,
 	createAccount,
+	requestPasswordReset,
 	sendOTP,
 	signInWithEmailPassword,
 	verifyOTP,
@@ -33,8 +35,11 @@ import { usePortalStore } from '../stores/portal'
 export const Route = createFileRoute('/login')({
 	validateSearch: z.object({
 		redirect: z.string().optional(),
+		token_hash: z.string().optional(),
+		type: z.string().optional(),
 	}),
-	beforeLoad: async () => {
+	beforeLoad: async ({ search }) => {
+		if (search.type === 'recovery' && search.token_hash) return
 		const result = await checkSession()
 		if (result.authenticated) {
 			throw redirect({ to: '/' })
@@ -47,7 +52,14 @@ export const Route = createFileRoute('/login')({
 // Types
 // ============================================================================
 
-type AuthStep = 'phone' | 'otp' | 'email' | 'create' | 'claiming' | 'farewell'
+type AuthStep =
+	| 'phone'
+	| 'otp'
+	| 'email'
+	| 'create'
+	| 'claiming'
+	| 'farewell'
+	| 'reset'
 type Stage = 'dark' | 'logo' | 'scene' | 'leaving'
 const STEP_EASE = cubicBezier(0.2, 0.8, 0.2, 1)
 const INTRO_LOGO_IN_MS = 300
@@ -63,7 +75,11 @@ function LoginPage() {
 	const navigate = useNavigate()
 	const search = useSearch({ from: '/login' })
 	const theme = usePortalThemeSnapshot()
-	const [step, setStep] = useState<AuthStep>('phone')
+	const recoveryToken =
+		search.type === 'recovery' ? search.token_hash : undefined
+	const [step, setStep] = useState<AuthStep>(() =>
+		recoveryToken ? 'reset' : 'phone',
+	)
 	const [phone, setPhone] = useState('')
 	const [claimableCompany, setClaimableCompany] = useState<string | null>(null)
 	const [stage, setStage] = useState<Stage>('dark')
@@ -72,6 +88,10 @@ function LoginPage() {
 	useEffect(() => {
 		setSigningOut(false)
 	}, [setSigningOut])
+
+	useEffect(() => {
+		if (recoveryToken) setStep('reset')
+	}, [recoveryToken])
 
 	useEffect(() => {
 		const t1 = setTimeout(() => setStage('logo'), INTRO_LOGO_IN_MS)
@@ -174,6 +194,15 @@ function LoginPage() {
 													<StepFrame key="email">
 														<EmailPasswordStep
 															onBack={() => setStep('phone')}
+															onComplete={() => handleAuthComplete()}
+														/>
+													</StepFrame>
+												)}
+												{step === 'reset' && (
+													<StepFrame key="reset">
+														<PasswordResetStep
+															tokenHash={recoveryToken ?? ''}
+															onBack={() => setStep('email')}
 															onComplete={() => handleAuthComplete()}
 														/>
 													</StepFrame>
@@ -816,7 +845,9 @@ function EmailPasswordStep({
 	const [email, setEmail] = useState('')
 	const [password, setPassword] = useState('')
 	const [loading, setLoading] = useState(false)
+	const [resetLoading, setResetLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
+	const [notice, setNotice] = useState<string | null>(null)
 	const emailRef = useRef<HTMLInputElement | null>(null)
 
 	useEffect(() => {
@@ -835,6 +866,7 @@ function EmailPasswordStep({
 		}
 		setLoading(true)
 		setError(null)
+		setNotice(null)
 		try {
 			const result = await signInWithEmailPassword({
 				data: { email: email.trim(), password },
@@ -854,6 +886,31 @@ function EmailPasswordStep({
 			setError(t('login.emailSignInFailed'))
 		} finally {
 			setLoading(false)
+		}
+	}
+
+	async function handlePasswordResetRequest() {
+		if (!EMAIL_ADDRESS_REGEX.test(email.trim())) {
+			setError(t('login.emailInvalid'))
+			setNotice(null)
+			return
+		}
+		setResetLoading(true)
+		setError(null)
+		setNotice(null)
+		try {
+			const result = await requestPasswordReset({
+				data: { email: email.trim() },
+			})
+			if (!result.success) {
+				setError(t('login.passwordResetFailed'))
+				return
+			}
+			setNotice(t('login.passwordResetSent'))
+		} catch {
+			setError(t('login.passwordResetFailed'))
+		} finally {
+			setResetLoading(false)
 		}
 	}
 
@@ -889,17 +946,126 @@ function EmailPasswordStep({
 					{error}
 				</p>
 			)}
+			{notice && (
+				<p
+					role="status"
+					className="mt-4 text-[13px] leading-5 text-[var(--atelier-muted)]"
+				>
+					{notice}
+				</p>
+			)}
 
 			<div className="mt-7 flex flex-col gap-3">
 				<Button
 					onPress={handleSignIn}
-					isDisabled={loading}
+					isDisabled={loading || resetLoading}
 					className="atelier-command"
 				>
 					{loading ? <AtelierDots /> : t('login.emailSignInButton')}
 				</Button>
+				<button
+					type="button"
+					onClick={handlePasswordResetRequest}
+					disabled={loading || resetLoading}
+					className="auth-text-action"
+				>
+					{resetLoading
+						? t('login.sendPasswordReset')
+						: t('login.forgotPassword')}
+				</button>
 				<button type="button" onClick={onBack} className="auth-text-action">
 					{t('login.phoneFirst')}
+				</button>
+			</div>
+		</div>
+	)
+}
+
+function PasswordResetStep({
+	tokenHash,
+	onBack,
+	onComplete,
+}: {
+	tokenHash: string
+	onBack: () => void
+	onComplete: () => void
+}) {
+	const { t } = useTranslation('portal')
+	const [password, setPassword] = useState('')
+	const [passwordConfirmation, setPasswordConfirmation] = useState('')
+	const [loading, setLoading] = useState(false)
+	const [error, setError] = useState<string | null>(null)
+
+	async function handleResetPassword() {
+		if (!tokenHash) {
+			setError(t('login.passwordResetInvalid'))
+			return
+		}
+		if (password.length < 6) {
+			setError(t('login.passwordInvalid'))
+			return
+		}
+		if (password !== passwordConfirmation) {
+			setError(t('login.passwordMismatch'))
+			return
+		}
+		setLoading(true)
+		setError(null)
+		try {
+			const result = await completePasswordReset({
+				data: { tokenHash, password },
+			})
+			if (!result.success) {
+				setError(t('login.passwordResetInvalid'))
+				return
+			}
+			onComplete()
+		} catch {
+			setError(t('login.passwordResetFailed'))
+		} finally {
+			setLoading(false)
+		}
+	}
+
+	return (
+		<div className="flex flex-col">
+			<AuthStepIntro
+				heading={t('login.resetPasswordHeading')}
+				body={t('login.resetPasswordSubtitle')}
+			/>
+			<div className="mt-7 flex flex-col gap-5">
+				<AtelierTextField
+					id="atelier-reset-password"
+					label={t('login.newPasswordLabel')}
+					type="password"
+					value={password}
+					onChange={setPassword}
+					onEnter={handleResetPassword}
+				/>
+				<AtelierTextField
+					id="atelier-reset-password-confirmation"
+					label={t('login.confirmNewPasswordLabel')}
+					type="password"
+					value={passwordConfirmation}
+					onChange={setPasswordConfirmation}
+					onEnter={handleResetPassword}
+				/>
+			</div>
+			{error && (
+				<p role="alert" className="auth-field-error mt-4">
+					{error}
+				</p>
+			)}
+			<div className="mt-7 flex flex-col gap-3">
+				<Button
+					onPress={handleResetPassword}
+					isDisabled={loading}
+					className="atelier-command"
+				>
+					{loading ? <AtelierDots /> : t('login.resetPasswordButton')}
+				</Button>
+				<button type="button" onClick={onBack} className="auth-text-action">
+					{t('login.emailSignInHeading')}
 				</button>
 			</div>
 		</div>
@@ -961,6 +1127,7 @@ function AccountCreationStep({
 	const [fullName, setFullName] = useState('')
 	const [email, setEmail] = useState('')
 	const [password, setPassword] = useState('')
+	const [passwordConfirmation, setPasswordConfirmation] = useState('')
 	const [formError, setFormError] = useState<string | null>(null)
 	const [hintNameKey, setHintNameKey] = useState(0)
 	const [hintCompanyKey, setHintCompanyKey] = useState(0)
@@ -983,13 +1150,19 @@ function AccountCreationStep({
 			return
 		}
 		const authEmail = email.trim()
-		const wantsEmailPassword = Boolean(authEmail || password)
+		const wantsEmailPassword = Boolean(
+			authEmail || password || passwordConfirmation,
+		)
 		if (wantsEmailPassword && !EMAIL_ADDRESS_REGEX.test(authEmail)) {
 			setFormError(t('login.emailInvalid'))
 			return
 		}
 		if (wantsEmailPassword && password.length < 6) {
 			setFormError(t('login.passwordInvalid'))
+			return
+		}
+		if (wantsEmailPassword && password !== passwordConfirmation) {
+			setFormError(t('login.passwordMismatch'))
 			return
 		}
 
@@ -1112,6 +1285,14 @@ function AccountCreationStep({
 							type="password"
 							value={password}
 							onChange={setPassword}
+							onEnter={handleCreate}
+						/>
+						<AtelierTextField
+							id="atelier-profile-password-confirmation"
+							label={t('login.passwordConfirmLabel')}
+							type="password"
+							value={passwordConfirmation}
+							onChange={setPasswordConfirmation}
 							onEnter={handleCreate}
 						/>
 					</div>
