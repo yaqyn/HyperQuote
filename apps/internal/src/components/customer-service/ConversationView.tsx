@@ -23,14 +23,14 @@ import {
 	EmployeeActionButton,
 	EmployeeStatusPill,
 } from '../shared/EmployeeControls'
-import { EmailComposer } from './EmailComposer'
-import type { EmailAction } from './EmailMessage'
+import { type EmailAction, EmailComposer } from './EmailComposer'
 import { EmailMessage } from './EmailMessage'
 import { MessageItem } from './MessageItem'
 import { ResponseComposer } from './ResponseComposer'
 import { PriorityMark, SlaTicker } from './SlaTicker'
 
 interface ConversationViewProps {
+	composeRequestKey?: number
 	conversation: Conversation
 	onOpenInbox?: () => void
 	onOpenProfile: () => void
@@ -59,6 +59,7 @@ function priorityTone(conversation: Conversation) {
  * then the action composer the agent uses to respond.
  */
 export function ConversationView({
+	composeRequestKey = 0,
 	conversation,
 	onOpenInbox,
 	onOpenProfile,
@@ -91,36 +92,23 @@ export function ConversationView({
 	}, [conversationId, isEmail, isActive])
 
 	useEffect(() => {
+		if (!composeRequestKey || !isEmail || !isActive) return
+		setEmailReplyTo(null)
+		setEmailAction(null)
+		setComposerOpen(true)
+	}, [composeRequestKey, isEmail, isActive])
+
+	useEffect(() => {
 		if (threadScrollVersion && threadRef.current) {
 			threadRef.current.scrollTop = threadRef.current.scrollHeight
 		}
 	}, [threadScrollVersion])
-
-	const handleEmailAction = useCallback(
-		(action: EmailAction, message: Message) => {
-			setEmailReplyTo(message)
-			setEmailAction(action)
-			setComposerOpen(true)
-		},
-		[],
-	)
 
 	const handleDiscardEmail = useCallback(() => {
 		setComposerOpen(false)
 		setEmailReplyTo(null)
 		setEmailAction(null)
 	}, [])
-
-	const handleOpenReply = useCallback(() => {
-		const latest = conversation.messages[conversation.messages.length - 1]
-		if (latest) {
-			handleEmailAction('reply', latest)
-			return
-		}
-		setEmailReplyTo(null)
-		setEmailAction(null)
-		setComposerOpen(true)
-	}, [conversation.messages, handleEmailAction])
 
 	const queryClient = useQueryClient()
 	const setSelected = useSupportStore((s) => s.setSelectedConversation)
@@ -424,7 +412,6 @@ export function ConversationView({
 										key={message.id}
 										message={message}
 										isLatest={i === conversation.messages.length - 1}
-										onAction={handleEmailAction}
 									/>
 								))
 							: conversation.messages.map((message, i) => {
@@ -450,17 +437,7 @@ export function ConversationView({
 			{isActive &&
 				(isEmail ? (
 					!composerOpen && (
-						<div className="shrink-0 border-t border-black/[0.06] px-3 py-3 dark:border-white/[0.08] sm:px-4 lg:px-10 lg:py-4">
-							<EmployeeActionButton
-								onClick={handleOpenReply}
-								aria-label={t('email.reply')}
-								tone="primary"
-								leading={<PenLine size={14} strokeWidth={2.2} />}
-								fullWidthOnMobile
-							>
-								Compose email
-							</EmployeeActionButton>
-						</div>
+						<ResponseComposer conversation={conversation} mode="email" />
 					)
 				) : (
 					<ResponseComposer conversation={conversation} />

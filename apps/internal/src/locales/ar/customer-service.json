@@ -42,6 +42,9 @@
 	},
 	"email": {
 		"reply": "رد",
+		"compose": "إنشاء",
+		"cancel": "إلغاء",
+		"confirmReply": "إرسال هذا الرد؟",
 		"replyAll": "رد للجميع",
 		"forward": "إعادة توجيه",
 		"expand": "توسيع البريد",

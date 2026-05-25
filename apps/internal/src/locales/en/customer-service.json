@@ -42,6 +42,9 @@
 	},
 	"email": {
 		"reply": "Reply",
+		"compose": "Compose",
+		"cancel": "Cancel",
+		"confirmReply": "Send this reply?",
 		"replyAll": "Reply All",
 		"forward": "Forward",
 		"expand": "Expand email",

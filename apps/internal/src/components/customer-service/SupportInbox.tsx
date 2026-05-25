@@ -1,4 +1,11 @@
-import { CheckCircle2, Inbox, Mail, MessageCircle, Search } from 'lucide-react'
+import {
+	CheckCircle2,
+	Inbox,
+	Mail,
+	MessageCircle,
+	Plus,
+	Search,
+} from 'lucide-react'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSupportStore } from '../../stores/customer-service'
@@ -16,7 +23,9 @@ interface SupportInboxProps {
 	conversations: Conversation[]
 	selectedId: string | null
 	autoSelect?: boolean
+	onComposeEmail?: () => void
 	onConversationSelect?: () => void
+	selectedConversation?: Conversation | null
 }
 
 function isResolved(conversation: Conversation): boolean {
@@ -31,7 +40,9 @@ export function SupportInbox({
 	conversations,
 	selectedId,
 	autoSelect = true,
+	onComposeEmail,
 	onConversationSelect,
+	selectedConversation = null,
 }: SupportInboxProps) {
 	const { t } = useTranslation('customer-service')
 	const searchQuery = useSupportStore((s) => s.searchQuery)
@@ -41,6 +52,10 @@ export function SupportInbox({
 	)
 	const [activeTab, setActiveTab] = useState<ChannelTab>('whatsapp')
 	const [showResolved, setShowResolved] = useState(false)
+	const canComposeEmail =
+		selectedConversation?.channel === 'email' &&
+		selectedConversation.status !== 'closed' &&
+		selectedConversation.status !== 'resolved'
 
 	function handleTabChange(tab: ChannelTab) {
 		setActiveTab(tab)
@@ -171,9 +186,20 @@ export function SupportInbox({
 				<div className="hidden flex-col gap-4 lg:flex">
 					<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 						<div className="min-w-0">
-							<p className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-								Customer service queue
-							</p>
+							<div className="flex min-w-0 items-center gap-2">
+								<p className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+									Customer service
+								</p>
+								<button
+									type="button"
+									onClick={onComposeEmail}
+									disabled={!canComposeEmail}
+									aria-label={t('email.compose')}
+									className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-black/[0.08] text-[var(--color-text-subtle)] transition-colors hover:border-[var(--color-primary)]/35 hover:text-[var(--color-text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 disabled:pointer-events-none disabled:opacity-35 dark:border-white/[0.1]"
+								>
+									<Plus size={14} strokeWidth={2.2} />
+								</button>
+							</div>
 							<div className="mt-2 flex flex-wrap items-center gap-2">
 								<span className="font-[family-name:var(--font-bricolage)] text-[34px] font-semibold leading-none tabular-nums text-[var(--color-text)]">
 									{filtered.length}

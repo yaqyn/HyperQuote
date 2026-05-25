@@ -17,7 +17,8 @@ import {
 	EmployeeFilterChip,
 	EmployeeStatusPill,
 } from '../shared/EmployeeControls'
-import type { EmailAction } from './EmailMessage'
+
+export type EmailAction = 'reply' | 'reply-all' | 'forward'
 
 interface EmailComposerProps {
 	conversation: Conversation
@@ -334,8 +335,9 @@ export function EmailComposer({
 		subject.trim().length > 0 &&
 		subject.length <= EMAIL_SUBJECT_MAX_LENGTH
 
-	const modeLabel =
-		action === 'forward'
+	const modeLabel = !action
+		? t('email.compose')
+		: action === 'forward'
 			? t('email.forward')
 			: action === 'reply-all'
 				? t('email.replyAll')

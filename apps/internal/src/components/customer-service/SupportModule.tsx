@@ -29,6 +29,7 @@ export function CustomerServiceModule() {
 	const [isDesktop, setIsDesktop] = useState(false)
 	const [inboxOpen, setInboxOpen] = useState(false)
 	const [profileOpen, setProfileOpen] = useState(false)
+	const [composeRequestKey, setComposeRequestKey] = useState(0)
 
 	const { data, isLoading, isError } = useQuery({
 		queryKey: ['support-inbox'],
@@ -99,7 +100,9 @@ export function CustomerServiceModule() {
 				<SupportInbox
 					conversations={conversations}
 					selectedId={selectedId}
+					selectedConversation={selectedConversation}
 					autoSelect={isDesktop}
+					onComposeEmail={() => setComposeRequestKey((key) => key + 1)}
 					onConversationSelect={() => {
 						if (!isDesktop) setInboxOpen(false)
 					}}
@@ -114,6 +117,7 @@ export function CustomerServiceModule() {
 			>
 				{selectedConversation ? (
 					<ConversationView
+						composeRequestKey={composeRequestKey}
 						conversation={selectedConversation}
 						onOpenInbox={() => setInboxOpen(true)}
 						onOpenProfile={() => setProfileOpen(true)}
