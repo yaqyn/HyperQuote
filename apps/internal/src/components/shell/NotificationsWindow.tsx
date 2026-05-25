@@ -162,10 +162,10 @@ export function NotificationsWindow({
 			<div className="min-h-0 flex-1 overflow-auto">
 				{notifications.length === 0 ? (
 					<div className="grid h-full min-h-[320px] place-items-center text-center">
-						<div className="flex flex-col items-center justify-center gap-2">
-							<Cloud size={28} className="text-[var(--color-text-muted)]" />
+						<div className="inline-flex items-center justify-center gap-2">
+							<Cloud size={20} className="text-[var(--color-text-muted)]" />
 							<p className="text-sm text-[var(--color-text-muted)]">
-								{t('notifications.empty', 'Calm')}
+								{t('notifications.empty', 'calm')}
 							</p>
 						</div>
 					</div>

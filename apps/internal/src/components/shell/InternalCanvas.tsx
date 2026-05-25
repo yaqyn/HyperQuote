@@ -2,8 +2,8 @@ import { type AuthSession, hasPermission } from '@hyperquote/auth'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
 	ChevronDown,
-	Cloud,
 	type LucideIcon,
+	Mailbox,
 	PanelsTopLeft,
 } from 'lucide-react'
 import {
@@ -424,7 +424,7 @@ function Masthead({
 					}
 					className="relative inline-flex size-7 items-center justify-center self-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm shadow-black/5 outline-none transition-[border-color,box-shadow] hover:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 lg:hidden"
 				>
-					<Cloud
+					<Mailbox
 						aria-hidden="true"
 						size={16}
 						strokeWidth={1.8}
