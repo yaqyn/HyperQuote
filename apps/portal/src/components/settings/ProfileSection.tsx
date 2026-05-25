@@ -514,7 +514,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 							/>
 						</TextField>
 					</div>
-					<div className="flex justify-end">
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
 						<Button
 							type="button"
 							onPress={handleEmailChange}
@@ -525,6 +525,12 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 								? t('settings.saving')
 								: t('profilePage.updateAuthButton')}
 						</Button>
+						{emailMessage && (
+							<StatusMessage
+								kind={emailMessage.kind}
+								text={emailMessage.text}
+							/>
+						)}
 					</div>
 				</div>
 				{profile.pendingEmail && (
@@ -546,9 +552,6 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 								: t('profilePage.resendEmailConfirmation')}
 						</button>
 					</div>
-				)}
-				{emailMessage && (
-					<StatusMessage kind={emailMessage.kind} text={emailMessage.text} />
 				)}
 			</div>
 

@@ -716,7 +716,7 @@ function EmailChangePanel({
 						icon={<KeyRound size={14} strokeWidth={1.7} />}
 					/>
 				</div>
-				<div className="flex justify-end">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
 					<button
 						type="button"
 						onClick={onRequest}
@@ -730,9 +730,9 @@ function EmailChangePanel({
 						)}
 						<span>{t('profilePage.updateAuthButton')}</span>
 					</button>
+					{message && <StatusText kind={message.kind} text={message.text} />}
 				</div>
 			</div>
-			{message && <StatusText kind={message.kind} text={message.text} />}
 		</section>
 	)
 }
