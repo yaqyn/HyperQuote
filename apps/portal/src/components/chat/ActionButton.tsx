@@ -69,9 +69,14 @@ export function ActionButton({ data }: ActionButtonProps) {
 	const unavailableTitle = isArabic
 		? (data.unavailableTitleAr ?? data.unavailableTitle)
 		: data.unavailableTitle
+	const unavailableActionLabel = isArabic
+		? (data.unavailableActionLabelAr ?? data.unavailableActionLabel)
+		: data.unavailableActionLabel
 	const Icon = data.icon ? ACTION_ICONS[data.icon] : undefined
 	const className =
 		'inline-flex min-h-9 min-w-0 items-center justify-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] sm:min-h-8'
+	const unavailableActionExternal =
+		data.unavailableActionHref?.startsWith('http')
 
 	if (data.href && !unavailableMessage) {
 		return (
@@ -163,13 +168,28 @@ export function ActionButton({ data }: ActionButtonProps) {
 									{unavailableMessage}
 								</p>
 							</div>
-							<div className="flex justify-end border-t border-[var(--p-rule)] px-5 py-3">
+							<div className="flex flex-wrap justify-end gap-2 border-t border-[var(--p-rule)] px-5 py-3">
 								<Button
 									onPress={() => setUnavailableOpen(false)}
 									className="min-h-9 rounded-lg px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
 								>
 									{isArabic ? 'حسناً' : 'OK'}
 								</Button>
+								{data.unavailableActionHref && unavailableActionLabel ? (
+									<a
+										href={data.unavailableActionHref}
+										target={unavailableActionExternal ? '_blank' : undefined}
+										rel={
+											unavailableActionExternal
+												? 'noopener noreferrer'
+												: undefined
+										}
+										className="inline-flex min-h-9 items-center justify-center rounded-lg bg-[var(--p-accent)] px-3 text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+										onClick={() => setUnavailableOpen(false)}
+									>
+										{unavailableActionLabel}
+									</a>
+								) : null}
 							</div>
 						</Dialog>
 					</Modal>

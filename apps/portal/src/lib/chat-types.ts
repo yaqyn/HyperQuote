@@ -59,6 +59,9 @@ export interface ActionButtonData {
 	runCommand?: boolean
 	unavailableMessage?: string
 	unavailableMessageAr?: string
+	unavailableActionHref?: string
+	unavailableActionLabel?: string
+	unavailableActionLabelAr?: string
 	unavailableTitle?: string
 	unavailableTitleAr?: string
 }

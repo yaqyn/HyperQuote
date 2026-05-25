@@ -349,6 +349,10 @@ test('portal phone-only customer must add email login with password', async ({
 	await expect(page.getByRole('dialog')).toContainText(
 		'You need a verified email',
 	)
+	const websiteContactLink = page.getByRole('link', {
+		name: /^Website contact$/i,
+	})
+	await expect(websiteContactLink).toHaveAttribute('href', /\/support#contact$/)
 	await expect(supportTicketCountByPhone(service, fullPhone)).resolves.toBe(0)
 	await page.keyboard.press('Escape')
 

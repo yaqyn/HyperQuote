@@ -1197,6 +1197,9 @@ function pendingSupportTicketConfirmation(
 					unavailableMessage: supportVerifiedEmailRequiredMessage(),
 					unavailableMessageAr:
 						'تحتاج إلى إضافة بريد إلكتروني مؤكد في ملفك قبل إرسال تذكرة من ليون. إذا كان الأمر عاجلاً، اتصل بنا بالهاتف.',
+					unavailableActionHref: `${WEBSITE_URL}/support#contact`,
+					unavailableActionLabel: 'Website contact',
+					unavailableActionLabelAr: 'تواصل عبر الموقع',
 					unavailableTitle: 'Verified email required',
 					unavailableTitleAr: 'مطلوب بريد مؤكد',
 				},
