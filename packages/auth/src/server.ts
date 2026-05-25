@@ -399,6 +399,7 @@ const ACTOR_RPC_NAMES = new Set([
 	'inventory_mark_price_outdated',
 	'inventory_update_price',
 	'inventory_update_supplier_prices',
+	'internal_ai_search_documents',
 	'link_support_conversation_to_customer',
 	'log_activity',
 	'record_ai_tool_call',

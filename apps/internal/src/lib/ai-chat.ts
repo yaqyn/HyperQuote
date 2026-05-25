@@ -25,7 +25,7 @@ import {
 	searchQueryFromPrompt,
 } from './internal-ai-context'
 import type { SearchDisplayIndexRow } from './search-display'
-import { searchPattern, searchTokens } from './search-query'
+import { searchTokens } from './search-query'
 import { getInternalSupabaseClient } from './server/_supabase'
 
 const internalChatInput = z.object({
@@ -39,8 +39,6 @@ const internalChatInput = z.object({
 })
 
 const INTERNAL_AI_ENTITY_LIMIT = 8
-const INTERNAL_AI_ROW_SELECT =
-	'entity_type, entity_id, title, subtitle, metadata, sort_at, search_text'
 const QUERY_STOP_TOKENS = new Set([
 	'a',
 	'all',
@@ -139,7 +137,6 @@ export const internalChatFn = createServerFn({ method: 'POST' })
 			chunks,
 			scope,
 			readEntities,
-			input.panelId,
 		)
 		// biome-ignore lint/complexity/noBannedTypes: TanStack server-fn type contract uses `{}` explicitly.
 		return chunks as unknown as Array<{ [k: string]: {} }>
@@ -233,32 +230,25 @@ async function fetchInternalAiRows(
 			vtable,
 		]),
 	)
+	const entityTypesToQuery = requestedEntityTypes.filter((entityType) =>
+		allowedByEntityType.has(entityType),
+	)
 	const tokensToApply = searchTokensForRows(options.query, {
-		requestedEntityTypes,
+		requestedEntityTypes: entityTypesToQuery,
 		vtables: [...allowedByEntityType.values()],
 	})
 
-	const rowGroups = await Promise.all(
-		requestedEntityTypes.map(async (entityType) => {
-			if (!allowedByEntityType.has(entityType)) return []
-			let request = client
-				.from('ceo_search_documents')
-				.select(INTERNAL_AI_ROW_SELECT)
-				.eq('entity_type', entityType)
-				.order('sort_at', { ascending: false })
-				.order('title', { ascending: true })
-				.limit(INTERNAL_AI_ENTITY_LIMIT)
-			for (const token of tokensToApply) {
-				request = request.ilike('search_text', searchPattern(token))
-			}
-			const { data, error } = await request
-			if (error) throw new Error(error.message)
-			return (data ?? []) as unknown as SearchDisplayIndexRow[]
-		}),
-	)
+	const { data, error } = await client.rpc('internal_ai_search_documents', {
+		p_agent_scope: options.scope,
+		p_entity_types: entityTypesToQuery,
+		p_limit_per_entity: INTERNAL_AI_ENTITY_LIMIT,
+		p_search_tokens: tokensToApply,
+	})
+	if (error) throw new Error(error.message)
+
 	return {
-		queriedEntityTypes: requestedEntityTypes,
-		rows: rowGroups.flat(),
+		queriedEntityTypes: entityTypesToQuery,
+		rows: (data ?? []) as unknown as SearchDisplayIndexRow[],
 	}
 }
 
@@ -300,7 +290,7 @@ function simpleEmployeeChatAnswer(userText: string): string | null {
 	) {
 		return null
 	}
-	return 'Hi, I can read the allowed vtable context for this side panel, summarize records, explain workflow state, and point you to the authorized action when a change is needed.'
+	return 'Hi, I can read the allowed internal context, summarize records, explain workflow state, and point you to the authorized action when a change is needed.'
 }
 
 async function recordInternalAiAudit(
@@ -309,7 +299,6 @@ async function recordInternalAiAudit(
 	chunks: StreamChunk[],
 	scope: InternalAiScope,
 	readEntities: string[],
-	panelId?: string | null,
 ) {
 	const response = chunks
 		.filter((chunk) => chunk.type === 'TEXT_MESSAGE_CONTENT')
@@ -319,7 +308,6 @@ async function recordInternalAiAudit(
 		p_agent_scope: scope,
 		p_approved_by_user: false,
 		p_input_summary: {
-			panel: panelId ?? null,
 			prompt: userText.slice(0, 240),
 		},
 		p_output_summary: { response: response.slice(0, 240) },

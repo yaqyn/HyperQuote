@@ -6995,6 +6995,25 @@ export type Database = {
 					user_id: string
 				}[]
 			}
+			service_internal_ai_search_documents: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_agent_scope: Database['public']['Enums']['ai_agent_scope']
+					p_entity_types?: string[]
+					p_limit_per_entity?: number
+					p_search_tokens?: string[]
+				}
+				Returns: {
+					entity_id: string
+					entity_type: string
+					metadata: Json
+					search_text: string
+					sort_at: string
+					subtitle: string
+					title: string
+				}[]
+			}
 			service_inventory_evaluate_order: {
 				Args: {
 					p_actor_pool: string

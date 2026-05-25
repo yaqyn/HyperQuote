@@ -209,10 +209,10 @@ export function requestedInternalAiEntityTypes({
 export function normalPanelExcludedRequest(userText: string): string | null {
 	const lower = userText.toLowerCase()
 	if (/\b(activities|activity|audit log|audit history)\b/.test(lower)) {
-		return 'Normal panel AI cannot read activity history. Open the Search panel for audited activity analysis.'
+		return 'Normal internal AI cannot read activity history. Open Search for audited activity analysis.'
 	}
 	if (/\b(employee|employees|staff|salary|salaries)\b/.test(lower)) {
-		return 'Normal panel AI cannot read employee information. Open the Search panel for employee-aware analysis.'
+		return 'Normal internal AI cannot read employee information. Open Search for employee-aware analysis.'
 	}
 	return null
 }
@@ -229,7 +229,7 @@ export function internalAiPolicyRefusal(
 	if (asksWrite) {
 		return scope === 'search'
 			? 'Search AI is read-only. Use the normal authorized panel action for workflow changes.'
-			: 'Normal panel AI is read-only. Use the authorized panel action so the backend can enforce role checks, proof requirements, and activity history.'
+			: 'Normal internal AI is read-only. Use the authorized app action so the backend can enforce role checks, proof requirements, and activity history.'
 	}
 	if (
 		lower.includes('raw export') ||
@@ -279,7 +279,6 @@ function readEntitiesForEntityTypes({
 }
 
 export function buildInternalAiContextPackage({
-	panelId,
 	query,
 	queriedEntityTypes,
 	rows,
@@ -298,10 +297,9 @@ export function buildInternalAiContextPackage({
 	const accessLine =
 		scope === 'search'
 			? 'Search panel AI can read all approved internal vtables, including employees and activities.'
-			: 'Normal panel AI can read all operational vtables except employee information and activities.'
+			: 'Normal internal AI can read all operational vtables except employee information and activities.'
 	const lines = [
-		`Mode: ${scope === 'search' ? 'Search panel AI' : 'Normal panel AI'}`,
-		`Active panel: ${panelLabel(panelId)}`,
+		`Mode: ${scope === 'search' ? 'Search panel AI' : 'Normal internal AI'}`,
 		`User query: ${query || 'general operational summary'}`,
 		accessLine,
 		'Use only the records below. Do not invent missing values. Stay read-only.',
@@ -324,7 +322,7 @@ export function buildInternalAiContextPackage({
 	const context = lines.slice(0, MAX_CONTEXT_LINES).join('\n')
 	return {
 		context,
-		fallbackText: buildFallbackAnswer({ panelId, query, rows, scope }),
+		fallbackText: buildFallbackAnswer({ query, rows, scope }),
 		readEntities,
 		rows,
 	}
@@ -332,7 +330,6 @@ export function buildInternalAiContextPackage({
 
 export function buildInternalAiSystemPrompt({
 	context,
-	panelId,
 	scope,
 }: {
 	context: string
@@ -342,9 +339,8 @@ export function buildInternalAiSystemPrompt({
 	const base = scope === 'search' ? SEARCH_ASSISTANT : OPS_ASSISTANT
 	return `${base}
 
-Internal side-panel AI contract:
-- Active panel: ${panelLabel(panelId)}.
-- Normal panel mode may use all operational vtable context except employee information and activities.
+Internal AI contract:
+- Normal internal mode may use all operational vtable context except employee information and activities.
 - Search panel mode may use all approved vtable context.
 - Never perform writes from chat. If the user asks for an action, point to the authorized panel action.
 - Keep answers natural and specific. Mention exact names, numbers, statuses, dates, and panels when present.
@@ -355,7 +351,6 @@ ${context}`
 }
 
 function buildFallbackAnswer({
-	panelId,
 	query,
 	rows,
 	scope,
@@ -368,14 +363,14 @@ function buildFallbackAnswer({
 	if (rows.length === 0) {
 		return scope === 'search'
 			? `Search panel AI checked all approved vtables for "${query || 'general operational summary'}" and found no matching records.`
-			: `Normal panel AI checked allowed operational vtables for "${query || 'general operational summary'}" and found no matching records. Employee information and activities were not read.`
+			: `Normal internal AI checked allowed operational vtables for "${query || 'general operational summary'}" and found no matching records. Employee information and activities were not read.`
 	}
 
 	const grouped = groupRows(rows)
 	const lines = [
 		scope === 'search'
 			? `Search panel AI read the approved vtable context for "${query || 'general operational summary'}".`
-			: `Normal panel AI read allowed operational vtable context for "${query || 'general operational summary'}" from ${panelLabel(panelId)}. Employee information and activities were not read.`,
+			: `Normal internal AI read allowed operational vtable context for "${query || 'general operational summary'}". Employee information and activities were not read.`,
 	]
 	for (const [entityType, entityRows] of Object.entries(grouped)) {
 		const label =
@@ -440,14 +435,6 @@ function formatContextValue(value: JsonValue): string {
 		return truncateText(value.map(formatContextValue).join(', '), 220)
 	}
 	return truncateText(JSON.stringify(value), 220)
-}
-
-function panelLabel(panelId?: string | null): string {
-	if (!panelId) return 'Unknown panel'
-	return panelId
-		.split('-')
-		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-		.join(' ')
 }
 
 function truncateText(value: string, maxLength: number): string {

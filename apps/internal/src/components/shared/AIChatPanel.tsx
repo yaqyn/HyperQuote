@@ -1,6 +1,9 @@
 import { ArrowDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useInternalAuth } from '../../lib/internal-auth'
+import { MODULES } from '../../lib/modules'
 import { type AIChatMessage, useAIChatStore } from '../../stores/ai-chat'
 import { SlidePanel } from './SlidePanel'
 
@@ -22,6 +25,8 @@ type AIChatPanelTone = 'default' | 'dark'
  * and a closing `— L` signature.
  */
 export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
+	const { t } = useTranslation('internal')
+	const auth = useInternalAuth()
 	const isOpen = useAIChatStore((s) => s.isOpen)
 	const close = useAIChatStore((s) => s.close)
 	const messages = useAIChatStore((s) => s.messages)
@@ -30,6 +35,7 @@ export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
 	const send = useAIChatStore((s) => s.send)
 	const clear = useAIChatStore((s) => s.clear)
 	const isStreaming = useAIChatStore((s) => s.isStreaming)
+	const panelId = useAIChatStore((s) => s.panelId)
 
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -94,6 +100,9 @@ export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
 		setDraft(prompt)
 		textareaRef.current?.focus()
 	}
+	const activeModule = MODULES.find((module) => module.id === panelId)
+	const panelName = activeModule ? t(activeModule.labelKey) : 'Workspace'
+	const employeeName = employeeDisplayName(auth)
 
 	return (
 		<SlidePanel
@@ -132,7 +141,11 @@ export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
 						className="absolute inset-0 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6"
 					>
 						{messages.length === 0 ? (
-							<EmptyState onSeed={seed} />
+							<EmptyState
+								employeeName={employeeName}
+								onSeed={seed}
+								panelName={panelName}
+							/>
 						) : (
 							<div className="flex flex-col gap-7">
 								{messages.map((m) => (
@@ -305,12 +318,20 @@ function formatLetterheadDate(): string {
 // ─── Empty state ─────────────────────────────────────────
 
 const STARTER_PROMPTS = [
-	'what changed on screen today?',
-	'where am i short on stock right now?',
-	'summarize the last hour of activity.',
+	'what needs attention right now?',
+	'where am i short on stock?',
+	'summarize the latest activity.',
 ] as const
 
-function EmptyState({ onSeed }: { onSeed: (prompt: string) => void }) {
+function EmptyState({
+	employeeName,
+	onSeed,
+	panelName,
+}: {
+	employeeName: string
+	onSeed: (prompt: string) => void
+	panelName: string
+}) {
 	return (
 		<div className="flex h-full items-start pt-2">
 			<div
@@ -329,21 +350,12 @@ function EmptyState({ onSeed }: { onSeed: (prompt: string) => void }) {
 						lineHeight: 1.3,
 					}}
 				>
-					Ask me about anything on screen.
-				</p>
-				<p
-					className="mt-2 max-w-[300px] font-[family-name:var(--font-archivo)] italic"
-					style={{
-						fontSize: '12px',
-						color: 'var(--color-text-muted)',
-						lineHeight: 1.5,
-					}}
-				>
-					margins, stock, suppliers, order readiness — I see the same data you
-					do and can help you decide faster.
+					Welcome back, {employeeName}.
+					<br />
+					{panelName} is ready.
 				</p>
 
-				<div className="mt-6">
+				<div className="mt-7">
 					<p
 						className="mb-2.5 font-[family-name:var(--font-archivo)] italic"
 						style={{
@@ -391,6 +403,21 @@ function EmptyState({ onSeed }: { onSeed: (prompt: string) => void }) {
 			</div>
 		</div>
 	)
+}
+
+function employeeDisplayName(auth: ReturnType<typeof useInternalAuth>): string {
+	const metadata = auth?.user.user_metadata
+	const metadataName =
+		typeof metadata?.full_name === 'string'
+			? metadata.full_name
+			: typeof metadata?.name === 'string'
+				? metadata.name
+				: typeof metadata?.display_name === 'string'
+					? metadata.display_name
+					: ''
+	const emailName = auth?.user.email?.split('@')[0] ?? ''
+	const name = metadataName.trim() || emailName.trim()
+	return name || 'there'
 }
 
 // ─── Message entry ───────────────────────────────────────
