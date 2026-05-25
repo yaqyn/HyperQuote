@@ -63,16 +63,28 @@ const DEFAULT_SUPPORT_URL = 'https://hyperquote.net/support#contact'
 const DEFAULT_OFFICE_ADDRESS = 'Arkan Plaza, Sheikh Zayed, Egypt'
 const DEFAULT_OFFICE_MAP_URL =
 	'https://maps.google.com/?q=Arkan+Plaza+Sheikh+Zayed+Egypt'
-const DEFAULT_LOGO_URL = 'https://hyperquote.net/LyonWhite.svg'
+const DEFAULT_LOGO_URL = 'https://hyperquote.net/LyonBlack.svg'
 const BRAND_BLUE = '#2563EB'
 const BRAND_BLACK = '#090909'
 const BRAND_WHITE = '#FFFFFF'
+const BRAND_MUTED = '#5F6B7A'
+const BRAND_LINE = '#E7EBF0'
+const BRAND_SOFT_BLUE = '#EFF6FF'
 const EMAIL_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/
 const MAX_PROVIDER_ERROR_LENGTH = 500
 const MAX_SUPPORT_EMAIL_BODY_LENGTH = 4000
 const MAX_SUPPORT_EMAIL_SUBJECT_LENGTH = 180
 const MATERIAL_EMAIL_ICON_PATH =
 	'M20 4H4q-.825 0-1.412.588T2 6v12q0 .825.588 1.413T4 20h8v-2H4V8l8 5 8-5v4h2V6q0-.825-.587-1.412T20 4Zm-8 7L4 6h16l-8 5Zm6.2 9.5 3.55-3.55-1.4-1.4-2.15 2.15-.9-.9-1.4 1.4 2.3 2.3ZM19 23q-2.075 0-3.537-1.463T14 18q0-2.075 1.463-3.537T19 13q2.075 0 3.538 1.463T24 18q0 2.075-1.462 3.537T19 23Z'
+const FOOTER_ICON_PATHS = {
+	call: 'M19.95 21q-3.125 0-6.175-1.362t-5.55-3.863q-2.5-2.5-3.862-5.55T3 4.05q0-.45.3-.75t.75-.3H8.1q.35 0 .625.238t.325.562l.65 3.5q.05.4-.075.675T9.25 8.45L6.8 10.9q.5.925 1.187 1.788t1.513 1.662q.775.775 1.625 1.438T12.9 17l2.35-2.35q.225-.225.588-.337t.712-.063l3.65.75q.35.1.575.363t.225.612v4q0 .45-.3.738t-.75.287Z',
+	email:
+		'M4 20q-.825 0-1.412-.587T2 18V6q0-.825.588-1.412T4 4h16q.825 0 1.413.588T22 6v12q0 .825-.587 1.413T20 20H4Zm8-7 8-5V6l-8 5-8-5v2l8 5Z',
+	portal:
+		'M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h7v2H5v14h7v2H5Zm11-4-1.4-1.45L17.15 13H9v-2h8.15L14.6 8.45 16 7l5 5-5 5Z',
+	whatsapp:
+		'M12.04 2q-4.14 0-7.07 2.92T2.04 12q0 1.85.7 3.54L2 22l6.64-.72q1.62.62 3.4.62 4.12 0 7.04-2.92T22 11.94q0-4.12-2.92-7.03T12.04 2Zm4.15 13.64q-.27.76-1.54 1.38-.42.2-.96.2-.72 0-1.72-.36-1.37-.5-2.54-1.5-1.18-1-1.95-2.2-.82-1.28-1.02-2.32-.2-1.05.2-1.74.35-.62.8-.98.32-.26.68-.26h.5q.28 0 .46.38l.72 1.74q.12.32.02.56-.15.34-.46.7l-.24.28q-.14.16-.03.38.38.74 1.1 1.42.7.66 1.62 1.1.28.14.47-.08l.65-.78q.2-.24.48-.18.18.04.48.18l1.56.74q.42.2.48.43.05.25-.03.49Z',
+} as const
 const LOCAL_ONLY_DOMAINS = new Set([
 	'example.com',
 	'example.net',
@@ -240,13 +252,18 @@ export function renderSupportEmailHtml(input: SupportEmailRenderInput): string {
 	<style>
 		@media only screen and (max-width: 720px) {
 			.email-shell { width: 100% !important; max-width: 100% !important; }
-			.email-pad { padding-left: 22px !important; padding-right: 22px !important; }
-			.email-title { font-size: 32px !important; }
-			.email-icon-cell { width: 64px !important; }
-			.email-icon { width: 56px !important; height: 56px !important; }
-			.email-footer-brand, .email-footer-links { display: block !important; width: 100% !important; text-align: left !important; }
-			.email-footer-links { padding-top: 22px !important; }
-			.email-footer-link { display: inline-block !important; margin: 0 14px 12px 0 !important; }
+			.email-pad { padding-left: 24px !important; padding-right: 24px !important; }
+			.email-title-cell, .email-icon-cell, .email-body-cell, .email-footer-brand, .email-footer-links { display: block !important; width: 100% !important; text-align: center !important; }
+			.email-title-cell { padding-right: 0 !important; }
+			.email-title { font-size: 30px !important; }
+			.email-icon-cell { padding-top: 26px !important; }
+			.email-icon { width: 76px !important; height: 76px !important; margin: 0 auto !important; }
+			.email-main-pad { padding-bottom: 72px !important; }
+			.email-body-action { margin-top: 72px !important; }
+			.email-footer-brand-table, .email-footer-links-table { margin-left: auto !important; margin-right: auto !important; }
+			.email-footer-links { padding-top: 28px !important; }
+			.email-footer-note { padding-left: 24px !important; padding-right: 24px !important; text-align: center !important; }
+			.email-footer-link { text-align: center !important; }
 		}
 	</style>
 </head>
@@ -255,16 +272,16 @@ export function renderSupportEmailHtml(input: SupportEmailRenderInput): string {
 	<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;background:${BRAND_WHITE};margin:0;padding:0;">
 		<tr>
 			<td align="center" style="padding:44px 18px 0;">
-				<table role="presentation" class="email-shell" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:860px;margin:0 auto;background:${BRAND_WHITE};">
+				<table role="presentation" class="email-shell" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:960px;margin:0 auto;background:${BRAND_WHITE};">
 					<tr>
-						<td class="email-pad" style="padding:0 34px 30px;">
+						<td class="email-pad" style="padding:0 56px 36px;border-bottom:1px solid ${BRAND_LINE};">
 							<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
 								<tr>
-									<td style="vertical-align:top;padding:0 24px 0 0;">
-										<p style="margin:0 0 14px;font-size:13px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:${BRAND_BLUE};">Customer service</p>
-										<h1 class="email-title" style="margin:0;font-size:44px;line-height:1.04;font-weight:800;letter-spacing:0;color:${BRAND_BLACK};">Hi ${customerName}, your HyperQuote update is ready.</h1>
+									<td class="email-title-cell" style="vertical-align:middle;padding:0 28px 0 0;">
+										<p style="margin:0 0 12px;font-size:12px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:${BRAND_BLUE};">Customer service</p>
+										<h1 class="email-title" style="margin:0;font-size:36px;line-height:1.12;font-weight:800;letter-spacing:0;color:${BRAND_BLACK};">Your HyperQuote update is ready.</h1>
 									</td>
-									<td class="email-icon-cell" align="right" style="width:92px;vertical-align:top;">
+									<td class="email-icon-cell" align="right" style="width:92px;vertical-align:middle;">
 										${renderEmailIcon(MATERIAL_EMAIL_ICON_PATH)}
 									</td>
 								</tr>
@@ -272,27 +289,21 @@ export function renderSupportEmailHtml(input: SupportEmailRenderInput): string {
 						</td>
 					</tr>
 					<tr>
-						<td class="email-pad" style="padding:0 34px 46px;">
-							<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #E5E7EB;border-bottom:1px solid #E5E7EB;">
+						<td class="email-pad email-main-pad" style="padding:44px 56px 96px;">
+							<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:790px;margin:0 auto;">
 								<tr>
-									<td align="center" style="padding:46px 0;">
-										<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:680px;margin:0 auto;">
-											<tr>
-												<td style="font-size:18px;line-height:1.76;color:#2A2A2A;text-align:left;">
-													<p style="margin:0 0 20px;font-size:18px;line-height:1.76;color:#2A2A2A;">Our team reviewed your request and replied below. Keep this email for the reference number, or open the portal for the latest quote and order status.</p>
-													<div style="margin:0 0 28px;border-left:4px solid ${BRAND_BLUE};padding:0 0 0 18px;">
-														<p style="margin:0 0 8px;font-size:13px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:${BRAND_BLUE};">${reference}</p>
-														<p style="margin:0;font-size:22px;line-height:1.35;font-weight:800;color:${BRAND_BLACK};">${subject}</p>
-													</div>
-													<div style="font-size:18px;line-height:1.76;color:#2A2A2A;">${messageHtml}</div>
-													<div style="margin:34px 0 12px;text-align:center;">
-														<a href="${portalUrl}" style="display:inline-block;margin:0 6px 12px;padding:15px 22px;border:1px solid ${BRAND_BLUE};border-radius:999px;background:${BRAND_BLUE};color:${BRAND_WHITE};font-size:15px;font-weight:800;line-height:1;text-decoration:none;">Open portal</a>
-														<a href="${supportUrl}" style="display:inline-block;margin:0 6px 12px;padding:15px 22px;border:1px solid #D9DDE5;border-radius:999px;background:${BRAND_WHITE};color:${BRAND_BLACK};font-size:15px;font-weight:800;line-height:1;text-decoration:none;">Contact support</a>
-													</div>
-													<p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#666666;">Reply to this email to keep the same support thread. HyperQuote will never ask for your password or one-time verification code by email.</p>
-												</td>
-											</tr>
-										</table>
+									<td class="email-body-cell" style="text-align:left;">
+										<p style="margin:0;font-size:18px;line-height:1.65;font-weight:650;color:${BRAND_BLACK};">Welcome, ${customerName}.</p>
+										<p style="margin:12px 0 0;font-size:16px;line-height:1.65;color:#343A46;">This is the HyperQuote Support team. We reviewed your request and replied below.</p>
+										<div style="margin:34px 0 28px;border-left:4px solid ${BRAND_BLUE};padding:0 0 0 18px;">
+											<p style="margin:0 0 8px;font-size:13px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:${BRAND_BLUE};">${reference}</p>
+											<p style="margin:0;font-size:22px;line-height:1.35;font-weight:800;color:${BRAND_BLACK};">${subject}</p>
+										</div>
+										<div style="font-size:16px;line-height:1.7;color:#343A46;">${messageHtml}</div>
+										<div class="email-body-action" style="margin:96px 0 0;text-align:center;">
+											<a href="${portalUrl}" style="display:inline-block;margin:0 6px;padding:17px 28px;border:1px solid ${BRAND_BLUE};border-radius:999px;background:${BRAND_BLUE};color:${BRAND_WHITE};font-size:16px;font-weight:800;line-height:1;text-decoration:none;">Open portal</a>
+											<a href="${supportUrl}" style="display:inline-block;margin:0 6px;padding:17px 28px;border:1px solid ${BRAND_LINE};border-radius:999px;background:${BRAND_WHITE};color:${BRAND_BLACK};font-size:16px;font-weight:800;line-height:1;text-decoration:none;">Contact support</a>
+										</div>
 									</td>
 								</tr>
 							</table>
@@ -307,6 +318,11 @@ export function renderSupportEmailHtml(input: SupportEmailRenderInput): string {
 						supportWhatsappUrl,
 						websiteUrl,
 					})}
+					<tr>
+						<td class="email-footer-note" style="padding:0 56px 34px;text-align:center;">
+							<p style="margin:0;font-size:13px;line-height:1.6;color:${BRAND_MUTED};">Reply to this email to keep the same support thread. HyperQuote will never ask for your password or one-time verification code by email.</p>
+						</td>
+					</tr>
 				</table>
 			</td>
 		</tr>
@@ -435,8 +451,8 @@ function isLocalOnlyEmail(email: string): boolean {
 }
 
 function renderEmailIcon(path: string): string {
-	return `<svg class="email-icon" xmlns="http://www.w3.org/2000/svg" width="76" height="76" viewBox="0 0 24 24" aria-hidden="true" style="display:block;">
-	<circle cx="12" cy="12" r="12" fill="#EFF6FF"/>
+	return `<svg class="email-icon" xmlns="http://www.w3.org/2000/svg" width="92" height="92" viewBox="0 0 24 24" aria-hidden="true" style="display:block;">
+	<circle cx="12" cy="12" r="12" fill="${BRAND_SOFT_BLUE}"/>
 	<path fill="${BRAND_BLUE}" d="${path}"/>
 </svg>`
 }
@@ -451,30 +467,33 @@ function renderEmailFooter(input: {
 	websiteUrl: string
 }): string {
 	return `<tr>
-	<td style="background:${BRAND_BLACK};padding:0;">
-		<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${BRAND_BLACK};">
+	<td class="email-pad" style="padding:38px 56px 44px;border-top:1px solid ${BRAND_LINE};background:${BRAND_WHITE};">
+		<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
 			<tr>
-				<td class="email-pad" style="padding:30px 34px;">
-					<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+				<td class="email-footer-brand" style="vertical-align:middle;">
+					<table role="presentation" class="email-footer-brand-table" cellspacing="0" cellpadding="0">
 						<tr>
-							<td class="email-footer-brand" style="vertical-align:middle;">
-								<a href="${input.websiteUrl}" style="display:inline-block;color:${BRAND_WHITE};text-decoration:none;">
-									<img src="${DEFAULT_LOGO_URL}" width="34" height="34" alt="HyperQuote logo" style="display:inline-block;width:34px;height:34px;border:0;vertical-align:middle;">
-									<span style="display:inline-block;margin-left:12px;font-size:21px;line-height:1;font-weight:800;color:${BRAND_WHITE};vertical-align:middle;">HyperQuote</span>
+							<td style="width:86px;vertical-align:middle;">
+								<a href="${input.websiteUrl}" style="display:inline-block;text-decoration:none;">
+									<img src="${DEFAULT_LOGO_URL}" width="86" height="86" alt="HyperQuote logo" style="display:block;width:86px;height:86px;border:0;">
 								</a>
 							</td>
-							<td class="email-footer-links" align="right" style="vertical-align:middle;text-align:right;">
-								${footerLink('Support', input.supportUrl)}
-								${footerLink('Call', input.supportPhoneUrl)}
-								${footerLink('WhatsApp', input.supportWhatsappUrl)}
-								${footerLink('Our Office', input.officeMapUrl)}
-								${footerLink('Portal App', input.portalUrl)}
+							<td style="padding-left:20px;vertical-align:middle;">
+								<a href="${input.websiteUrl}" style="display:block;color:${BRAND_BLACK};font-size:24px;font-weight:850;line-height:1.15;text-decoration:none;">HyperQuote</a>
+								<a href="${input.officeMapUrl}" style="display:block;margin-top:7px;color:${BRAND_MUTED};font-size:13px;line-height:1.45;text-decoration:none;">${input.officeAddress}</a>
 							</td>
 						</tr>
+					</table>
+				</td>
+				<td class="email-footer-links" align="right" style="vertical-align:middle;text-align:right;">
+					<table role="presentation" class="email-footer-links-table" cellspacing="0" cellpadding="0" align="right" style="width:100%;max-width:360px;">
 						<tr>
-							<td colspan="2" style="padding-top:18px;font-size:12px;line-height:1.7;color:#BDBDBD;">
-								${input.officeAddress}
-							</td>
+							${footerLink('Support', input.supportUrl, 'email')}
+							${footerLink('Call', input.supportPhoneUrl, 'call')}
+						</tr>
+						<tr>
+							${footerLink('WhatsApp', input.supportWhatsappUrl, 'whatsapp')}
+							${footerLink('Portal App', input.portalUrl, 'portal')}
 						</tr>
 					</table>
 				</td>
@@ -484,8 +503,23 @@ function renderEmailFooter(input: {
 </tr>`
 }
 
-function footerLink(label: string, href: string): string {
-	return `<a class="email-footer-link" href="${href}" style="margin-left:18px;color:${BRAND_WHITE};font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;">${label}</a>`
+function footerLink(
+	label: string,
+	href: string,
+	icon: keyof typeof FOOTER_ICON_PATHS,
+): string {
+	return `<td style="padding:6px;">
+	<a class="email-footer-link" href="${href}" style="display:block;min-height:22px;padding:10px 12px;border:1px solid ${BRAND_LINE};border-radius:14px;color:${BRAND_BLACK};font-size:13px;font-weight:750;line-height:22px;text-align:left;text-decoration:none;white-space:nowrap;">
+		${renderFooterIcon(icon)}
+		<span style="vertical-align:middle;">${label}</span>
+	</a>
+</td>`
+}
+
+function renderFooterIcon(icon: keyof typeof FOOTER_ICON_PATHS): string {
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" style="display:inline-block;margin-right:9px;vertical-align:-3px;">
+	<path fill="${BRAND_BLUE}" d="${FOOTER_ICON_PATHS[icon]}"/>
+</svg>`
 }
 
 function supportContactHref(

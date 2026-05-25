@@ -39,7 +39,7 @@ describe('customer service email rendering', () => {
 
 		expect(html).toContain('HyperQuote')
 		expect(html).toContain('Portal App')
-		expect(html).toContain('Our Office')
+		expect(html).toContain('Arkan Plaza, Sheikh Zayed, Egypt')
 		expect(html).toContain('<li')
 		expect(html).toContain('Your order is confirmed')
 		expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')

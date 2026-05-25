@@ -3,19 +3,25 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const TEMPLATE_DIR = join(process.cwd(), 'supabase/templates/auth')
+const EXPECTED_TEMPLATE_COUNT = 13
 
 const BRAND_BLUE = '#2563EB'
 const BLACK = '#090909'
 const WHITE = '#FFFFFF'
+const MUTED = '#5F6B7A'
+const LINE = '#E7EBF0'
+const SOFT_BLUE = '#EFF6FF'
 const WEBSITE_URL = 'https://hyperquote.net'
 const SUPPORT_URL = `${WEBSITE_URL}/support#contact`
 const PORTAL_URL = 'https://portal.hyperquote.net'
 const OFFICE_URL = 'https://maps.google.com/?q=Arkan+Plaza+Sheikh+Zayed+Egypt'
 const OFFICE_ADDRESS = 'Arkan Plaza, Sheikh Zayed, Egypt'
-const LOGO_URL = `${WEBSITE_URL}/LyonWhite.svg`
+const LOGO_URL = `${WEBSITE_URL}/LyonBlack.svg`
 
 const SUPPORT_PHONE_URL = SUPPORT_URL
 const SUPPORT_WHATSAPP_URL = SUPPORT_URL
+const CUSTOMER_NAME =
+	'{{ if .Data.company_name }}{{ .Data.company_name }}{{ else if .Data.name }}{{ .Data.name }}{{ else if .Data.contact_name }}{{ .Data.contact_name }}{{ else }}there{{ end }}'
 
 const icons = {
 	alternate_email:
@@ -34,6 +40,16 @@ const icons = {
 		'M10.95 15.55 17.6 8.9l-1.4-1.4-5.25 5.25-2.15-2.15-1.4 1.4 3.55 3.55ZM12 22q-3.475-.875-5.737-3.988T4 11.1V5l8-3 8 3v6.1q0 3.8-2.263 6.912T12 22Z',
 }
 
+const footerIcons = {
+	call: 'M19.95 21q-3.125 0-6.175-1.362t-5.55-3.863q-2.5-2.5-3.862-5.55T3 4.05q0-.45.3-.75t.75-.3H8.1q.35 0 .625.238t.325.562l.65 3.5q.05.4-.075.675T9.25 8.45L6.8 10.9q.5.925 1.187 1.788t1.513 1.662q.775.775 1.625 1.438T12.9 17l2.35-2.35q.225-.225.588-.337t.712-.063l3.65.75q.35.1.575.363t.225.612v4q0 .45-.3.738t-.75.287Z',
+	email:
+		'M4 20q-.825 0-1.412-.587T2 18V6q0-.825.588-1.412T4 4h16q.825 0 1.413.588T22 6v12q0 .825-.587 1.413T20 20H4Zm8-7 8-5V6l-8 5-8-5v2l8 5Z',
+	portal:
+		'M5 21q-.825 0-1.412-.587T3 19V5q0-.825.588-1.412T5 3h7v2H5v14h7v2H5Zm11-4-1.4-1.45L17.15 13H9v-2h8.15L14.6 8.45 16 7l5 5-5 5Z',
+	whatsapp:
+		'M12.04 2q-4.14 0-7.07 2.92T2.04 12q0 1.85.7 3.54L2 22l6.64-.72q1.62.62 3.4.62 4.12 0 7.04-2.92T22 11.94q0-4.12-2.92-7.03T12.04 2Zm4.15 13.64q-.27.76-1.54 1.38-.42.2-.96.2-.72 0-1.72-.36-1.37-.5-2.54-1.5-1.18-1-1.95-2.2-.82-1.28-1.02-2.32-.2-1.05.2-1.74.35-.62.8-.98.32-.26.68-.26h.5q.28 0 .46.38l.72 1.74q.12.32.02.56-.15.34-.46.7l-.24.28q-.14.16-.03.38.38.74 1.1 1.42.7.66 1.62 1.1.28.14.47-.08l.65-.78q.2-.24.48-.18.18.04.48.18l1.56.74q.42.2.48.43.05.25-.03.49Z',
+}
+
 const templates = [
 	{
 		file: 'confirmation.html',
@@ -41,13 +57,12 @@ const templates = [
 		preheader: 'Confirm your HyperQuote email address.',
 		title: 'Confirm your email.',
 		kicker: 'Secure account access',
-		body: [
-			'Use the button below to confirm this email address for your HyperQuote account.',
-			'Your phone number remains the required sign-in method until email is confirmed.',
-		],
+		message:
+			'This is the HyperQuote Support team. We received a request to confirm this email for your account. Use the button below to finish.',
 		buttons: [{ href: '{{ .ConfirmationURL }}', label: 'Confirm email' }],
 		link: '{{ .ConfirmationURL }}',
-		securityNote: 'If you did not request this, you can ignore this email.',
+		utilityNote:
+			'This link expires soon. If you did not request it, no action is needed.',
 	},
 	{
 		file: 'email_change.html',
@@ -55,14 +70,12 @@ const templates = [
 		preheader: 'Confirm your new HyperQuote email address.',
 		title: 'Confirm the new email.',
 		kicker: 'Account security',
-		body: [
-			'You requested to use <strong>{{ .NewEmail }}</strong> for HyperQuote email and password login.',
-			'Confirm this change before the new email becomes active.',
-		],
+		message:
+			'This is the HyperQuote Support team. We received a request to change your email to <strong>{{ .NewEmail }}</strong>. Use the button below to confirm it.',
 		buttons: [{ href: '{{ .ConfirmationURL }}', label: 'Confirm new email' }],
 		link: '{{ .ConfirmationURL }}',
-		securityNote:
-			'If you did not request this change, do not click the link and contact HyperQuote support.',
+		utilityNote:
+			'This link expires soon. If you did not request this change, contact support.',
 	},
 	{
 		file: 'recovery.html',
@@ -70,10 +83,8 @@ const templates = [
 		preheader: 'Reset your HyperQuote password.',
 		title: 'Reset your password.',
 		kicker: 'Recovery request',
-		body: [
-			'Use this secure link to choose a new password for your confirmed HyperQuote email login.',
-			'The link expires shortly and can only be used once.',
-		],
+		message:
+			'This is the HyperQuote Support team. We received a request to reset your password. Use the button below to choose a new one.',
 		buttons: [
 			{
 				href: '{{ .RedirectTo }}?type=recovery&amp;token_hash={{ .TokenHash }}',
@@ -81,8 +92,8 @@ const templates = [
 			},
 		],
 		link: '{{ .RedirectTo }}?type=recovery&amp;token_hash={{ .TokenHash }}',
-		securityNote:
-			'If you did not request a reset, ignore this email and keep your current password.',
+		utilityNote:
+			'This link expires soon. If you did not request it, no action is needed.',
 	},
 	{
 		file: 'magic_link.html',
@@ -90,14 +101,12 @@ const templates = [
 		preheader: 'Your HyperQuote sign-in link.',
 		title: 'Open HyperQuote.',
 		kicker: 'Sign-in link',
-		body: [
-			'This one-time link signs you in to HyperQuote.',
-			'It expires shortly and can only be used once.',
-		],
+		message:
+			'This is the HyperQuote Support team. We received a request to sign in to HyperQuote. Use the button below to open your account.',
 		buttons: [{ href: '{{ .ConfirmationURL }}', label: 'Sign in' }],
 		link: '{{ .ConfirmationURL }}',
-		securityNote:
-			'If you did not request this sign-in link, you can ignore this email.',
+		utilityNote:
+			'This link expires soon. If you did not request it, no action is needed.',
 	},
 	{
 		file: 'invite.html',
@@ -105,12 +114,12 @@ const templates = [
 		preheader: 'You were invited to HyperQuote.',
 		title: 'Accept your invitation.',
 		kicker: 'Invitation',
-		body: [
-			'You have been invited to access HyperQuote.',
-			'Accept the invitation to finish setting up your account.',
-		],
+		message:
+			'This is the HyperQuote Support team. You have been invited to HyperQuote. Use the button below to accept the invitation and set up your account.',
 		buttons: [{ href: '{{ .ConfirmationURL }}', label: 'Accept invitation' }],
 		link: '{{ .ConfirmationURL }}',
+		utilityNote:
+			'This invitation link expires soon. If this was unexpected, no action is needed.',
 	},
 	{
 		file: 'reauthentication.html',
@@ -118,11 +127,11 @@ const templates = [
 		preheader: 'Your HyperQuote verification code is {{ .Token }}.',
 		title: 'Verification code.',
 		kicker: 'Sensitive action',
-		body: [
-			'Use this code to verify a sensitive account action.',
-			'HyperQuote support will never ask you to share this code.',
-		],
+		message:
+			'This is the HyperQuote Support team. Use this code to verify your account action.',
 		code: '{{ .Token }}',
+		utilityNote:
+			'This code expires soon. HyperQuote will never ask you to share it by email or phone.',
 	},
 	{
 		file: 'password_changed_notification.html',
@@ -130,14 +139,13 @@ const templates = [
 		preheader: 'Your HyperQuote password was changed.',
 		title: 'Your password was changed.',
 		kicker: 'Security notification',
-		body: [
-			'The password on your HyperQuote account was changed.',
-			'If this was you, no action is needed. If not, reset your password and contact support immediately.',
-		],
+		message:
+			'This is the HyperQuote Support team. Your password was changed. If this was you, no action is needed.',
 		buttons: [
 			{ href: PORTAL_URL, label: 'Open portal' },
 			{ href: SUPPORT_URL, label: 'Contact support', secondary: true },
 		],
+		utilityNote: 'If this was not you, contact support.',
 	},
 	{
 		file: 'email_changed_notification.html',
@@ -145,14 +153,13 @@ const templates = [
 		preheader: 'Your HyperQuote email was changed.',
 		title: 'Your email was changed.',
 		kicker: 'Security notification',
-		body: [
-			'The email address on your HyperQuote account was changed.',
-			'If this was not you, contact HyperQuote support immediately.',
-		],
+		message:
+			'This is the HyperQuote Support team. Your account email was changed. If this was you, no action is needed.',
 		buttons: [
 			{ href: PORTAL_URL, label: 'Open portal' },
 			{ href: SUPPORT_URL, label: 'Contact support', secondary: true },
 		],
+		utilityNote: 'If this was not you, contact support.',
 	},
 	{
 		file: 'phone_changed_notification.html',
@@ -160,14 +167,13 @@ const templates = [
 		preheader: 'Your HyperQuote phone number was changed.',
 		title: 'Your phone number was changed.',
 		kicker: 'Security notification',
-		body: [
-			'The phone number on your HyperQuote account was changed.',
-			'If this was not you, contact HyperQuote support immediately.',
-		],
+		message:
+			'This is the HyperQuote Support team. Your account phone number was changed. If this was you, no action is needed.',
 		buttons: [
 			{ href: PORTAL_URL, label: 'Open portal' },
 			{ href: SUPPORT_URL, label: 'Contact support', secondary: true },
 		],
+		utilityNote: 'If this was not you, contact support.',
 	},
 	{
 		file: 'mfa_factor_enrolled_notification.html',
@@ -175,14 +181,13 @@ const templates = [
 		preheader: 'A verification method was added to your HyperQuote account.',
 		title: 'Verification method added.',
 		kicker: 'Account security',
-		body: [
-			'A new verification method was added to your HyperQuote account.',
-			'If this was not you, contact HyperQuote support immediately.',
-		],
+		message:
+			'This is the HyperQuote Support team. A new verification method was added to your account. If this was you, no action is needed.',
 		buttons: [
 			{ href: PORTAL_URL, label: 'Open portal' },
 			{ href: SUPPORT_URL, label: 'Contact support', secondary: true },
 		],
+		utilityNote: 'If this was not you, contact support.',
 	},
 	{
 		file: 'mfa_factor_unenrolled_notification.html',
@@ -191,14 +196,13 @@ const templates = [
 			'A verification method was removed from your HyperQuote account.',
 		title: 'Verification method removed.',
 		kicker: 'Account security',
-		body: [
-			'A verification method was removed from your HyperQuote account.',
-			'If this was not you, contact HyperQuote support immediately.',
-		],
+		message:
+			'This is the HyperQuote Support team. A verification method was removed from your account. If this was you, no action is needed.',
 		buttons: [
 			{ href: PORTAL_URL, label: 'Open portal' },
 			{ href: SUPPORT_URL, label: 'Contact support', secondary: true },
 		],
+		utilityNote: 'If this was not you, contact support.',
 	},
 	{
 		file: 'identity_linked_notification.html',
@@ -206,14 +210,13 @@ const templates = [
 		preheader: 'A sign-in method was linked to your HyperQuote account.',
 		title: 'Sign-in method linked.',
 		kicker: 'Account security',
-		body: [
-			'A new sign-in method was linked to your HyperQuote account.',
-			'If this was not you, contact HyperQuote support immediately.',
-		],
+		message:
+			'This is the HyperQuote Support team. A new sign-in method was linked to your account. If this was you, no action is needed.',
 		buttons: [
 			{ href: PORTAL_URL, label: 'Open portal' },
 			{ href: SUPPORT_URL, label: 'Contact support', secondary: true },
 		],
+		utilityNote: 'If this was not you, contact support.',
 	},
 	{
 		file: 'identity_unlinked_notification.html',
@@ -221,16 +224,21 @@ const templates = [
 		preheader: 'A sign-in method was removed from your HyperQuote account.',
 		title: 'Sign-in method removed.',
 		kicker: 'Account security',
-		body: [
-			'A sign-in method was removed from your HyperQuote account.',
-			'If this was not you, contact HyperQuote support immediately.',
-		],
+		message:
+			'This is the HyperQuote Support team. A sign-in method was removed from your account. If this was you, no action is needed.',
 		buttons: [
 			{ href: PORTAL_URL, label: 'Open portal' },
 			{ href: SUPPORT_URL, label: 'Contact support', secondary: true },
 		],
+		utilityNote: 'If this was not you, contact support.',
 	},
 ]
+
+if (templates.length !== EXPECTED_TEMPLATE_COUNT) {
+	throw new Error(
+		`Expected ${EXPECTED_TEMPLATE_COUNT} auth templates, received ${templates.length}`,
+	)
+}
 
 mkdirSync(TEMPLATE_DIR, { recursive: true })
 
@@ -240,11 +248,10 @@ for (const template of templates) {
 
 function renderEmail(template) {
 	const contentBlocks = [
-		renderParagraphs(template.body),
+		renderGreeting(),
+		renderMessage(template.message),
 		template.code ? renderCode(template.code) : '',
 		template.buttons ? renderButtons(template.buttons) : '',
-		template.link ? renderRawLink(template.link) : '',
-		template.securityNote ? renderSecurityNote(template.securityNote) : '',
 	]
 		.filter(Boolean)
 		.join('')
@@ -260,13 +267,18 @@ function renderEmail(template) {
 	<style>
 		@media only screen and (max-width: 720px) {
 			.email-shell { width: 100% !important; max-width: 100% !important; }
-			.email-pad { padding-left: 22px !important; padding-right: 22px !important; }
-			.email-title { font-size: 32px !important; }
-			.email-icon-cell { width: 64px !important; }
-			.email-icon { width: 56px !important; height: 56px !important; }
-			.email-footer-brand, .email-footer-links { display: block !important; width: 100% !important; text-align: left !important; }
-			.email-footer-links { padding-top: 22px !important; }
-			.email-footer-link { display: inline-block !important; margin: 0 14px 12px 0 !important; }
+			.email-pad { padding-left: 24px !important; padding-right: 24px !important; }
+			.email-title-cell, .email-icon-cell, .email-body-cell, .email-footer-brand, .email-footer-links { display: block !important; width: 100% !important; text-align: center !important; }
+			.email-title-cell { padding-right: 0 !important; }
+			.email-title { font-size: 30px !important; }
+			.email-icon-cell { padding-top: 26px !important; }
+			.email-icon { width: 76px !important; height: 76px !important; margin: 0 auto !important; }
+			.email-main-pad { padding-bottom: 72px !important; }
+			.email-body-action { margin-top: 72px !important; }
+			.email-footer-brand-table, .email-footer-links-table { margin-left: auto !important; margin-right: auto !important; }
+			.email-footer-links { padding-top: 28px !important; }
+			.email-footer-note { padding-left: 24px !important; padding-right: 24px !important; text-align: center !important; }
+			.email-footer-link { text-align: center !important; }
 		}
 	</style>
 </head>
@@ -275,16 +287,16 @@ function renderEmail(template) {
 	<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;background:${WHITE};margin:0;padding:0;">
 		<tr>
 			<td align="center" style="padding:44px 18px 0;">
-				<table role="presentation" class="email-shell" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:860px;margin:0 auto;background:${WHITE};">
+				<table role="presentation" class="email-shell" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:960px;margin:0 auto;background:${WHITE};">
 					<tr>
-						<td class="email-pad" style="padding:0 34px 30px;">
+						<td class="email-pad" style="padding:0 56px 36px;border-bottom:1px solid ${LINE};">
 							<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
 								<tr>
-									<td style="vertical-align:top;padding:0 24px 0 0;">
-										<p style="margin:0 0 14px;font-size:13px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:${BRAND_BLUE};">${template.kicker}</p>
-										<h1 class="email-title" style="margin:0;font-size:44px;line-height:1.04;font-weight:800;letter-spacing:0;color:${BLACK};">${template.title}</h1>
+									<td class="email-title-cell" style="vertical-align:middle;padding:0 28px 0 0;">
+										<p style="margin:0 0 12px;font-size:12px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:${BRAND_BLUE};">${template.kicker}</p>
+										<h1 class="email-title" style="margin:0;font-size:36px;line-height:1.12;font-weight:800;letter-spacing:0;color:${BLACK};">${template.title}</h1>
 									</td>
-									<td class="email-icon-cell" align="right" style="width:92px;vertical-align:top;">
+									<td class="email-icon-cell" align="right" style="width:92px;vertical-align:middle;">
 										${renderIcon(template.icon)}
 									</td>
 								</tr>
@@ -292,23 +304,18 @@ function renderEmail(template) {
 						</td>
 					</tr>
 					<tr>
-						<td class="email-pad" style="padding:0 34px 46px;">
-							<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-top:1px solid #E5E7EB;border-bottom:1px solid #E5E7EB;">
+						<td class="email-pad email-main-pad" style="padding:44px 56px 96px;">
+							<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:790px;margin:0 auto;">
 								<tr>
-									<td align="center" style="padding:46px 0;">
-										<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;max-width:680px;margin:0 auto;">
-											<tr>
-												<td style="font-size:18px;line-height:1.76;color:#2A2A2A;text-align:left;">
-													${contentBlocks}
-												</td>
-											</tr>
-										</table>
+									<td class="email-body-cell" style="text-align:left;">
+										${contentBlocks}
 									</td>
 								</tr>
 							</table>
 						</td>
 					</tr>
 					${renderFooter()}
+					${renderFooterNote(template)}
 				</table>
 			</td>
 		</tr>
@@ -318,13 +325,12 @@ function renderEmail(template) {
 `
 }
 
-function renderParagraphs(paragraphs) {
-	return paragraphs
-		.map(
-			(text) =>
-				`<p style="margin:0 0 20px;font-size:18px;line-height:1.76;color:#2A2A2A;">${text}</p>`,
-		)
-		.join('')
+function renderGreeting() {
+	return `<p style="margin:0;font-size:18px;line-height:1.65;font-weight:650;color:${BLACK};">Welcome, ${CUSTOMER_NAME}.</p>`
+}
+
+function renderMessage(message) {
+	return `<p style="margin:12px 0 0;font-size:16px;line-height:1.65;color:#343A46;">${message}</p>`
 }
 
 function renderButtons(buttons) {
@@ -333,60 +339,55 @@ function renderButtons(buttons) {
 			const background = button.secondary ? WHITE : BRAND_BLUE
 			const color = button.secondary ? BLACK : WHITE
 			const border = button.secondary
-				? '1px solid #D9DDE5'
+				? `1px solid ${LINE}`
 				: `1px solid ${BRAND_BLUE}`
-			return `<a href="${button.href}" style="display:inline-block;margin:0 6px 12px;padding:15px 22px;border:${border};border-radius:999px;background:${background};color:${color};font-size:15px;font-weight:800;line-height:1;text-decoration:none;">${button.label}</a>`
+			return `<a href="${button.href}" style="display:inline-block;margin:0 6px;padding:17px 28px;border:${border};border-radius:999px;background:${background};color:${color};font-size:16px;font-weight:800;line-height:1;text-align:center;text-decoration:none;">${button.label}</a>`
 		})
 		.join('')
-	return `<div style="margin:30px 0 12px;text-align:center;">${anchors}</div>`
+	return `<div class="email-body-action" style="margin:96px 0 0;text-align:center;">${anchors}</div>`
 }
 
 function renderCode(code) {
-	return `<div style="margin:32px auto;text-align:center;"><div style="display:inline-block;border:1px solid #E5E7EB;border-radius:18px;background:#F8FAFF;padding:22px 30px;font-size:44px;line-height:1;font-weight:800;letter-spacing:0.18em;color:${BLACK};">${code}</div></div>`
-}
-
-function renderRawLink(link) {
-	return `<p style="margin:26px 0 0;font-size:13px;line-height:1.7;color:#666666;">If the button does not open, paste this link into your browser:<br><span style="word-break:break-all;color:#2A2A2A;">${link}</span></p>`
-}
-
-function renderSecurityNote(note) {
-	return `<p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#666666;">${note}</p>`
+	return `<div class="email-body-action" style="margin:72px auto 0;text-align:center;"><div style="display:inline-block;border:1px solid ${LINE};border-radius:18px;background:#F8FAFF;padding:22px 30px;font-size:44px;line-height:1;font-weight:800;letter-spacing:0.18em;color:${BLACK};">${code}</div></div>`
 }
 
 function renderIcon(name) {
 	const path = icons[name] ?? icons.security
-	return `<svg class="email-icon" xmlns="http://www.w3.org/2000/svg" width="76" height="76" viewBox="0 0 24 24" aria-hidden="true" style="display:block;">
-	<circle cx="12" cy="12" r="12" fill="#EFF6FF"/>
+	return `<svg class="email-icon" xmlns="http://www.w3.org/2000/svg" width="92" height="92" viewBox="0 0 24 24" aria-hidden="true" style="display:block;">
+	<circle cx="12" cy="12" r="12" fill="${SOFT_BLUE}"/>
 	<path fill="${BRAND_BLUE}" d="${path}"/>
 </svg>`
 }
 
 function renderFooter() {
 	return `<tr>
-	<td style="background:${BLACK};padding:0;">
-		<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${BLACK};">
+	<td class="email-pad" style="padding:38px 56px 44px;border-top:1px solid ${LINE};background:${WHITE};">
+		<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
 			<tr>
-				<td class="email-pad" style="padding:30px 34px;">
-					<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+				<td class="email-footer-brand" style="vertical-align:middle;">
+					<table role="presentation" class="email-footer-brand-table" cellspacing="0" cellpadding="0">
 						<tr>
-							<td class="email-footer-brand" style="vertical-align:middle;">
-								<a href="${WEBSITE_URL}" style="display:inline-block;color:${WHITE};text-decoration:none;">
-									<img src="${LOGO_URL}" width="34" height="34" alt="HyperQuote logo" style="display:inline-block;width:34px;height:34px;border:0;vertical-align:middle;">
-									<span style="display:inline-block;margin-left:12px;font-size:21px;line-height:1;font-weight:800;color:${WHITE};vertical-align:middle;">HyperQuote</span>
+							<td style="width:86px;vertical-align:middle;">
+								<a href="${WEBSITE_URL}" style="display:inline-block;text-decoration:none;">
+									<img src="${LOGO_URL}" width="86" height="86" alt="HyperQuote logo" style="display:block;width:86px;height:86px;border:0;">
 								</a>
 							</td>
-							<td class="email-footer-links" align="right" style="vertical-align:middle;text-align:right;">
-								${footerLink('Support', SUPPORT_URL)}
-								${footerLink('Call', SUPPORT_PHONE_URL)}
-								${footerLink('WhatsApp', SUPPORT_WHATSAPP_URL)}
-								${footerLink('Our Office', OFFICE_URL)}
-								${footerLink('Portal App', PORTAL_URL)}
+							<td style="padding-left:20px;vertical-align:middle;">
+								<a href="${WEBSITE_URL}" style="display:block;color:${BLACK};font-size:24px;font-weight:850;line-height:1.15;text-decoration:none;">HyperQuote</a>
+								<a href="${OFFICE_URL}" style="display:block;margin-top:7px;color:${MUTED};font-size:13px;line-height:1.45;text-decoration:none;">${OFFICE_ADDRESS}</a>
 							</td>
 						</tr>
+					</table>
+				</td>
+				<td class="email-footer-links" align="right" style="vertical-align:middle;text-align:right;">
+					<table role="presentation" class="email-footer-links-table" cellspacing="0" cellpadding="0" align="right" style="width:100%;max-width:360px;">
 						<tr>
-							<td colspan="2" style="padding-top:18px;font-size:12px;line-height:1.7;color:#BDBDBD;">
-								${OFFICE_ADDRESS}
-							</td>
+							${footerLink('Support', SUPPORT_URL, 'email')}
+							${footerLink('Call', SUPPORT_PHONE_URL, 'call')}
+						</tr>
+						<tr>
+							${footerLink('WhatsApp', SUPPORT_WHATSAPP_URL, 'whatsapp')}
+							${footerLink('Portal App', PORTAL_URL, 'portal')}
 						</tr>
 					</table>
 				</td>
@@ -396,8 +397,42 @@ function renderFooter() {
 </tr>`
 }
 
-function footerLink(label, href) {
-	return `<a class="email-footer-link" href="${href}" style="margin-left:18px;color:${WHITE};font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;">${label}</a>`
+function renderFooterNote(template) {
+	if (!template.utilityNote && !template.link) return ''
+	const lines = []
+	if (template.utilityNote) {
+		lines.push(
+			`<p style="margin:0;font-size:13px;line-height:1.6;color:${MUTED};">${template.utilityNote}</p>`,
+		)
+	}
+	if (template.link) {
+		lines.push(
+			`<p style="margin:7px 0 0;font-size:12px;line-height:1.6;font-weight:500;color:${MUTED};">Trouble opening the button? <a href="${template.link}" style="color:${BRAND_BLUE};font-weight:650;text-decoration:none;">Use this link.</a></p>`,
+		)
+	}
+	const content = lines.join('\n\t\t')
+
+	return `<tr>
+	<td class="email-footer-note" style="padding:0 56px 34px;text-align:center;">
+		${content}
+	</td>
+</tr>`
+}
+
+function footerLink(label, href, icon) {
+	return `<td style="padding:6px;">
+	<a class="email-footer-link" href="${href}" style="display:block;min-height:22px;padding:10px 12px;border:1px solid ${LINE};border-radius:14px;color:${BLACK};font-size:13px;font-weight:750;line-height:22px;text-align:left;text-decoration:none;white-space:nowrap;">
+		${renderFooterIcon(icon)}
+		<span style="vertical-align:middle;">${label}</span>
+	</a>
+</td>`
+}
+
+function renderFooterIcon(icon) {
+	const path = footerIcons[icon] ?? footerIcons.email
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true" style="display:inline-block;margin-right:9px;vertical-align:-3px;">
+	<path fill="${BRAND_BLUE}" d="${path}"/>
+</svg>`
 }
 
 console.log(
