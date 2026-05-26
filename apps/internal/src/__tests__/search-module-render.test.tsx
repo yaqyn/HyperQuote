@@ -476,6 +476,95 @@ describe('SearchModule first render', () => {
 		expect(useInternalStore.getState().activeModule).toBe('finance')
 	})
 
+	it('emphasizes damaged inventory disposal NRV inside the activity story', async () => {
+		const nrvValue = '7,100.00 EGP NRV'
+		const activityStory =
+			'Admin from Inventory disposed 100 bag of damaged Portland Cement from DMG-2026-645F5C removing 7,100.00 EGP NRV with proof on May 26, 2026, 10:28 AM'
+		const activityRow = {
+			accent: '#8b5cf6',
+			details: [
+				{ label: 'Story', value: activityStory },
+				{ label: 'Who', value: 'Admin' },
+				{ label: 'Panel', value: 'Inventory' },
+				{ label: 'Product', value: 'Portland Cement' },
+				{ label: 'Damage no.', value: 'DMG-2026-645F5C' },
+				{ label: 'Quantity', value: '100 bag' },
+				{ label: 'NRV removed', value: nrvValue },
+			],
+			preview: [
+				{ label: 'Panel', value: 'Inventory' },
+				{ label: 'Damage no.', value: 'DMG-2026-645F5C' },
+				{ label: 'NRV removed', value: nrvValue },
+			],
+			rowId: 'activity-disposed-damage-1',
+			tableId: 'activity' as const,
+			tableLabel: 'Activity',
+			title: activityStory,
+		}
+		serverSearchMocks.searchInternalDb.mockResolvedValue({
+			query: 'nrv',
+			results: [
+				{
+					accent: '#8b5cf6',
+					label: 'Activity',
+					rowCount: 1,
+					rows: [{ ...activityRow, matchedFields: ['NRV removed'] }],
+					tableId: 'activity',
+				},
+			],
+			tableMatches: [],
+			tables: [
+				{
+					accent: '#8b5cf6',
+					label: 'Activity',
+					rowCount: 1,
+					tableId: 'activity',
+				},
+			],
+		})
+
+		const queryClient = new QueryClient({
+			defaultOptions: { queries: { retry: false } },
+		})
+		activeContainer = document.createElement('div')
+		document.body.appendChild(activeContainer)
+		activeRoot = createRoot(activeContainer)
+
+		await act(async () => {
+			activeRoot?.render(
+				<QueryClientProvider client={queryClient}>
+					<SearchModule />
+				</QueryClientProvider>,
+			)
+		})
+
+		await setSearchQuery('nrv')
+		await waitForSearchModuleUpdate(() =>
+			Boolean(activeContainer?.textContent?.includes(activityStory)),
+		)
+
+		const resultButton = Array.from(
+			activeContainer.querySelectorAll('button'),
+		).find((button) => button.textContent?.includes(activityStory))
+		expect(resultButton).toBeInTheDocument()
+
+		await act(async () => {
+			resultButton?.click()
+		})
+
+		await waitForSearchModuleUpdate(() =>
+			Array.from(activeContainer?.querySelectorAll('strong') ?? []).some(
+				(element) => element.textContent === nrvValue,
+			),
+		)
+
+		expect(
+			Array.from(activeContainer.querySelectorAll('strong')).map(
+				(element) => element.textContent,
+			),
+		).toContain(nrvValue)
+	})
+
 	it('previews activity proof documents inside the app window', async () => {
 		const activityRow = {
 			accent: '#8b5cf6',

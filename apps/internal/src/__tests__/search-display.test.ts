@@ -599,6 +599,47 @@ describe('Search display formatting', () => {
 		)
 	})
 
+	it('projects damaged inventory disposal NRV in the same phrase used by the activity story', () => {
+		const row: SearchDisplayIndexRow = {
+			entity_type: 'activity',
+			entity_id: 'activity-disposed-damage-1',
+			title:
+				'Admin from Inventory disposed 100 bag of damaged Portland Cement from DMG-2026-645F5C removing 7,100.00 EGP NRV with proof on May 26, 2026, 10:28 AM',
+			subtitle: 'Inventory',
+			metadata: {
+				activity_sentence:
+					'Admin from Inventory disposed 100 bag of damaged Portland Cement from DMG-2026-645F5C removing 7,100.00 EGP NRV with proof on May 26, 2026, 10:28 AM',
+				actor: 'Admin',
+				area: 'Inventory',
+				carrying_amount: 7100,
+				damage_number: 'DMG-2026-645F5C',
+				product: 'Portland Cement',
+				proofs: '/proofs/disposal.jpg',
+				quantity: '100 bag',
+				target: 'Portland Cement',
+				unit: 'bag',
+				what: 'Disposed 100 bag of damaged Portland Cement from DMG-2026-645F5C removing 7,100.00 EGP NRV',
+				when: 'May 26, 2026, 10:28 AM',
+			},
+		}
+
+		expect(buildSearchPreviewFields(row)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Damage no.', value: 'DMG-2026-645F5C' },
+				{ label: 'Quantity', value: '100 bag' },
+				{ label: 'NRV removed', value: '7,100.00 EGP NRV' },
+			]),
+		)
+		expect(buildSearchDetailFields(row)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Story', value: row.title },
+				{ label: 'Product', value: 'Portland Cement' },
+				{ label: 'Damage no.', value: 'DMG-2026-645F5C' },
+				{ label: 'NRV removed', value: '7,100.00 EGP NRV' },
+			]),
+		)
+	})
+
 	it('projects finance operating activity as human searchable facts', () => {
 		const row: SearchDisplayIndexRow = {
 			entity_type: 'activity',

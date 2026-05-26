@@ -1859,6 +1859,7 @@ const activityStoryHighlightLabels = new Set([
 	'Recovery unit value',
 	'Original value',
 	'Carrying value',
+	'NRV removed',
 	'Write-down',
 	'Write-down reversal',
 	'Buyer',

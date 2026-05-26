@@ -245,6 +245,30 @@ function activityMoneyValue(metadata: JsonObject, key: string): string | null {
 	)
 }
 
+function activityNrvRemovedValue(metadata: JsonObject): string | null {
+	const label =
+		stringValue(metadata, 'carrying_amount_label') ??
+		stringValue(metadata, 'nrv_removed_label')
+	if (label) return withNrvSuffix(label)
+
+	const amount = numberValue(metadata, 'carrying_amount')
+	if (amount !== null) {
+		return withNrvSuffix(
+			`${amount.toLocaleString('en-EG', {
+				maximumFractionDigits: 2,
+				minimumFractionDigits: 2,
+			})} ${stringValue(metadata, 'currency') ?? 'EGP'}`,
+		)
+	}
+
+	const rawValue = stringValue(metadata, 'carrying_amount')
+	return rawValue ? withNrvSuffix(rawValue) : null
+}
+
+function withNrvSuffix(value: string): string {
+	return /\bnrv\b/i.test(value) ? value : `${value} NRV`
+}
+
 function activityWhen(metadata: JsonObject): string | null {
 	return stringValue(metadata, 'when') ?? formatDateTime(metadata.created_at)
 }
@@ -1014,6 +1038,7 @@ export function buildSearchPreviewFields(
 				previewField('Quantity', activityQuantity(metadata)),
 				previewField('Unit cost', activityUnitCost(metadata)),
 				previewField('Amount', activityAmount(metadata)),
+				previewField('NRV removed', activityNrvRemovedValue(metadata)),
 				previewField(
 					'Write-down',
 					activityMoneyValue(metadata, 'write_down_amount'),
@@ -1850,6 +1875,7 @@ export function buildSearchDetailFields(
 					'Carrying value',
 					activityMoneyValue(metadata, 'carrying_value'),
 				),
+				detailField('NRV removed', activityNrvRemovedValue(metadata)),
 				detailField(
 					'Write-down',
 					activityMoneyValue(metadata, 'write_down_amount'),
