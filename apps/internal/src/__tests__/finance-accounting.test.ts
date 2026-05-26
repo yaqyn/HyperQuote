@@ -344,8 +344,12 @@ describe('finance accounting rebuild', () => {
 
 	it('presents the accounting overview as a wired operating dashboard', () => {
 		expect(accountingViewSource).toContain('Balance sheet')
+		expect(accountingViewSource).toContain('Assets')
 		expect(accountingViewSource).toContain('Liability and review')
 		expect(accountingViewSource).toContain('Period movement')
+		expect(accountingViewSource).toContain('Cash movement')
+		expect(accountingViewSource).toContain('Revenue')
+		expect(accountingViewSource).toContain('Expenses')
 		expect(accountingViewSource).toContain('ACCOUNTING_PERIOD_PRESETS')
 		expect(accountingViewSource).toContain("periodPreset === 'custom'")
 		expect(accountingViewSource).toContain(
@@ -353,6 +357,7 @@ describe('finance accounting rebuild', () => {
 		)
 		expect(accountingViewSource).toContain('formatDateLabel(periodStart)')
 		expect(accountingViewSource).toContain('Work queue')
+		expect(accountingViewSource).toContain('Supporting lists')
 		expect(accountingViewSource).toContain('Inventory asset register')
 		expect(accountingViewSource).toContain('Journal activity')
 		expect(accountingViewSource).toContain("onSelect('inventory')")
@@ -415,13 +420,12 @@ describe('finance accounting rebuild', () => {
 
 	it('keeps the accounting surface tuned for tablet breakpoints', () => {
 		expect(accountingViewSource).toContain('sm:grid-cols-3 lg:grid-cols-6')
-		expect(accountingViewSource).toContain('md:grid-cols-2')
+		expect(accountingViewSource).toContain('lg:grid-cols-2')
 		expect(accountingViewSource).toContain(
-			'lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]',
+			'xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.45fr)]',
 		)
-		expect(accountingViewSource).toContain(
-			'lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]',
-		)
+		expect(accountingViewSource).toContain('sm:grid-cols-2 xl:grid-cols-3')
+		expect(accountingViewSource).toContain('mt-4 grid gap-5 xl:grid-cols-2')
 	})
 
 	it('keeps the accounting surface compact on phones', () => {
@@ -432,7 +436,7 @@ describe('finance accounting rebuild', () => {
 		expect(accountingViewSource).toContain('fullWidthOnMobile')
 		expect(accountingViewSource).toContain('hidden max-w-[620px]')
 		expect(accountingViewSource).toContain('py-2')
-		expect(accountingViewSource).toContain('mt-4 space-y-6 sm:mt-6')
+		expect(accountingViewSource).toContain('mt-4 space-y-7 sm:mt-6')
 	})
 
 	it('replaces the stale Finance history placeholder with Accounting', () => {

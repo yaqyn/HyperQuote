@@ -815,90 +815,148 @@ function OverviewView({
 	]
 
 	return (
-		<section className="mt-4 space-y-6 sm:mt-6 sm:space-y-8">
-			<div className="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
-				<div className="space-y-6">
-					<div className="grid gap-6 md:grid-cols-2">
-						<AccountingPanel title="Balance sheet" meta={dashboard.period.end}>
-							<LedgerRows rows={balanceRows} countLabels={COUNT_METRICS} />
-						</AccountingPanel>
-						<AccountingPanel title="Liability and review" meta="open">
-							<LedgerRows rows={obligationRows} countLabels={COUNT_METRICS} />
-						</AccountingPanel>
-					</div>
-
-					<AccountingPanel
-						title="Period movement"
-						meta={dashboard.period.start}
-					>
-						<div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_220px] md:items-end">
-							<LedgerRows rows={movementRows} countLabels={COUNT_METRICS} />
-							<div className="border-t border-[var(--color-border)] pt-4 md:border-t-0 md:border-l md:pt-0 md:pl-5">
-								<p className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
-									Net business performance
-								</p>
-								<p className="mt-2 break-words font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold tabular-nums text-[var(--color-text)]">
-									{dashboard.incomeStatement.netPerformance === null
-										? 'Review'
-										: formatDecimalEgp(
-												dashboard.incomeStatement.netPerformance,
-											)}
-								</p>
-							</div>
-						</div>
+		<section className="mt-4 space-y-7 sm:mt-6 sm:space-y-9">
+			<div className="space-y-4">
+				<OverviewSectionHeading
+					title="Balance sheet"
+					meta={dashboard.period.end}
+				/>
+				<div className="grid gap-4 lg:grid-cols-2">
+					<AccountingPanel title="Assets" meta="company resources">
+						<LedgerRows rows={balanceRows} countLabels={COUNT_METRICS} />
+					</AccountingPanel>
+					<AccountingPanel title="Liability and review" meta="open items">
+						<LedgerRows rows={obligationRows} countLabels={COUNT_METRICS} />
 					</AccountingPanel>
 				</div>
+			</div>
 
-				<AccountingPanel title="Work queue" meta="current">
-					<div className="divide-y divide-[var(--color-border)] border-y border-[var(--color-border)]">
-						{queueRows.map((row) => (
-							<button
-								key={row.label}
-								type="button"
-								onClick={() => onSelect(row.target)}
-								className="grid w-full grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 py-3 text-left outline-none transition-colors hover:bg-black/[0.025] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/25 dark:hover:bg-white/[0.04]"
-							>
-								<span className="font-[family-name:var(--font-geist-mono)] text-[20px] font-semibold tabular-nums text-[var(--color-text)]">
+			<div className="space-y-4">
+				<OverviewSectionHeading
+					title="Period movement"
+					meta={`${dashboard.period.start} to ${dashboard.period.end}`}
+				/>
+				<div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.45fr)]">
+					<AccountingPanel title="Cash movement" meta="cash only">
+						<LedgerRows rows={movementRows} countLabels={COUNT_METRICS} />
+					</AccountingPanel>
+					<AccountingPanel title="Net business performance" meta="income">
+						<PerformanceSnapshot dashboard={dashboard} />
+					</AccountingPanel>
+				</div>
+			</div>
+
+			<AccountingPanel title="Work queue" meta="current">
+				<div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+					{queueRows.map((row) => (
+						<button
+							key={row.label}
+							type="button"
+							onClick={() => onSelect(row.target)}
+							className="grid min-h-[92px] w-full grid-cols-[minmax(0,1fr)_auto] gap-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-3 text-left outline-none transition-colors hover:border-[var(--color-primary)]/30 hover:bg-black/[0.025] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/25 dark:hover:bg-white/[0.04]"
+						>
+							<span className="min-w-0">
+								<span className="block font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold leading-none tabular-nums text-[var(--color-text)]">
 									{row.count}
 								</span>
-								<span className="min-w-0">
-									<span className="block break-words font-[family-name:var(--font-bricolage)] text-[13px] font-semibold text-[var(--color-text)]">
-										{row.label}
-									</span>
-									<span className="mt-0.5 block break-words font-[family-name:var(--font-geist-mono)] text-[11px] text-[var(--color-text-subtle)]">
-										{row.meta}
-									</span>
+								<span className="mt-2 block break-words font-[family-name:var(--font-bricolage)] text-[13px] font-semibold text-[var(--color-text)]">
+									{row.label}
 								</span>
-								<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
-									View
+								<span className="mt-1 block break-words font-[family-name:var(--font-geist-mono)] text-[11px] text-[var(--color-text-subtle)]">
+									{row.meta}
 								</span>
-							</button>
-						))}
-					</div>
-				</AccountingPanel>
-			</div>
+							</span>
+							<span className="self-start font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+								View
+							</span>
+						</button>
+					))}
+				</div>
+			</AccountingPanel>
 
-			<div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-				<AccountingPanel
-					title="Inventory asset register"
-					meta={`${dashboard.inventoryAssets.length} rows`}
-				>
-					<InventoryPreview
-						rows={dashboard.inventoryAssets}
-						onOpen={() => onSelect('inventory')}
-					/>
-				</AccountingPanel>
-				<AccountingPanel
-					title="Journal activity"
-					meta={`${dashboard.journal.length} entries`}
-				>
-					<JournalPreview
-						rows={dashboard.journal}
-						onOpen={() => onSelect('journal')}
-					/>
-				</AccountingPanel>
+			<div className="border-t border-[var(--color-border)] pt-6 sm:pt-8">
+				<OverviewSectionHeading title="Supporting lists" meta="details" />
+				<div className="mt-4 grid gap-5 xl:grid-cols-2">
+					<AccountingPanel
+						title="Inventory asset register"
+						meta={`${dashboard.inventoryAssets.length} rows`}
+					>
+						<InventoryPreview
+							rows={dashboard.inventoryAssets}
+							onOpen={() => onSelect('inventory')}
+						/>
+					</AccountingPanel>
+					<AccountingPanel
+						title="Journal activity"
+						meta={`${dashboard.journal.length} entries`}
+					>
+						<JournalPreview
+							rows={dashboard.journal}
+							onOpen={() => onSelect('journal')}
+						/>
+					</AccountingPanel>
+				</div>
 			</div>
 		</section>
+	)
+}
+
+function OverviewSectionHeading({
+	meta,
+	title,
+}: {
+	meta?: string
+	title: string
+}) {
+	return (
+		<div className="flex flex-wrap items-baseline justify-between gap-3">
+			<h3 className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+				{title}
+			</h3>
+			{meta && (
+				<span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-[var(--color-text-subtle)]">
+					{meta}
+				</span>
+			)}
+		</div>
+	)
+}
+
+function PerformanceSnapshot({
+	dashboard,
+}: {
+	dashboard: FinanceAccountingDashboard
+}) {
+	const netPerformance = dashboard.incomeStatement.netPerformance
+	return (
+		<div className="space-y-3">
+			<div className="rounded-md border border-[var(--color-border)] p-3">
+				<p className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+					Revenue
+				</p>
+				<p className="mt-2 font-[family-name:var(--font-geist-mono)] text-[18px] font-semibold tabular-nums text-[var(--color-text)]">
+					{formatDecimalEgp(dashboard.incomeStatement.revenue)}
+				</p>
+			</div>
+			<div className="rounded-md border border-[var(--color-border)] p-3">
+				<p className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+					Expenses
+				</p>
+				<p className="mt-2 font-[family-name:var(--font-geist-mono)] text-[18px] font-semibold tabular-nums text-[var(--color-text)]">
+					{formatDecimalEgp(dashboard.incomeStatement.expenses)}
+				</p>
+			</div>
+			<div className="ledger-double-rule rounded-md border border-[var(--color-border)] p-3">
+				<p className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+					Net business performance
+				</p>
+				<p className="mt-2 break-words font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold tabular-nums text-[var(--color-text)]">
+					{netPerformance === null
+						? 'Review'
+						: formatDecimalEgp(netPerformance)}
+				</p>
+			</div>
+		</div>
 	)
 }
 
@@ -912,7 +970,7 @@ function AccountingPanel({
 	title: string
 }) {
 	return (
-		<section>
+		<section className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4 sm:p-5">
 			<SectionHeader title={title} meta={meta} />
 			<div className="mt-3">{children}</div>
 		</section>
@@ -927,13 +985,13 @@ function LedgerRows({
 	rows: Array<[string, number]>
 }) {
 	return (
-		<div className="divide-y divide-[var(--color-border)] border-y border-[var(--color-border)]">
+		<div className="overflow-hidden rounded-md border border-[var(--color-border)]">
 			{rows.map(([label, value], index) => {
 				const isLast = index === rows.length - 1
 				return (
 					<div
 						key={label}
-						className={`grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-3 ${
+						className={`grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-[var(--color-border)] px-3 py-3 last:border-b-0 ${
 							isLast ? 'ledger-double-rule' : ''
 						}`}
 					>
@@ -974,11 +1032,11 @@ function InventoryPreview({
 	}
 	return (
 		<div>
-			<div className="divide-y divide-[var(--color-border)] border-y border-[var(--color-border)]">
+			<div className="overflow-hidden rounded-md border border-[var(--color-border)]">
 				{previewRows.map((row) => (
 					<div
 						key={`${row.productId}:${row.lotId ?? 'good'}`}
-						className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+						className="grid gap-2 border-b border-[var(--color-border)] px-3 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
 					>
 						<div className="min-w-0">
 							<p className="break-words font-[family-name:var(--font-bricolage)] text-[13px] font-semibold text-[var(--color-text)]">
@@ -1018,13 +1076,13 @@ function JournalPreview({
 	}
 	return (
 		<div>
-			<div className="divide-y divide-[var(--color-border)] border-y border-[var(--color-border)]">
+			<div className="overflow-hidden rounded-md border border-[var(--color-border)]">
 				{previewRows.map((entry) => {
 					const total = entry.lines.reduce((sum, line) => sum + line.debit, 0)
 					return (
 						<div
 							key={entry.id}
-							className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+							className="grid gap-2 border-b border-[var(--color-border)] px-3 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
 						>
 							<div className="min-w-0">
 								<p className="break-words font-[family-name:var(--font-bricolage)] text-[13px] font-semibold text-[var(--color-text)]">
