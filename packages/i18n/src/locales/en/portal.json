@@ -1310,8 +1310,15 @@
 		}
 	},
 	"pwa": {
+		"copyFromAddressBar": "Copy from the address bar",
+		"copyLink": "Copy link",
+		"gotIt": "Got it",
+		"installApp": "Install Lyon",
 		"installBanner": "Install HyperQuote for faster access",
 		"installButton": "Install",
+		"installEyebrow": "Install app",
+		"installedApp": "Installed",
+		"linkCopied": "Link copied",
 		"pushHeading": "Get notified about order updates?",
 		"pushBody": "We'll send you updates when your quotes and orders change status.",
 		"allow": "Allow",

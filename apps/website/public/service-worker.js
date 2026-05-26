@@ -1,14 +1,23 @@
-const CACHE_NAME = 'hyperquote-website-v1'
+const CACHE_NAME = 'hyperquote-website-v2'
 
 const APP_SHELL = [
 	'/',
+	'/browserconfig.xml',
 	'/site.webmanifest',
 	'/favicon.ico',
 	'/favicon.svg',
 	'/favicon-96x96.png',
 	'/apple-touch-icon.png',
+	'/apple-touch-icon-152x152.png',
+	'/apple-touch-icon-167x167.png',
+	'/apple-touch-icon-180x180.png',
 	'/icon-192.png',
 	'/icon-512.png',
+	'/mstile-150x150.png',
+	'/pwa/icon-192.png',
+	'/pwa/icon-512.png',
+	'/pwa/maskable-192.png',
+	'/pwa/maskable-512.png',
 ]
 
 const CACHEABLE_PUBLIC_PATHS = new Set(APP_SHELL.filter((path) => path !== '/'))

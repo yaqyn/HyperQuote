@@ -1,7 +1,8 @@
-const CACHE_NAME = 'hyperquote-internal-v2'
+const CACHE_NAME = 'hyperquote-internal-v3'
 
 const APP_ASSETS = [
 	'/site.webmanifest',
+	'/browserconfig.xml',
 	'/favicon.ico',
 	'/favicon.svg',
 	'/favicon-96x96.png',
@@ -9,6 +10,8 @@ const APP_ASSETS = [
 	'/apple-touch-icon-152x152.png',
 	'/apple-touch-icon-167x167.png',
 	'/apple-touch-icon-180x180.png',
+	'/icon-192.png',
+	'/icon-512.png',
 	'/mstile-150x150.png',
 	'/pwa/icon-192.png',
 	'/pwa/icon-512.png',
@@ -74,11 +77,11 @@ function isCacheableAsset(request, url) {
 async function networkOnlyNavigation(request) {
 	try {
 		return await fetch(request)
-	} catch {
-		return new Response('HyperQuote Internal Ops is offline.', {
-			status: 503,
-			headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-		})
+		} catch {
+			return new Response('Base is offline.', {
+				status: 503,
+				headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+			})
 	}
 }
 

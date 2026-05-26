@@ -1,9 +1,17 @@
+import {
+	detectPwaInstallGuideKind,
+	getPwaInstallGuide,
+	type PwaInstallGuide,
+	type PwaInstallGuideKind,
+	usePwaInstallPrompt,
+} from '@hyperquote/ui/pwa/install'
 import { useQuery } from '@tanstack/react-query'
 import { useMatches, useNavigate } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import {
 	ArrowLeft,
 	ClipboardList,
+	Download,
 	ExternalLink,
 	Globe,
 	Info,
@@ -19,6 +27,8 @@ import {
 } from 'lucide-react'
 import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { Dialog, Heading } from 'react-aria-components/Dialog'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
 import { signOutPortalAccount } from '../../lib/auth'
 import { getActiveOrders, getOrderHistoryOrders } from '../../lib/order-history'
@@ -424,8 +434,10 @@ function ProfileMenu({
 	const navigate = useNavigate()
 	const setSigningOut = usePortalStore((s) => s.setSigningOut)
 	const [open, setOpen] = useState(false)
+	const [installGuideOpen, setInstallGuideOpen] = useState(false)
 	const [theme, setTheme] = useState(() => getCurrentPortalTheme())
 	const menuRef = useRef<HTMLDivElement>(null)
+	const install = usePwaInstallPrompt()
 
 	useEffect(() => {
 		if (!open) return
@@ -495,34 +507,62 @@ function ProfileMenu({
 		}
 	}
 
+	async function handleInstallApp() {
+		setOpen(false)
+		const handled = await install.install()
+		if (!handled) {
+			window.setTimeout(() => setInstallGuideOpen(true), 140)
+		}
+	}
+
 	const menuItems = [
 		{
-			labelKey: 'profile.profile',
+			id: 'profile',
+			label: t('profile.profile'),
 			icon: User,
 			action: () => navigate({ to: '/profile' }),
 		},
 		{
-			labelKey:
+			id: 'install',
+			label: install.isInstalled ? t('pwa.installedApp') : t('pwa.installApp'),
+			icon: Download,
+			action: handleInstallApp,
+			closesSidebar: false,
+		},
+		{
+			id: 'language',
+			label: t(
 				i18n.language === 'ar' ? 'profile.switchToEn' : 'profile.switchToAr',
+			),
 			icon: Globe,
 			action: handleLanguageToggle,
 		},
 		{
-			labelKey:
+			id: 'theme',
+			label: t(
 				theme === 'dark' ? 'profile.switchToLight' : 'profile.switchToDark',
+			),
 			icon: theme === 'dark' ? Sun : Moon,
 			action: handleThemeToggle,
 		},
 		{
-			labelKey: 'profile.about',
+			id: 'about',
+			label: t('profile.about'),
 			icon: Info,
 			action: () => navigate({ to: '/about' }),
 		},
-		{ labelKey: 'profile.signOut', icon: LogOut, action: handleSignOut },
+		{
+			id: 'sign-out',
+			label: t('profile.signOut'),
+			icon: LogOut,
+			action: handleSignOut,
+		},
 	] satisfies Array<{
-		labelKey: ParseKeys<'portal'>
+		closesSidebar?: boolean
+		id: string
 		icon: LucideIcon
-		action: () => void
+		label: string
+		action: () => Promise<void> | void
 	}>
 
 	const displayName = userName.trim()
@@ -530,45 +570,205 @@ function ProfileMenu({
 	const profileLabel = displayName || t('profile.profile')
 
 	return (
-		<div ref={menuRef} className="relative">
-			<button
-				type="button"
-				onClick={() => setOpen(!open)}
-				className="group inline-flex h-10 w-10 items-center justify-center rounded-xl text-start transition-colors hover:bg-[var(--p-hover)]"
-				aria-label={profileLabel}
-				title={profileLabel}
-			>
-				<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] text-[14px] font-semibold text-[var(--p-text)] transition-colors group-hover:border-[var(--p-border-strong)]">
-					{initial || <User size={15} strokeWidth={1.7} aria-hidden />}
-				</span>
-			</button>
+		<>
+			<div ref={menuRef} className="relative">
+				<button
+					type="button"
+					onClick={() => setOpen(!open)}
+					className="group inline-flex h-10 w-10 items-center justify-center rounded-xl text-start transition-colors hover:bg-[var(--p-hover)]"
+					aria-label={profileLabel}
+					title={profileLabel}
+				>
+					<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] text-[14px] font-semibold text-[var(--p-text)] transition-colors group-hover:border-[var(--p-border-strong)]">
+						{initial || <User size={15} strokeWidth={1.7} aria-hidden />}
+					</span>
+				</button>
 
-			{open && (
-				<div className="absolute bottom-full start-0 mb-3 w-52 overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-1 shadow-[var(--p-popover-shadow)]">
-					{menuItems.map((item) => {
-						const Icon = item.icon
-						return (
-							<button
-								key={item.labelKey}
-								type="button"
-								onClick={() => {
-									setOpen(false)
-									item.action()
-									if (closeOnNavigate) {
-										usePortalStore.getState().setSidebarOpen(false)
-									}
-								}}
-								className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-start text-[13px] font-medium text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-							>
-								<Icon size={15} strokeWidth={1.65} className="shrink-0" />
-								<span className="min-w-0 truncate">{t(item.labelKey)}</span>
-							</button>
-						)
-					})}
-				</div>
-			)}
-		</div>
+				{open && (
+					<div className="absolute bottom-full start-0 mb-3 w-52 overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-1 shadow-[var(--p-popover-shadow)]">
+						{menuItems.map((item) => {
+							const Icon = item.icon
+							return (
+								<button
+									key={item.id}
+									type="button"
+									onClick={() => {
+										setOpen(false)
+										void item.action()
+										if (closeOnNavigate && item.closesSidebar !== false) {
+											usePortalStore.getState().setSidebarOpen(false)
+										}
+									}}
+									className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-start text-[13px] font-medium text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+								>
+									<Icon size={15} strokeWidth={1.65} className="shrink-0" />
+									<span className="min-w-0 truncate">{item.label}</span>
+								</button>
+							)
+						})}
+					</div>
+				)}
+			</div>
+			<PortalInstallGuideDialog
+				isOpen={installGuideOpen}
+				isArabic={i18n.language === 'ar'}
+				onClose={() => setInstallGuideOpen(false)}
+			/>
+		</>
 	)
+}
+
+function PortalInstallGuideDialog({
+	isArabic,
+	isOpen,
+	onClose,
+}: {
+	isArabic: boolean
+	isOpen: boolean
+	onClose: () => void
+}) {
+	const { t } = useTranslation('portal')
+	const [copyStatus, setCopyStatus] = useState<string | null>(null)
+	const guide = getLocalizedInstallGuide({
+		appName: 'Lyon',
+		isArabic,
+		kind: detectPwaInstallGuideKind(),
+	})
+
+	async function copyLink() {
+		try {
+			await navigator.clipboard.writeText(window.location.href)
+			setCopyStatus(t('pwa.linkCopied'))
+		} catch {
+			setCopyStatus(t('pwa.copyFromAddressBar'))
+		}
+	}
+
+	return (
+		<ModalOverlay
+			isOpen={isOpen}
+			onOpenChange={(open) => {
+				if (!open) onClose()
+			}}
+			className="fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-4 backdrop-blur-sm"
+		>
+			<Modal className="w-full max-w-sm rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] text-[var(--p-text)] shadow-[0_24px_90px_rgba(0,0,0,0.26)]">
+				<Dialog className="outline-none">
+					<div className="border-b border-[var(--p-border)] px-5 py-4">
+						<p className="voice-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-text-faint)]">
+							{t('pwa.installEyebrow')}
+						</p>
+						<Heading className="mt-1 text-[17px] font-semibold leading-tight text-[var(--p-text)]">
+							{guide.title}
+						</Heading>
+						<p className="mt-1 text-[13px] leading-5 text-[var(--p-text-muted)]">
+							{guide.caption}
+						</p>
+					</div>
+					<div className="space-y-4 px-5 py-4">
+						<ol className="space-y-3">
+							{guide.steps.map((step, index) => (
+								<li key={step} className="flex gap-3">
+									<span className="voice-mono flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[11px] text-[var(--p-accent-contrast)]">
+										{index + 1}
+									</span>
+									<span className="pt-0.5 text-[13px] leading-snug text-[var(--p-text)]">
+										{step}
+									</span>
+								</li>
+							))}
+						</ol>
+						<p className="rounded-xl border border-[var(--p-border)] bg-[var(--p-hover)] px-3 py-2 text-[12px] leading-snug text-[var(--p-text-muted)]">
+							{guide.note}
+						</p>
+					</div>
+					<div className="flex items-center justify-between gap-3 border-t border-[var(--p-border)] px-5 py-3">
+						<p className="voice-mono min-w-0 flex-1 truncate text-[10px] text-[var(--p-text-faint)]">
+							{copyStatus}
+						</p>
+						<button
+							type="button"
+							onClick={copyLink}
+							className="rounded-xl px-3 py-2 text-[12px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+						>
+							{t('pwa.copyLink')}
+						</button>
+						<button
+							type="button"
+							onClick={onClose}
+							className="rounded-xl bg-[var(--p-accent)] px-3 py-2 text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
+						>
+							{t('pwa.gotIt')}
+						</button>
+					</div>
+				</Dialog>
+			</Modal>
+		</ModalOverlay>
+	)
+}
+
+function getLocalizedInstallGuide({
+	appName,
+	isArabic,
+	kind,
+}: {
+	appName: string
+	isArabic: boolean
+	kind: PwaInstallGuideKind
+}): PwaInstallGuide {
+	if (!isArabic) return getPwaInstallGuide({ appName, kind })
+
+	if (kind === 'ios') {
+		return {
+			title: `أضف ${appName} إلى الشاشة الرئيسية`,
+			caption: 'iOS يثبت التطبيق من قائمة المشاركة في Safari.',
+			steps: [
+				'افتح هذه الصفحة في Safari.',
+				'اضغط زر المشاركة.',
+				'اختر Add to Home Screen.',
+				'اضغط Add.',
+			],
+			note: `بعدها يفتح ${appName} من الشاشة الرئيسية كتطبيق مستقل.`,
+		}
+	}
+
+	if (kind === 'safari-desktop') {
+		return {
+			title: `أضف ${appName} إلى Dock`,
+			caption: 'Safari يضع التثبيت داخل قائمة المتصفح.',
+			steps: [
+				'افتح هذه الصفحة في Safari.',
+				'اختر File من شريط القوائم.',
+				'اختر Add to Dock.',
+				`أكد اسم التطبيق ${appName}.`,
+			],
+			note: `بعدها يفتح ${appName} من Dock في نافذة مستقلة.`,
+		}
+	}
+
+	if (kind === 'firefox') {
+		return {
+			title: `تثبيت ${appName}`,
+			caption: 'دعم Firefox للتثبيت يختلف حسب الجهاز والإعدادات.',
+			steps: [
+				'افتح قائمة المتصفح.',
+				'ابحث عن Install أو Add to Home Screen.',
+				`أكد ${appName}.`,
+			],
+			note: 'إذا لم يظهر خيار التثبيت، افتح نفس الرابط في Chrome أو Edge أو Safari.',
+		}
+	}
+
+	return {
+		title: `تثبيت ${appName}`,
+		caption: 'المتصفح لم يعرض زر التثبيت المباشر بعد.',
+		steps: [
+			'ابحث عن أيقونة التثبيت في شريط العنوان.',
+			'إذا لم تظهر، افتح قائمة المتصفح.',
+			`اختر Install ${appName} أو Add to Home Screen.`,
+		],
+		note: 'Chrome وEdge عادة يعرضان التثبيت المباشر بعد تحميل التطبيق من HTTPS الإنتاجي.',
+	}
 }
 
 function firstText(...values: Array<string | undefined | null>) {

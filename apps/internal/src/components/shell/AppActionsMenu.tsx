@@ -1,4 +1,9 @@
 import {
+	detectPwaInstallGuideKind,
+	getPwaInstallGuide,
+	usePwaInstallPrompt,
+} from '@hyperquote/ui/pwa/install'
+import {
 	ChevronDown,
 	Download,
 	LogOut,
@@ -16,149 +21,6 @@ import {
 	DispatchDialog,
 	DispatchFooter,
 } from '../shared/DispatchDialog'
-
-type InstallOutcome = 'accepted' | 'dismissed'
-
-interface BeforeInstallPromptChoice {
-	outcome: InstallOutcome
-	platform: string
-}
-
-interface BeforeInstallPromptEvent extends Event {
-	readonly platforms?: readonly string[]
-	readonly userChoice: Promise<BeforeInstallPromptChoice>
-	prompt(): Promise<BeforeInstallPromptChoice | undefined>
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null
-}
-
-function isBeforeInstallPromptEvent(
-	event: Event,
-): event is BeforeInstallPromptEvent {
-	if (!isRecord(event)) return false
-	return typeof event.prompt === 'function' && 'userChoice' in event
-}
-
-function isStandaloneMode() {
-	if (window.matchMedia('(display-mode: standalone)').matches) return true
-	if (window.matchMedia('(display-mode: fullscreen)').matches) return true
-	if ('standalone' in navigator) return navigator.standalone === true
-	return false
-}
-
-function subscribeToMediaQuery(
-	media: MediaQueryList,
-	listener: () => void,
-): () => void {
-	if (typeof media.addEventListener === 'function') {
-		media.addEventListener('change', listener)
-		return () => media.removeEventListener('change', listener)
-	}
-
-	media.addListener(listener)
-	return () => media.removeListener(listener)
-}
-
-type InstallGuideKind = 'ios' | 'safari-desktop' | 'firefox' | 'browser'
-
-function getInstallGuideKind(): InstallGuideKind {
-	if (typeof navigator === 'undefined') return 'browser'
-
-	const ua = navigator.userAgent.toLowerCase()
-	const isIos =
-		/iphone|ipad|ipod/.test(ua) ||
-		(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-	const isSafari = /safari/.test(ua) && !/chrome|chromium|crios|fxios/.test(ua)
-	const isFirefox = /firefox|fxios/.test(ua)
-
-	if (isIos) return 'ios'
-	if (isSafari) return 'safari-desktop'
-	if (isFirefox) return 'firefox'
-	return 'browser'
-}
-
-function useInstallPrompt() {
-	const [promptEvent, setPromptEvent] =
-		useState<BeforeInstallPromptEvent | null>(null)
-	const [isInstalled, setIsInstalled] = useState(false)
-	const [status, setStatus] = useState<string | null>(null)
-
-	useEffect(() => {
-		function updateInstalledState() {
-			setIsInstalled(isStandaloneMode())
-		}
-
-		function handleBeforeInstallPrompt(event: Event) {
-			if (!isBeforeInstallPromptEvent(event)) return
-			event.preventDefault()
-			setPromptEvent(event)
-			setStatus(null)
-		}
-
-		function handleAppInstalled() {
-			setPromptEvent(null)
-			setIsInstalled(true)
-			setStatus('Installed')
-		}
-
-		updateInstalledState()
-		window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
-		window.addEventListener('appinstalled', handleAppInstalled)
-
-		const standalone = window.matchMedia('(display-mode: standalone)')
-		const fullscreen = window.matchMedia('(display-mode: fullscreen)')
-		const unsubscribeStandalone = subscribeToMediaQuery(
-			standalone,
-			updateInstalledState,
-		)
-		const unsubscribeFullscreen = subscribeToMediaQuery(
-			fullscreen,
-			updateInstalledState,
-		)
-
-		return () => {
-			window.removeEventListener(
-				'beforeinstallprompt',
-				handleBeforeInstallPrompt,
-			)
-			window.removeEventListener('appinstalled', handleAppInstalled)
-			unsubscribeStandalone()
-			unsubscribeFullscreen()
-		}
-	}, [])
-
-	async function install(): Promise<boolean> {
-		if (isInstalled) {
-			setStatus('Installed')
-			return true
-		}
-		if (!promptEvent) {
-			setStatus('Needs browser install step')
-			return false
-		}
-
-		try {
-			await promptEvent.prompt()
-			const choice = await promptEvent.userChoice
-			setStatus(choice.outcome === 'accepted' ? 'Installing' : 'Dismissed')
-			return choice.outcome === 'accepted'
-		} catch {
-			setStatus('Blocked by browser')
-			return false
-		} finally {
-			setPromptEvent(null)
-		}
-	}
-
-	return {
-		canPrompt: promptEvent !== null,
-		install,
-		isInstalled,
-		status,
-	}
-}
 
 function useFullscreenState() {
 	const [isFullscreen, setIsFullscreen] = useState(false)
@@ -207,7 +69,7 @@ function useFullscreenState() {
 export function AppActionsMenu() {
 	const [isOpen, setIsOpen] = useState(false)
 	const [installGuideOpen, setInstallGuideOpen] = useState(false)
-	const install = useInstallPrompt()
+	const install = usePwaInstallPrompt()
 	const fullscreen = useFullscreenState()
 
 	const menuStatus = useMemo(() => {
@@ -257,7 +119,7 @@ export function AppActionsMenu() {
 					<div className="flex flex-col gap-1">
 						<AppMenuItem
 							icon={Download}
-							label="Install as PWA"
+							label="Install Base"
 							detail={
 								install.isInstalled
 									? 'Installed'
@@ -376,7 +238,10 @@ function InstallGuideDialog({
 	onClose: () => void
 }) {
 	const [copyStatus, setCopyStatus] = useState<string | null>(null)
-	const guide = getInstallGuide(getInstallGuideKind())
+	const guide = getPwaInstallGuide({
+		appName: 'Base',
+		kind: detectPwaInstallGuideKind(),
+	})
 
 	async function copyLink() {
 		try {
@@ -421,58 +286,4 @@ function InstallGuideDialog({
 			</DispatchFooter>
 		</DispatchDialog>
 	)
-}
-
-function getInstallGuide(kind: InstallGuideKind) {
-	if (kind === 'ios') {
-		return {
-			title: 'Add HyperQuote to Home Screen',
-			caption: 'Apple does not allow websites to install themselves.',
-			steps: [
-				'Open this page in Safari.',
-				'Tap the Share button.',
-				'Tap Add to Home Screen.',
-				'Tap Add.',
-			],
-			note: 'After this, HyperQuote opens from the Home Screen like an app.',
-		}
-	}
-
-	if (kind === 'safari-desktop') {
-		return {
-			title: 'Add HyperQuote to Dock',
-			caption: 'Safari keeps install inside the browser menu.',
-			steps: [
-				'Open this page in Safari.',
-				'Choose File from the menu bar.',
-				'Choose Add to Dock.',
-				'Confirm the HyperQuote app name.',
-			],
-			note: 'After this, HyperQuote opens from the Dock in its own app window.',
-		}
-	}
-
-	if (kind === 'firefox') {
-		return {
-			title: 'Install HyperQuote',
-			caption: 'Firefox support depends on platform and settings.',
-			steps: [
-				'Open the browser menu.',
-				'Look for Install or Add to Home Screen.',
-				'Confirm HyperQuote Internal Ops.',
-			],
-			note: 'If Firefox does not show install, open the same link in Chrome, Edge, or Safari.',
-		}
-	}
-
-	return {
-		title: 'Install HyperQuote',
-		caption: 'The browser has not exposed its one-click install prompt yet.',
-		steps: [
-			'Look for the install icon in the address bar.',
-			'If it is not visible, open the browser menu.',
-			'Choose Install HyperQuote or Add to Home Screen.',
-		],
-		note: 'Chrome and Edge usually enable the one-click prompt after the app is loaded from production HTTPS.',
-	}
 }

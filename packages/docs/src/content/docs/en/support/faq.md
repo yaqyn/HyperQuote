@@ -48,7 +48,7 @@ Report damage immediately with photos via WhatsApp or the portal. Accept undamag
 Arabic and English. The platform is bilingual throughout — product names, documents, and Lyon AI in the portal app work in both languages. Tax invoices are generated in Arabic as required by ETA e-invoicing regulations.
 
 **Is the platform available on mobile?**
-The customer and supplier portals are Progressive Web Apps (PWAs) that work on any device and can be installed to your home screen. The driver app is a native mobile application.
+	The customer portal and driver app are Progressive Web Apps (PWAs) that work on any device and can be installed to your home screen. Driver teams may also use the native mobile build where it is provisioned.
 
 **How do I contact support?**
 WhatsApp, phone, portal chat, or email. Support operates Sunday through Thursday during Egyptian business hours. For account-specific AI help, use Lyon AI in the signed-in portal app.

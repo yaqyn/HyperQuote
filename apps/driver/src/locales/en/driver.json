@@ -31,6 +31,8 @@
 		"eyebrow": "HyperQuote"
 	},
 	"controls": {
+		"install": "Install Drive",
+		"installed": "Installed",
 		"language": "Switch language",
 		"goOffline": "Go offline",
 		"goOnline": "Go online",
@@ -173,6 +175,13 @@
 	},
 	"shell": {
 		"driver": "Active driver"
+	},
+	"pwa": {
+		"copyFromAddressBar": "Copy from the address bar",
+		"copyLink": "Copy link",
+		"gotIt": "Got it",
+		"installEyebrow": "Install app",
+		"linkCopied": "Link copied"
 	},
 	"state": {
 		"dashboardErrorBody": "The driver profile could not be loaded from Supabase. Sign out and try again, or contact dispatch.",

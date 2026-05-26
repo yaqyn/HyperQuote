@@ -886,8 +886,15 @@
 		}
 	},
 	"pwa": {
+		"copyFromAddressBar": "انسخ الرابط من شريط العنوان",
+		"copyLink": "نسخ الرابط",
+		"gotIt": "تم",
+		"installApp": "تثبيت Lyon",
 		"installBanner": "ثبّت HyperQuote للوصول السريع",
 		"installButton": "تثبيت",
+		"installEyebrow": "تثبيت التطبيق",
+		"installedApp": "مثبت",
+		"linkCopied": "تم نسخ الرابط",
 		"pushHeading": "هل تريد تلقي إشعارات عن تحديثات الطلبات؟",
 		"pushBody": "سنرسل لك تحديثات عند تغيّر حالة عروض الأسعار والطلبات.",
 		"allow": "السماح",

@@ -26,7 +26,10 @@ export const Route = createRootRoute({
 			...baseHead,
 			meta: [
 				{ charSet: 'utf-8' },
-				{ name: 'viewport', content: 'width=device-width, initial-scale=1' },
+				{
+					name: 'viewport',
+					content: 'width=device-width, initial-scale=1, viewport-fit=cover',
+				},
 				...baseHead.meta,
 				{ name: 'mobile-web-app-capable', content: 'yes' },
 				{ name: 'apple-mobile-web-app-capable', content: 'yes' },
@@ -34,10 +37,10 @@ export const Route = createRootRoute({
 					name: 'apple-mobile-web-app-status-bar-style',
 					content: 'default',
 				},
-				{ name: 'apple-mobile-web-app-title', content: 'HQ Ops' },
+				{ name: 'apple-mobile-web-app-title', content: 'Base' },
 				{ name: 'format-detection', content: 'telephone=no' },
 				{ name: 'color-scheme', content: 'light dark' },
-				{ name: 'msapplication-TileColor', content: '#0A0A0A' },
+				{ name: 'msapplication-TileColor', content: '#ffffff' },
 				{ name: 'msapplication-TileImage', content: '/mstile-150x150.png' },
 				{ name: 'msapplication-config', content: '/browserconfig.xml' },
 				{

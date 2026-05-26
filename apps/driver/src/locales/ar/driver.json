@@ -33,6 +33,8 @@
 	"controls": {
 		"goOffline": "اجعلني غير متصل",
 		"goOnline": "اجعلني متصل",
+		"install": "تثبيت Drive",
+		"installed": "مثبت",
 		"language": "تبديل اللغة",
 		"offlineRefresh": "غير متصل. أعد توصيل السائق",
 		"onlineRefresh": "متصل. حدث الموقع",
@@ -173,6 +175,13 @@
 	},
 	"shell": {
 		"driver": "السائق النشط"
+	},
+	"pwa": {
+		"copyFromAddressBar": "انسخ الرابط من شريط العنوان",
+		"copyLink": "نسخ الرابط",
+		"gotIt": "تم",
+		"installEyebrow": "تثبيت التطبيق",
+		"linkCopied": "تم نسخ الرابط"
 	},
 	"state": {
 		"dashboardErrorBody": "تعذر تحميل ملف السائق من Supabase. سجل الخروج وحاول مرة أخرى، أو تواصل مع فريق التوزيع.",

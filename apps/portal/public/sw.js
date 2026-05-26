@@ -1,14 +1,23 @@
-const CACHE_NAME = 'hyperquote-portal-v1'
+const CACHE_NAME = 'hyperquote-portal-v2'
 
 const APP_ASSETS = [
 	'/site.webmanifest',
 	'/manifest.json',
+	'/browserconfig.xml',
 	'/favicon.ico',
 	'/favicon.svg',
 	'/favicon-96x96.png',
 	'/apple-touch-icon.png',
+	'/apple-touch-icon-152x152.png',
+	'/apple-touch-icon-167x167.png',
+	'/apple-touch-icon-180x180.png',
 	'/icon-192.png',
 	'/icon-512.png',
+	'/mstile-150x150.png',
+	'/pwa/icon-192.png',
+	'/pwa/icon-512.png',
+	'/pwa/maskable-192.png',
+	'/pwa/maskable-512.png',
 ]
 
 const CACHEABLE_PUBLIC_PATHS = new Set(APP_ASSETS)
@@ -62,10 +71,10 @@ self.addEventListener('push', (event) => {
 	const { body, icon, title, url } = data
 
 	event.waitUntil(
-		self.registration.showNotification(title || 'HyperQuote Portal', {
+		self.registration.showNotification(title || 'Lyon', {
 			body: body || '',
-			icon: icon || '/icon-192.png',
-			badge: '/icon-192.png',
+			icon: icon || '/pwa/icon-192.png',
+			badge: '/pwa/icon-192.png',
 			data: { url: url || '/' },
 			dir: 'auto',
 		}),
@@ -107,7 +116,7 @@ async function networkOnlyNavigation(request) {
 	try {
 		return await fetch(request)
 	} catch {
-		return new Response('HyperQuote Portal is offline.', {
+			return new Response('Lyon is offline.', {
 			status: 503,
 			headers: { 'Content-Type': 'text/plain; charset=utf-8' },
 		})

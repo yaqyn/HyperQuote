@@ -2,7 +2,7 @@ The HyperQuote driver app is built for one-handed operation on active constructi
 
 ## Installing the app
 
-The driver app is available as a native mobile application through the standard app stores. It is built specifically for the demands of building material delivery: background GPS tracking, offline data storage, camera access for proof of delivery, and integration with truck-safe navigation.
+The driver app can be installed from the browser as Drive, and driver teams may also use the native mobile build where it is provisioned. It is built specifically for the demands of building material delivery: background GPS tracking, offline data storage, camera access for proof of delivery, and integration with truck-safe navigation.
 
 Download the app, open it, and you will see the login screen. Internal drivers (HyperQuote employees) receive their credentials from the operations team. Contracted and on-demand drivers register through the app's self-signup process.
 

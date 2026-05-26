@@ -1,33 +1,38 @@
 {
 	"id": "/",
-	"name": "HyperQuote Driver",
-	"short_name": "HQ Driver",
-	"description": "Private HyperQuote driver app for assigned routes, delivery status, location updates, and proof of delivery.",
+	"name": "Drive",
+	"short_name": "Drive",
+	"description": "Private route and proof-of-delivery workspace.",
 	"start_url": "/",
 	"scope": "/",
 	"display": "standalone",
-	"display_override": ["standalone", "minimal-ui"],
 	"background_color": "#ffffff",
-	"theme_color": "#2563EB",
+	"theme_color": "#ffffff",
 	"orientation": "portrait-primary",
 	"icons": [
 		{
-			"src": "/favicon.svg",
-			"sizes": "any",
-			"type": "image/svg+xml",
+			"src": "/pwa/icon-192.png",
+			"sizes": "192x192",
+			"type": "image/png",
 			"purpose": "any"
 		},
 		{
-			"src": "/icon-192.png",
-			"sizes": "192x192",
-			"type": "image/png",
-			"purpose": "any maskable"
-		},
-		{
-			"src": "/icon-512.png",
+			"src": "/pwa/icon-512.png",
 			"sizes": "512x512",
 			"type": "image/png",
-			"purpose": "any maskable"
+			"purpose": "any"
+		},
+		{
+			"src": "/pwa/maskable-192.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "maskable"
+		},
+		{
+			"src": "/pwa/maskable-512.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
 		}
 	],
 	"categories": ["business", "navigation", "productivity"],

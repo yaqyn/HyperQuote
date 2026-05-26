@@ -1,5 +1,5 @@
 const PORTAL_ORIGIN = 'https://portal.hyperquote.net'
-const PORTAL_IMAGE = `${PORTAL_ORIGIN}/icon-512.png`
+const PORTAL_IMAGE = `${PORTAL_ORIGIN}/pwa/icon-512.png`
 const PRIVATE_ROBOTS = 'noindex,nofollow,noarchive'
 
 type AppMeta =
@@ -32,8 +32,8 @@ export function portalHead({ description, path, title }: PortalHeadInput): {
 			{ name: 'title', content: title },
 			{ name: 'description', content: description },
 			{ name: 'robots', content: PRIVATE_ROBOTS },
-			{ name: 'application-name', content: 'HyperQuote Portal' },
-			{ property: 'og:site_name', content: 'HyperQuote Portal' },
+			{ name: 'application-name', content: 'Lyon' },
+			{ property: 'og:site_name', content: 'Lyon' },
 			{ property: 'og:type', content: 'website' },
 			{ property: 'og:title', content: title },
 			{ property: 'og:description', content: description },

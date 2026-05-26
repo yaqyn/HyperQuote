@@ -1,22 +1,15 @@
 {
 	"id": "/",
-	"name": "HyperQuote Internal Ops",
-	"short_name": "HQ Ops",
-	"description": "HyperQuote operations console for sales, procurement, warehouse, finance, dispatch, and support teams.",
+	"name": "Base",
+	"short_name": "Base",
+	"description": "Private operations workspace.",
 	"start_url": "/",
 	"scope": "/",
 	"display": "standalone",
-	"display_override": ["standalone", "minimal-ui"],
 	"background_color": "#ffffff",
-	"theme_color": "#2563EB",
+	"theme_color": "#ffffff",
 	"orientation": "any",
 	"icons": [
-		{
-			"src": "/favicon.svg",
-			"sizes": "any",
-			"type": "image/svg+xml",
-			"purpose": "any"
-		},
 		{
 			"src": "/pwa/icon-192.png",
 			"sizes": "192x192",
@@ -45,14 +38,14 @@
 	"categories": ["business", "productivity"],
 	"shortcuts": [
 		{
-			"name": "Operations Canvas",
+			"name": "Canvas",
 			"short_name": "Canvas",
-			"description": "Open the internal operations canvas.",
+			"description": "Open the operations canvas.",
 			"url": "/",
 			"icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192" }]
 		},
 		{
-			"name": "Employee Sign In",
+			"name": "Sign In",
 			"short_name": "Sign In",
 			"description": "Open employee sign-in.",
 			"url": "/login",
