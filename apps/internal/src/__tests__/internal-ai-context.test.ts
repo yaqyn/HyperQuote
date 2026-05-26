@@ -31,9 +31,9 @@ describe('internal AI vtable context', () => {
 
 		expect(normalEntities).toContain('payment')
 		expect(normalEntities).toContain('finance')
+		expect(normalEntities).toContain('finance_payroll')
 		expect(normalEntities).toContain('document')
 		expect(normalEntities).not.toContain('employee')
-		expect(normalEntities).not.toContain('finance_payroll')
 		expect(normalEntities).not.toContain('activity')
 		expect(searchEntities).toContain('employee')
 		expect(searchEntities).toContain('finance_payroll')
@@ -47,7 +47,10 @@ describe('internal AI vtable context', () => {
 		const financeMigration = readWorkspaceFile(
 			'supabase/migrations/20260526013854_ceo_search_finance_vtables.sql',
 		)
-		const migration = `${baseMigration}\n${financeMigration}`
+		const operatingFinanceMigration = readWorkspaceFile(
+			'supabase/migrations/20260526031533_finance_payroll_fuel_company_asset_system.sql',
+		)
+		const migration = `${baseMigration}\n${financeMigration}\n${operatingFinanceMigration}`
 		const aiChatSource = readWorkspaceFile('apps/internal/src/lib/ai-chat.ts')
 		const authServerSource = readWorkspaceFile('packages/auth/src/server.ts')
 		const normalEntities = allowedInternalAiVtables('employee').map(
@@ -56,11 +59,11 @@ describe('internal AI vtable context', () => {
 		const searchEntities = allowedInternalAiVtables('search').map(
 			(vtable) => vtable.entityType,
 		)
-		const normalBranch = financeMigration.slice(
-			financeMigration.indexOf('else array['),
-			financeMigration.indexOf(
+		const normalBranch = operatingFinanceMigration.slice(
+			operatingFinanceMigration.indexOf('else array['),
+			operatingFinanceMigration.indexOf(
 				'\n\t\t\tend',
-				financeMigration.indexOf('else array['),
+				operatingFinanceMigration.indexOf('else array['),
 			),
 		)
 
@@ -80,7 +83,6 @@ describe('internal AI vtable context', () => {
 			expect(normalBranch).toContain(`'${entityType}'`)
 		}
 		expect(normalBranch).not.toContain("'employee'")
-		expect(normalBranch).not.toContain("'finance_payroll'")
 		expect(normalBranch).not.toContain("'activity'")
 		for (const entityType of searchEntities) {
 			expect(migration).toContain(`'${entityType}'`)
@@ -109,9 +111,7 @@ describe('internal AI vtable context', () => {
 		expect(normalPanelExcludedRequest('show employee salaries')).toContain(
 			'employee information',
 		)
-		expect(normalPanelExcludedRequest('show payroll')).toContain(
-			'employee information',
-		)
+		expect(normalPanelExcludedRequest('show payroll')).toBeNull()
 		expect(normalPanelExcludedRequest('summarize activity history')).toContain(
 			'activity history',
 		)
@@ -215,6 +215,10 @@ describe('internal AI vtable context', () => {
 		).toEqual([
 			'ceo_search_finance_vtable',
 			'ceo_search_finance_damage_vtable',
+			'ceo_search_finance_payroll_vtable',
+			'ceo_search_finance_payroll_payment_vtable',
+			'ceo_search_finance_fuel_vtable',
+			'ceo_search_finance_company_asset_vtable',
 			'ceo_search_inventory_damage_activity_vtable',
 		])
 		expect(
@@ -223,7 +227,11 @@ describe('internal AI vtable context', () => {
 				rows: [payrollRow],
 				scope: 'search',
 			}).readEntities,
-		).toEqual(['ceo_search_index', 'ceo_search_finance_payroll_vtable'])
+		).toEqual([
+			'ceo_search_index',
+			'ceo_search_finance_payroll_vtable',
+			'ceo_search_finance_payroll_payment_vtable',
+		])
 	})
 
 	it('routes broad Search AI finance intent to the CEO finance vtable', () => {

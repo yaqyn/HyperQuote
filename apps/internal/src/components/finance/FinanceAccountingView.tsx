@@ -2,9 +2,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
 	AlertTriangle,
 	Ban,
+	Banknote,
 	BookOpenCheck,
+	Building2,
 	Calculator,
 	ClipboardList,
+	Fuel,
+	Gift,
 	Landmark,
 	type LucideIcon,
 	PackageCheck,
@@ -19,14 +23,21 @@ import {
 	backfillFinanceAccountingSources,
 	createFinanceAdjustment,
 	type FinanceAccountingAdjustment,
+	type FinanceAccountingCompanyAsset,
 	type FinanceAccountingDashboard,
+	type FinanceAccountingFuelExpense,
 	type FinanceAccountingInventoryAsset,
 	type FinanceAccountingJournalEntry,
 	type FinanceAccountingPayable,
 	type FinanceAccountingReceivable,
 	getFinanceAccountingDashboard,
+	payEmployeeBonus,
+	payEmployeeSalary,
 	postFinanceJournalEntry,
+	postTruckFuelExpense,
+	recordCompanyAsset,
 	reverseFinanceJournalEntry,
+	updateEmployeeCompensation,
 	voidFinanceDraftJournalEntry,
 } from '../../lib/server/finance'
 import {
@@ -41,6 +52,8 @@ type AccountingView =
 	| 'income'
 	| 'cash'
 	| 'inventory'
+	| 'companyAssets'
+	| 'fuel'
 	| 'receivables'
 	| 'payables'
 	| 'payroll'
@@ -56,9 +69,11 @@ const ACCOUNTING_VIEWS: Array<{
 	{ id: 'income', label: 'Income', icon: ClipboardList },
 	{ id: 'cash', label: 'Cash flow', icon: Landmark },
 	{ id: 'inventory', label: 'Inventory assets', icon: PackageCheck },
+	{ id: 'companyAssets', label: 'Company assets', icon: Building2 },
+	{ id: 'fuel', label: 'Fuel expenses', icon: Fuel },
 	{ id: 'receivables', label: 'Receivables', icon: ReceiptText },
 	{ id: 'payables', label: 'Payables', icon: ReceiptText },
-	{ id: 'payroll', label: 'Payroll', icon: ClipboardList },
+	{ id: 'payroll', label: 'Payroll', icon: Banknote },
 	{ id: 'adjustments', label: 'Adjustments', icon: Plus },
 	{ id: 'journal', label: 'Journal', icon: BookOpenCheck },
 ]
@@ -77,7 +92,16 @@ const COUNT_METRICS = new Set([
 	'Review required',
 	'Draft journals',
 	'Cost reviews',
+	'Pending fuel receipts',
+	'Payroll due',
 ])
+
+const COMPACT_INPUT_CLASS =
+	'h-10 min-w-0 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-archivo)] text-[12px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]'
+const MONEY_INPUT_CLASS =
+	'h-10 min-w-0 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]'
+const SELECT_CLASS =
+	'h-10 min-w-0 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-archivo)] text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]'
 
 function isAdjustmentType(value: string): value is AdjustmentType {
 	return ADJUSTMENT_TYPES.some((type) => type.id === value)
@@ -167,6 +191,10 @@ export function FinanceAccountingView() {
 				{activeView === 'inventory' && (
 					<InventoryAssetsView rows={dashboard.inventoryAssets} />
 				)}
+				{activeView === 'companyAssets' && (
+					<CompanyAssetsView dashboard={dashboard} />
+				)}
+				{activeView === 'fuel' && <FuelExpensesView dashboard={dashboard} />}
 				{activeView === 'receivables' && (
 					<ReceivablesView rows={dashboard.receivables} />
 				)}
@@ -307,8 +335,11 @@ function AccountingViewStrip({
 }) {
 	const counts: Partial<Record<AccountingView, number>> = {
 		inventory: dashboard.inventoryAssets.length,
+		companyAssets: dashboard.companyAssets?.length ?? 0,
+		fuel: dashboard.fuelExpenses?.length ?? 0,
 		receivables: dashboard.receivables.length,
 		payables: dashboard.payables.length,
+		payroll: dashboard.payroll.payrollDueCount,
 		adjustments: dashboard.adjustments.length,
 		journal: dashboard.journal.length,
 	}
@@ -318,7 +349,7 @@ function AccountingViewStrip({
 			aria-label="Accounting views"
 			className="sticky top-0 z-10 -mx-4 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-2 backdrop-blur [-webkit-overflow-scrolling:touch] sm:-mx-6 sm:overflow-visible sm:px-6 sm:py-3 lg:mx-0 lg:bg-transparent lg:px-0 xl:static xl:backdrop-blur-none"
 		>
-			<ul className="flex min-w-max gap-2 sm:grid sm:min-w-0 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-9">
+			<ul className="flex min-w-max gap-2 sm:grid sm:min-w-0 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11">
 				{ACCOUNTING_VIEWS.map((view) => {
 					const Icon = view.icon
 					return (
@@ -368,6 +399,7 @@ function OverviewView({
 		['Cash balance', dashboard.overview.cashBalance],
 		['Inventory assets', dashboard.overview.inventoryAssets],
 		['Damaged inventory', dashboard.overview.damagedInventoryAssets ?? 0],
+		['Company assets', dashboard.overview.companyAssets ?? 0],
 		['Receivables', dashboard.overview.receivables],
 		['Total assets', dashboard.overview.totalAssets],
 	]
@@ -376,10 +408,16 @@ function OverviewView({
 		['Draft journals', dashboard.overview.unpostedCount],
 		['Review required', dashboard.overview.reviewRequiredCount],
 		['Cost reviews', dashboard.overview.inventoryCostReviewCount],
+		['Pending fuel receipts', dashboard.overview.pendingFuelExpenseCount ?? 0],
+		['Payroll due', dashboard.overview.payrollDueCount ?? 0],
 	]
 	const movementRows: Array<[string, number]> = [
 		['Customer receipts', dashboard.cashFlow.customerReceipts],
 		['Supplier payments', -dashboard.cashFlow.supplierPayments],
+		['Salary payments', -(dashboard.cashFlow.salaryPayments ?? 0)],
+		['Bonus payments', -(dashboard.cashFlow.bonusPayments ?? 0)],
+		['Fuel expenses', -(dashboard.cashFlow.fuelExpenses ?? 0)],
+		['Asset purchases', -(dashboard.cashFlow.companyAssetPurchases ?? 0)],
 		['Manual cash adjustments', dashboard.cashFlow.manualCashAdjustments],
 		['Net cash movement', dashboard.cashFlow.netCashMovement],
 	]
@@ -402,10 +440,24 @@ function OverviewView({
 			target: 'payables',
 		},
 		{
-			count: dashboard.adjustments.length,
-			label: 'Adjustments',
-			meta: `${dashboard.overview.reviewRequiredCount} review`,
-			target: 'adjustments',
+			count: dashboard.payroll.payrollDueCount ?? 0,
+			label: 'Payroll',
+			meta: `${formatDecimalEgp(dashboard.payroll.monthlyBaseSalary)} monthly`,
+			target: 'payroll',
+		},
+		{
+			count:
+				dashboard.fuelExpenses?.filter((row) => row.status === 'submitted')
+					.length ?? 0,
+			label: 'Fuel receipts',
+			meta: formatDecimalEgp(dashboard.cashFlow.fuelExpenses ?? 0),
+			target: 'fuel',
+		},
+		{
+			count: dashboard.companyAssets?.length ?? 0,
+			label: 'Company assets',
+			meta: formatDecimalEgp(dashboard.overview.companyAssets ?? 0),
+			target: 'companyAssets',
 		},
 		{
 			count: dashboard.journal.length,
@@ -730,6 +782,13 @@ function CashFlowView({
 				rows={[
 					['Customer receipts', dashboard.cashFlow.customerReceipts],
 					['Supplier payments', -dashboard.cashFlow.supplierPayments],
+					['Salary payments', -(dashboard.cashFlow.salaryPayments ?? 0)],
+					['Bonus payments', -(dashboard.cashFlow.bonusPayments ?? 0)],
+					['Fuel expenses', -(dashboard.cashFlow.fuelExpenses ?? 0)],
+					[
+						'Company asset purchases',
+						-(dashboard.cashFlow.companyAssetPurchases ?? 0),
+					],
 					['Manual cash adjustments', dashboard.cashFlow.manualCashAdjustments],
 					['Net cash movement', dashboard.cashFlow.netCashMovement],
 				]}
@@ -933,45 +992,529 @@ function PayablesView({ rows }: { rows: FinanceAccountingPayable[] }) {
 }
 
 function PayrollView({ dashboard }: { dashboard: FinanceAccountingDashboard }) {
+	const periodMonth = dashboard.payroll.periodMonth ?? dashboard.period.start
 	const payroll = dashboard.payroll
 	return (
 		<section className="mt-6">
 			<SectionHeader
 				title="Payroll"
-				meta={`${payroll.employeeCount} employees`}
+				meta={`${payroll.employeeCount} employees · ${periodMonth}`}
 			/>
 			<MetricGrid
 				metrics={[
 					['Monthly base salary', payroll.monthlyBaseSalary],
 					['Social insurance salary', payroll.monthlySocialInsuranceSalary],
-					['Review required', dashboard.overview.reviewRequiredCount],
+					['Salary paid', payroll.salaryPaidThisPeriod ?? 0],
+					['Bonus paid', payroll.bonusPaidThisPeriod ?? 0],
+					['Payroll due', payroll.payrollDueCount ?? 0],
 				]}
 			/>
 			{payroll.canViewDetail ? (
-				<div className="mt-5 divide-y divide-[var(--color-border)] border-y border-[var(--color-border)]">
+				<div className="mt-5 space-y-4">
 					{payroll.details.map((employee) => (
-						<div
+						<PayrollEmployeeRow
 							key={employee.employeeId}
-							className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-						>
-							<div className="min-w-0">
-								<p className="break-words font-[family-name:var(--font-bricolage)] text-[13px] font-semibold text-[var(--color-text)]">
-									{employee.employeeName}
-								</p>
-								<p className="mt-0.5 break-words font-[family-name:var(--font-bricolage)] text-[12px] text-[var(--color-text-muted)]">
-									{[employee.department, employee.title]
-										.filter(Boolean)
-										.join(' · ')}
-								</p>
-							</div>
-							<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
-								{formatDecimalEgp(employee.baseSalary ?? 0)} {employee.currency}
-							</span>
-						</div>
+							employee={employee}
+							periodMonth={periodMonth}
+						/>
 					))}
 				</div>
 			) : (
 				<EmptyRows label="Salary detail is restricted" />
+			)}
+		</section>
+	)
+}
+
+function PayrollEmployeeRow({
+	employee,
+	periodMonth,
+}: {
+	employee: FinanceAccountingDashboard['payroll']['details'][number]
+	periodMonth: string
+}) {
+	const queryClient = useQueryClient()
+	const [baseSalary, setBaseSalary] = useState(String(employee.baseSalary ?? 0))
+	const [socialSalary, setSocialSalary] = useState(
+		String(employee.socialInsuranceSalary ?? 0),
+	)
+	const [salaryProof, setSalaryProof] = useState('')
+	const [payProof, setPayProof] = useState('')
+	const [bonusAmount, setBonusAmount] = useState('')
+	const [bonusReason, setBonusReason] = useState('')
+	const [bonusProof, setBonusProof] = useState('')
+
+	const invalidate = () =>
+		queryClient.invalidateQueries({ queryKey: ['finance-accounting'] })
+	const updateMutation = useMutation({
+		mutationFn: () =>
+			updateEmployeeCompensation({
+				data: {
+					baseSalary: Number(baseSalary),
+					currency: 'EGP',
+					department: employee.department ?? undefined,
+					employeeId: employee.employeeId,
+					proofPath: salaryProof.trim() || undefined,
+					socialInsuranceSalary: Number(socialSalary || 0),
+					title: employee.title ?? undefined,
+				},
+			}),
+		onSuccess: () => {
+			setSalaryProof('')
+			invalidate()
+		},
+	})
+	const salaryMutation = useMutation({
+		mutationFn: () =>
+			payEmployeeSalary({
+				data: {
+					employeeId: employee.employeeId,
+					periodMonth,
+					proofPath: payProof.trim() || undefined,
+				},
+			}),
+		onSuccess: () => {
+			setPayProof('')
+			invalidate()
+		},
+	})
+	const bonusMutation = useMutation({
+		mutationFn: () =>
+			payEmployeeBonus({
+				data: {
+					amount: Number(bonusAmount),
+					employeeId: employee.employeeId,
+					periodMonth,
+					proofPath: bonusProof.trim() || undefined,
+					reason: bonusReason.trim(),
+				},
+			}),
+		onSuccess: () => {
+			setBonusAmount('')
+			setBonusReason('')
+			setBonusProof('')
+			invalidate()
+		},
+	})
+
+	const configuredSalary = Number(baseSalary) > 0
+	const canUpdate =
+		Number(baseSalary) >= 0 &&
+		Number(socialSalary || 0) >= 0 &&
+		salaryProof.trim().length > 0
+	const canPay =
+		configuredSalary &&
+		!employee.salaryPaidThisMonth &&
+		payProof.trim().length > 0
+	const canBonus =
+		Number(bonusAmount) > 0 &&
+		bonusReason.trim().length >= 3 &&
+		bonusProof.trim().length > 0
+
+	return (
+		<article className="rounded-md border border-[var(--color-border)] p-4">
+			<div className="grid gap-4 lg:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.2fr)]">
+				<div className="min-w-0">
+					<div className="flex flex-wrap items-center gap-2">
+						<p className="break-words font-[family-name:var(--font-bricolage)] text-[14px] font-semibold text-[var(--color-text)]">
+							{employee.employeeName}
+						</p>
+						<EmployeeStatusPill
+							tone={employee.salaryPaidThisMonth ? 'success' : 'warning'}
+							className="px-2 py-1 text-[11px]"
+						>
+							{employee.salaryPaidThisMonth ? 'Paid' : 'Due'}
+						</EmployeeStatusPill>
+					</div>
+					<p className="mt-1 break-words font-[family-name:var(--font-bricolage)] text-[12px] text-[var(--color-text-muted)]">
+						{[employee.department, employee.title]
+							.filter(Boolean)
+							.join(' · ') || 'No department set'}
+					</p>
+					<div className="mt-4 grid gap-2 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text)]">
+						<span>Base {formatDecimalEgp(employee.baseSalary ?? 0)}</span>
+						<span>
+							Social {formatDecimalEgp(employee.socialInsuranceSalary ?? 0)}
+						</span>
+						<span>
+							Bonus paid {formatDecimalEgp(employee.bonusPaidThisMonth ?? 0)}
+						</span>
+					</div>
+				</div>
+
+				<div className="grid gap-3">
+					<div className="grid gap-2 md:grid-cols-[120px_120px_minmax(0,1fr)_auto]">
+						<input
+							value={baseSalary}
+							onChange={(event) => setBaseSalary(event.target.value)}
+							inputMode="decimal"
+							placeholder="Base salary"
+							className={MONEY_INPUT_CLASS}
+						/>
+						<input
+							value={socialSalary}
+							onChange={(event) => setSocialSalary(event.target.value)}
+							inputMode="decimal"
+							placeholder="Social salary"
+							className={MONEY_INPUT_CLASS}
+						/>
+						<input
+							value={salaryProof}
+							onChange={(event) => setSalaryProof(event.target.value)}
+							placeholder="Salary-change proof"
+							className={COMPACT_INPUT_CLASS}
+						/>
+						<EmployeeActionButton
+							size="sm"
+							tone="neutral"
+							onClick={() => updateMutation.mutate()}
+							disabled={!canUpdate || updateMutation.isPending}
+						>
+							{updateMutation.isPending ? 'Saving' : 'Update'}
+						</EmployeeActionButton>
+					</div>
+
+					<div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)_auto]">
+						<input
+							value={payProof}
+							onChange={(event) => setPayProof(event.target.value)}
+							placeholder="Salary payment proof"
+							className={COMPACT_INPUT_CLASS}
+						/>
+						<EmployeeActionButton
+							size="sm"
+							tone="success"
+							leading={<Banknote aria-hidden="true" size={14} />}
+							onClick={() => salaryMutation.mutate()}
+							disabled={!canPay || salaryMutation.isPending}
+						>
+							{salaryMutation.isPending ? 'Paying' : 'PAY'}
+						</EmployeeActionButton>
+						<input
+							value={bonusProof}
+							onChange={(event) => setBonusProof(event.target.value)}
+							placeholder="Bonus proof"
+							className={COMPACT_INPUT_CLASS}
+						/>
+						<EmployeeActionButton
+							size="sm"
+							tone="primary"
+							leading={<Gift aria-hidden="true" size={14} />}
+							onClick={() => bonusMutation.mutate()}
+							disabled={!canBonus || bonusMutation.isPending}
+						>
+							{bonusMutation.isPending ? 'Saving' : 'Bonus'}
+						</EmployeeActionButton>
+					</div>
+					<div className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)]">
+						<input
+							value={bonusAmount}
+							onChange={(event) => setBonusAmount(event.target.value)}
+							inputMode="decimal"
+							placeholder="Bonus amount"
+							className={MONEY_INPUT_CLASS}
+						/>
+						<input
+							value={bonusReason}
+							onChange={(event) => setBonusReason(event.target.value)}
+							placeholder="Bonus reason"
+							className={COMPACT_INPUT_CLASS}
+						/>
+					</div>
+				</div>
+			</div>
+		</article>
+	)
+}
+
+function FuelExpensesView({
+	dashboard,
+}: {
+	dashboard: FinanceAccountingDashboard
+}) {
+	const rows = dashboard.fuelExpenses ?? []
+	return (
+		<section className="mt-6">
+			<SectionHeader title="Fuel expenses" meta={`${rows.length} receipts`} />
+			<MetricGrid
+				metrics={[
+					[
+						'Pending fuel receipts',
+						rows.filter((row) => row.status === 'submitted').length,
+					],
+					['Fuel expenses', dashboard.cashFlow.fuelExpenses ?? 0],
+				]}
+			/>
+			{rows.length === 0 ? (
+				<EmptyRows label="No fuel receipts in this view" />
+			) : (
+				<div className="mt-5 grid gap-4 lg:grid-cols-2">
+					{rows.map((row) => (
+						<FuelExpenseRow key={row.id} row={row} />
+					))}
+				</div>
+			)}
+		</section>
+	)
+}
+
+function FuelExpenseRow({ row }: { row: FinanceAccountingFuelExpense }) {
+	const queryClient = useQueryClient()
+	const [amount, setAmount] = useState(String(row.amount ?? ''))
+	const [proofPath, setProofPath] = useState('')
+	const [note, setNote] = useState('')
+	const mutation = useMutation({
+		mutationFn: () =>
+			postTruckFuelExpense({
+				data: {
+					amount: Number(amount),
+					expenseId: row.id,
+					note: note.trim() || undefined,
+					proofPath: proofPath.trim() || undefined,
+				},
+			}),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['finance-accounting'] })
+		},
+	})
+	const canPost = row.status === 'submitted' && Number(amount) > 0
+
+	return (
+		<article className="rounded-md border border-[var(--color-border)] p-4">
+			<div className="grid gap-3 sm:grid-cols-[112px_minmax(0,1fr)]">
+				<img
+					src={row.receiptImageDataUrl}
+					alt=""
+					className="h-28 w-full rounded-md border border-[var(--color-border)] object-cover sm:h-24"
+				/>
+				<div className="min-w-0">
+					<div className="flex flex-wrap items-center gap-2">
+						<p className="break-words font-[family-name:var(--font-bricolage)] text-[13px] font-semibold text-[var(--color-text)]">
+							{row.truckPlate ?? 'Truck'} · {row.driverName ?? 'Driver'}
+						</p>
+						<EmployeeStatusPill
+							tone={row.status === 'posted' ? 'success' : 'warning'}
+							className="px-2 py-1 text-[11px]"
+						>
+							{row.status}
+						</EmployeeStatusPill>
+					</div>
+					<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[11px] text-[var(--color-text-subtle)]">
+						{row.expenseDate}
+						{row.fuelLiters ? ` · ${formatQuantity(row.fuelLiters)} L` : ''}
+						{row.odometerKm ? ` · ${formatQuantity(row.odometerKm)} km` : ''}
+					</p>
+					{row.note && (
+						<p className="mt-2 break-words font-[family-name:var(--font-bricolage)] text-[12px] text-[var(--color-text-muted)]">
+							{row.note}
+						</p>
+					)}
+				</div>
+			</div>
+			{row.status === 'submitted' ? (
+				<div className="mt-4 grid gap-2 sm:grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)_auto]">
+					<input
+						value={amount}
+						onChange={(event) => setAmount(event.target.value)}
+						inputMode="decimal"
+						placeholder="Amount"
+						className={MONEY_INPUT_CLASS}
+					/>
+					<input
+						value={proofPath}
+						onChange={(event) => setProofPath(event.target.value)}
+						placeholder="Extra proof path"
+						className={COMPACT_INPUT_CLASS}
+					/>
+					<input
+						value={note}
+						onChange={(event) => setNote(event.target.value)}
+						placeholder="Finance note"
+						className={COMPACT_INPUT_CLASS}
+					/>
+					<EmployeeActionButton
+						size="sm"
+						tone="success"
+						leading={<Fuel aria-hidden="true" size={14} />}
+						onClick={() => mutation.mutate()}
+						disabled={!canPost || mutation.isPending}
+					>
+						{mutation.isPending ? 'Posting' : 'Post'}
+					</EmployeeActionButton>
+				</div>
+			) : (
+				<p className="mt-4 font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold text-[var(--color-text)]">
+					{formatDecimalEgp(row.amount ?? 0)}
+				</p>
+			)}
+		</article>
+	)
+}
+
+function CompanyAssetsView({
+	dashboard,
+}: {
+	dashboard: FinanceAccountingDashboard
+}) {
+	const rows = dashboard.companyAssets ?? []
+	const queryClient = useQueryClient()
+	const [assetType, setAssetType] =
+		useState<FinanceAccountingCompanyAsset['assetType']>('truck')
+	const [fundingSource, setFundingSource] = useState('cash_purchase')
+	const [name, setName] = useState('')
+	const [cost, setCost] = useState('')
+	const [date, setDate] = useState(todayInputValue)
+	const [location, setLocation] = useState('')
+	const [proofPath, setProofPath] = useState('')
+	const [notes, setNotes] = useState('')
+	const mutation = useMutation({
+		mutationFn: () =>
+			recordCompanyAsset({
+				data: {
+					acquisitionCost: Number(cost),
+					acquisitionDate: date,
+					assetType: assetType as
+						| 'building'
+						| 'vehicle'
+						| 'truck'
+						| 'equipment'
+						| 'furniture'
+						| 'technology'
+						| 'other',
+					fundingSource: fundingSource as
+						| 'cash_purchase'
+						| 'opening_balance'
+						| 'owner_contribution',
+					location: location.trim() || undefined,
+					name,
+					notes: notes.trim() || undefined,
+					proofPath: proofPath.trim() || undefined,
+				},
+			}),
+		onSuccess: () => {
+			setName('')
+			setCost('')
+			setLocation('')
+			setProofPath('')
+			setNotes('')
+			queryClient.invalidateQueries({ queryKey: ['finance-accounting'] })
+		},
+	})
+	const canSubmit =
+		name.trim().length >= 2 && Number(cost) > 0 && proofPath.trim().length > 0
+
+	return (
+		<section className="mt-6">
+			<SectionHeader
+				title="Company assets"
+				meta={`${rows.length} assets · ${formatDecimalEgp(
+					dashboard.overview.companyAssets ?? 0,
+				)}`}
+			/>
+			<form
+				className="mt-3 grid gap-3 rounded-md border border-[var(--color-border)] p-4 lg:grid-cols-[130px_150px_minmax(0,1fr)_130px]"
+				onSubmit={(event) => {
+					event.preventDefault()
+					if (canSubmit) mutation.mutate()
+				}}
+			>
+				<select
+					value={assetType}
+					onChange={(event) => setAssetType(event.target.value)}
+					className={SELECT_CLASS}
+				>
+					<option value="truck">Truck</option>
+					<option value="vehicle">Vehicle</option>
+					<option value="building">Building</option>
+					<option value="equipment">Equipment</option>
+					<option value="furniture">Furniture</option>
+					<option value="technology">Technology</option>
+					<option value="other">Other</option>
+				</select>
+				<select
+					value={fundingSource}
+					onChange={(event) => setFundingSource(event.target.value)}
+					className={SELECT_CLASS}
+				>
+					<option value="cash_purchase">Cash purchase</option>
+					<option value="opening_balance">Opening balance</option>
+					<option value="owner_contribution">Owner contribution</option>
+				</select>
+				<input
+					value={name}
+					onChange={(event) => setName(event.target.value)}
+					placeholder="Asset name"
+					className={COMPACT_INPUT_CLASS}
+				/>
+				<input
+					value={cost}
+					onChange={(event) => setCost(event.target.value)}
+					inputMode="decimal"
+					placeholder="Cost"
+					className={MONEY_INPUT_CLASS}
+				/>
+				<input
+					type="date"
+					value={date}
+					onChange={(event) => setDate(event.target.value)}
+					className={COMPACT_INPUT_CLASS}
+				/>
+				<input
+					value={location}
+					onChange={(event) => setLocation(event.target.value)}
+					placeholder="Location"
+					className={COMPACT_INPUT_CLASS}
+				/>
+				<input
+					value={proofPath}
+					onChange={(event) => setProofPath(event.target.value)}
+					placeholder="Proof path"
+					className={COMPACT_INPUT_CLASS}
+				/>
+				<EmployeeActionButton
+					type="submit"
+					size="sm"
+					leading={<Building2 aria-hidden="true" size={14} />}
+					disabled={!canSubmit || mutation.isPending}
+				>
+					{mutation.isPending ? 'Recording' : 'Record'}
+				</EmployeeActionButton>
+				<input
+					value={notes}
+					onChange={(event) => setNotes(event.target.value)}
+					placeholder="Notes"
+					className={`${COMPACT_INPUT_CLASS} lg:col-span-4`}
+				/>
+			</form>
+			{rows.length === 0 ? (
+				<EmptyRows label="No company assets recorded" />
+			) : (
+				<div className="mt-5 divide-y divide-[var(--color-border)] border-y border-[var(--color-border)]">
+					{rows.map((row) => (
+						<div
+							key={row.id}
+							className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_140px_150px] sm:items-center"
+						>
+							<div className="min-w-0">
+								<p className="break-words font-[family-name:var(--font-bricolage)] text-[13px] font-semibold text-[var(--color-text)]">
+									{row.name}
+								</p>
+								<p className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[11px] text-[var(--color-text-subtle)]">
+									{row.assetNumber} · {row.assetType} · {row.fundingSource}
+								</p>
+							</div>
+							<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
+								{formatDecimalEgp(row.carryingValue)}
+							</span>
+							<EmployeeStatusPill
+								tone={row.status === 'active' ? 'success' : 'neutral'}
+								className="w-fit px-2 py-1 text-[11px]"
+							>
+								{row.status}
+							</EmployeeStatusPill>
+						</div>
+					))}
+				</div>
 			)}
 		</section>
 	)

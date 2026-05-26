@@ -685,6 +685,8 @@ describe('Search display formatting', () => {
 			['Supplier payables', 1],
 			['Paid', 1],
 			['Payroll', 1],
+			['Fuel expenses', 0],
+			['Company assets', 0],
 		])
 		expect(counts('dispatch', rows)).toEqual([
 			['Deliveries', 1],
@@ -777,6 +779,9 @@ describe('Search display formatting', () => {
 		expect(sectionCounts('finance', rows)).toEqual([
 			['Accounting', 1],
 			['Payroll', 1],
+			['Payroll payments', 0],
+			['Fuel expenses', 0],
+			['Company assets', 0],
 			['Finance inbox', 1],
 			['Customer orders', 1],
 			['Approvals', 1],

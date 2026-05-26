@@ -5,9 +5,11 @@ import type {
 	DeliveryRejectionProof,
 	DriverDashboard,
 	DriverDelivery,
+	DriverFuelReceipt,
 	DriverLocation,
 	DriverProfile,
 	DriverRepository,
+	FuelReceiptSubmission,
 	TeamMessage,
 } from './driver-repository'
 import {
@@ -278,6 +280,32 @@ const teamMessageSchema = z
 		}),
 	)
 
+const fuelReceiptSchema = z
+	.object({
+		amount: nullableNumber.optional(),
+		createdAt: z.string(),
+		expenseDate: z.string(),
+		fuelLiters: nullableNumber.optional(),
+		id: z.string(),
+		odometerKm: nullableNumber.optional(),
+		status: z.enum(['submitted', 'posted', 'rejected', 'reversed']),
+		truckId: z.string(),
+		truckPlate: nullableString.optional(),
+	})
+	.transform(
+		(value): DriverFuelReceipt => ({
+			amount: value.amount,
+			createdAt: value.createdAt,
+			expenseDate: value.expenseDate,
+			fuelLiters: value.fuelLiters,
+			id: value.id,
+			odometerKm: value.odometerKm,
+			status: value.status,
+			truckId: value.truckId,
+			truckPlate: value.truckPlate,
+		}),
+	)
+
 const driverApiSessionSchema = z.object({
 	driverId: z.string(),
 	email: z.string(),
@@ -447,6 +475,16 @@ export function createSupabaseDriverRepository(
 
 		async startDelivery(deliveryId: string): Promise<DriverDelivery> {
 			return mutateDelivery(deliveryId, 'start')
+		},
+
+		async submitFuelReceipt(
+			_driverId: string,
+			submission: FuelReceiptSubmission,
+		): Promise<DriverFuelReceipt> {
+			return apiRequest('/api/driver/fuel', fuelReceiptSchema, {
+				body: JSON.stringify(submission),
+				method: 'POST',
+			})
 		},
 
 		async updateLocation(

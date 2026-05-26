@@ -146,9 +146,13 @@ export interface FinanceAccountingOverview {
 	basis: string
 	cashBalance: number
 	cashMovement: number
+	companyAssetCount?: number
+	companyAssets?: number
 	damagedInventoryAssets?: number
 	damagedInventoryLotCount?: number
 	inventoryAssets: number
+	payrollDueCount?: number
+	pendingFuelExpenseCount?: number
 	totalAssets: number
 	receivables: number
 	payables: number
@@ -165,7 +169,11 @@ export interface FinanceAccountingIncomeStatement {
 }
 
 export interface FinanceAccountingCashFlow {
+	bonusPayments?: number
+	companyAssetPurchases?: number
 	customerReceipts: number
+	fuelExpenses?: number
+	salaryPayments?: number
 	supplierPayments: number
 	manualCashAdjustments: number
 	netCashMovement: number
@@ -217,8 +225,12 @@ export interface FinanceAccountingPayable {
 export interface FinanceAccountingPayroll {
 	canViewDetail: boolean
 	employeeCount: number
+	periodMonth?: string
 	monthlyBaseSalary: number
 	monthlySocialInsuranceSalary: number
+	salaryPaidThisPeriod?: number
+	bonusPaidThisPeriod?: number
+	payrollDueCount?: number
 	details: Array<{
 		employeeId: string
 		employeeName: string
@@ -227,7 +239,52 @@ export interface FinanceAccountingPayroll {
 		baseSalary: number | null
 		socialInsuranceSalary: number | null
 		currency: string
+		salaryPaidThisMonth?: boolean
+		salaryPaymentId?: string | null
+		salaryPaidAmount?: number | null
+		salaryPaidAt?: string | null
+		bonusPaidThisMonth?: number
 	}>
+}
+
+export interface FinanceAccountingFuelExpense {
+	id: string
+	truckId: string
+	truckPlate: string | null
+	driverId: string
+	driverName: string | null
+	deliveryId: string | null
+	expenseDate: string
+	amount: number | null
+	fuelLiters: number | null
+	odometerKm: number | null
+	receiptImageDataUrl: string
+	receiptFileName: string
+	receiptMimeType: string
+	note: string | null
+	financeNote: string | null
+	status: 'submitted' | 'posted' | 'rejected' | 'reversed' | string
+	postedAt: string | null
+	journalEntryId: string | null
+	createdAt: string
+}
+
+export interface FinanceAccountingCompanyAsset {
+	id: string
+	assetNumber: string
+	assetType: string
+	name: string
+	acquisitionDate: string
+	acquisitionCost: number
+	carryingValue: number
+	fundingSource: string
+	location: string | null
+	relatedTruckId: string | null
+	status: 'active' | 'disposed' | string
+	proofPath: string | null
+	proofDocumentId: string | null
+	journalEntryId: string | null
+	createdAt: string
 }
 
 export interface FinanceAccountingAdjustment {
@@ -289,6 +346,8 @@ export interface FinanceAccountingDashboard {
 	receivables: FinanceAccountingReceivable[]
 	payables: FinanceAccountingPayable[]
 	payroll: FinanceAccountingPayroll
+	fuelExpenses?: FinanceAccountingFuelExpense[]
+	companyAssets?: FinanceAccountingCompanyAsset[]
 	adjustments: FinanceAccountingAdjustment[]
 	journal: FinanceAccountingJournalEntry[]
 }
@@ -845,6 +904,67 @@ const createAdjustmentInput = z.object({
 	proofDocumentId: z.string().trim().optional(),
 })
 
+const updateEmployeeCompensationInput = z.object({
+	employeeId: z.string().regex(UUID_RE),
+	baseSalary: z.number().min(0),
+	socialInsuranceSalary: z.number().min(0).optional(),
+	department: z.string().trim().max(80).optional(),
+	title: z.string().trim().max(120).optional(),
+	currency: z.literal('EGP').optional(),
+	proofPath: z.string().trim().min(1).optional(),
+	proofDocumentId: z.string().trim().optional(),
+})
+
+const payEmployeeSalaryInput = z.object({
+	employeeId: z.string().regex(UUID_RE),
+	periodMonth: z.string().trim().optional(),
+	proofPath: z.string().trim().min(1).optional(),
+	proofDocumentId: z.string().trim().optional(),
+	note: z.string().trim().max(500).optional(),
+})
+
+const payEmployeeBonusInput = z.object({
+	employeeId: z.string().regex(UUID_RE),
+	amount: z.number().positive(),
+	periodMonth: z.string().trim().optional(),
+	reason: z.string().trim().min(3).max(500),
+	proofPath: z.string().trim().min(1).optional(),
+	proofDocumentId: z.string().trim().optional(),
+})
+
+const postTruckFuelExpenseInput = z.object({
+	expenseId: z.string().regex(UUID_RE),
+	amount: z.number().positive().optional(),
+	proofPath: z.string().trim().optional(),
+	proofDocumentId: z.string().trim().optional(),
+	note: z.string().trim().max(500).optional(),
+})
+
+const recordCompanyAssetInput = z.object({
+	assetType: z.enum([
+		'building',
+		'vehicle',
+		'truck',
+		'equipment',
+		'furniture',
+		'technology',
+		'other',
+	]),
+	name: z.string().trim().min(2).max(160),
+	acquisitionCost: z.number().positive(),
+	fundingSource: z.enum([
+		'cash_purchase',
+		'opening_balance',
+		'owner_contribution',
+	]),
+	acquisitionDate: z.string().trim().optional(),
+	location: z.string().trim().max(160).optional(),
+	relatedTruckId: z.string().regex(UUID_RE).optional(),
+	proofPath: z.string().trim().min(1).optional(),
+	proofDocumentId: z.string().trim().optional(),
+	notes: z.string().trim().max(500).optional(),
+})
+
 const journalEntryActionInput = z.object({
 	entryId: z.string().regex(UUID_RE),
 	reason: z.string().trim().min(5).max(500).optional(),
@@ -924,6 +1044,108 @@ export const createFinanceAdjustment = createServerFn({ method: 'POST' })
 		)
 		if (error) throw new Error(error.message)
 		return { success: true as const, adjustmentId: adjustment?.id ?? null }
+	})
+
+export const updateEmployeeCompensation = createServerFn({ method: 'POST' })
+	.inputValidator(updateEmployeeCompensationInput)
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		const { data: compensation, error } = await auth.client.rpc(
+			'finance_update_employee_compensation',
+			{
+				p_base_salary: data.baseSalary,
+				p_department: data.department?.trim() || null,
+				p_employee_id: data.employeeId,
+				p_proof_document_id: optionalUuid(data.proofDocumentId),
+				p_proof_path: data.proofPath?.trim() || null,
+				p_salary_currency: data.currency ?? 'EGP',
+				p_social_insurance_salary: data.socialInsuranceSalary ?? null,
+				p_title: data.title?.trim() || null,
+			},
+		)
+		if (error) throw new Error(error.message)
+		return {
+			success: true as const,
+			employeeId: compensation?.employee_id ?? data.employeeId,
+		}
+	})
+
+export const payEmployeeSalary = createServerFn({ method: 'POST' })
+	.inputValidator(payEmployeeSalaryInput)
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		const { data: payment, error } = await auth.client.rpc(
+			'finance_pay_employee_salary',
+			{
+				p_employee_id: data.employeeId,
+				p_note: data.note?.trim() || null,
+				p_period_month: optionalDate(data.periodMonth),
+				p_proof_document_id: optionalUuid(data.proofDocumentId),
+				p_proof_path: data.proofPath?.trim() || null,
+			},
+		)
+		if (error) throw new Error(error.message)
+		return { success: true as const, paymentId: payment?.id ?? null }
+	})
+
+export const payEmployeeBonus = createServerFn({ method: 'POST' })
+	.inputValidator(payEmployeeBonusInput)
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		const { data: payment, error } = await auth.client.rpc(
+			'finance_pay_employee_bonus',
+			{
+				p_amount: data.amount,
+				p_employee_id: data.employeeId,
+				p_period_month: optionalDate(data.periodMonth),
+				p_proof_document_id: optionalUuid(data.proofDocumentId),
+				p_proof_path: data.proofPath?.trim() || null,
+				p_reason: data.reason,
+			},
+		)
+		if (error) throw new Error(error.message)
+		return { success: true as const, paymentId: payment?.id ?? null }
+	})
+
+export const postTruckFuelExpense = createServerFn({ method: 'POST' })
+	.inputValidator(postTruckFuelExpenseInput)
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		const { data: expense, error } = await auth.client.rpc(
+			'finance_post_truck_fuel_expense',
+			{
+				p_amount: data.amount ?? null,
+				p_expense_id: data.expenseId,
+				p_note: data.note?.trim() || null,
+				p_proof_document_id: optionalUuid(data.proofDocumentId),
+				p_proof_path: data.proofPath?.trim() || null,
+			},
+		)
+		if (error) throw new Error(error.message)
+		return { success: true as const, expenseId: expense?.id ?? data.expenseId }
+	})
+
+export const recordCompanyAsset = createServerFn({ method: 'POST' })
+	.inputValidator(recordCompanyAssetInput)
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		const { data: asset, error } = await auth.client.rpc(
+			'finance_record_company_asset',
+			{
+				p_acquisition_cost: data.acquisitionCost,
+				p_acquisition_date: optionalDate(data.acquisitionDate),
+				p_asset_type: data.assetType,
+				p_funding_source: data.fundingSource,
+				p_location: data.location?.trim() || null,
+				p_name: data.name,
+				p_notes: data.notes?.trim() || null,
+				p_proof_document_id: optionalUuid(data.proofDocumentId),
+				p_proof_path: data.proofPath?.trim() || null,
+				p_related_truck_id: data.relatedTruckId ?? null,
+			},
+		)
+		if (error) throw new Error(error.message)
+		return { success: true as const, assetId: asset?.id ?? null }
 	})
 
 export const postFinanceJournalEntry = createServerFn({ method: 'POST' })

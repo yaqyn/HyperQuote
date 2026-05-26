@@ -23,6 +23,9 @@ const damageMigrationSql = readRepoFile(
 const damageActivitySearchMigrationSql = readRepoFile(
 	'supabase/migrations/20260526025230_inventory_damage_activity_search_wiring.sql',
 )
+const operatingFinanceMigrationSql = readRepoFile(
+	'supabase/migrations/20260526031533_finance_payroll_fuel_company_asset_system.sql',
+)
 const accountingViewSource = readRepoFile(
 	'apps/internal/src/components/finance/FinanceAccountingView.tsx',
 )
@@ -199,6 +202,34 @@ describe('finance accounting rebuild', () => {
 		expect(accountingViewSource).toContain("row.lotId ?? 'good'")
 	})
 
+	it('wires payroll, fuel, and company assets through ledger-backed accounting', () => {
+		expect(operatingFinanceMigrationSql).toContain(
+			'create table if not exists public.employee_payroll_payments',
+		)
+		expect(operatingFinanceMigrationSql).toContain(
+			'create table if not exists public.truck_fuel_expenses',
+		)
+		expect(operatingFinanceMigrationSql).toContain(
+			'create table if not exists public.company_assets',
+		)
+		expect(operatingFinanceMigrationSql).toContain(
+			'finance_pay_employee_salary',
+		)
+		expect(operatingFinanceMigrationSql).toContain('driver_submit_fuel_receipt')
+		expect(operatingFinanceMigrationSql).toContain(
+			'finance_record_company_asset',
+		)
+		expect(operatingFinanceMigrationSql).toContain(
+			'ceo_search_finance_fuel_vtable',
+		)
+		expect(operatingFinanceMigrationSql).toContain(
+			'ceo_search_finance_company_asset_vtable',
+		)
+		expect(accountingViewSource).toContain('PAY')
+		expect(accountingViewSource).toContain('FuelExpensesView')
+		expect(accountingViewSource).toContain('CompanyAssetsView')
+	})
+
 	it('presents the accounting overview as a wired operating dashboard', () => {
 		expect(accountingViewSource).toContain('Balance sheet')
 		expect(accountingViewSource).toContain('Liability and review')
@@ -211,7 +242,9 @@ describe('finance accounting rebuild', () => {
 	})
 
 	it('keeps the accounting surface tuned for tablet breakpoints', () => {
-		expect(accountingViewSource).toContain('md:grid-cols-5 xl:grid-cols-9')
+		expect(accountingViewSource).toContain(
+			'md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11',
+		)
 		expect(accountingViewSource).toContain('md:grid-cols-2')
 		expect(accountingViewSource).toContain(
 			'lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]',

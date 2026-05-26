@@ -105,6 +105,9 @@ const sourceLabels: Record<string, string> = {
 	finance_payable: 'Supplier payable',
 	finance_payment_followup: 'Finance follow-up',
 	finance_payroll: 'Finance payroll',
+	finance_payroll_payment: 'Payroll payment',
+	finance_fuel_expense: 'Fuel expense',
+	finance_company_asset: 'Company asset',
 	finance_receivable: 'Customer receivable',
 	price_update: 'Price update',
 	price_update_request: 'Price request',
@@ -764,6 +767,36 @@ export function buildSearchPreviewFields(
 					formatMoney(numberValue(metadata, 'social_insurance_salary')),
 				),
 			)
+		case 'finance_payroll_payment':
+			return fields(
+				previewField('Employee', stringValue(metadata, 'employee_name')),
+				previewField(
+					'Type',
+					formatStatus(stringValue(metadata, 'payment_type')),
+				),
+				previewField('Period', stringValue(metadata, 'period_month')),
+				previewField('Amount', formatMoney(numberValue(metadata, 'amount'))),
+			)
+		case 'finance_fuel_expense':
+			return fields(
+				previewField('Truck', stringValue(metadata, 'truck_plate')),
+				previewField('Driver', stringValue(metadata, 'driver_name')),
+				previewField('Status', formatStatus(stringValue(metadata, 'status'))),
+				previewField('Amount', formatMoney(numberValue(metadata, 'amount'))),
+			)
+		case 'finance_company_asset':
+			return fields(
+				previewField('Asset no.', stringValue(metadata, 'asset_number')),
+				previewField('Type', formatStatus(stringValue(metadata, 'asset_type'))),
+				previewField(
+					'Value',
+					formatMoney(numberValue(metadata, 'carrying_value')),
+				),
+				previewField(
+					'Funding',
+					formatStatus(stringValue(metadata, 'funding_source')),
+				),
+			)
 		case 'inventory': {
 			const unit = stringValue(metadata, 'unit_of_measure')
 			return fields(
@@ -1321,6 +1354,65 @@ export function buildSearchDetailFields(
 				detailField('Updated by', stringValue(metadata, 'updated_by')),
 				detailField('Updated', formatDateTime(metadata.updated_at)),
 			)
+		case 'finance_payroll_payment':
+			return details(
+				detailField('Employee', stringValue(metadata, 'employee_name')),
+				detailField(
+					'Type',
+					formatStatus(stringValue(metadata, 'payment_type')),
+				),
+				detailField('Period', formatDateTime(metadata.period_month)),
+				detailField('Amount', formatMoney(numberValue(metadata, 'amount'))),
+				detailField('Reason', stringValue(metadata, 'reason')),
+				detailField('Status', formatStatus(stringValue(metadata, 'status'))),
+				detailField('Proof', stringValue(metadata, 'proof_path')),
+				detailField('Created by', stringValue(metadata, 'created_by')),
+				detailField('Created', formatDateTime(metadata.created_at)),
+			)
+		case 'finance_fuel_expense':
+			return details(
+				detailField('Truck', stringValue(metadata, 'truck_plate')),
+				detailField('Driver', stringValue(metadata, 'driver_name')),
+				detailField('Status', formatStatus(stringValue(metadata, 'status'))),
+				detailField('Amount', formatMoney(numberValue(metadata, 'amount'))),
+				detailField(
+					'Liters',
+					formatNumber(numberValue(metadata, 'fuel_liters')),
+				),
+				detailField(
+					'Odometer',
+					formatNumber(numberValue(metadata, 'odometer_km')),
+				),
+				detailField('Note', stringValue(metadata, 'note')),
+				detailField('Finance note', stringValue(metadata, 'finance_note')),
+				detailField('Posted by', stringValue(metadata, 'posted_by')),
+				detailField('Posted', formatDateTime(metadata.posted_at)),
+				detailField('Created', formatDateTime(metadata.created_at)),
+			)
+		case 'finance_company_asset':
+			return details(
+				detailField('Asset no.', stringValue(metadata, 'asset_number')),
+				detailField('Type', formatStatus(stringValue(metadata, 'asset_type'))),
+				detailField('Name', stringValue(metadata, 'name')),
+				detailField(
+					'Cost',
+					formatMoney(numberValue(metadata, 'acquisition_cost')),
+				),
+				detailField(
+					'Carrying value',
+					formatMoney(numberValue(metadata, 'carrying_value')),
+				),
+				detailField(
+					'Funding',
+					formatStatus(stringValue(metadata, 'funding_source')),
+				),
+				detailField('Location', stringValue(metadata, 'location')),
+				detailField('Truck', stringValue(metadata, 'truck_plate')),
+				detailField('Status', formatStatus(stringValue(metadata, 'status'))),
+				detailField('Proof', stringValue(metadata, 'proof_path')),
+				detailField('Created by', stringValue(metadata, 'created_by')),
+				detailField('Created', formatDateTime(metadata.created_at)),
+			)
 		case 'inventory': {
 			const unit = stringValue(metadata, 'unit_of_measure')
 			return details(
@@ -1875,6 +1967,31 @@ export function buildSearchSummaryNote(
 			]
 				.filter(Boolean)
 				.join(' - ')
+		case 'finance_payroll_payment':
+			return [
+				stringValue(metadata, 'employee_name'),
+				formatStatus(stringValue(metadata, 'payment_type')),
+				formatMoney(numberValue(metadata, 'amount')),
+			]
+				.filter(Boolean)
+				.join(' - ')
+		case 'finance_fuel_expense':
+			return [
+				stringValue(metadata, 'truck_plate'),
+				stringValue(metadata, 'driver_name'),
+				formatStatus(stringValue(metadata, 'status')),
+				formatMoney(numberValue(metadata, 'amount')),
+			]
+				.filter(Boolean)
+				.join(' - ')
+		case 'finance_company_asset':
+			return [
+				stringValue(metadata, 'asset_number'),
+				stringValue(metadata, 'name'),
+				formatMoney(numberValue(metadata, 'carrying_value')),
+			]
+				.filter(Boolean)
+				.join(' - ')
 		case 'inventory': {
 			const unit = stringValue(metadata, 'unit_of_measure')
 			return [
@@ -2082,7 +2199,21 @@ export function buildSearchSummaryBuckets(
 					'finance-payroll',
 					'Payroll',
 					rows,
-					(row) => row.entity_type === 'finance_payroll',
+					(row) =>
+						row.entity_type === 'finance_payroll' ||
+						row.entity_type === 'finance_payroll_payment',
+				),
+				entitySection(
+					'finance-fuel',
+					'Fuel expenses',
+					rows,
+					'finance_fuel_expense',
+				),
+				entitySection(
+					'finance-company-assets',
+					'Company assets',
+					rows,
+					'finance_company_asset',
 				),
 			]
 		case 'dispatch':
@@ -2145,6 +2276,24 @@ export function buildSearchSummarySections(
 			return [
 				entitySection('finance-accounting', 'Accounting', rows, 'finance'),
 				entitySection('finance-payroll', 'Payroll', rows, 'finance_payroll'),
+				entitySection(
+					'finance-payroll-payments',
+					'Payroll payments',
+					rows,
+					'finance_payroll_payment',
+				),
+				entitySection(
+					'finance-fuel',
+					'Fuel expenses',
+					rows,
+					'finance_fuel_expense',
+				),
+				entitySection(
+					'finance-company-assets',
+					'Company assets',
+					rows,
+					'finance_company_asset',
+				),
 				entitySection('finance-inbox', 'Finance inbox', rows, 'payment'),
 				bucket(
 					'finance-customer-orders',

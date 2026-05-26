@@ -326,6 +326,108 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			company_assets: {
+				Row: {
+					acquisition_cost: number
+					acquisition_date: string
+					asset_number: string
+					asset_type: Database['public']['Enums']['company_asset_type']
+					carrying_value: number
+					created_at: string
+					created_by_employee_id: string | null
+					currency: string
+					funding_source: Database['public']['Enums']['company_asset_funding_source']
+					id: string
+					journal_entry_id: string | null
+					location: string | null
+					name: string
+					notes: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					related_truck_id: string | null
+					status: Database['public']['Enums']['company_asset_status']
+					updated_at: string
+				}
+				Insert: {
+					acquisition_cost: number
+					acquisition_date?: string
+					asset_number?: string
+					asset_type: Database['public']['Enums']['company_asset_type']
+					carrying_value: number
+					created_at?: string
+					created_by_employee_id?: string | null
+					currency?: string
+					funding_source: Database['public']['Enums']['company_asset_funding_source']
+					id?: string
+					journal_entry_id?: string | null
+					location?: string | null
+					name: string
+					notes?: string | null
+					proof_document_id?: string | null
+					proof_path?: string | null
+					related_truck_id?: string | null
+					status?: Database['public']['Enums']['company_asset_status']
+					updated_at?: string
+				}
+				Update: {
+					acquisition_cost?: number
+					acquisition_date?: string
+					asset_number?: string
+					asset_type?: Database['public']['Enums']['company_asset_type']
+					carrying_value?: number
+					created_at?: string
+					created_by_employee_id?: string | null
+					currency?: string
+					funding_source?: Database['public']['Enums']['company_asset_funding_source']
+					id?: string
+					journal_entry_id?: string | null
+					location?: string | null
+					name?: string
+					notes?: string | null
+					proof_document_id?: string | null
+					proof_path?: string | null
+					related_truck_id?: string | null
+					status?: Database['public']['Enums']['company_asset_status']
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'company_assets_created_by_employee_id_fkey'
+						columns: ['created_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'company_assets_created_by_employee_id_fkey'
+						columns: ['created_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'company_assets_journal_entry_id_fkey'
+						columns: ['journal_entry_id']
+						isOneToOne: true
+						referencedRelation: 'finance_journal_entries'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'company_assets_proof_document_id_fkey'
+						columns: ['proof_document_id']
+						isOneToOne: false
+						referencedRelation: 'proof_documents'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'company_assets_related_truck_id_fkey'
+						columns: ['related_truck_id']
+						isOneToOne: false
+						referencedRelation: 'trucks'
+						referencedColumns: ['id']
+					},
+				]
+			}
 			customer_addresses: {
 				Row: {
 					area: string | null
@@ -1188,6 +1290,103 @@ export type Database = {
 						columns: ['employee_id']
 						isOneToOne: false
 						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			employee_payroll_payments: {
+				Row: {
+					amount: number
+					created_at: string
+					created_by_employee_id: string | null
+					currency: string
+					employee_id: string
+					id: string
+					journal_entry_id: string | null
+					payment_date: string
+					payment_type: Database['public']['Enums']['finance_payroll_payment_type']
+					period_month: string
+					proof_document_id: string | null
+					proof_path: string | null
+					reason: string | null
+					status: Database['public']['Enums']['finance_payroll_payment_status']
+					updated_at: string
+				}
+				Insert: {
+					amount: number
+					created_at?: string
+					created_by_employee_id?: string | null
+					currency?: string
+					employee_id: string
+					id?: string
+					journal_entry_id?: string | null
+					payment_date?: string
+					payment_type: Database['public']['Enums']['finance_payroll_payment_type']
+					period_month: string
+					proof_document_id?: string | null
+					proof_path?: string | null
+					reason?: string | null
+					status?: Database['public']['Enums']['finance_payroll_payment_status']
+					updated_at?: string
+				}
+				Update: {
+					amount?: number
+					created_at?: string
+					created_by_employee_id?: string | null
+					currency?: string
+					employee_id?: string
+					id?: string
+					journal_entry_id?: string | null
+					payment_date?: string
+					payment_type?: Database['public']['Enums']['finance_payroll_payment_type']
+					period_month?: string
+					proof_document_id?: string | null
+					proof_path?: string | null
+					reason?: string | null
+					status?: Database['public']['Enums']['finance_payroll_payment_status']
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'employee_payroll_payments_created_by_employee_id_fkey'
+						columns: ['created_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_payroll_payments_created_by_employee_id_fkey'
+						columns: ['created_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_payroll_payments_employee_id_fkey'
+						columns: ['employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_payroll_payments_employee_id_fkey'
+						columns: ['employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_payroll_payments_journal_entry_id_fkey'
+						columns: ['journal_entry_id']
+						isOneToOne: true
+						referencedRelation: 'finance_journal_entries'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_payroll_payments_proof_document_id_fkey'
+						columns: ['proof_document_id']
+						isOneToOne: false
+						referencedRelation: 'proof_documents'
 						referencedColumns: ['id']
 					},
 				]
@@ -4483,6 +4682,151 @@ export type Database = {
 					},
 				]
 			}
+			truck_fuel_expenses: {
+				Row: {
+					amount: number | null
+					created_at: string
+					currency: string
+					delivery_id: string | null
+					driver_id: string
+					expense_date: string
+					finance_note: string | null
+					fuel_liters: number | null
+					id: string
+					journal_entry_id: string | null
+					note: string | null
+					odometer_km: number | null
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					receipt_file_name: string
+					receipt_image_data_url: string
+					receipt_mime_type: string
+					receipt_size_bytes: number | null
+					status: Database['public']['Enums']['truck_fuel_expense_status']
+					submitted_at: string
+					truck_id: string
+					updated_at: string
+				}
+				Insert: {
+					amount?: number | null
+					created_at?: string
+					currency?: string
+					delivery_id?: string | null
+					driver_id: string
+					expense_date?: string
+					finance_note?: string | null
+					fuel_liters?: number | null
+					id?: string
+					journal_entry_id?: string | null
+					note?: string | null
+					odometer_km?: number | null
+					posted_at?: string | null
+					posted_by_employee_id?: string | null
+					proof_document_id?: string | null
+					proof_path?: string | null
+					receipt_file_name?: string
+					receipt_image_data_url: string
+					receipt_mime_type?: string
+					receipt_size_bytes?: number | null
+					status?: Database['public']['Enums']['truck_fuel_expense_status']
+					submitted_at?: string
+					truck_id: string
+					updated_at?: string
+				}
+				Update: {
+					amount?: number | null
+					created_at?: string
+					currency?: string
+					delivery_id?: string | null
+					driver_id?: string
+					expense_date?: string
+					finance_note?: string | null
+					fuel_liters?: number | null
+					id?: string
+					journal_entry_id?: string | null
+					note?: string | null
+					odometer_km?: number | null
+					posted_at?: string | null
+					posted_by_employee_id?: string | null
+					proof_document_id?: string | null
+					proof_path?: string | null
+					receipt_file_name?: string
+					receipt_image_data_url?: string
+					receipt_mime_type?: string
+					receipt_size_bytes?: number | null
+					status?: Database['public']['Enums']['truck_fuel_expense_status']
+					submitted_at?: string
+					truck_id?: string
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'truck_fuel_expenses_delivery_id_fkey'
+						columns: ['delivery_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_dispatch_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'truck_fuel_expenses_delivery_id_fkey'
+						columns: ['delivery_id']
+						isOneToOne: false
+						referencedRelation: 'deliveries'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'truck_fuel_expenses_driver_id_fkey'
+						columns: ['driver_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_driver_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'truck_fuel_expenses_driver_id_fkey'
+						columns: ['driver_id']
+						isOneToOne: false
+						referencedRelation: 'drivers'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'truck_fuel_expenses_journal_entry_id_fkey'
+						columns: ['journal_entry_id']
+						isOneToOne: true
+						referencedRelation: 'finance_journal_entries'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'truck_fuel_expenses_posted_by_employee_id_fkey'
+						columns: ['posted_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'truck_fuel_expenses_posted_by_employee_id_fkey'
+						columns: ['posted_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'truck_fuel_expenses_proof_document_id_fkey'
+						columns: ['proof_document_id']
+						isOneToOne: false
+						referencedRelation: 'proof_documents'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'truck_fuel_expenses_truck_id_fkey'
+						columns: ['truck_id']
+						isOneToOne: false
+						referencedRelation: 'trucks'
+						referencedColumns: ['id']
+					},
+				]
+			}
 			trucks: {
 				Row: {
 					body_type: string
@@ -5018,7 +5362,43 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			ceo_search_finance_company_asset_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
 			ceo_search_finance_damage_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_finance_fuel_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
+			ceo_search_finance_payroll_payment_vtable: {
 				Row: {
 					entity_id: string | null
 					entity_type: string | null
@@ -6118,6 +6498,53 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			driver_submit_fuel_receipt: {
+				Args: {
+					p_amount?: number
+					p_delivery_id?: string
+					p_expense_date?: string
+					p_fuel_liters?: number
+					p_note?: string
+					p_odometer_km?: number
+					p_receipt_file_name?: string
+					p_receipt_image_data_url?: string
+					p_receipt_mime_type?: string
+					p_receipt_size_bytes?: number
+					p_truck_id?: string
+				}
+				Returns: {
+					amount: number | null
+					created_at: string
+					currency: string
+					delivery_id: string | null
+					driver_id: string
+					expense_date: string
+					finance_note: string | null
+					fuel_liters: number | null
+					id: string
+					journal_entry_id: string | null
+					note: string | null
+					odometer_km: number | null
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					receipt_file_name: string
+					receipt_image_data_url: string
+					receipt_mime_type: string
+					receipt_size_bytes: number | null
+					status: Database['public']['Enums']['truck_fuel_expense_status']
+					submitted_at: string
+					truck_id: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'truck_fuel_expenses'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			driver_update_location: {
 				Args: {
 					p_accuracy_meters?: number
@@ -6151,6 +6578,10 @@ export type Database = {
 				Returns: Json
 			}
 			finance_accounting_dashboard_without_damage: {
+				Args: { p_period_end?: string; p_period_start?: string }
+				Returns: Json
+			}
+			finance_accounting_dashboard_without_operating_finance: {
 				Args: { p_period_end?: string; p_period_start?: string }
 				Returns: Json
 			}
@@ -6236,6 +6667,71 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			finance_pay_employee_bonus: {
+				Args: {
+					p_amount: number
+					p_employee_id: string
+					p_period_month?: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_reason?: string
+				}
+				Returns: {
+					amount: number
+					created_at: string
+					created_by_employee_id: string | null
+					currency: string
+					employee_id: string
+					id: string
+					journal_entry_id: string | null
+					payment_date: string
+					payment_type: Database['public']['Enums']['finance_payroll_payment_type']
+					period_month: string
+					proof_document_id: string | null
+					proof_path: string | null
+					reason: string | null
+					status: Database['public']['Enums']['finance_payroll_payment_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'employee_payroll_payments'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			finance_pay_employee_salary: {
+				Args: {
+					p_employee_id: string
+					p_note?: string
+					p_period_month?: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+				}
+				Returns: {
+					amount: number
+					created_at: string
+					created_by_employee_id: string | null
+					currency: string
+					employee_id: string
+					id: string
+					journal_entry_id: string | null
+					payment_date: string
+					payment_type: Database['public']['Enums']['finance_payroll_payment_type']
+					period_month: string
+					proof_document_id: string | null
+					proof_path: string | null
+					reason: string | null
+					status: Database['public']['Enums']['finance_payroll_payment_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'employee_payroll_payments'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			finance_post_journal_entry: {
 				Args: { p_entry_id: string }
 				Returns: {
@@ -6271,6 +6767,88 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			finance_post_truck_fuel_expense: {
+				Args: {
+					p_amount?: number
+					p_expense_id: string
+					p_note?: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+				}
+				Returns: {
+					amount: number | null
+					created_at: string
+					currency: string
+					delivery_id: string | null
+					driver_id: string
+					expense_date: string
+					finance_note: string | null
+					fuel_liters: number | null
+					id: string
+					journal_entry_id: string | null
+					note: string | null
+					odometer_km: number | null
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					receipt_file_name: string
+					receipt_image_data_url: string
+					receipt_mime_type: string
+					receipt_size_bytes: number | null
+					status: Database['public']['Enums']['truck_fuel_expense_status']
+					submitted_at: string
+					truck_id: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'truck_fuel_expenses'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			finance_record_company_asset: {
+				Args: {
+					p_acquisition_cost: number
+					p_acquisition_date?: string
+					p_asset_type: string
+					p_funding_source: string
+					p_location?: string
+					p_name: string
+					p_notes?: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_related_truck_id?: string
+				}
+				Returns: {
+					acquisition_cost: number
+					acquisition_date: string
+					asset_number: string
+					asset_type: Database['public']['Enums']['company_asset_type']
+					carrying_value: number
+					created_at: string
+					created_by_employee_id: string | null
+					currency: string
+					funding_source: Database['public']['Enums']['company_asset_funding_source']
+					id: string
+					journal_entry_id: string | null
+					location: string | null
+					name: string
+					notes: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					related_truck_id: string | null
+					status: Database['public']['Enums']['company_asset_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'company_assets'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			finance_reverse_journal_entry: {
 				Args: { p_entry_id: string; p_reason: string }
 				Returns: {
@@ -6302,6 +6880,36 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'finance_journal_entries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			finance_update_employee_compensation: {
+				Args: {
+					p_base_salary: number
+					p_department?: string
+					p_employee_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_salary_currency?: string
+					p_social_insurance_salary?: number
+					p_title?: string
+				}
+				Returns: {
+					base_salary: number | null
+					created_at: string
+					department: string | null
+					employee_id: string
+					hire_date: string | null
+					salary_currency: string
+					social_insurance_salary: number | null
+					title: string | null
+					updated_at: string
+					updated_by_employee_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'employee_compensation'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -8043,6 +8651,55 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			service_driver_submit_fuel_receipt: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_amount?: number
+					p_delivery_id?: string
+					p_expense_date?: string
+					p_fuel_liters?: number
+					p_note?: string
+					p_odometer_km?: number
+					p_receipt_file_name?: string
+					p_receipt_image_data_url?: string
+					p_receipt_mime_type?: string
+					p_receipt_size_bytes?: number
+					p_truck_id?: string
+				}
+				Returns: {
+					amount: number | null
+					created_at: string
+					currency: string
+					delivery_id: string | null
+					driver_id: string
+					expense_date: string
+					finance_note: string | null
+					fuel_liters: number | null
+					id: string
+					journal_entry_id: string | null
+					note: string | null
+					odometer_km: number | null
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					receipt_file_name: string
+					receipt_image_data_url: string
+					receipt_mime_type: string
+					receipt_size_bytes: number | null
+					status: Database['public']['Enums']['truck_fuel_expense_status']
+					submitted_at: string
+					truck_id: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'truck_fuel_expenses'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			service_driver_update_location: {
 				Args: {
 					p_accuracy_meters?: number
@@ -8181,6 +8838,75 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			service_finance_pay_employee_bonus: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_amount: number
+					p_employee_id: string
+					p_period_month?: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_reason?: string
+				}
+				Returns: {
+					amount: number
+					created_at: string
+					created_by_employee_id: string | null
+					currency: string
+					employee_id: string
+					id: string
+					journal_entry_id: string | null
+					payment_date: string
+					payment_type: Database['public']['Enums']['finance_payroll_payment_type']
+					period_month: string
+					proof_document_id: string | null
+					proof_path: string | null
+					reason: string | null
+					status: Database['public']['Enums']['finance_payroll_payment_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'employee_payroll_payments'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_finance_pay_employee_salary: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_employee_id: string
+					p_note?: string
+					p_period_month?: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+				}
+				Returns: {
+					amount: number
+					created_at: string
+					created_by_employee_id: string | null
+					currency: string
+					employee_id: string
+					id: string
+					journal_entry_id: string | null
+					payment_date: string
+					payment_type: Database['public']['Enums']['finance_payroll_payment_type']
+					period_month: string
+					proof_document_id: string | null
+					proof_path: string | null
+					reason: string | null
+					status: Database['public']['Enums']['finance_payroll_payment_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'employee_payroll_payments'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			service_finance_post_journal_entry: {
 				Args: {
 					p_actor_pool: string
@@ -8216,6 +8942,92 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'finance_journal_entries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_finance_post_truck_fuel_expense: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_amount?: number
+					p_expense_id: string
+					p_note?: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+				}
+				Returns: {
+					amount: number | null
+					created_at: string
+					currency: string
+					delivery_id: string | null
+					driver_id: string
+					expense_date: string
+					finance_note: string | null
+					fuel_liters: number | null
+					id: string
+					journal_entry_id: string | null
+					note: string | null
+					odometer_km: number | null
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					receipt_file_name: string
+					receipt_image_data_url: string
+					receipt_mime_type: string
+					receipt_size_bytes: number | null
+					status: Database['public']['Enums']['truck_fuel_expense_status']
+					submitted_at: string
+					truck_id: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'truck_fuel_expenses'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_finance_record_company_asset: {
+				Args: {
+					p_acquisition_cost: number
+					p_acquisition_date?: string
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_asset_type: string
+					p_funding_source: string
+					p_location?: string
+					p_name: string
+					p_notes?: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_related_truck_id?: string
+				}
+				Returns: {
+					acquisition_cost: number
+					acquisition_date: string
+					asset_number: string
+					asset_type: Database['public']['Enums']['company_asset_type']
+					carrying_value: number
+					created_at: string
+					created_by_employee_id: string | null
+					currency: string
+					funding_source: Database['public']['Enums']['company_asset_funding_source']
+					id: string
+					journal_entry_id: string | null
+					location: string | null
+					name: string
+					notes: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					related_truck_id: string | null
+					status: Database['public']['Enums']['company_asset_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'company_assets'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -8256,6 +9068,38 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'finance_journal_entries'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_finance_update_employee_compensation: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_base_salary: number
+					p_department?: string
+					p_employee_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_salary_currency?: string
+					p_social_insurance_salary?: number
+					p_title?: string
+				}
+				Returns: {
+					base_salary: number | null
+					created_at: string
+					department: string | null
+					employee_id: string
+					hire_date: string | null
+					salary_currency: string
+					social_insurance_salary: number | null
+					title: string | null
+					updated_at: string
+					updated_by_employee_id: string | null
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'employee_compensation'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -10023,11 +10867,32 @@ export type Database = {
 				| 'inventory_damage_sold'
 				| 'inventory_damage_disposed'
 				| 'inventory_damage_reversed'
+				| 'finance_salary_updated'
+				| 'finance_payroll_paid'
+				| 'finance_bonus_paid'
+				| 'driver_fuel_receipt_submitted'
+				| 'finance_fuel_expense_posted'
+				| 'finance_company_asset_recorded'
+				| 'finance_company_asset_revalued'
+				| 'finance_company_asset_disposed'
 			catalog_availability_status:
 				| 'available'
 				| 'low_stock'
 				| 'out_of_stock'
 				| 'hidden'
+			company_asset_funding_source:
+				| 'cash_purchase'
+				| 'opening_balance'
+				| 'owner_contribution'
+			company_asset_status: 'active' | 'disposed'
+			company_asset_type:
+				| 'building'
+				| 'vehicle'
+				| 'truck'
+				| 'equipment'
+				| 'furniture'
+				| 'technology'
+				| 'other'
 			customer_payment_history: 'excellent' | 'good' | 'fair' | 'poor'
 			customer_status: 'unclaimed' | 'claimed' | 'active' | 'inactive'
 			customer_tier: 'A' | 'B' | 'C' | 'new'
@@ -10099,8 +10964,13 @@ export type Database = {
 				| 'dispatch_delivery'
 				| 'inventory_damage_lot'
 				| 'inventory_damage_transaction'
+				| 'employee_payroll_payment'
+				| 'truck_fuel_expense'
+				| 'company_asset'
 			finance_journal_status: 'draft' | 'posted' | 'voided' | 'reversed'
 			finance_normal_balance: 'debit' | 'credit'
+			finance_payroll_payment_status: 'paid' | 'reversed'
+			finance_payroll_payment_type: 'salary' | 'bonus'
 			inventory_damage_lot_status:
 				| 'open'
 				| 'sold'
@@ -10190,6 +11060,11 @@ export type Database = {
 				| 'under_review'
 				| 'approved'
 				| 'rejected'
+			truck_fuel_expense_status:
+				| 'submitted'
+				| 'posted'
+				| 'rejected'
+				| 'reversed'
 			truck_status: 'available' | 'loading' | 'dispatched' | 'maintenance'
 			user_profile_type: 'customer' | 'internal' | 'driver'
 			user_role:
@@ -10489,12 +11364,35 @@ export const Constants = {
 				'inventory_damage_sold',
 				'inventory_damage_disposed',
 				'inventory_damage_reversed',
+				'finance_salary_updated',
+				'finance_payroll_paid',
+				'finance_bonus_paid',
+				'driver_fuel_receipt_submitted',
+				'finance_fuel_expense_posted',
+				'finance_company_asset_recorded',
+				'finance_company_asset_revalued',
+				'finance_company_asset_disposed',
 			],
 			catalog_availability_status: [
 				'available',
 				'low_stock',
 				'out_of_stock',
 				'hidden',
+			],
+			company_asset_funding_source: [
+				'cash_purchase',
+				'opening_balance',
+				'owner_contribution',
+			],
+			company_asset_status: ['active', 'disposed'],
+			company_asset_type: [
+				'building',
+				'vehicle',
+				'truck',
+				'equipment',
+				'furniture',
+				'technology',
+				'other',
 			],
 			customer_payment_history: ['excellent', 'good', 'fair', 'poor'],
 			customer_status: ['unclaimed', 'claimed', 'active', 'inactive'],
@@ -10574,9 +11472,14 @@ export const Constants = {
 				'dispatch_delivery',
 				'inventory_damage_lot',
 				'inventory_damage_transaction',
+				'employee_payroll_payment',
+				'truck_fuel_expense',
+				'company_asset',
 			],
 			finance_journal_status: ['draft', 'posted', 'voided', 'reversed'],
 			finance_normal_balance: ['debit', 'credit'],
+			finance_payroll_payment_status: ['paid', 'reversed'],
+			finance_payroll_payment_type: ['salary', 'bonus'],
 			inventory_damage_lot_status: [
 				'open',
 				'sold',
@@ -10673,6 +11576,12 @@ export const Constants = {
 				'under_review',
 				'approved',
 				'rejected',
+			],
+			truck_fuel_expense_status: [
+				'submitted',
+				'posted',
+				'rejected',
+				'reversed',
 			],
 			truck_status: ['available', 'loading', 'dispatched', 'maintenance'],
 			user_profile_type: ['customer', 'internal', 'driver'],

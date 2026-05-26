@@ -75,12 +75,24 @@ const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 			'cash flow',
 			'income statement',
 			'balance sheet',
+			'payroll',
+			'salary',
+			'salaries',
+			'bonus',
+			'fuel',
+			'truck fuel',
+			'company asset',
+			'company assets',
 		],
 		label: 'Finance accounting',
 		normalPanelAccess: true,
 		readEntities: [
 			'ceo_search_finance_vtable',
 			'ceo_search_finance_damage_vtable',
+			'ceo_search_finance_payroll_vtable',
+			'ceo_search_finance_payroll_payment_vtable',
+			'ceo_search_finance_fuel_vtable',
+			'ceo_search_finance_company_asset_vtable',
 			'ceo_search_inventory_damage_activity_vtable',
 		],
 	},
@@ -201,8 +213,11 @@ const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 		entityType: 'finance_payroll',
 		keywords: ['payroll', 'salary', 'salaries', 'social insurance'],
 		label: 'Finance payroll',
-		normalPanelAccess: false,
-		readEntities: ['ceo_search_finance_payroll_vtable'],
+		normalPanelAccess: true,
+		readEntities: [
+			'ceo_search_finance_payroll_vtable',
+			'ceo_search_finance_payroll_payment_vtable',
+		],
 	},
 	{
 		entityType: 'activity',
@@ -262,11 +277,7 @@ export function normalPanelExcludedRequest(userText: string): string | null {
 	if (/\b(activities|activity|audit log|audit history)\b/.test(lower)) {
 		return 'Normal internal AI cannot read activity history. Open Search for audited activity analysis.'
 	}
-	if (
-		/\b(employee|employees|staff|payroll|salary|salaries|social insurance)\b/.test(
-			lower,
-		)
-	) {
+	if (/\b(employee|employees|staff)\b/.test(lower)) {
 		return 'Normal internal AI cannot read employee information. Open Search for employee-aware analysis.'
 	}
 	return null

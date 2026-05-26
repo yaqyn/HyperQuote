@@ -17,6 +17,7 @@ import {
 	type DriverLocation,
 	type DriverProfile,
 	DriverRepositoryError,
+	type FuelReceiptSubmission,
 } from '../lib/driver-repository'
 import { driverRepository } from '../lib/driver-repository-adapter'
 import { locationProvider } from '../lib/location-provider'
@@ -31,6 +32,7 @@ import {
 } from './DriverOptionsMenu'
 import type { FleetTab, ShellPanel } from './driver-shell-types'
 import { FleetPanel } from './FleetPanel'
+import { FuelPanel } from './FuelPanel'
 
 const DeliveryMap = lazy(() =>
 	import('./DeliveryMap').then((module) => ({
@@ -170,6 +172,11 @@ export function DriverShell({ session }: DriverShellProps) {
 			driverRepository.sendTeamMessage(session.driverId, body),
 		onSuccess: invalidateDriverQueries,
 	})
+	const submitFuelReceipt = useMutation({
+		mutationFn: (submission: FuelReceiptSubmission) =>
+			driverRepository.submitFuelReceipt(session.driverId, submission),
+		onSuccess: invalidateDriverQueries,
+	})
 	const refreshLocation = useMutation({
 		mutationFn: async () => {
 			const location = await locationProvider.getCurrentPosition()
@@ -236,6 +243,7 @@ export function DriverShell({ session }: DriverShellProps) {
 	const activeDeliveryId = activeDelivery?.id ?? null
 	const nextDeliveryId = nextDelivery?.id ?? null
 	const shellDocumentTitle = useMemo(() => {
+		if (openPanel === 'fuel') return `${t('fuel.title')} — HyperQuote Driver`
 		if (openPanel === 'info') return `${t('info.title')} — HyperQuote Driver`
 
 		if (openPanel === 'fleet') {
@@ -525,6 +533,10 @@ export function DriverShell({ session }: DriverShellProps) {
 					setIsChromeCollapsed(false)
 					setOpenPanel(openPanel === 'fleet' ? null : 'fleet')
 				}}
+				onFuel={() => {
+					setIsChromeCollapsed(false)
+					setOpenPanel(openPanel === 'fuel' ? null : 'fuel')
+				}}
 				onInfo={() => {
 					setIsChromeCollapsed(false)
 					setOpenPanel(openPanel === 'info' ? null : 'info')
@@ -560,6 +572,25 @@ export function DriverShell({ session }: DriverShellProps) {
 
 			{!isChromeCollapsed && openPanel === 'info' && (
 				<DeliveryInfoPanel delivery={mapDelivery} language={language} />
+			)}
+
+			{!isChromeCollapsed && openPanel === 'fuel' && (
+				<FuelPanel
+					activeDelivery={mapDelivery}
+					isSubmitting={submitFuelReceipt.isPending}
+					onSubmit={async (submission) => {
+						try {
+							await submitFuelReceipt.mutateAsync(submission)
+							return true
+						} catch {
+							return false
+						}
+					}}
+					submitError={driverMutationError(
+						submitFuelReceipt.error,
+						errorMessages,
+					)}
+				/>
 			)}
 		</main>
 	)

@@ -90,6 +90,18 @@ export interface TeamMessage {
 	createdAt: string
 }
 
+export interface DriverFuelReceipt {
+	id: string
+	amount?: number
+	createdAt: string
+	expenseDate: string
+	fuelLiters?: number
+	odometerKm?: number
+	status: 'submitted' | 'posted' | 'rejected' | 'reversed'
+	truckId: string
+	truckPlate?: string
+}
+
 export interface DriverDashboard {
 	activeDelivery: DriverDelivery | null
 	completedToday: number
@@ -113,6 +125,20 @@ export interface DeliveryRejectionProof {
 	location: DriverLocation
 	photoDataUrl?: string
 	reason: string
+}
+
+export interface FuelReceiptSubmission {
+	amount?: number
+	deliveryId?: string | null
+	expenseDate?: string
+	fuelLiters?: number
+	note?: string
+	odometerKm?: number
+	receiptFileName: string
+	receiptImageDataUrl: string
+	receiptMimeType: string
+	receiptSizeBytes: number
+	truckId?: string | null
 }
 
 export interface DriverRepository {
@@ -141,6 +167,10 @@ export interface DriverRepository {
 	sendTeamMessage(driverId: string, body: string): Promise<TeamMessage>
 	setOnline(driverId: string, online: boolean): Promise<DriverProfile>
 	startDelivery(deliveryId: string, driverId: string): Promise<DriverDelivery>
+	submitFuelReceipt(
+		driverId: string,
+		submission: FuelReceiptSubmission,
+	): Promise<DriverFuelReceipt>
 	updateLocation(
 		driverId: string,
 		location: DriverLocation,

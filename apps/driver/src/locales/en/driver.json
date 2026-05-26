@@ -80,6 +80,20 @@
 		"view": "View",
 		"you": "You"
 	},
+	"fuel": {
+		"amount": "Amount",
+		"autoTruck": "Assigned truck",
+		"capture": "Capture fuel receipt",
+		"liters": "Liters",
+		"note": "Note",
+		"odometer": "Odometer",
+		"photoError": "Use a clear image under 1 MB.",
+		"submit": "Submit fuel",
+		"submitted": "Fuel receipt submitted to finance.",
+		"submitting": "Submitting...",
+		"title": "Fuel",
+		"truck": "Truck"
+	},
 	"info": {
 		"call": "Call contact",
 		"customer": "Customer contact",
@@ -146,6 +160,7 @@
 	"rail": {
 		"active": "Active",
 		"fleet": "Fleet",
+		"fuel": "Fuel",
 		"hideUi": "Hide route UI",
 		"showUi": "Show route UI",
 		"info": "Details"

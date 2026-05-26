@@ -79,6 +79,20 @@ const locationUpdateInput = z.object({
 	location: locationInput,
 })
 
+const fuelReceiptInput = z.object({
+	amount: z.number().positive().optional(),
+	deliveryId: z.string().uuid().nullable().optional(),
+	expenseDate: z.string().optional(),
+	fuelLiters: z.number().positive().optional(),
+	note: z.string().trim().max(500).optional(),
+	odometerKm: z.number().min(0).optional(),
+	receiptFileName: z.string().trim().min(1).max(180),
+	receiptImageDataUrl: z.string().min(24).max(1_500_000),
+	receiptMimeType: z.string().trim().min(3).max(120),
+	receiptSizeBytes: z.number().int().min(1).max(1_048_576),
+	truckId: z.string().uuid().nullable().optional(),
+})
+
 const UUID_PATTERN =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -313,6 +327,39 @@ async function deliveryAfterMutation(ctx: DriverContext, deliveryId: string) {
 	return delivery
 }
 
+async function fuelReceiptPayload(
+	ctx: DriverContext,
+	value: unknown,
+): Promise<Record<string, unknown>> {
+	if (!value || typeof value !== 'object') {
+		throw new Error('fuel_receipt_unavailable')
+	}
+	const row = value as Record<string, unknown>
+	const truckId = typeof row.truck_id === 'string' ? row.truck_id : ''
+	let truckPlate: string | undefined
+	if (truckId) {
+		const { data } = await ctx.service
+			.from('trucks')
+			.select('plate_number')
+			.eq('id', truckId)
+			.maybeSingle()
+		if (data && typeof data.plate_number === 'string') {
+			truckPlate = data.plate_number
+		}
+	}
+	return {
+		amount: row.amount ?? undefined,
+		createdAt: row.created_at,
+		expenseDate: row.expense_date,
+		fuelLiters: row.fuel_liters ?? undefined,
+		id: row.id,
+		odometerKm: row.odometer_km ?? undefined,
+		status: row.status,
+		truckId,
+		truckPlate,
+	}
+}
+
 async function handleDriverApi(request: Request, env: DriverApiEnv) {
 	const url = new URL(request.url)
 	const isSessionClaimOrRelease =
@@ -417,6 +464,28 @@ async function handleDriverApi(request: Request, env: DriverApiEnv) {
 			if (error) throw error
 			const data = await dashboard(ctx)
 			return json(data.currentDriver)
+		}
+
+		if (request.method === 'POST' && url.pathname === '/api/driver/fuel') {
+			const input = await requestBody(request, fuelReceiptInput)
+			const { data, error } = await ctx.service.rpc(
+				'driver_submit_fuel_receipt',
+				{
+					p_amount: input.amount ?? null,
+					p_delivery_id: input.deliveryId ?? null,
+					p_expense_date: input.expenseDate ?? null,
+					p_fuel_liters: input.fuelLiters ?? null,
+					p_note: input.note ?? null,
+					p_odometer_km: input.odometerKm ?? null,
+					p_receipt_file_name: input.receiptFileName,
+					p_receipt_image_data_url: input.receiptImageDataUrl,
+					p_receipt_mime_type: input.receiptMimeType,
+					p_receipt_size_bytes: input.receiptSizeBytes,
+					p_truck_id: input.truckId ?? null,
+				},
+			)
+			if (error) throw error
+			return json(await fuelReceiptPayload(ctx, data))
 		}
 
 		const deliveryMatch = url.pathname.match(

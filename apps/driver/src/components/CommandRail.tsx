@@ -2,6 +2,7 @@ import {
 	ChevronDown,
 	ChevronUp,
 	ClipboardList,
+	Fuel,
 	PanelLeftOpen,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -13,6 +14,7 @@ export function CommandRail({
 	isChromeCollapsed,
 	isHidden,
 	onFleet,
+	onFuel,
 	onInfo,
 	onToggleChrome,
 }: {
@@ -20,6 +22,7 @@ export function CommandRail({
 	isChromeCollapsed: boolean
 	isHidden: boolean
 	onFleet: () => void
+	onFuel: () => void
 	onInfo: () => void
 	onToggleChrome: () => void
 }) {
@@ -36,7 +39,7 @@ export function CommandRail({
 					'pointer-events-auto mx-auto grid h-12 items-center border border-[var(--color-border)] bg-[var(--color-panel)]/96 shadow-[0_18px_70px_rgba(17,17,17,0.18)] backdrop-blur transition-[max-width] duration-200',
 					isChromeCollapsed
 						? 'max-w-[4rem] grid-cols-1'
-						: 'max-w-[17rem] grid-cols-[1fr_1.2fr_1fr]',
+						: 'max-w-[21rem] grid-cols-[1fr_1fr_1.2fr_1fr]',
 				].join(' ')}
 			>
 				{!isChromeCollapsed && (
@@ -45,6 +48,14 @@ export function CommandRail({
 						isActive={activePanel === 'fleet'}
 						label={t('rail.fleet')}
 						onPress={onFleet}
+					/>
+				)}
+				{!isChromeCollapsed && (
+					<RailButton
+						icon={<Fuel aria-hidden="true" size={19} />}
+						isActive={activePanel === 'fuel'}
+						label={t('rail.fuel')}
+						onPress={onFuel}
 					/>
 				)}
 				<RailButton
