@@ -3,11 +3,12 @@ import {
 	ArchiveX,
 	Banknote,
 	CheckCircle2,
+	ChevronDown,
 	PackageX,
 	RotateCcw,
 	ShieldCheck,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import {
 	normalizeDecimalInput,
 	normalizeIntegerInput,
@@ -48,6 +49,7 @@ import { ProofUploadField } from '../../shared/ProofUploadField'
 import { filterProcurementProducts } from '../productFilters'
 
 type DamageAction = 'sell' | 'dispose' | 'reverse'
+type DamageableProduct = DamagedInventoryOverview['products'][number]
 
 const ACTION_COPY: Record<
 	DamageAction,
@@ -115,6 +117,24 @@ function proofPayload(proof: UploadedProofDocument | null) {
 		proofDocumentId: proof.id,
 		proofPath: proof.proofPath,
 	}
+}
+
+const DAMAGE_PRODUCT_COLLATOR = new Intl.Collator('en', {
+	numeric: true,
+	sensitivity: 'base',
+})
+
+function sortDamageProducts(
+	products: DamagedInventoryOverview['products'],
+): DamagedInventoryOverview['products'] {
+	return [...products].sort((left, right) => {
+		const categorySort = DAMAGE_PRODUCT_COLLATOR.compare(
+			left.category || 'Uncategorized',
+			right.category || 'Uncategorized',
+		)
+		if (categorySort !== 0) return categorySort
+		return DAMAGE_PRODUCT_COLLATOR.compare(left.name, right.name)
+	})
 }
 
 function invalidateDamageQueries(
@@ -442,6 +462,116 @@ function DamageMetric({ label, value }: { label: string; value: string }) {
 	)
 }
 
+function DamageDialogMetric({
+	label,
+	value,
+}: {
+	label: string
+	value: string
+}) {
+	return (
+		<div className="min-w-0">
+			<p className="font-[family-name:var(--font-archivo)] text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+				{label}
+			</p>
+			<p className="mt-1 break-words font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
+				{value}
+			</p>
+		</div>
+	)
+}
+
+function DamageFormField({
+	label,
+	required,
+	children,
+}: {
+	label: string
+	required?: boolean
+	children: ReactNode
+}) {
+	return (
+		<div className="block">
+			<span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+				<span className="min-w-0">{label}</span>
+				{required && (
+					<span className="font-[family-name:var(--font-archivo)] text-[10px] font-medium tracking-[0.08em] text-[var(--color-text-subtle)]">
+						required
+					</span>
+				)}
+			</span>
+			<span className="mt-1.5 block">{children}</span>
+		</div>
+	)
+}
+
+function DamageProductPicker({
+	products,
+	selectedProduct,
+	isOpen,
+	onToggle,
+	onSelect,
+}: {
+	products: DamageableProduct[]
+	selectedProduct: DamageableProduct | null
+	isOpen: boolean
+	onToggle: () => void
+	onSelect: (productId: string) => void
+}) {
+	return (
+		<div className="relative rounded-lg border border-black/[0.1] bg-black/[0.015] dark:border-white/[0.12] dark:bg-white/[0.025]">
+			<button
+				type="button"
+				onClick={onToggle}
+				aria-expanded={isOpen}
+				disabled={products.length === 0}
+				className="grid min-h-10 w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-3 py-2 text-start outline-none transition-colors hover:bg-black/[0.025] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/20 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-white/[0.04]"
+			>
+				<span className="min-w-0 truncate font-[family-name:var(--font-archivo)] text-[14px] font-semibold text-[var(--color-text)]">
+					{selectedProduct?.name ?? 'No available stock'}
+				</span>
+				<span className="hidden max-w-[12rem] truncate text-right font-[family-name:var(--font-archivo)] text-[12px] text-[var(--color-text-subtle)] sm:block">
+					{selectedProduct?.category || 'Uncategorized'}
+				</span>
+				<ChevronDown
+					aria-hidden="true"
+					size={16}
+					strokeWidth={1.8}
+					className={`shrink-0 text-[var(--color-text-muted)] transition-transform ${
+						isOpen ? 'rotate-180' : ''
+					}`}
+				/>
+			</button>
+
+			{isOpen && products.length > 0 && (
+				<ol className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-20 max-h-64 overflow-y-auto rounded-lg border border-black/[0.1] bg-[var(--color-surface)] py-1 shadow-[0_18px_48px_-30px_rgba(0,0,0,0.85)] dark:border-white/[0.12]">
+					{products.map((product) => (
+						<li key={product.productId}>
+							<button
+								type="button"
+								onClick={() => onSelect(product.productId)}
+								aria-pressed={selectedProduct?.productId === product.productId}
+								className={`grid w-full grid-cols-[minmax(0,1fr)_minmax(6rem,auto)] items-center gap-3 px-3 py-2.5 text-start transition-colors hover:bg-black/[0.035] dark:hover:bg-white/[0.05] ${
+									selectedProduct?.productId === product.productId
+										? 'bg-[var(--color-primary)]/[0.08]'
+										: ''
+								}`}
+							>
+								<span className="min-w-0 truncate font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--color-text)]">
+									{product.name}
+								</span>
+								<span className="min-w-0 truncate text-right font-[family-name:var(--font-archivo)] text-[11px] text-[var(--color-text-subtle)]">
+									{product.category || 'Uncategorized'}
+								</span>
+							</button>
+						</li>
+					))}
+				</ol>
+			)}
+		</div>
+	)
+}
+
 function RecordDamageDialog({
 	data,
 	isOpen,
@@ -459,10 +589,16 @@ function RecordDamageDialog({
 	const [reason, setReason] = useState('')
 	const [proof, setProof] = useState<UploadedProofDocument | null>(null)
 	const [error, setError] = useState<string | null>(null)
+	const [productPickerOpen, setProductPickerOpen] = useState(false)
 
+	const sortedProducts = useMemo(
+		() => sortDamageProducts(data.products),
+		[data.products],
+	)
+	const firstProductId = sortedProducts[0]?.productId ?? ''
 	const selectedProduct =
-		data.products.find((product) => product.productId === productId) ??
-		data.products[0] ??
+		sortedProducts.find((product) => product.productId === productId) ??
+		sortedProducts[0] ??
 		null
 	const quantityValue = parsePositiveDecimal(quantityText)
 	const recoveryPercent = parsePercent(recoveryPercentText)
@@ -481,13 +617,14 @@ function RecordDamageDialog({
 
 	useEffect(() => {
 		if (!isOpen) return
-		setProductId(data.products[0]?.productId ?? '')
+		setProductId(firstProductId)
 		setQuantityText('')
 		setRecoveryPercentText('50')
 		setReason('')
 		setProof(null)
 		setError(null)
-	}, [data.products, isOpen])
+		setProductPickerOpen(false)
+	}, [firstProductId, isOpen])
 
 	const mutation = useMutation({
 		mutationFn: recordInventoryDamage,
@@ -547,40 +684,48 @@ function RecordDamageDialog({
 			dismissDisabled={mutation.isPending}
 		>
 			<DispatchBody className="space-y-5">
-				<div className="rounded-md border border-[var(--color-border)] bg-black/[0.015] p-4 dark:bg-white/[0.025]">
-					<div className="flex items-start gap-3">
-						<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
-							<PackageX aria-hidden="true" size={18} />
-						</span>
-						<div className="min-w-0">
-							<p className="font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--color-text)]">
-								Move stock out of sellable inventory
-							</p>
-							<p className="mt-1 font-[family-name:var(--font-bricolage)] text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">
-								This creates a damaged lot, lowers sellable stock, estimates the
-								write-down, and keeps the lot available for sale, disposal, or
-								approved reversal.
-							</p>
-						</div>
-					</div>
-				</div>
-
 				<DispatchSection label="Stock and valuation" />
+				{selectedProduct && (
+					<div className="grid grid-cols-2 gap-3 rounded-lg border border-black/[0.08] bg-black/[0.015] p-3 dark:border-white/[0.1] dark:bg-white/[0.025] md:grid-cols-4">
+						<DamageDialogMetric
+							label="Available"
+							value={quantity(
+								selectedProduct.availableQuantity,
+								selectedProduct.unit,
+							)}
+						/>
+						<DamageDialogMetric
+							label="Reserved"
+							value={quantity(
+								selectedProduct.reservedQuantity,
+								selectedProduct.unit,
+							)}
+						/>
+						<DamageDialogMetric
+							label="Unit cost"
+							value={money(selectedProduct.unitCost)}
+						/>
+						<DamageDialogMetric
+							label="Loss est."
+							value={money(estimatedLoss)}
+						/>
+					</div>
+				)}
 				<div className="grid gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(12rem,0.8fr)]">
-					<DispatchField label="Product" required>
-						<select
-							value={selectedProduct?.productId ?? productId}
-							onChange={(event) => setProductId(event.target.value)}
-							className={DispatchInputClass()}
-						>
-							{data.products.map((product) => (
-								<option key={product.productId} value={product.productId}>
-									{product.name} · {product.sku}
-								</option>
-							))}
-						</select>
-					</DispatchField>
-					<DispatchField label="Units damaged" required>
+					<DamageFormField label="Item" required>
+						<DamageProductPicker
+							products={sortedProducts}
+							selectedProduct={selectedProduct}
+							isOpen={productPickerOpen}
+							onToggle={() => setProductPickerOpen((open) => !open)}
+							onSelect={(nextProductId) => {
+								setProductId(nextProductId)
+								setProductPickerOpen(false)
+								setError(null)
+							}}
+						/>
+					</DamageFormField>
+					<DamageFormField label="Units damaged" required>
 						<input
 							value={quantityText}
 							onChange={(event) =>
@@ -590,37 +735,21 @@ function RecordDamageDialog({
 							className={DispatchInputClass()}
 							placeholder="0"
 						/>
-					</DispatchField>
+					</DamageFormField>
 				</div>
 
-				{selectedProduct && (
-					<div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-						<DamageMetric
-							label="Available"
-							value={quantity(
-								selectedProduct.availableQuantity,
-								selectedProduct.unit,
-							)}
+				<div className="grid gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(12rem,0.8fr)]">
+					<DamageFormField label="Reason" required>
+						<textarea
+							value={reason}
+							onChange={(event) => setReason(event.target.value)}
+							className={`${DispatchInputClass()} h-full min-h-[7.5rem] resize-y`}
+							placeholder="Water leak in bay A"
 						/>
-						<DamageMetric
-							label="Reserved"
-							value={quantity(
-								selectedProduct.reservedQuantity,
-								selectedProduct.unit,
-							)}
-						/>
-						<DamageMetric
-							label="Unit cost"
-							value={money(selectedProduct.unitCost)}
-						/>
-						<DamageMetric label="Loss est." value={money(estimatedLoss)} />
-					</div>
-				)}
-
-				<div className="grid gap-4 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-					<DispatchField label="Recovery value" required>
-						<div className="rounded-md border border-black/[0.1] bg-black/[0.015] p-2 dark:border-white/[0.12] dark:bg-white/[0.025]">
-							<div className="flex min-h-10 items-center px-2">
+					</DamageFormField>
+					<DamageFormField label="Recovery value" required>
+						<div className="flex h-full min-h-[7.5rem] flex-col justify-between rounded-lg border border-black/[0.1] bg-[var(--color-surface)] p-2.5 dark:border-white/[0.12]">
+							<div className="flex min-h-10 items-center rounded-md border border-black/[0.08] bg-black/[0.015] px-3 dark:border-white/[0.1] dark:bg-white/[0.025]">
 								<input
 									value={recoveryPercentText}
 									onChange={(event) =>
@@ -629,7 +758,7 @@ function RecordDamageDialog({
 										)
 									}
 									inputMode="numeric"
-									className="min-w-0 flex-1 bg-transparent font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold text-[var(--color-text)] outline-none"
+									className="min-w-0 flex-1 bg-transparent font-[family-name:var(--font-geist-mono)] text-[18px] font-semibold tabular-nums text-[var(--color-text)] outline-none"
 									placeholder="50"
 								/>
 								<span className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text-muted)]">
@@ -642,10 +771,10 @@ function RecordDamageDialog({
 										key={value}
 										type="button"
 										onClick={() => setRecoveryPercentText(value)}
-										className={`h-8 rounded-md border font-[family-name:var(--font-geist-mono)] text-[11px] font-semibold ${
+										className={`h-8 rounded-md border font-[family-name:var(--font-geist-mono)] text-[11px] font-semibold tabular-nums transition-colors ${
 											recoveryPercentText === value
-												? 'border-[var(--color-text)] bg-[var(--color-text)] text-[var(--color-surface)]'
-												: 'border-black/[0.08] text-[var(--color-text-muted)] hover:border-black/[0.18] dark:border-white/[0.1]'
+												? 'border-[var(--color-primary)]/40 bg-[var(--color-primary)]/[0.11] text-[var(--color-primary)]'
+												: 'border-black/[0.08] text-[var(--color-text-muted)] hover:border-black/[0.18] hover:text-[var(--color-text)] dark:border-white/[0.1] dark:hover:border-white/[0.2]'
 										}`}
 									>
 										{value}%
@@ -653,15 +782,7 @@ function RecordDamageDialog({
 								))}
 							</div>
 						</div>
-					</DispatchField>
-					<DispatchField label="Reason" required>
-						<textarea
-							value={reason}
-							onChange={(event) => setReason(event.target.value)}
-							className={`${DispatchInputClass()} min-h-32 resize-y`}
-							placeholder="Water leak in bay A"
-						/>
-					</DispatchField>
+					</DamageFormField>
 				</div>
 
 				<ProofUploadField
