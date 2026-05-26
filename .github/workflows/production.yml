@@ -46,6 +46,9 @@ jobs:
       - name: Biome
         run: bun run check:ci
 
+      - name: PWA installability
+        run: bun run pwa:check
+
       - name: Typecheck
         run: bun run typecheck
 

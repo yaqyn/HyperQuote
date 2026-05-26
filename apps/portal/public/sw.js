@@ -1,6 +1,7 @@
-const CACHE_NAME = 'hyperquote-portal-v2'
+const CACHE_NAME = 'hyperquote-portal-v3'
 
-const APP_ASSETS = [
+const APP_SHELL = [
+	'/',
 	'/site.webmanifest',
 	'/manifest.json',
 	'/browserconfig.xml',
@@ -20,13 +21,15 @@ const APP_ASSETS = [
 	'/pwa/maskable-512.png',
 ]
 
-const CACHEABLE_PUBLIC_PATHS = new Set(APP_ASSETS)
+const CACHEABLE_PUBLIC_PATHS = new Set(
+	APP_SHELL.filter((path) => path !== '/'),
+)
 
 self.addEventListener('install', (event) => {
 	event.waitUntil(
 		caches
 			.open(CACHE_NAME)
-			.then((cache) => cache.addAll(APP_ASSETS))
+			.then((cache) => cache.addAll(APP_SHELL))
 			.then(() => self.skipWaiting()),
 	)
 })
@@ -54,13 +57,13 @@ self.addEventListener('fetch', (event) => {
 	if (url.origin !== self.location.origin) return
 	if (url.pathname.startsWith('/api/')) return
 
-	if (isCacheableAsset(request, url)) {
-		event.respondWith(cacheFirstAsset(request))
+	if (request.mode === 'navigate') {
+		event.respondWith(networkFirstNavigation(request))
 		return
 	}
 
-	if (request.mode === 'navigate') {
-		event.respondWith(networkOnlyNavigation(request))
+	if (isCacheableAsset(request, url)) {
+		event.respondWith(cacheFirstAsset(request))
 	}
 })
 
@@ -112,11 +115,16 @@ function isCacheableAsset(request, url) {
 	)
 }
 
-async function networkOnlyNavigation(request) {
+async function networkFirstNavigation(request) {
+	const cache = await caches.open(CACHE_NAME)
 	try {
-		return await fetch(request)
+		const response = await fetch(request)
+		if (response.ok) await cache.put('/', response.clone())
+		return response
 	} catch {
-			return new Response('Lyon is offline.', {
+		const cached = await cache.match('/')
+		if (cached) return cached
+		return new Response('Lyon is offline.', {
 			status: 503,
 			headers: { 'Content-Type': 'text/plain; charset=utf-8' },
 		})

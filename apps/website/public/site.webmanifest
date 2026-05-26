@@ -5,6 +5,7 @@
 	"description": "Egyptian B2B building materials market.",
 	"start_url": "/",
 	"scope": "/",
+	"display_override": ["standalone", "minimal-ui"],
 	"display": "standalone",
 	"background_color": "#2563EB",
 	"theme_color": "#2563EB",

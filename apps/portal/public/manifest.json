@@ -5,6 +5,7 @@
 	"description": "Private quote, order, delivery, and support workspace.",
 	"start_url": "/",
 	"scope": "/",
+	"display_override": ["standalone", "minimal-ui"],
 	"display": "standalone",
 	"background_color": "#2563EB",
 	"theme_color": "#2563EB",
@@ -36,6 +37,36 @@
 		}
 	],
 	"categories": ["business", "productivity"],
+	"shortcuts": [
+		{
+			"name": "New Quote",
+			"short_name": "Quote",
+			"description": "Create a new quote request.",
+			"url": "/orders/new",
+			"icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192" }]
+		},
+		{
+			"name": "Market",
+			"short_name": "Market",
+			"description": "Browse materials.",
+			"url": "/market",
+			"icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192" }]
+		},
+		{
+			"name": "Orders",
+			"short_name": "Orders",
+			"description": "Open orders.",
+			"url": "/orders",
+			"icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192" }]
+		},
+		{
+			"name": "Support",
+			"short_name": "Support",
+			"description": "Open support.",
+			"url": "/support",
+			"icons": [{ "src": "/pwa/icon-192.png", "sizes": "192x192" }]
+		}
+	],
 	"lang": "en",
 	"dir": "auto",
 	"prefer_related_applications": false

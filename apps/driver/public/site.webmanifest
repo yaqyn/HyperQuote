@@ -5,6 +5,7 @@
 	"description": "Private route and proof-of-delivery workspace.",
 	"start_url": "/",
 	"scope": "/",
+	"display_override": ["standalone", "minimal-ui"],
 	"display": "standalone",
 	"background_color": "#ffffff",
 	"theme_color": "#ffffff",

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hyperquote-driver-v2'
+const CACHE_NAME = 'hyperquote-driver-v3'
 
 const APP_SHELL = [
 	'/',
