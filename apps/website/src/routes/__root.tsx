@@ -56,7 +56,7 @@ export const Route = createRootRoute({
 			},
 			{ name: 'mobile-web-app-capable', content: 'yes' },
 			{ name: 'apple-mobile-web-app-capable', content: 'yes' },
-			{ name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
+			{ name: 'apple-mobile-web-app-status-bar-style', content: 'black' },
 			{ name: 'apple-mobile-web-app-title', content: 'HyperQuote' },
 			{ name: 'application-name', content: 'HyperQuote' },
 			{ name: 'format-detection', content: 'telephone=no' },
@@ -64,16 +64,7 @@ export const Route = createRootRoute({
 			{ name: 'msapplication-TileColor', content: '#2563EB' },
 			{ name: 'msapplication-TileImage', content: '/mstile-150x150.png' },
 			{ name: 'msapplication-config', content: '/browserconfig.xml' },
-			{
-				name: 'theme-color',
-				content: '#ffffff',
-				media: '(prefers-color-scheme: light)',
-			},
-			{
-				name: 'theme-color',
-				content: '#0A0A0A',
-				media: '(prefers-color-scheme: dark)',
-			},
+			{ name: 'theme-color', content: '#0A0A0A' },
 		],
 		links: [
 			{

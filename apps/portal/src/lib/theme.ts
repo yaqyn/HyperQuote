@@ -8,8 +8,8 @@ function isPortalTheme(value: unknown): value is PortalTheme {
 	return value === 'dark' || value === 'light'
 }
 
-export function portalThemeColor(theme: PortalTheme): string {
-	return theme === 'dark' ? '#060606' : '#ffffff'
+export function portalThemeColor(_theme: PortalTheme): string {
+	return '#0A0A0A'
 }
 
 function readThemeFromCookie(cookieHeader: string): PortalTheme | undefined {

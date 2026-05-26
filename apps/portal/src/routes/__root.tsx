@@ -106,7 +106,7 @@ export const Route = createRootRoute({
 				...baseHead.meta,
 				{ name: 'mobile-web-app-capable', content: 'yes' },
 				{ name: 'apple-mobile-web-app-capable', content: 'yes' },
-				{ name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
+				{ name: 'apple-mobile-web-app-status-bar-style', content: 'black' },
 				{ name: 'apple-mobile-web-app-title', content: 'Lyon' },
 				{ name: 'format-detection', content: 'telephone=no' },
 				{ name: 'color-scheme', content: 'light dark' },

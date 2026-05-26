@@ -4,10 +4,11 @@ import { inflateSync } from 'node:zlib'
 
 const ROOT = process.cwd()
 const BRAND_BLUE = '#2563EB'
+const PWA_CHROME = '#0A0A0A'
 const WHITE = '#ffffff'
-const ICON_MARK_DOMINANT_MIN_RATIO = 0.46
-const ICON_MARK_DOMINANT_MAX_RATIO = 0.54
-const ICON_MARK_SECONDARY_MIN_RATIO = 0.2
+const ICON_MARK_DOMINANT_MIN_RATIO = 0.36
+const ICON_MARK_DOMINANT_MAX_RATIO = 0.44
+const ICON_MARK_SECONDARY_MIN_RATIO = 0.14
 
 const APPS = [
 	{
@@ -16,7 +17,7 @@ const APPS = [
 		shortName: 'HyperQuote',
 		backgroundColor: BRAND_BLUE,
 		foregroundColor: WHITE,
-		themeColor: BRAND_BLUE,
+		themeColor: PWA_CHROME,
 		manifestFiles: ['site.webmanifest'],
 		serviceWorkerFile: 'service-worker.js',
 		serviceWorkerUrl: '/service-worker.js',
@@ -29,11 +30,15 @@ const APPS = [
 		shortName: 'Lyon',
 		backgroundColor: BRAND_BLUE,
 		foregroundColor: WHITE,
-		themeColor: BRAND_BLUE,
+		themeColor: PWA_CHROME,
 		manifestFiles: ['site.webmanifest', 'manifest.json'],
 		serviceWorkerFile: 'sw.js',
 		serviceWorkerUrl: '/sw.js',
-		headFiles: ['src/routes/__root.tsx', 'src/lib/page-meta.ts'],
+		headFiles: [
+			'src/routes/__root.tsx',
+			'src/lib/page-meta.ts',
+			'src/lib/theme.ts',
+		],
 		installSurfaceFile: 'src/components/sidebar/ChatSidebar.tsx',
 		registrationFile: 'src/lib/pwa.ts',
 	},
@@ -43,7 +48,7 @@ const APPS = [
 		shortName: 'Base',
 		backgroundColor: WHITE,
 		foregroundColor: BRAND_BLUE,
-		themeColor: WHITE,
+		themeColor: PWA_CHROME,
 		manifestFiles: ['site.webmanifest'],
 		serviceWorkerFile: 'service-worker.js',
 		serviceWorkerUrl: '/service-worker.js',
@@ -57,7 +62,7 @@ const APPS = [
 		shortName: 'Drive',
 		backgroundColor: WHITE,
 		foregroundColor: BRAND_BLUE,
-		themeColor: WHITE,
+		themeColor: PWA_CHROME,
 		manifestFiles: ['site.webmanifest'],
 		serviceWorkerFile: 'service-worker.js',
 		serviceWorkerUrl: '/service-worker.js',
@@ -249,12 +254,20 @@ function validateHead(app) {
 		`${label}: must declare iOS status bar style`,
 	)
 	assert(
+		head.includes('black'),
+		`${label}: iOS standalone chrome must stay dark`,
+	)
+	assert(
 		head.includes('application-name') && head.includes(app.shortName),
 		`${label}: must include the installed app name`,
 	)
 	assert(
 		head.includes('theme-color'),
 		`${label}: must include theme-color metadata`,
+	)
+	assert(
+		head.includes(app.themeColor),
+		`${label}: mobile browser chrome must use ${app.themeColor}`,
 	)
 	assert(
 		head.includes('msapplication-TileColor') &&
@@ -404,7 +417,7 @@ function validateIconVisual(path, png, app) {
 	assert(
 		dominantRatio >= ICON_MARK_DOMINANT_MIN_RATIO &&
 			dominantRatio <= ICON_MARK_DOMINANT_MAX_RATIO,
-		`${app.key}: ${path} icon mark must fill about 50% of the launcher frame, got ${dominantRatio.toFixed(2)}`,
+		`${app.key}: ${path} icon mark must fill about 40% of the launcher frame, got ${dominantRatio.toFixed(2)}`,
 	)
 	assert(
 		secondaryRatio >= ICON_MARK_SECONDARY_MIN_RATIO,
