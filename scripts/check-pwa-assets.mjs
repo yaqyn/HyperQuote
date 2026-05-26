@@ -111,6 +111,7 @@ for (const app of APPS) {
 
 	validateIconAliases(app, publicDir)
 	validateServiceWorker(app, publicDir)
+	validateBrowserConfig(app, publicDir)
 	validateHead(app)
 	validateRegistration(app)
 	validateInstallSurface(app)
@@ -181,12 +182,22 @@ function validateServiceWorker(app, publicDir) {
 	const label = `${app.key}/${app.serviceWorkerFile}`
 	const cacheVersion = readCacheVersion(serviceWorker, app.key)
 
+	try {
+		new Function(serviceWorker)
+	} catch (error) {
+		fail(`${label}: must be valid JavaScript (${error.message})`)
+	}
+
 	assert(
 		cacheVersion.length > 0 &&
 			[...cacheVersion].every((digit) => digit >= '0' && digit <= '9'),
 		`${label}: cache name must be versioned`,
 	)
 	assert(serviceWorker.includes("'/',"), `${label}: must cache the app shell`)
+	assert(
+		serviceWorker.includes("'/browserconfig.xml'"),
+		`${label}: must cache browserconfig.xml`,
+	)
 	assert(
 		serviceWorker.includes("'/site.webmanifest'"),
 		`${label}: must cache site.webmanifest`,
@@ -197,14 +208,12 @@ function validateServiceWorker(app, publicDir) {
 			`${label}: must cache the legacy manifest alias`,
 		)
 	}
-	assert(
-		serviceWorker.includes("'/pwa/icon-512.png'"),
-		`${label}: must cache the high resolution icon`,
-	)
-	assert(
-		serviceWorker.includes("'/pwa/maskable-512.png'"),
-		`${label}: must cache the high resolution maskable icon`,
-	)
+	for (const asset of PNG_ASSETS) {
+		assert(
+			serviceWorker.includes(`'/${asset.path}'`),
+			`${label}: must cache /${asset.path}`,
+		)
+	}
 	assert(
 		serviceWorker.includes('self.skipWaiting()'),
 		`${label}: must activate updated manifests promptly`,
@@ -220,6 +229,24 @@ function validateServiceWorker(app, publicDir) {
 	assert(
 		serviceWorker.includes('networkFirstNavigation'),
 		`${label}: installed app launches need a navigation fallback`,
+	)
+	assert(
+		serviceWorker.includes("request.destination === 'image'"),
+		`${label}: must cache fetched image assets for installed mode`,
+	)
+}
+
+function validateBrowserConfig(app, publicDir) {
+	const browserConfig = readText(join(publicDir, 'browserconfig.xml'))
+	const label = `${app.key}/browserconfig.xml`
+
+	assert(
+		browserConfig.includes('<square150x150logo src="/mstile-150x150.png" />'),
+		`${label}: must point to the generated Windows tile icon`,
+	)
+	assert(
+		browserConfig.includes(`<TileColor>${app.backgroundColor}</TileColor>`),
+		`${label}: tile color must match ${app.backgroundColor}`,
 	)
 }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hyperquote-internal-v4'
+const CACHE_NAME = 'hyperquote-internal-v5'
 
 const APP_SHELL = [
 	'/',
@@ -73,7 +73,8 @@ function isCacheableAsset(request, url) {
 	return (
 		request.destination === 'script' ||
 		request.destination === 'style' ||
-		request.destination === 'font'
+		request.destination === 'font' ||
+		request.destination === 'image'
 	)
 }
 

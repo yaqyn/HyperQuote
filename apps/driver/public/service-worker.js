@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hyperquote-driver-v3'
+const CACHE_NAME = 'hyperquote-driver-v4'
 
 const APP_SHELL = [
 	'/',
@@ -82,13 +82,13 @@ async function networkFirstNavigation(request) {
 		const response = await fetch(request)
 		if (response.ok) await cache.put('/', response.clone())
 		return response
-		} catch {
-			const cached = await cache.match('/')
-			if (cached) return cached
-			return new Response('Drive is offline.', {
-				status: 503,
-				headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-			})
+	} catch {
+		const cached = await cache.match('/')
+		if (cached) return cached
+		return new Response('Drive is offline.', {
+			status: 503,
+			headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+		})
 	}
 }
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hyperquote-website-v3'
+const CACHE_NAME = 'hyperquote-website-v4'
 
 const APP_SHELL = [
 	'/',
