@@ -1,8 +1,6 @@
 import {
 	detectPwaInstallGuideKind,
-	getPwaInstallGuide,
-	type PwaInstallGuide,
-	type PwaInstallGuideKind,
+	getLocalizedPwaInstallGuide,
 	usePwaInstallPrompt,
 } from '@hyperquote/ui/pwa/install'
 import { useQuery } from '@tanstack/react-query'
@@ -629,7 +627,7 @@ function PortalInstallGuideDialog({
 }) {
 	const { t } = useTranslation('portal')
 	const [copyStatus, setCopyStatus] = useState<string | null>(null)
-	const guide = getLocalizedInstallGuide({
+	const guide = getLocalizedPwaInstallGuide({
 		appName: 'Lyon',
 		isArabic,
 		kind: detectPwaInstallGuideKind(),
@@ -705,70 +703,6 @@ function PortalInstallGuideDialog({
 			</Modal>
 		</ModalOverlay>
 	)
-}
-
-function getLocalizedInstallGuide({
-	appName,
-	isArabic,
-	kind,
-}: {
-	appName: string
-	isArabic: boolean
-	kind: PwaInstallGuideKind
-}): PwaInstallGuide {
-	if (!isArabic) return getPwaInstallGuide({ appName, kind })
-
-	if (kind === 'ios') {
-		return {
-			title: `أضف ${appName} إلى الشاشة الرئيسية`,
-			caption: 'iOS يثبت التطبيق من قائمة المشاركة في Safari.',
-			steps: [
-				'افتح هذه الصفحة في Safari.',
-				'اضغط زر المشاركة.',
-				'اختر Add to Home Screen.',
-				'اضغط Add.',
-			],
-			note: `بعدها يفتح ${appName} من الشاشة الرئيسية كتطبيق مستقل.`,
-		}
-	}
-
-	if (kind === 'safari-desktop') {
-		return {
-			title: `أضف ${appName} إلى Dock`,
-			caption: 'Safari يضع التثبيت داخل قائمة المتصفح.',
-			steps: [
-				'افتح هذه الصفحة في Safari.',
-				'اختر File من شريط القوائم.',
-				'اختر Add to Dock.',
-				`أكد اسم التطبيق ${appName}.`,
-			],
-			note: `بعدها يفتح ${appName} من Dock في نافذة مستقلة.`,
-		}
-	}
-
-	if (kind === 'firefox') {
-		return {
-			title: `تثبيت ${appName}`,
-			caption: 'دعم Firefox للتثبيت يختلف حسب الجهاز والإعدادات.',
-			steps: [
-				'افتح قائمة المتصفح.',
-				'ابحث عن Install أو Add to Home Screen.',
-				`أكد ${appName}.`,
-			],
-			note: 'إذا لم يظهر خيار التثبيت، افتح نفس الرابط في Chrome أو Edge أو Safari.',
-		}
-	}
-
-	return {
-		title: `تثبيت ${appName}`,
-		caption: 'المتصفح لم يعرض زر التثبيت المباشر بعد.',
-		steps: [
-			'ابحث عن أيقونة التثبيت في شريط العنوان.',
-			'إذا لم تظهر، افتح قائمة المتصفح.',
-			`اختر Install ${appName} أو Add to Home Screen.`,
-		],
-		note: 'Chrome وEdge عادة يعرضان التثبيت المباشر بعد تحميل التطبيق من HTTPS الإنتاجي.',
-	}
 }
 
 function firstText(...values: Array<string | undefined | null>) {
