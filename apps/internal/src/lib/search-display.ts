@@ -234,6 +234,14 @@ function activityUnitCost(metadata: JsonObject): string | null {
 	)
 }
 
+function activityMoneyValue(metadata: JsonObject, key: string): string | null {
+	return (
+		formatMoney(numberValue(metadata, key)) ??
+		stringValue(metadata, `${key}_label`) ??
+		stringValue(metadata, key)
+	)
+}
+
 function activityWhen(metadata: JsonObject): string | null {
 	return stringValue(metadata, 'when') ?? formatDateTime(metadata.created_at)
 }
@@ -969,9 +977,18 @@ export function buildSearchPreviewFields(
 				),
 				previewField('Customer', stringValue(metadata, 'customer')),
 				previewField('Target', stringValue(metadata, 'target')),
+				previewField('Damage no.', stringValue(metadata, 'damage_number')),
 				previewField('Quantity', activityQuantity(metadata)),
 				previewField('Unit cost', activityUnitCost(metadata)),
 				previewField('Amount', activityAmount(metadata)),
+				previewField(
+					'Write-down',
+					activityMoneyValue(metadata, 'write_down_amount'),
+				),
+				previewField(
+					'Write-down reversal',
+					activityMoneyValue(metadata, 'write_down_reversal_amount'),
+				),
 				previewField('When', activityWhen(metadata)),
 			)
 		default:
@@ -1723,6 +1740,37 @@ export function buildSearchDetailFields(
 				detailField('Items', stringValue(metadata, 'items')),
 				detailField('Product', stringValue(metadata, 'product')),
 				detailField('Product SKU', stringValue(metadata, 'product_sku')),
+				detailField('Damage no.', stringValue(metadata, 'damage_number')),
+				detailField('Unit', stringValue(metadata, 'unit')),
+				detailField(
+					'Original unit cost',
+					activityMoneyValue(metadata, 'original_unit_cost'),
+				),
+				detailField(
+					'Recovery unit value',
+					activityMoneyValue(metadata, 'recovery_unit_value'),
+				),
+				detailField(
+					'Original value',
+					activityMoneyValue(metadata, 'original_value'),
+				),
+				detailField(
+					'Carrying value',
+					activityMoneyValue(metadata, 'carrying_value'),
+				),
+				detailField(
+					'Write-down',
+					activityMoneyValue(metadata, 'write_down_amount'),
+				),
+				detailField(
+					'Write-down reversal',
+					activityMoneyValue(metadata, 'write_down_reversal_amount'),
+				),
+				detailField('Buyer', stringValue(metadata, 'buyer')),
+				detailField(
+					'Payment',
+					formatStatus(stringValue(metadata, 'payment_status')),
+				),
 				detailField(
 					'Product category',
 					stringValue(metadata, 'product_category'),

@@ -5084,6 +5084,18 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			ceo_search_inventory_damage_activity_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
 			ceo_search_inventory_vtable: {
 				Row: {
 					entity_id: string | null

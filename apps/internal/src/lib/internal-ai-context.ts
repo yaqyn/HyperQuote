@@ -81,6 +81,7 @@ const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 		readEntities: [
 			'ceo_search_finance_vtable',
 			'ceo_search_finance_damage_vtable',
+			'ceo_search_inventory_damage_activity_vtable',
 		],
 	},
 	{
@@ -106,6 +107,7 @@ const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 		readEntities: [
 			'ceo_search_inventory_vtable',
 			'ceo_search_finance_damage_vtable',
+			'ceo_search_inventory_damage_activity_vtable',
 		],
 	},
 	{
@@ -207,7 +209,10 @@ const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 		keywords: ['activity', 'activities', 'audit', 'event', 'history'],
 		label: 'Activities',
 		normalPanelAccess: false,
-		readEntities: ['ceo_search_activity_vtable'],
+		readEntities: [
+			'ceo_search_activity_vtable',
+			'ceo_search_inventory_damage_activity_vtable',
+		],
 	},
 ]
 

@@ -544,6 +544,61 @@ describe('Search display formatting', () => {
 		)
 	})
 
+	it('projects damaged inventory activity with accounting and proof context', () => {
+		const row: SearchDisplayIndexRow = {
+			entity_type: 'activity',
+			entity_id: 'activity-damage-1',
+			title:
+				'Ahmed Hassan from Inventory marked 2,000 piece of Wood as damaged under DMG-2026-ABC123 with 100,000.00 EGP write-down with proof on May 26, 2026, 05:52 AM',
+			subtitle: 'Inventory',
+			metadata: {
+				activity_sentence:
+					'Ahmed Hassan from Inventory marked 2,000 piece of Wood as damaged under DMG-2026-ABC123 with 100,000.00 EGP write-down with proof on May 26, 2026, 05:52 AM',
+				actor: 'Ahmed Hassan',
+				area: 'Inventory',
+				carrying_value: '100,000.00 EGP',
+				damage_number: 'DMG-2026-ABC123',
+				original_unit_cost: '100.00 EGP',
+				original_value: '200,000.00 EGP',
+				product: 'Wood',
+				product_sku: 'WOOD-001',
+				proofs: '/proofs/damage.jpg',
+				quantity: '2,000 piece',
+				reason: 'Water leak in bay A',
+				recovery_unit_value: '50.00 EGP',
+				target: 'Wood',
+				unit: 'piece',
+				what: 'Marked 2,000 piece of Wood as damaged under DMG-2026-ABC123 with 100,000.00 EGP write-down',
+				when: 'May 26, 2026, 05:52 AM',
+				write_down_amount: '100,000.00 EGP',
+			},
+		}
+
+		expect(buildSearchDisplayTitle(row)).toBe(row.title)
+		expect(buildSearchPreviewFields(row)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Panel', value: 'Inventory' },
+				{ label: 'Damage no.', value: 'DMG-2026-ABC123' },
+				{ label: 'Quantity', value: '2,000 piece' },
+				{ label: 'Write-down', value: '100,000.00 EGP' },
+			]),
+		)
+		expect(buildSearchDetailFields(row)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Story', value: row.title },
+				{ label: 'Product', value: 'Wood' },
+				{ label: 'Product SKU', value: 'WOOD-001' },
+				{ label: 'Damage no.', value: 'DMG-2026-ABC123' },
+				{ label: 'Original unit cost', value: '100.00 EGP' },
+				{ label: 'Recovery unit value', value: '50.00 EGP' },
+				{ label: 'Original value', value: '200,000.00 EGP' },
+				{ label: 'Carrying value', value: '100,000.00 EGP' },
+				{ label: 'Write-down', value: '100,000.00 EGP' },
+				{ label: 'Reason', value: 'Water leak in bay A' },
+			]),
+		)
+	})
+
 	it('builds business summary buckets for the Search dashboard', () => {
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date('2026-05-21T12:00:00Z'))

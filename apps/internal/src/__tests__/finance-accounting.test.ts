@@ -20,6 +20,9 @@ const damageEnumMigrationSql = readRepoFile(
 const damageMigrationSql = readRepoFile(
 	'supabase/migrations/20260526021104_inventory_damage_system.sql',
 )
+const damageActivitySearchMigrationSql = readRepoFile(
+	'supabase/migrations/20260526025230_inventory_damage_activity_search_wiring.sql',
+)
 const accountingViewSource = readRepoFile(
 	'apps/internal/src/components/finance/FinanceAccountingView.tsx',
 )
@@ -164,12 +167,24 @@ describe('finance accounting rebuild', () => {
 		expect(damageMigrationSql).toContain(
 			'create or replace view public.ceo_search_finance_damage_vtable',
 		)
+		expect(damageActivitySearchMigrationSql).toContain(
+			'create or replace view public.ceo_search_inventory_damage_activity_vtable',
+		)
 		expect(damageMigrationSql).toContain(
 			'from public.ceo_search_finance_damage_vtable',
 		)
+		expect(damageActivitySearchMigrationSql).toContain(
+			'from public.ceo_search_inventory_damage_activity_vtable',
+		)
 		expect(damageMigrationSql).toContain("'ceo_search_finance_damage_vtable'")
+		expect(damageActivitySearchMigrationSql).toContain(
+			"'ceo_search_inventory_damage_activity_vtable'",
+		)
 		expect(damageMigrationSql).toContain('finance_inventory_damage_lot')
 		expect(damageMigrationSql).toContain('finance_inventory_damage_transaction')
+		expect(damageActivitySearchMigrationSql).toContain(
+			'activity_inventory_damage',
+		)
 	})
 
 	it('keeps damaged inventory visible in the accounting asset register', () => {
