@@ -38,6 +38,12 @@ import {
 } from '../../lib/server/finance'
 import type { UploadedProofDocument } from '../../lib/server/proofs'
 import {
+	DispatchAction,
+	DispatchBody,
+	DispatchDialog,
+	DispatchFooter,
+} from '../shared/DispatchDialog'
+import {
 	EmployeeActionButton,
 	EmployeeFilterChip,
 	EmployeeStatusPill,
@@ -273,11 +279,6 @@ function proofDocumentIdValue(
 	proof: UploadedProofDocument | null,
 ): string | undefined {
 	return proof?.id
-}
-
-function confirmFinanceAction(message: string): boolean {
-	if (typeof window === 'undefined') return true
-	return window.confirm(message)
 }
 
 function mutationErrorMessage(error: unknown): string | null {
@@ -1207,6 +1208,7 @@ function PayrollEmployeeRow({
 	const [bonusProof, setBonusProof] = useState<UploadedProofDocument | null>(
 		null,
 	)
+	const { confirmAction, confirmationDialog } = useFinanceActionConfirmation()
 
 	const invalidate = () =>
 		queryClient.invalidateQueries({ queryKey: ['finance-accounting'] })
@@ -1327,13 +1329,12 @@ function PayrollEmployeeRow({
 							size="sm"
 							tone="neutral"
 							onClick={() => {
-								if (
-									confirmFinanceAction(
-										`Update salary for ${employee.employeeName}?`,
-									)
-								) {
-									updateMutation.mutate()
-								}
+								confirmAction({
+									confirmLabel: 'Update',
+									message: `Update salary for ${employee.employeeName}?`,
+									onConfirm: () => updateMutation.mutate(),
+									title: 'Update salary',
+								})
 							}}
 							disabled={!canUpdate || updateMutation.isPending}
 						>
@@ -1371,13 +1372,12 @@ function PayrollEmployeeRow({
 							tone="success"
 							leading={<Banknote aria-hidden="true" size={14} />}
 							onClick={() => {
-								if (
-									confirmFinanceAction(
-										`Pay salary for ${employee.employeeName} for ${periodMonth}?`,
-									)
-								) {
-									salaryMutation.mutate()
-								}
+								confirmAction({
+									confirmLabel: 'PAY',
+									message: `Pay salary for ${employee.employeeName} for ${periodMonth}?`,
+									onConfirm: () => salaryMutation.mutate(),
+									title: 'Pay salary',
+								})
 							}}
 							disabled={!canPay || salaryMutation.isPending}
 						>
@@ -1417,13 +1417,12 @@ function PayrollEmployeeRow({
 							tone="primary"
 							leading={<Gift aria-hidden="true" size={14} />}
 							onClick={() => {
-								if (
-									confirmFinanceAction(
-										`Record ${formatDecimalEgp(Number(bonusAmount))} bonus for ${employee.employeeName}?`,
-									)
-								) {
-									bonusMutation.mutate()
-								}
+								confirmAction({
+									confirmLabel: 'Bonus',
+									message: `Record ${formatDecimalEgp(Number(bonusAmount))} bonus for ${employee.employeeName}?`,
+									onConfirm: () => bonusMutation.mutate(),
+									title: 'Record bonus',
+								})
 							}}
 							disabled={!canBonus || bonusMutation.isPending}
 						>
@@ -1439,6 +1438,7 @@ function PayrollEmployeeRow({
 					/>
 				</div>
 			</div>
+			{confirmationDialog}
 		</article>
 	)
 }
@@ -1480,6 +1480,7 @@ function FuelExpenseRow({ row }: { row: FinanceAccountingFuelExpense }) {
 	const [proofDocument, setProofDocument] =
 		useState<UploadedProofDocument | null>(null)
 	const [note, setNote] = useState('')
+	const { confirmAction, confirmationDialog } = useFinanceActionConfirmation()
 	const mutation = useMutation({
 		mutationFn: () =>
 			postTruckFuelExpense({
@@ -1579,13 +1580,12 @@ function FuelExpenseRow({ row }: { row: FinanceAccountingFuelExpense }) {
 							tone="success"
 							leading={<Fuel aria-hidden="true" size={14} />}
 							onClick={() => {
-								if (
-									confirmFinanceAction(
-										`Record fuel expense for ${row.truckPlate ?? 'truck'}?`,
-									)
-								) {
-									mutation.mutate()
-								}
+								confirmAction({
+									confirmLabel: 'Post',
+									message: `Record fuel expense for ${row.truckPlate ?? 'truck'}?`,
+									onConfirm: () => mutation.mutate(),
+									title: 'Post fuel expense',
+								})
 							}}
 							disabled={!canPost || isBusy}
 						>
@@ -1596,13 +1596,13 @@ function FuelExpenseRow({ row }: { row: FinanceAccountingFuelExpense }) {
 							tone="danger"
 							leading={<Ban aria-hidden="true" size={14} />}
 							onClick={() => {
-								if (
-									confirmFinanceAction(
-										`Cancel fuel expense from ${row.driverName ?? 'driver'}?`,
-									)
-								) {
-									rejectMutation.mutate()
-								}
+								confirmAction({
+									confirmLabel: 'Cancel',
+									message: `Cancel fuel expense from ${row.driverName ?? 'driver'}?`,
+									onConfirm: () => rejectMutation.mutate(),
+									title: 'Cancel fuel expense',
+									tone: 'danger',
+								})
 							}}
 							disabled={!canReject || isBusy}
 						>
@@ -1628,6 +1628,7 @@ function FuelExpenseRow({ row }: { row: FinanceAccountingFuelExpense }) {
 					{formatDecimalEgp(row.amount ?? 0)}
 				</p>
 			)}
+			{confirmationDialog}
 		</article>
 	)
 }
@@ -2008,23 +2009,166 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 	)
 }
 
-function JournalView({ rows }: { rows: FinanceAccountingJournalEntry[] }) {
-	const postMutation = useJournalMutation((entryId) =>
-		postFinanceJournalEntry({ data: { entryId } }),
-	)
-	const reverseMutation = useJournalMutation((entryId, reason) => {
-		if (!reason) throw new Error('Reason required')
-		return reverseFinanceJournalEntry({ data: { entryId, reason } })
-	})
-	const voidMutation = useJournalMutation((entryId, reason) => {
-		if (!reason) throw new Error('Reason required')
-		return voidFinanceDraftJournalEntry({ data: { entryId, reason } })
-	})
+type JournalActionKind = 'post' | 'reverse' | 'void'
 
+type JournalActionSelection = {
+	action: JournalActionKind
+	entry: FinanceAccountingJournalEntry
+}
+
+type JournalActionPayload = {
+	entryId: string
+	proof: UploadedProofDocument | null
+	reason?: string
+}
+
+type FinanceConfirmationRequest = {
+	confirmLabel: string
+	message: string
+	onConfirm: () => void
+	title: string
+	tone?: 'primary' | 'danger'
+}
+
+function useFinanceActionConfirmation() {
+	const [request, setRequest] = useState<FinanceConfirmationRequest | null>(
+		null,
+	)
+
+	return {
+		confirmAction: setRequest,
+		confirmationDialog: (
+			<FinanceConfirmationDialog
+				key={request ? `${request.title}:${request.message}` : 'closed'}
+				request={request}
+				onClose={() => setRequest(null)}
+			/>
+		),
+	}
+}
+
+function FinanceConfirmationDialog({
+	onClose,
+	request,
+}: {
+	onClose: () => void
+	request: FinanceConfirmationRequest | null
+}) {
+	const [adminConfirmed, setAdminConfirmed] = useState(false)
+
+	return (
+		<DispatchDialog
+			isOpen={request !== null}
+			onClose={onClose}
+			title={request?.title ?? 'Confirm finance action'}
+			eyebrow="Finance approval"
+			caption="Confirm the admin-reviewed action before it is recorded."
+			size="sm"
+		>
+			<DispatchBody>
+				<p className="font-[family-name:var(--font-bricolage)] text-[13px] leading-relaxed text-[var(--color-text)]">
+					{request?.message}
+				</p>
+				<label className="mt-4 flex items-start gap-3 rounded-md border border-black/[0.08] bg-black/[0.02] px-3 py-3 text-left dark:border-white/[0.1] dark:bg-white/[0.03]">
+					<input
+						type="checkbox"
+						checked={adminConfirmed}
+						onChange={(event) => setAdminConfirmed(event.target.checked)}
+						className="mt-0.5 size-4 accent-[var(--color-primary)]"
+					/>
+					<span className="font-[family-name:var(--font-bricolage)] text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">
+						Admin reviewed the supporting proof and confirms this finance action
+						should be recorded.
+					</span>
+				</label>
+			</DispatchBody>
+			<DispatchFooter>
+				<DispatchAction tone="ghost" onPress={onClose}>
+					Cancel
+				</DispatchAction>
+				<DispatchAction
+					tone={request?.tone ?? 'primary'}
+					isDisabled={!adminConfirmed}
+					onPress={() => {
+						request?.onConfirm()
+						onClose()
+					}}
+				>
+					{request?.confirmLabel ?? 'Confirm'}
+				</DispatchAction>
+			</DispatchFooter>
+		</DispatchDialog>
+	)
+}
+
+function JournalView({ rows }: { rows: FinanceAccountingJournalEntry[] }) {
+	const queryClient = useQueryClient()
+	const [selectedAction, setSelectedAction] =
+		useState<JournalActionSelection | null>(null)
+	const onJournalActionSuccess = () => {
+		setSelectedAction(null)
+		queryClient.invalidateQueries({ queryKey: ['finance-accounting'] })
+	}
+	const postMutation = useMutation({
+		mutationFn: ({ entryId, proof }: JournalActionPayload) =>
+			postFinanceJournalEntry({
+				data: {
+					entryId,
+					proofDocumentId: proofDocumentIdValue(proof),
+					proofPath: proofPathValue(proof),
+				},
+			}),
+		onSuccess: onJournalActionSuccess,
+	})
+	const reverseMutation = useMutation({
+		mutationFn: ({ entryId, proof, reason }: JournalActionPayload) => {
+			if (!reason) throw new Error('Reason required')
+			return reverseFinanceJournalEntry({
+				data: {
+					entryId,
+					proofDocumentId: proofDocumentIdValue(proof),
+					proofPath: proofPathValue(proof),
+					reason,
+				},
+			})
+		},
+		onSuccess: onJournalActionSuccess,
+	})
+	const voidMutation = useMutation({
+		mutationFn: ({ entryId, proof, reason }: JournalActionPayload) => {
+			if (!reason) throw new Error('Reason required')
+			return voidFinanceDraftJournalEntry({
+				data: {
+					entryId,
+					proofDocumentId: proofDocumentIdValue(proof),
+					proofPath: proofPathValue(proof),
+					reason,
+				},
+			})
+		},
+		onSuccess: onJournalActionSuccess,
+	})
 	const busy =
 		postMutation.isPending ||
 		reverseMutation.isPending ||
 		voidMutation.isPending
+	const actionError =
+		postMutation.error ?? reverseMutation.error ?? voidMutation.error
+
+	function runJournalAction(payload: JournalActionPayload) {
+		if (!selectedAction) return
+		switch (selectedAction.action) {
+			case 'post':
+				postMutation.mutate(payload)
+				break
+			case 'reverse':
+				reverseMutation.mutate(payload)
+				break
+			case 'void':
+				voidMutation.mutate(payload)
+				break
+		}
+	}
 
 	return (
 		<section className="mt-6">
@@ -2041,63 +2185,185 @@ function JournalView({ rows }: { rows: FinanceAccountingJournalEntry[] }) {
 							key={entry.id}
 							entry={entry}
 							busy={busy}
-							onPost={() => postMutation.mutate({ entryId: entry.id })}
-							onReverse={() => {
-								const reason = window.prompt('Reason for reversal')
-								if (reason?.trim()) {
-									reverseMutation.mutate({
-										entryId: entry.id,
-										reason: reason.trim(),
-									})
-								}
-							}}
-							onVoid={() => {
-								const reason = window.prompt('Reason for void')
-								if (reason?.trim()) {
-									voidMutation.mutate({
-										entryId: entry.id,
-										reason: reason.trim(),
-									})
-								}
-							}}
+							onAction={(action) => setSelectedAction({ action, entry })}
 						/>
 					))}
 				</div>
 			)}
+			<JournalActionDialog
+				key={
+					selectedAction
+						? `${selectedAction.action}:${selectedAction.entry.id}`
+						: 'closed'
+				}
+				selection={selectedAction}
+				busy={busy}
+				error={actionError}
+				onClose={() => {
+					if (!busy) setSelectedAction(null)
+				}}
+				onConfirm={runJournalAction}
+			/>
 		</section>
 	)
 }
 
-function useJournalMutation(
-	mutationFn: (entryId: string, reason?: string) => Promise<unknown>,
-) {
-	const queryClient = useQueryClient()
-	return useMutation({
-		mutationFn: ({ entryId, reason }: { entryId: string; reason?: string }) =>
-			mutationFn(entryId, reason),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['finance-accounting'] })
-		},
-	})
+function JournalActionDialog({
+	busy,
+	error,
+	onClose,
+	onConfirm,
+	selection,
+}: {
+	busy: boolean
+	error: unknown
+	onClose: () => void
+	onConfirm: (payload: JournalActionPayload) => void
+	selection: JournalActionSelection | null
+}) {
+	const [adminConfirmed, setAdminConfirmed] = useState(false)
+	const [proof, setProof] = useState<UploadedProofDocument | null>(null)
+	const [reason, setReason] = useState('')
+	const action = selection?.action ?? 'post'
+	const entry = selection?.entry ?? null
+	const isPost = action === 'post'
+	const isReverse = action === 'reverse'
+	const actionLabel = isPost ? 'Post' : isReverse ? 'Reverse' : 'Void'
+	const reasonRequired = !isPost
+	const proofRequired = !isPost
+	const reasonValid = !reasonRequired || reason.trim().length >= 5
+	const proofValid = !proofRequired || proof !== null
+	const canConfirm =
+		entry !== null && adminConfirmed && reasonValid && proofValid
+
+	return (
+		<DispatchDialog
+			isOpen={entry !== null}
+			onClose={onClose}
+			title={`${actionLabel} journal entry`}
+			eyebrow="Journal"
+			caption={
+				isPost
+					? 'Post a balanced draft into the ledger after admin review.'
+					: isReverse
+						? 'Create a reversing entry with admin proof and a clear reason.'
+						: 'Void a draft entry with admin proof and a clear reason.'
+			}
+			size="md"
+			dismissDisabled={busy}
+		>
+			<DispatchBody>
+				{entry && (
+					<div className="grid gap-3 rounded-md border border-black/[0.08] bg-black/[0.02] px-3 py-3 dark:border-white/[0.1] dark:bg-white/[0.03]">
+						<div className="flex flex-wrap items-center justify-between gap-2">
+							<span className="font-[family-name:var(--font-geist-mono)] text-[12px] font-semibold text-[var(--color-text)]">
+								{entry.entryNumber}
+							</span>
+							<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+								{entry.status} · {entry.accountingDate}
+							</span>
+						</div>
+						<p className="break-words font-[family-name:var(--font-bricolage)] text-[13px] leading-relaxed text-[var(--color-text)]">
+							{entry.description}
+						</p>
+					</div>
+				)}
+
+				{reasonRequired && (
+					<label className="mt-4 grid gap-1.5">
+						<span className="flex flex-wrap items-baseline justify-between gap-2 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+							<span>Reason</span>
+							<span>Required</span>
+						</span>
+						<textarea
+							value={reason}
+							onChange={(event) => setReason(event.target.value)}
+							placeholder={
+								isReverse
+									? 'Explain why this posted journal entry must be reversed.'
+									: 'Explain why this draft journal entry must be voided.'
+							}
+							className="min-h-24 w-full resize-y rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 py-2 font-[family-name:var(--font-bricolage)] text-[13px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
+						/>
+					</label>
+				)}
+
+				<ProofUploadField
+					className="mt-4"
+					label="Admin proof"
+					note={
+						proofRequired
+							? 'Upload admin approval proof under 1 MB.'
+							: 'Optional approval proof under 1 MB.'
+					}
+					value={proof}
+					onChange={setProof}
+					panel="finance"
+					proofType="advisor_signoff"
+					relatedEntityId={entry?.id}
+					relatedEntityType={`finance_journal_${action}`}
+					title={`${actionLabel} proof · ${entry?.entryNumber ?? 'Journal entry'}`}
+				/>
+
+				<label className="mt-4 flex items-start gap-3 rounded-md border border-black/[0.08] bg-black/[0.02] px-3 py-3 text-left dark:border-white/[0.1] dark:bg-white/[0.03]">
+					<input
+						type="checkbox"
+						checked={adminConfirmed}
+						onChange={(event) => setAdminConfirmed(event.target.checked)}
+						className="mt-0.5 size-4 accent-[var(--color-primary)]"
+					/>
+					<span className="font-[family-name:var(--font-bricolage)] text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">
+						Admin reviewed this journal action and confirms it should be
+						recorded.
+					</span>
+				</label>
+
+				<MutationError error={error} className="mt-4" />
+			</DispatchBody>
+			<DispatchFooter leading={entry?.entryNumber}>
+				<DispatchAction tone="ghost" onPress={onClose} isDisabled={busy}>
+					Cancel
+				</DispatchAction>
+				<DispatchAction
+					tone={isPost ? 'primary' : 'danger'}
+					isDisabled={!canConfirm || busy}
+					onPress={() => {
+						if (!entry || !canConfirm) return
+						onConfirm({
+							entryId: entry.id,
+							proof,
+							reason: reason.trim() || undefined,
+						})
+					}}
+				>
+					{busy ? 'Working' : actionLabel}
+				</DispatchAction>
+			</DispatchFooter>
+		</DispatchDialog>
+	)
 }
 
 function JournalEntryRow({
 	entry,
 	busy,
-	onPost,
-	onReverse,
-	onVoid,
+	onAction,
 }: {
 	entry: FinanceAccountingJournalEntry
 	busy: boolean
-	onPost: () => void
-	onReverse: () => void
-	onVoid: () => void
+	onAction: (action: JournalActionKind) => void
 }) {
 	const debitTotal = entry.lines.reduce((sum, line) => sum + line.debit, 0)
 	const creditTotal = entry.lines.reduce((sum, line) => sum + line.credit, 0)
 	const balanced =
 		Math.round(debitTotal * 100) === Math.round(creditTotal * 100)
+	const canPost =
+		entry.status === 'draft' &&
+		!entry.requiresAccountantSignoff &&
+		balanced &&
+		entry.lines.length > 0
+	const canReverse = entry.status === 'posted'
+	const canVoid = entry.status === 'draft'
+	const hasActions = canPost || canReverse || canVoid
 
 	return (
 		<article className="rounded-md border border-[var(--color-border)] p-4">
@@ -2140,41 +2406,43 @@ function JournalEntryRow({
 						</p>
 					)}
 				</div>
-				<div className="flex flex-wrap gap-2 lg:justify-end">
-					<EmployeeActionButton
-						tone="success"
-						size="sm"
-						leading={<BookOpenCheck aria-hidden="true" size={14} />}
-						onClick={onPost}
-						disabled={
-							busy ||
-							entry.status !== 'draft' ||
-							entry.requiresAccountantSignoff ||
-							!balanced ||
-							entry.lines.length === 0
-						}
-					>
-						Post
-					</EmployeeActionButton>
-					<EmployeeActionButton
-						tone="neutral"
-						size="sm"
-						leading={<Undo2 aria-hidden="true" size={14} />}
-						onClick={onReverse}
-						disabled={busy || entry.status !== 'posted'}
-					>
-						Reverse
-					</EmployeeActionButton>
-					<EmployeeActionButton
-						tone="danger"
-						size="sm"
-						leading={<Ban aria-hidden="true" size={14} />}
-						onClick={onVoid}
-						disabled={busy || entry.status !== 'draft'}
-					>
-						Void
-					</EmployeeActionButton>
-				</div>
+				{hasActions && (
+					<div className="flex flex-wrap gap-2 lg:justify-end">
+						{canPost && (
+							<EmployeeActionButton
+								tone="success"
+								size="sm"
+								leading={<BookOpenCheck aria-hidden="true" size={14} />}
+								onClick={() => onAction('post')}
+								disabled={busy}
+							>
+								Post
+							</EmployeeActionButton>
+						)}
+						{canReverse && (
+							<EmployeeActionButton
+								tone="neutral"
+								size="sm"
+								leading={<Undo2 aria-hidden="true" size={14} />}
+								onClick={() => onAction('reverse')}
+								disabled={busy}
+							>
+								Reverse
+							</EmployeeActionButton>
+						)}
+						{canVoid && (
+							<EmployeeActionButton
+								tone="danger"
+								size="sm"
+								leading={<Ban aria-hidden="true" size={14} />}
+								onClick={() => onAction('void')}
+								disabled={busy}
+							>
+								Void
+							</EmployeeActionButton>
+						)}
+					</div>
+				)}
 			</div>
 
 			{entry.lines.length > 0 && (

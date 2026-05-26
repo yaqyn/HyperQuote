@@ -975,6 +975,8 @@ const recordCompanyAssetInput = z.object({
 const journalEntryActionInput = z.object({
 	entryId: z.string().regex(UUID_RE),
 	reason: z.string().trim().min(5).max(500).optional(),
+	proofPath: z.string().trim().min(1).optional(),
+	proofDocumentId: z.string().trim().optional(),
 })
 
 function optionalDate(value: string | undefined): string | null {
@@ -1178,6 +1180,8 @@ export const postFinanceJournalEntry = createServerFn({ method: 'POST' })
 		const auth = await getInternalSupabaseClient()
 		const { error } = await auth.client.rpc('finance_post_journal_entry', {
 			p_entry_id: data.entryId,
+			p_proof_document_id: optionalUuid(data.proofDocumentId),
+			p_proof_path: data.proofPath?.trim() || null,
 		})
 		if (error) throw new Error(error.message)
 		return { success: true as const, entryId: data.entryId }
@@ -1191,6 +1195,8 @@ export const reverseFinanceJournalEntry = createServerFn({ method: 'POST' })
 			'finance_reverse_journal_entry',
 			{
 				p_entry_id: data.entryId,
+				p_proof_document_id: optionalUuid(data.proofDocumentId),
+				p_proof_path: data.proofPath?.trim() || null,
 				p_reason: data.reason,
 			},
 		)
@@ -1210,6 +1216,8 @@ export const voidFinanceDraftJournalEntry = createServerFn({ method: 'POST' })
 			'finance_void_draft_journal_entry',
 			{
 				p_entry_id: data.entryId,
+				p_proof_document_id: optionalUuid(data.proofDocumentId),
+				p_proof_path: data.proofPath?.trim() || null,
 				p_reason: data.reason,
 			},
 		)

@@ -6746,7 +6746,11 @@ export type Database = {
 				}
 			}
 			finance_post_journal_entry: {
-				Args: { p_entry_id: string }
+				Args: {
+					p_entry_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+				}
 				Returns: {
 					accounting_date: string
 					accounting_period: string
@@ -6903,7 +6907,12 @@ export type Database = {
 				}
 			}
 			finance_reverse_journal_entry: {
-				Args: { p_entry_id: string; p_reason: string }
+				Args: {
+					p_entry_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_reason: string
+				}
 				Returns: {
 					accounting_date: string
 					accounting_period: string
@@ -6968,7 +6977,12 @@ export type Database = {
 				}
 			}
 			finance_void_draft_journal_entry: {
-				Args: { p_entry_id: string; p_reason: string }
+				Args: {
+					p_entry_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_reason: string
+				}
 				Returns: {
 					accounting_date: string
 					accounting_period: string
@@ -8965,6 +8979,8 @@ export type Database = {
 					p_actor_pool: string
 					p_actor_user_id: string
 					p_entry_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
 				}
 				Returns: {
 					accounting_date: string
@@ -9132,6 +9148,8 @@ export type Database = {
 					p_actor_pool: string
 					p_actor_user_id: string
 					p_entry_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
 					p_reason: string
 				}
 				Returns: {
@@ -9204,6 +9222,8 @@ export type Database = {
 					p_actor_pool: string
 					p_actor_user_id: string
 					p_entry_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
 					p_reason: string
 				}
 				Returns: {

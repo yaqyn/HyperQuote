@@ -32,6 +32,12 @@ const financeActivityStressMigrationSql = readRepoFile(
 const fuelRejectMigrationSql = readRepoFile(
 	'supabase/migrations/20260526074819_finance_fuel_reject_expense.sql',
 )
+const journalActionProofMigrationSql = readRepoFile(
+	'supabase/migrations/20260526080044_finance_journal_action_proofs.sql',
+)
+const journalActivitySearchMigrationSql = readRepoFile(
+	'supabase/migrations/20260526081311_finance_journal_activity_search.sql',
+)
 const accountingViewSource = readRepoFile(
 	'apps/internal/src/components/finance/FinanceAccountingView.tsx',
 )
@@ -274,7 +280,8 @@ describe('finance accounting rebuild', () => {
 	})
 
 	it('requires confirmation and supports canceling submitted fuel receipts', () => {
-		expect(accountingViewSource).toContain('confirmFinanceAction')
+		expect(accountingViewSource).toContain('FinanceConfirmationDialog')
+		expect(accountingViewSource).not.toContain('window.confirm')
 		expect(accountingViewSource).toContain('rejectTruckFuelExpense')
 		expect(fuelRejectMigrationSql).toContain("'finance_fuel_expense_rejected'")
 		expect(fuelRejectMigrationSql).toContain(
@@ -284,6 +291,43 @@ describe('finance accounting rebuild', () => {
 			'service_finance_reject_truck_fuel_expense',
 		)
 		expect(fuelRejectMigrationSql).toContain('Rejected fuel expense for')
+	})
+
+	it('keeps journal actions contextual, in-app, and proof backed', () => {
+		expect(accountingViewSource).not.toContain('window.prompt')
+		expect(accountingViewSource).toContain('JournalActionDialog')
+		expect(accountingViewSource).toContain('canPost')
+		expect(accountingViewSource).toContain('canReverse')
+		expect(accountingViewSource).toContain('canVoid')
+		expect(accountingViewSource).toContain('Admin proof')
+		expect(accountingViewSource).toContain('Admin reviewed this journal action')
+		expect(journalActionProofMigrationSql).toContain(
+			'finance_link_journal_action_proof',
+		)
+		expect(journalActionProofMigrationSql).toContain('journal_post_approval')
+		expect(journalActionProofMigrationSql).toContain('journal_void_approval')
+		expect(journalActionProofMigrationSql).toContain(
+			'journal_reversal_approval',
+		)
+		expect(journalActionProofMigrationSql).toContain(
+			"'proof_document_id', p_proof_document_id",
+		)
+		expect(journalActionProofMigrationSql).toContain(
+			'finance_journal_action_proof_required',
+		)
+		expect(journalActivitySearchMigrationSql).toContain(
+			"'finance_journal_posted'",
+		)
+		expect(journalActivitySearchMigrationSql).toContain(
+			"'finance_journal_reversed'",
+		)
+		expect(journalActivitySearchMigrationSql).toContain(
+			"'finance_journal_voided'",
+		)
+		expect(journalActivitySearchMigrationSql).toContain('Posted journal entry')
+		expect(journalActivitySearchMigrationSql).toContain(
+			'journal ledger entry reverse void post',
+		)
 	})
 
 	it('presents the accounting overview as a wired operating dashboard', () => {
