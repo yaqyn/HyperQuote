@@ -334,6 +334,12 @@ describe('finance accounting rebuild', () => {
 		expect(accountingViewSource).toContain('Balance sheet')
 		expect(accountingViewSource).toContain('Liability and review')
 		expect(accountingViewSource).toContain('Period movement')
+		expect(accountingViewSource).toContain('ACCOUNTING_PERIOD_PRESETS')
+		expect(accountingViewSource).toContain("periodPreset === 'custom'")
+		expect(accountingViewSource).toContain(
+			'onPeriodPresetChange={applyPeriodPreset}',
+		)
+		expect(accountingViewSource).toContain('formatDateLabel(periodStart)')
 		expect(accountingViewSource).toContain('Work queue')
 		expect(accountingViewSource).toContain('Inventory asset register')
 		expect(accountingViewSource).toContain('Journal activity')
@@ -355,8 +361,8 @@ describe('finance accounting rebuild', () => {
 	it('keeps the accounting surface compact on phones', () => {
 		expect(accountingViewSource).toContain('overflow-x-auto')
 		expect(accountingViewSource).toContain('flex min-w-max')
-		expect(accountingViewSource).toContain('w-[132px] shrink-0 sm:w-auto')
-		expect(accountingViewSource).toContain('grid grid-cols-2 gap-2 sm:flex')
+		expect(accountingViewSource).toContain('w-[156px] shrink-0 sm:w-auto')
+		expect(accountingViewSource).toContain('grid grid-cols-2 gap-1')
 		expect(accountingViewSource).toContain('fullWidthOnMobile')
 		expect(accountingViewSource).toContain('hidden max-w-[620px]')
 		expect(accountingViewSource).toContain('py-2')

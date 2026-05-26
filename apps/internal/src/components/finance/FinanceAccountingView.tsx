@@ -45,7 +45,6 @@ import {
 } from '../shared/DispatchDialog'
 import {
 	EmployeeActionButton,
-	EmployeeFilterChip,
 	EmployeeStatusPill,
 } from '../shared/EmployeeControls'
 import { formatDecimalEgp } from '../shared/formatters'
@@ -64,6 +63,14 @@ type AccountingView =
 	| 'adjustments'
 	| 'journal'
 
+type AccountingPeriodPreset =
+	| 'today'
+	| 'thisMonth'
+	| 'lastMonth'
+	| 'last30Days'
+	| 'yearToDate'
+	| 'custom'
+
 const ACCOUNTING_VIEWS: Array<{
 	id: AccountingView
 	label: string
@@ -75,6 +82,18 @@ const ACCOUNTING_VIEWS: Array<{
 	{ id: 'payroll', label: 'Payroll', icon: Banknote },
 	{ id: 'adjustments', label: 'Adjustments', icon: Plus },
 	{ id: 'journal', label: 'Journal', icon: BookOpenCheck },
+]
+
+const ACCOUNTING_PERIOD_PRESETS: Array<{
+	id: AccountingPeriodPreset
+	label: string
+}> = [
+	{ id: 'today', label: 'Today' },
+	{ id: 'thisMonth', label: 'This month' },
+	{ id: 'lastMonth', label: 'Last month' },
+	{ id: 'last30Days', label: 'Last 30' },
+	{ id: 'yearToDate', label: 'YTD' },
+	{ id: 'custom', label: 'Custom' },
 ]
 
 const ADJUSTMENT_TYPES = [
@@ -287,20 +306,84 @@ function mutationErrorMessage(error: unknown): string | null {
 	return 'The action could not be recorded.'
 }
 
+function dateInputValue(date: Date) {
+	const year = date.getFullYear()
+	const month = String(date.getMonth() + 1).padStart(2, '0')
+	const day = String(date.getDate()).padStart(2, '0')
+	return `${year}-${month}-${day}`
+}
+
+function shiftedDate(date: Date, days: number) {
+	const next = new Date(date)
+	next.setDate(next.getDate() + days)
+	return next
+}
+
+function accountingPeriodRange(
+	preset: Exclude<AccountingPeriodPreset, 'custom'>,
+) {
+	const today = new Date()
+	const startOfThisMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+	const startOfLastMonth = new Date(
+		today.getFullYear(),
+		today.getMonth() - 1,
+		1,
+	)
+	const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0)
+
+	switch (preset) {
+		case 'today':
+			return {
+				end: dateInputValue(today),
+				start: dateInputValue(today),
+			}
+		case 'lastMonth':
+			return {
+				end: dateInputValue(endOfLastMonth),
+				start: dateInputValue(startOfLastMonth),
+			}
+		case 'last30Days':
+			return {
+				end: dateInputValue(today),
+				start: dateInputValue(shiftedDate(today, -29)),
+			}
+		case 'yearToDate':
+			return {
+				end: dateInputValue(today),
+				start: dateInputValue(new Date(today.getFullYear(), 0, 1)),
+			}
+		case 'thisMonth':
+			return {
+				end: dateInputValue(today),
+				start: dateInputValue(startOfThisMonth),
+			}
+	}
+	throw new Error(`Unknown accounting period preset: ${preset}`)
+}
+
 function todayInputValue() {
-	return new Date().toISOString().slice(0, 10)
+	return accountingPeriodRange('today').end
 }
 
 function monthStartInputValue() {
-	const now = new Date()
-	return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
-		.toISOString()
-		.slice(0, 10)
+	return accountingPeriodRange('thisMonth').start
+}
+
+function formatDateLabel(value: string) {
+	const parsed = new Date(`${value}T00:00:00`)
+	if (Number.isNaN(parsed.getTime())) return value
+	return parsed.toLocaleDateString('en-US', {
+		day: 'numeric',
+		month: 'short',
+		year: 'numeric',
+	})
 }
 
 export function FinanceAccountingView() {
 	const queryClient = useQueryClient()
 	const [activeView, setActiveView] = useState<AccountingView>('overview')
+	const [periodPreset, setPeriodPreset] =
+		useState<AccountingPeriodPreset>('thisMonth')
 	const [periodStart, setPeriodStart] = useState(monthStartInputValue)
 	const [periodEnd, setPeriodEnd] = useState(todayInputValue)
 
@@ -341,16 +424,31 @@ export function FinanceAccountingView() {
 	}
 
 	const dashboard = dashboardQuery.data
+	const applyPeriodPreset = (preset: AccountingPeriodPreset) => {
+		setPeriodPreset(preset)
+		if (preset === 'custom') return
+		const range = accountingPeriodRange(preset)
+		setPeriodStart(range.start)
+		setPeriodEnd(range.end)
+	}
 
 	return (
 		<div className="relative">
 			<div className="mx-auto flex max-w-[1180px] flex-col px-4 pt-5 pb-16 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 xl:px-10">
 				<AccountingMasthead
 					dashboard={dashboard}
+					periodPreset={periodPreset}
 					periodStart={periodStart}
 					periodEnd={periodEnd}
-					onPeriodStartChange={setPeriodStart}
-					onPeriodEndChange={setPeriodEnd}
+					onPeriodPresetChange={applyPeriodPreset}
+					onPeriodStartChange={(value) => {
+						setPeriodPreset('custom')
+						setPeriodStart(value)
+					}}
+					onPeriodEndChange={(value) => {
+						setPeriodPreset('custom')
+						setPeriodEnd(value)
+					}}
 					onBackfill={() => backfillMutation.mutate()}
 					backfillBusy={backfillMutation.isPending}
 				/>
@@ -427,21 +525,26 @@ function AccountingStateMessage({
 
 function AccountingMasthead({
 	dashboard,
+	periodPreset,
 	periodStart,
 	periodEnd,
+	onPeriodPresetChange,
 	onPeriodStartChange,
 	onPeriodEndChange,
 	onBackfill,
 	backfillBusy,
 }: {
 	dashboard: FinanceAccountingDashboard
+	periodPreset: AccountingPeriodPreset
 	periodStart: string
 	periodEnd: string
+	onPeriodPresetChange: (value: AccountingPeriodPreset) => void
 	onPeriodStartChange: (value: string) => void
 	onPeriodEndChange: (value: string) => void
 	onBackfill: () => void
 	backfillBusy: boolean
 }) {
+	const isCustomPeriod = periodPreset === 'custom'
 	return (
 		<header className="border-b border-[var(--color-border)] pb-3 sm:pb-4">
 			<div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -462,40 +565,80 @@ function AccountingMasthead({
 					</p>
 				</div>
 
-				<div className="grid grid-cols-2 gap-2 sm:flex sm:items-end">
-					<label className="flex min-w-0 flex-col gap-1 sm:min-w-[150px]">
+				<div className="flex min-w-0 flex-col gap-2 lg:min-w-[560px]">
+					<div className="flex flex-wrap items-baseline justify-between gap-2">
 						<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
-							From
+							Period
 						</span>
-						<input
-							type="date"
-							value={periodStart}
-							onChange={(event) => onPeriodStartChange(event.target.value)}
-							className="h-10 min-w-0 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
-						/>
-					</label>
-					<label className="flex min-w-0 flex-col gap-1 sm:min-w-[150px]">
-						<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
-							To
+						<span className="font-[family-name:var(--font-geist-mono)] text-[11px] text-[var(--color-text-muted)]">
+							{formatDateLabel(periodStart)} to {formatDateLabel(periodEnd)}
 						</span>
-						<input
-							type="date"
-							value={periodEnd}
-							onChange={(event) => onPeriodEndChange(event.target.value)}
-							className="h-10 min-w-0 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
-						/>
-					</label>
-					<EmployeeActionButton
-						tone="neutral"
-						size="sm"
-						leading={<RefreshCcw aria-hidden="true" size={14} />}
-						onClick={onBackfill}
-						disabled={backfillBusy}
-						fullWidthOnMobile
-						className="col-span-2"
-					>
-						{backfillBusy ? 'Reconciling' : 'Reconcile'}
-					</EmployeeActionButton>
+					</div>
+					<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+						<div className="min-w-0">
+							<div className="grid grid-cols-2 gap-1 rounded-lg border border-black/[0.08] bg-black/[0.025] p-1 dark:border-white/[0.1] dark:bg-white/[0.035] sm:grid-cols-3 xl:grid-cols-6">
+								{ACCOUNTING_PERIOD_PRESETS.map((preset) => {
+									const active = preset.id === periodPreset
+									return (
+										<button
+											key={preset.id}
+											type="button"
+											aria-pressed={active}
+											onClick={() => onPeriodPresetChange(preset.id)}
+											className={`min-h-9 rounded-md px-2 py-1.5 font-[family-name:var(--font-archivo)] text-[10.5px] font-semibold uppercase tracking-[0.08em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 ${
+												active
+													? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm dark:bg-white/[0.08]'
+													: 'text-[var(--color-text-muted)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)] dark:hover:bg-white/[0.06]'
+											}`}
+										>
+											{preset.label}
+										</button>
+									)
+								})}
+							</div>
+							{isCustomPeriod && (
+								<div className="mt-2 grid grid-cols-2 gap-2">
+									<label className="flex min-w-0 flex-col gap-1">
+										<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+											From
+										</span>
+										<input
+											type="date"
+											value={periodStart}
+											onChange={(event) =>
+												onPeriodStartChange(event.target.value)
+											}
+											className="h-10 min-w-0 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
+										/>
+									</label>
+									<label className="flex min-w-0 flex-col gap-1">
+										<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+											To
+										</span>
+										<input
+											type="date"
+											value={periodEnd}
+											onChange={(event) =>
+												onPeriodEndChange(event.target.value)
+											}
+											className="h-10 min-w-0 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
+										/>
+									</label>
+								</div>
+							)}
+						</div>
+						<EmployeeActionButton
+							tone="neutral"
+							size="sm"
+							leading={<RefreshCcw aria-hidden="true" size={14} />}
+							onClick={onBackfill}
+							disabled={backfillBusy}
+							fullWidthOnMobile
+							className="sm:min-h-10"
+						>
+							{backfillBusy ? 'Reconciling' : 'Reconcile'}
+						</EmployeeActionButton>
+					</div>
 				</div>
 			</div>
 		</header>
@@ -527,20 +670,43 @@ function AccountingViewStrip({
 			<ul className="flex min-w-max gap-2 sm:grid sm:min-w-0 sm:grid-cols-3 lg:grid-cols-6">
 				{ACCOUNTING_VIEWS.map((view) => {
 					const Icon = view.icon
+					const count = counts[view.id]
+					const active = activeView === view.id
 					return (
-						<li key={view.id} className="w-[132px] shrink-0 sm:w-auto">
-							<EmployeeFilterChip
-								active={activeView === view.id}
-								count={counts[view.id]}
-								tone={view.id === 'journal' ? 'primary' : 'neutral'}
+						<li key={view.id} className="w-[156px] shrink-0 sm:w-auto">
+							<button
+								type="button"
+								aria-pressed={active}
+								title={view.label}
 								onClick={() => onSelect(view.id)}
-								className="h-full w-full whitespace-nowrap"
+								className={`grid h-full min-h-11 w-full grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-3 py-2 text-left font-[family-name:var(--font-archivo)] text-[10.5px] font-semibold uppercase tracking-[0.09em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 ${
+									active
+										? 'border-transparent bg-black/[0.045] text-[var(--color-text)] shadow-sm dark:bg-white/[0.06]'
+										: 'border-black/[0.08] text-[var(--color-text-subtle)] hover:border-[var(--color-primary)]/35 hover:bg-[var(--color-primary)]/[0.05] hover:text-[var(--color-text)] dark:border-white/[0.1]'
+								}`}
 							>
-								<span className="inline-flex min-w-0 items-center gap-1.5">
-									<Icon aria-hidden="true" size={13} />
-									<span className="truncate">{view.label}</span>
-								</span>
-							</EmployeeFilterChip>
+								<Icon
+									aria-hidden="true"
+									size={14}
+									className={
+										active && view.id === 'journal'
+											? 'text-[var(--color-primary)]'
+											: ''
+									}
+								/>
+								<span className="min-w-0 truncate">{view.label}</span>
+								{typeof count === 'number' && (
+									<span
+										className={`min-w-6 justify-self-end rounded-md px-1.5 py-0.5 text-center font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums ${
+											active
+												? 'bg-[var(--color-surface)] text-current dark:bg-black/25'
+												: 'bg-black/[0.05] text-[var(--color-text-muted)] dark:bg-white/[0.08]'
+										}`}
+									>
+										{count.toLocaleString('en-US')}
+									</span>
+								)}
+							</button>
 						</li>
 					)
 				})}
