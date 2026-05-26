@@ -280,6 +280,14 @@ describe('finance accounting rebuild', () => {
 
 	it('uses canonical proof uploads for finance operating actions', () => {
 		expect(accountingViewSource).toContain('ProofUploadField')
+		expect(accountingViewSource).toContain('aria-expanded={expanded}')
+		expect(accountingViewSource).toContain('payrollEmployeeNeedsAttention')
+		expect(accountingViewSource).toContain(
+			'border-amber-400/45 shadow-[inset_3px_0_0_rgba(245,158,11,0.45)]',
+		)
+		expect(accountingViewSource).toContain('PayrollActionPanel')
+		expect(accountingViewSource).toContain('PayrollMiniMetric')
+		expect(accountingViewSource).toContain('Salary payment')
 		expect(accountingViewSource).toContain('Salary-change proof')
 		expect(accountingViewSource).toContain('Salary payment proof')
 		expect(accountingViewSource).toContain('Bonus proof')

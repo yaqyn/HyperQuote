@@ -1569,6 +1569,7 @@ function PayrollEmployeeRow({
 	periodMonth: string
 }) {
 	const queryClient = useQueryClient()
+	const [expanded, setExpanded] = useState(false)
 	const [baseSalary, setBaseSalary] = useState(String(employee.baseSalary ?? 0))
 	const [socialSalary, setSocialSalary] = useState(
 		String(employee.socialInsuranceSalary ?? 0),
@@ -1617,6 +1618,7 @@ function PayrollEmployeeRow({
 			}),
 		onSuccess: () => {
 			setPayProof(null)
+			setExpanded(false)
 			invalidate()
 		},
 	})
@@ -1636,10 +1638,15 @@ function PayrollEmployeeRow({
 			setBonusAmount('')
 			setBonusReason('')
 			setBonusProof(null)
+			setExpanded(false)
 			invalidate()
 		},
 	})
 
+	const roleLabel =
+		[employee.department, employee.title].filter(Boolean).join(' · ') ||
+		'No role set'
+	const needsAttention = payrollEmployeeNeedsAttention(employee)
 	const configuredSalary = Number(baseSalary) > 0
 	const canUpdate =
 		Number(baseSalary) >= 0 &&
@@ -1653,157 +1660,182 @@ function PayrollEmployeeRow({
 		bonusProof !== null
 
 	return (
-		<article className="rounded-md border border-[var(--color-border)] p-4">
-			<div className="grid gap-4 lg:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.2fr)]">
-				<div className="min-w-0">
-					<div className="flex flex-wrap items-center gap-2">
-						<p className="break-words font-[family-name:var(--font-bricolage)] text-[14px] font-semibold text-[var(--color-text)]">
-							{employee.employeeName}
-						</p>
-						<EmployeeStatusPill
-							tone={employee.salaryPaidThisMonth ? 'success' : 'warning'}
-							className="px-2 py-1 text-[11px]"
-						>
-							{employee.salaryPaidThisMonth ? 'Paid' : 'Due'}
-						</EmployeeStatusPill>
-					</div>
-					<p className="mt-1 break-words font-[family-name:var(--font-bricolage)] text-[12px] text-[var(--color-text-muted)]">
-						{[employee.department, employee.title]
-							.filter(Boolean)
-							.join(' · ') || 'No department set'}
-					</p>
-					<div className="mt-4 grid gap-2 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text)]">
-						<span>Base {formatDecimalEgp(employee.baseSalary ?? 0)}</span>
-						<span>
-							Social {formatDecimalEgp(employee.socialInsuranceSalary ?? 0)}
-						</span>
-						<span>
-							Bonus paid {formatDecimalEgp(employee.bonusPaidThisMonth ?? 0)}
-						</span>
-					</div>
-				</div>
+		<article
+			className={`overflow-hidden rounded-lg border bg-[var(--color-surface)] transition-colors ${
+				needsAttention
+					? 'border-amber-400/45 shadow-[inset_3px_0_0_rgba(245,158,11,0.45)] dark:border-amber-300/35'
+					: 'border-[var(--color-border)]'
+			}`}
+		>
+			<button
+				type="button"
+				aria-expanded={expanded}
+				onClick={() => setExpanded((current) => !current)}
+				className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 text-left outline-none transition-colors hover:bg-black/[0.025] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/25 dark:hover:bg-white/[0.04] sm:px-5"
+			>
+				<span className="min-w-0">
+					<span className="block truncate font-[family-name:var(--font-bricolage)] text-[14px] font-semibold text-[var(--color-text)]">
+						{employee.employeeName}
+					</span>
+					<span className="mt-0.5 block truncate font-[family-name:var(--font-bricolage)] text-[12px] text-[var(--color-text-muted)]">
+						{roleLabel}
+					</span>
+				</span>
+				<ChevronDown
+					aria-hidden="true"
+					size={16}
+					className={`text-[var(--color-text-subtle)] transition-transform ${
+						expanded ? 'rotate-180' : ''
+					}`}
+				/>
+			</button>
 
-				<div className="grid gap-3">
-					<div className="grid gap-2 md:grid-cols-[120px_120px_auto]">
-						<input
-							value={baseSalary}
-							onChange={(event) => setBaseSalary(event.target.value)}
-							inputMode="decimal"
-							placeholder="Base salary"
-							className={MONEY_INPUT_CLASS}
+			{expanded && (
+				<div className="border-t border-[var(--color-border)] p-4 sm:p-5">
+					<div className="grid gap-3 sm:grid-cols-3">
+						<PayrollMiniMetric
+							label="Base"
+							value={formatDecimalEgp(employee.baseSalary ?? 0)}
 						/>
-						<input
-							value={socialSalary}
-							onChange={(event) => setSocialSalary(event.target.value)}
-							inputMode="decimal"
-							placeholder="Social salary"
-							className={MONEY_INPUT_CLASS}
+						<PayrollMiniMetric
+							label="Social"
+							value={formatDecimalEgp(employee.socialInsuranceSalary ?? 0)}
 						/>
-						<EmployeeActionButton
-							size="sm"
-							tone="neutral"
-							onClick={() => {
-								confirmAction({
-									confirmLabel: 'Update',
-									message: `Update salary for ${employee.employeeName}?`,
-									onConfirm: () => updateMutation.mutate(),
-									title: 'Update salary',
-								})
-							}}
-							disabled={!canUpdate || updateMutation.isPending}
-						>
-							{updateMutation.isPending ? 'Saving' : 'Update'}
-						</EmployeeActionButton>
+						<PayrollMiniMetric
+							label="Bonus paid"
+							value={formatDecimalEgp(employee.bonusPaidThisMonth ?? 0)}
+						/>
 					</div>
-					<ProofUploadField
-						className="mt-0"
-						label="Salary-change proof"
-						note="Upload approval, contract change, or HR sign-off under 1 MB."
-						value={salaryProof}
-						onChange={setSalaryProof}
-						panel="finance"
-						proofType="advisor_signoff"
-						relatedEntityId={employee.employeeId}
-						relatedEntityType="employee_compensation"
-						title={`Salary-change proof · ${employee.employeeName}`}
-					/>
 
-					<div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_96px] md:items-end">
-						<ProofUploadField
-							className="mt-0"
-							label="Salary payment proof"
-							note="Upload transfer receipt, cash voucher, or bank proof under 1 MB."
-							value={payProof}
-							onChange={setPayProof}
-							panel="finance"
-							proofType="finance_out"
-							relatedEntityId={employee.employeeId}
-							relatedEntityType="employee_salary_payment"
-							title={`Salary payment proof · ${employee.employeeName}`}
-						/>
-						<EmployeeActionButton
-							size="sm"
-							tone="success"
-							leading={<Banknote aria-hidden="true" size={14} />}
-							onClick={() => {
-								confirmAction({
-									confirmLabel: 'PAY',
-									message: `Pay salary for ${employee.employeeName} for ${periodMonth}?`,
-									onConfirm: () => salaryMutation.mutate(),
-									title: 'Pay salary',
-								})
-							}}
-							disabled={!canPay || salaryMutation.isPending}
-						>
-							{salaryMutation.isPending ? 'Paying' : 'PAY'}
-						</EmployeeActionButton>
-					</div>
-					<div className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)]">
-						<input
-							value={bonusAmount}
-							onChange={(event) => setBonusAmount(event.target.value)}
-							inputMode="decimal"
-							placeholder="Bonus amount"
-							className={MONEY_INPUT_CLASS}
-						/>
-						<input
-							value={bonusReason}
-							onChange={(event) => setBonusReason(event.target.value)}
-							placeholder="Bonus reason"
-							className={COMPACT_INPUT_CLASS}
-						/>
-					</div>
-					<div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-						<ProofUploadField
-							className="mt-0"
-							label="Bonus proof"
-							note="Upload bonus approval, transfer receipt, or voucher under 1 MB."
-							value={bonusProof}
-							onChange={setBonusProof}
-							panel="finance"
-							proofType="finance_out"
-							relatedEntityId={employee.employeeId}
-							relatedEntityType="employee_bonus_payment"
-							title={`Bonus proof · ${employee.employeeName}`}
-						/>
-						<EmployeeActionButton
-							size="sm"
-							tone="primary"
-							leading={<Gift aria-hidden="true" size={14} />}
-							onClick={() => {
-								confirmAction({
-									confirmLabel: 'Bonus',
-									message: `Record ${formatDecimalEgp(Number(bonusAmount))} bonus for ${employee.employeeName}?`,
-									onConfirm: () => bonusMutation.mutate(),
-									title: 'Record bonus',
-								})
-							}}
-							disabled={!canBonus || bonusMutation.isPending}
-						>
-							{bonusMutation.isPending ? 'Saving' : 'Bonus'}
-						</EmployeeActionButton>
+					<div className="mt-4 grid gap-3 xl:grid-cols-3">
+						<PayrollActionPanel title="Compensation">
+							<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+								<input
+									value={baseSalary}
+									onChange={(event) => setBaseSalary(event.target.value)}
+									inputMode="decimal"
+									placeholder="Base salary"
+									className={MONEY_INPUT_CLASS}
+								/>
+								<input
+									value={socialSalary}
+									onChange={(event) => setSocialSalary(event.target.value)}
+									inputMode="decimal"
+									placeholder="Social salary"
+									className={MONEY_INPUT_CLASS}
+								/>
+							</div>
+							<ProofUploadField
+								className="mt-3"
+								label="Salary-change proof"
+								note="Approval, contract change, or HR sign-off under 1 MB."
+								value={salaryProof}
+								onChange={setSalaryProof}
+								panel="finance"
+								proofType="advisor_signoff"
+								relatedEntityId={employee.employeeId}
+								relatedEntityType="employee_compensation"
+								title={`Salary-change proof · ${employee.employeeName}`}
+							/>
+							<EmployeeActionButton
+								size="sm"
+								tone="neutral"
+								onClick={() => {
+									confirmAction({
+										confirmLabel: 'Update',
+										message: `Update salary for ${employee.employeeName}?`,
+										onConfirm: () => updateMutation.mutate(),
+										title: 'Update salary',
+									})
+								}}
+								disabled={!canUpdate || updateMutation.isPending}
+								className="mt-3 w-full"
+							>
+								{updateMutation.isPending ? 'Saving' : 'Update'}
+							</EmployeeActionButton>
+						</PayrollActionPanel>
+
+						<PayrollActionPanel title="Salary payment">
+							<ProofUploadField
+								className="mt-0"
+								label="Salary payment proof"
+								note="Transfer receipt, cash voucher, or bank proof under 1 MB."
+								value={payProof}
+								onChange={setPayProof}
+								panel="finance"
+								proofType="finance_out"
+								relatedEntityId={employee.employeeId}
+								relatedEntityType="employee_salary_payment"
+								title={`Salary payment proof · ${employee.employeeName}`}
+							/>
+							<EmployeeActionButton
+								size="sm"
+								tone="success"
+								leading={<Banknote aria-hidden="true" size={14} />}
+								onClick={() => {
+									confirmAction({
+										confirmLabel: 'PAY',
+										message: `Pay salary for ${employee.employeeName} for ${periodMonth}?`,
+										onConfirm: () => salaryMutation.mutate(),
+										title: 'Pay salary',
+									})
+								}}
+								disabled={!canPay || salaryMutation.isPending}
+								className="mt-3 w-full"
+							>
+								{salaryMutation.isPending ? 'Paying' : 'PAY'}
+							</EmployeeActionButton>
+						</PayrollActionPanel>
+
+						<PayrollActionPanel title="Bonus">
+							<div className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)] xl:grid-cols-1 2xl:grid-cols-[140px_minmax(0,1fr)]">
+								<input
+									value={bonusAmount}
+									onChange={(event) => setBonusAmount(event.target.value)}
+									inputMode="decimal"
+									placeholder="Amount"
+									className={MONEY_INPUT_CLASS}
+								/>
+								<input
+									value={bonusReason}
+									onChange={(event) => setBonusReason(event.target.value)}
+									placeholder="Reason"
+									className={COMPACT_INPUT_CLASS}
+								/>
+							</div>
+							<ProofUploadField
+								className="mt-3"
+								label="Bonus proof"
+								note="Bonus approval, transfer receipt, or voucher under 1 MB."
+								value={bonusProof}
+								onChange={setBonusProof}
+								panel="finance"
+								proofType="finance_out"
+								relatedEntityId={employee.employeeId}
+								relatedEntityType="employee_bonus_payment"
+								title={`Bonus proof · ${employee.employeeName}`}
+							/>
+							<EmployeeActionButton
+								size="sm"
+								tone="primary"
+								leading={<Gift aria-hidden="true" size={14} />}
+								onClick={() => {
+									confirmAction({
+										confirmLabel: 'Bonus',
+										message: `Record ${formatDecimalEgp(Number(bonusAmount))} bonus for ${employee.employeeName}?`,
+										onConfirm: () => bonusMutation.mutate(),
+										title: 'Record bonus',
+									})
+								}}
+								disabled={!canBonus || bonusMutation.isPending}
+								className="mt-3 w-full"
+							>
+								{bonusMutation.isPending ? 'Saving' : 'Bonus'}
+							</EmployeeActionButton>
+						</PayrollActionPanel>
 					</div>
 					<MutationError
+						className="mt-3"
 						error={
 							updateMutation.error ??
 							salaryMutation.error ??
@@ -1811,10 +1843,46 @@ function PayrollEmployeeRow({
 						}
 					/>
 				</div>
-			</div>
+			)}
 			{confirmationDialog}
 		</article>
 	)
+}
+
+function PayrollMiniMetric({ label, value }: { label: string; value: string }) {
+	return (
+		<div className="rounded-md border border-[var(--color-border)] bg-black/[0.015] px-3 py-2 dark:bg-white/[0.025]">
+			<p className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+				{label}
+			</p>
+			<p className="mt-1 break-words font-[family-name:var(--font-geist-mono)] text-[12px] font-semibold tabular-nums text-[var(--color-text)]">
+				{value}
+			</p>
+		</div>
+	)
+}
+
+function PayrollActionPanel({
+	children,
+	title,
+}: {
+	children: ReactNode
+	title: string
+}) {
+	return (
+		<section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
+			<h4 className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+				{title}
+			</h4>
+			<div className="mt-3">{children}</div>
+		</section>
+	)
+}
+
+function payrollEmployeeNeedsAttention(
+	employee: FinanceAccountingDashboard['payroll']['details'][number],
+): boolean {
+	return !employee.salaryPaidThisMonth
 }
 
 function FuelExpensesView({
