@@ -302,6 +302,48 @@ describe('Search display formatting', () => {
 		)
 	})
 
+	it('projects damaged inventory finance rows with write-down context', () => {
+		const row: SearchDisplayIndexRow = {
+			entity_type: 'finance',
+			entity_id: 'inventory_damage_lot:lot-1',
+			title: 'Damaged inventory - Wood',
+			subtitle: 'open',
+			metadata: {
+				carrying_unit_value: 50,
+				carrying_value_remaining: 100000,
+				damage_number: 'DMG-2026-ABC123',
+				original_unit_cost: 100,
+				product: 'Wood',
+				quantity: 2000,
+				reason: 'Water leak in bay A',
+				remaining_quantity: 2000,
+				source: 'finance_inventory_damage_lot',
+				unit: 'piece',
+				write_down_amount: 100000,
+			},
+		}
+
+		expect(buildSearchPreviewFields(row)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Record', value: 'Damaged inventory lot' },
+				{ label: 'Status', value: 'Open' },
+				{ label: 'Amount', value: 'EGP 100,000' },
+				{ label: 'Product', value: 'Wood' },
+				{ label: 'Record no.', value: 'DMG-2026-ABC123' },
+			]),
+		)
+		expect(buildSearchDetailFields(row)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Damage no.', value: 'DMG-2026-ABC123' },
+				{ label: 'Remaining NRV', value: 'EGP 100,000' },
+				{ label: 'Write-down', value: 'EGP 100,000' },
+				{ label: 'Original unit cost', value: 'EGP 100' },
+				{ label: 'NRV unit value', value: 'EGP 50' },
+				{ label: 'Reason', value: 'Water leak in bay A' },
+			]),
+		)
+	})
+
 	it('replaces raw source and action titles where the index title is technical', () => {
 		expect(
 			buildSearchDisplayTitle(row('payment', 'customer_payment', 'paid')),

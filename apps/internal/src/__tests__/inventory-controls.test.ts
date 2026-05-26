@@ -64,4 +64,43 @@ describe('inventory controls', () => {
 			'create or replace function public.service_inventory_mark_price_outdated',
 		)
 	})
+
+	it('wires damaged inventory recording, sale, disposal, and manager-approved reversal', () => {
+		const damagedView = readWorkspaceFile(
+			'apps/internal/src/components/procurement/damaged/DamagedInventoryView.tsx',
+		)
+		const damagedServer = readWorkspaceFile(
+			'apps/internal/src/lib/server/damaged-inventory.ts',
+		)
+		const procurementModule = readWorkspaceFile(
+			'apps/internal/src/components/procurement/ProcurementModule.tsx',
+		)
+		const tabStrip = readWorkspaceFile(
+			'apps/internal/src/components/procurement/ProcurementTabStrip.tsx',
+		)
+		const authServer = readWorkspaceFile('packages/auth/src/server.ts')
+		const migrations = readMigrationSource()
+
+		expect(procurementModule).toContain('DamagedInventoryView')
+		expect(tabStrip).toContain("id: 'damaged'")
+		expect(damagedView).toContain('Record damage')
+		expect(damagedView).toContain('Sell')
+		expect(damagedView).toContain('Dispose')
+		expect(damagedView).toContain('Reverse')
+		expect(damagedView).toContain('managerPassword')
+		expect(damagedView).toContain('ProofUploadField')
+		expect(damagedServer).toContain('recordInventoryDamage')
+		expect(damagedServer).toContain('sellDamagedInventory')
+		expect(damagedServer).toContain('disposeDamagedInventory')
+		expect(damagedServer).toContain('reverseInventoryDamage')
+		expect(damagedServer).toContain('verifyEmployeeCredential')
+		expect(authServer).toContain('inventory_record_damage')
+		expect(authServer).toContain('inventory_sell_damaged_inventory')
+		expect(authServer).toContain('inventory_dispose_damaged_inventory')
+		expect(authServer).toContain('inventory_reverse_damage')
+		expect(migrations).toContain(
+			'create table if not exists public.inventory_damage_lots',
+		)
+		expect(migrations).toContain('inventory_damage_reversed')
+	})
 })

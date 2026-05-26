@@ -17,6 +17,7 @@ import {
  * G then S - Go to Stock
  * G then P - Go to Prices
  * G then O - Go to Orders
+ * G then D - Go to Damaged
  * /        - Focus search within Procurement
  * ?        - Show shortcuts help
  */
@@ -76,6 +77,18 @@ export function ProcurementShortcuts() {
 		{ enabled: isActive && gPrefix },
 	)
 
+	// G then D - Go to Damaged
+	useShortcut(
+		'd',
+		() => {
+			if (gPrefix) {
+				setActiveTab('damaged')
+				setGPrefix(false)
+			}
+		},
+		{ enabled: isActive && gPrefix },
+	)
+
 	// / - Focus search
 	useShortcut(
 		'/',
@@ -111,6 +124,7 @@ export function ProcurementShortcuts() {
 		{ keys: 'G S', action: 'Go to Stock' },
 		{ keys: 'G P', action: 'Go to Prices' },
 		{ keys: 'G O', action: 'Go to Orders' },
+		{ keys: 'G D', action: 'Go to Damaged' },
 		{ keys: '/', action: 'Focus search' },
 		{ keys: '?', action: 'Toggle this help' },
 	]

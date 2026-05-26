@@ -53,6 +53,7 @@ export function CompendiumIndex() {
 					criticalItems={totals.criticalItems}
 					blockedOrders={totals.blockedOrders}
 					readyOrders={totals.readyOrders}
+					damagedOpenLots={totals.damagedOpenLots}
 					combinedAlerts={totals.combinedAlerts}
 				/>
 			</div>
@@ -261,6 +262,7 @@ interface TodaysDeskProps {
 	criticalItems: number
 	blockedOrders: number
 	readyOrders: number
+	damagedOpenLots: number
 	combinedAlerts: number
 }
 
@@ -272,6 +274,7 @@ function TodaysDesk({
 	criticalItems,
 	blockedOrders,
 	readyOrders,
+	damagedOpenLots,
 	combinedAlerts,
 }: TodaysDeskProps) {
 	const setActiveTab = useProcurementStore((s) => s.setActiveTab)
@@ -336,6 +339,13 @@ function TodaysDesk({
 					number={blockedOrders}
 					label={`order${blockedOrders === 1 ? '' : 's'} blocked on stock`}
 					onPress={() => setActiveTab('orders')}
+				/>
+			)}
+			{damagedOpenLots > 0 && (
+				<DeskRow
+					number={damagedOpenLots}
+					label={`damaged lot${damagedOpenLots === 1 ? '' : 's'} open`}
+					onPress={() => setActiveTab('damaged')}
 				/>
 			)}
 			{readyOrders > 0 && (

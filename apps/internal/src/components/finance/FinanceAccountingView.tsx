@@ -367,6 +367,7 @@ function OverviewView({
 	const balanceRows: Array<[string, number]> = [
 		['Cash balance', dashboard.overview.cashBalance],
 		['Inventory assets', dashboard.overview.inventoryAssets],
+		['Damaged inventory', dashboard.overview.damagedInventoryAssets ?? 0],
 		['Receivables', dashboard.overview.receivables],
 		['Total assets', dashboard.overview.totalAssets],
 	]
@@ -577,7 +578,7 @@ function InventoryPreview({
 			<div className="divide-y divide-[var(--color-border)] border-y border-[var(--color-border)]">
 				{previewRows.map((row) => (
 					<div
-						key={row.productId}
+						key={`${row.productId}:${row.lotId ?? 'good'}`}
 						className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
 					>
 						<div className="min-w-0">
@@ -585,7 +586,8 @@ function InventoryPreview({
 								{row.productName}
 							</p>
 							<p className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[11px] text-[var(--color-text-subtle)]">
-								{row.sku} · {formatQuantity(row.onHand)} on hand
+								{row.sku} · {formatQuantity(row.onHand)}{' '}
+								{row.condition === 'damaged' ? 'damaged' : 'on hand'}
 							</p>
 						</div>
 						<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
@@ -784,7 +786,10 @@ function InventoryAssetsView({
 						</thead>
 						<tbody className="divide-y divide-[var(--color-border)]">
 							{rows.map((row) => (
-								<tr key={row.productId} className="text-[12.5px]">
+								<tr
+									key={`${row.productId}:${row.lotId ?? 'good'}`}
+									className="text-[12.5px]"
+								>
 									<td className="py-3 pr-4 font-[family-name:var(--font-geist-mono)] text-[var(--color-text)]">
 										{row.sku}
 									</td>
@@ -797,13 +802,26 @@ function InventoryAssetsView({
 									<MoneyCell value={row.valuation} strong />
 									<td className="py-3 pr-4">
 										<EmployeeStatusPill
-											tone={row.needsCostReview ? 'warning' : 'success'}
+											tone={
+												row.condition === 'damaged'
+													? 'warning'
+													: row.needsCostReview
+														? 'warning'
+														: 'success'
+											}
 											className="px-2 py-1 text-[11px]"
 										>
-											{row.needsCostReview
-												? 'Needs cost review'
-												: (row.supplierName ?? 'Supplier cost')}
+											{row.condition === 'damaged'
+												? (row.damageNumber ?? 'Damaged NRV')
+												: row.needsCostReview
+													? 'Needs cost review'
+													: (row.supplierName ?? 'Supplier cost')}
 										</EmployeeStatusPill>
+										{row.condition === 'damaged' && row.writeDownAmount ? (
+											<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[10.5px] text-[var(--color-text-subtle)]">
+												write-down {formatDecimalEgp(row.writeDownAmount)}
+											</p>
+										) : null}
 									</td>
 								</tr>
 							))}

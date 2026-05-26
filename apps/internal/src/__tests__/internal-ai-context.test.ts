@@ -212,7 +212,7 @@ describe('internal AI vtable context', () => {
 				rows: [accountingRow],
 				scope: 'employee',
 			}).readEntities,
-		).toEqual(['ceo_search_finance_vtable'])
+		).toEqual(['ceo_search_finance_vtable', 'ceo_search_finance_damage_vtable'])
 		expect(
 			buildInternalAiContextPackage({
 				query: 'payroll',
@@ -242,6 +242,31 @@ describe('internal AI vtable context', () => {
 				'ceo_search_index',
 				'ceo_search_payment_vtable',
 				'ceo_search_finance_vtable',
+				'ceo_search_finance_damage_vtable',
+			]),
+		)
+	})
+
+	it('routes damaged inventory questions to finance damage records', () => {
+		const entityTypes = requestedInternalAiEntityTypes({
+			query: 'show damaged inventory write downs and NRV',
+			scope: 'employee',
+		})
+
+		expect(entityTypes).toContain('finance')
+		expect(entityTypes).toContain('inventory')
+		expect(
+			buildInternalAiContextPackage({
+				queriedEntityTypes: entityTypes,
+				query: 'show damaged inventory write downs and NRV',
+				rows: [],
+				scope: 'employee',
+			}).readEntities,
+		).toEqual(
+			expect.arrayContaining([
+				'ceo_search_finance_vtable',
+				'ceo_search_finance_damage_vtable',
+				'ceo_search_inventory_vtable',
 			]),
 		)
 	})

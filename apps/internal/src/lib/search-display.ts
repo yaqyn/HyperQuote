@@ -99,6 +99,8 @@ const sourceLabels: Record<string, string> = {
 	finance_cash_flow: 'Cash flow',
 	finance_income_statement: 'Income statement',
 	finance_inventory_asset: 'Inventory asset',
+	finance_inventory_damage_lot: 'Damaged inventory lot',
+	finance_inventory_damage_transaction: 'Damaged inventory movement',
 	finance_journal_entry: 'Journal entry',
 	finance_payable: 'Supplier payable',
 	finance_payment_followup: 'Finance follow-up',
@@ -381,6 +383,9 @@ function humanLabel(key: string): string {
 		completed_at: 'Completed',
 		current_exposure: 'Current exposure',
 		customer: 'Customer',
+		carrying_amount: 'Carrying value',
+		carrying_unit_value: 'NRV unit value',
+		carrying_value_remaining: 'Remaining NRV',
 		created_at: 'Created',
 		delivered_at: 'Delivered',
 		delivery_address: 'Delivery address',
@@ -411,6 +416,7 @@ function humanLabel(key: string): string {
 		longitude: 'Longitude',
 		minimum_quantity: 'Minimum',
 		message_body: 'Message',
+		damage_number: 'Damage no.',
 		on_hand_quantity: 'On hand',
 		order_number: 'Order',
 		order_status: 'Order status',
@@ -439,11 +445,13 @@ function humanLabel(key: string): string {
 		rating: 'Rating',
 		receiving_status: 'Receiving status',
 		recorded_at: 'Recorded',
+		recovery_unit_value: 'Recovery unit value',
 		request_items: 'Requested items',
 		requested_by: 'Requested by',
 		requested_item: 'Requested item',
 		rejection_reason: 'Rejection reason',
 		remaining_due: 'Remaining',
+		remaining_quantity: 'Remaining qty',
 		refill_status: 'Refill status',
 		request_number: 'Request',
 		requester: 'Requester',
@@ -471,11 +479,15 @@ function humanLabel(key: string): string {
 		title: 'Title',
 		total_due: 'Total due',
 		total_amount: 'Value',
+		transaction_type: 'Movement',
 		trade_license_status: 'Trade license',
 		unit_of_measure: 'Unit',
+		unit_price: 'Unit price',
 		urgency: 'Urgency',
 		updated_at: 'Updated',
 		vehicle_label: 'Vehicle',
+		write_down_amount: 'Write-down',
+		write_down_reversal_amount: 'Write-down reversal',
 	}
 	return labels[normalizeToken(key)] ?? humanizeIdentifier(key) ?? key
 }
@@ -560,6 +572,9 @@ function financePrimaryAmount(metadata: JsonObject): string | null {
 		formatMoney(numberValue(metadata, 'net_performance')) ??
 		formatMoney(numberValue(metadata, 'remaining_due')) ??
 		formatMoney(numberValue(metadata, 'valuation')) ??
+		formatMoney(numberValue(metadata, 'carrying_value_remaining')) ??
+		formatMoney(numberValue(metadata, 'carrying_amount')) ??
+		formatMoney(numberValue(metadata, 'write_down_amount')) ??
 		formatMoney(numberValue(metadata, 'amount')) ??
 		formatMoney(numberValue(metadata, 'total_due')) ??
 		formatMoney(numberValue(metadata, 'cash_balance'))
@@ -704,16 +719,19 @@ export function buildSearchPreviewFields(
 					'Counterparty',
 					stringValue(metadata, 'customer_name') ??
 						stringValue(metadata, 'supplier_name') ??
+						stringValue(metadata, 'counterparty_name') ??
 						stringValue(metadata, 'counterparty_type'),
 				),
 				previewField(
 					'Product',
-					stringValue(metadata, 'product_name') ??
+					stringValue(metadata, 'product') ??
+						stringValue(metadata, 'product_name') ??
 						stringValue(metadata, 'product_sku'),
 				),
 				previewField(
 					'Record no.',
 					stringValue(metadata, 'entry_number') ??
+						stringValue(metadata, 'damage_number') ??
 						stringValue(metadata, 'order_number') ??
 						stringValue(metadata, 'account_code'),
 				),
@@ -1190,14 +1208,67 @@ export function buildSearchDetailFields(
 					'Valuation',
 					formatMoney(numberValue(metadata, 'valuation')),
 				),
+				detailField(
+					'Remaining NRV',
+					formatMoney(numberValue(metadata, 'carrying_value_remaining')),
+				),
+				detailField(
+					'Carrying value',
+					formatMoney(numberValue(metadata, 'carrying_amount')),
+				),
+				detailField(
+					'Write-down',
+					formatMoney(numberValue(metadata, 'write_down_amount')),
+				),
+				detailField(
+					'Write-down reversal',
+					formatMoney(numberValue(metadata, 'write_down_reversal_amount')),
+				),
 				detailField('Amount', formatMoney(numberValue(metadata, 'amount'))),
+				detailField('Damage no.', stringValue(metadata, 'damage_number')),
+				detailField(
+					'Movement',
+					formatStatus(stringValue(metadata, 'transaction_type')),
+				),
+				detailField(
+					'Quantity',
+					quantityWithUnit(
+						numberValue(metadata, 'quantity') ??
+							numberValue(metadata, 'remaining_quantity'),
+						stringValue(metadata, 'unit'),
+					),
+				),
+				detailField(
+					'Unit price',
+					formatMoney(numberValue(metadata, 'unit_price')),
+				),
+				detailField(
+					'Original unit cost',
+					formatMoney(numberValue(metadata, 'original_unit_cost')),
+				),
+				detailField(
+					'Recovery unit value',
+					formatMoney(numberValue(metadata, 'recovery_unit_value')),
+				),
+				detailField(
+					'NRV unit value',
+					formatMoney(numberValue(metadata, 'carrying_unit_value')),
+				),
 				detailField('Entry', stringValue(metadata, 'entry_number')),
 				detailField('Account', stringValue(metadata, 'account_name')),
 				detailField('Account code', stringValue(metadata, 'account_code')),
 				detailField('Customer', stringValue(metadata, 'customer_name')),
 				detailField('Supplier', stringValue(metadata, 'supplier_name')),
-				detailField('Product', stringValue(metadata, 'product_name')),
+				detailField('Counterparty', stringValue(metadata, 'counterparty_name')),
+				detailField('Manager', stringValue(metadata, 'manager_name')),
+				detailField(
+					'Product',
+					stringValue(metadata, 'product') ??
+						stringValue(metadata, 'product_name'),
+				),
+				detailField('SKU', stringValue(metadata, 'sku')),
 				detailField('Description', stringValue(metadata, 'description')),
+				detailField('Reason', stringValue(metadata, 'reason')),
 				detailField('Sign-off reason', stringValue(metadata, 'signoff_reason')),
 				detailField(
 					'Review required',

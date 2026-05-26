@@ -1858,6 +1858,234 @@ export type Database = {
 					},
 				]
 			}
+			inventory_damage_lots: {
+				Row: {
+					carrying_total_value: number
+					carrying_unit_value: number
+					created_at: string
+					damage_number: string
+					disposed_quantity: number
+					id: string
+					journal_entry_id: string | null
+					original_quantity: number
+					original_total_value: number
+					original_unit_cost: number
+					product_id: string
+					proof_document_id: string | null
+					proof_path: string | null
+					reason: string
+					recorded_by_employee_id: string | null
+					recovery_unit_value: number
+					remaining_quantity: number
+					reversed_quantity: number
+					sold_quantity: number
+					status: Database['public']['Enums']['inventory_damage_lot_status']
+					updated_at: string
+					write_down_amount: number
+				}
+				Insert: {
+					carrying_total_value: number
+					carrying_unit_value: number
+					created_at?: string
+					damage_number?: string
+					disposed_quantity?: number
+					id?: string
+					journal_entry_id?: string | null
+					original_quantity: number
+					original_total_value: number
+					original_unit_cost: number
+					product_id: string
+					proof_document_id?: string | null
+					proof_path?: string | null
+					reason: string
+					recorded_by_employee_id?: string | null
+					recovery_unit_value: number
+					remaining_quantity?: number
+					reversed_quantity?: number
+					sold_quantity?: number
+					status?: Database['public']['Enums']['inventory_damage_lot_status']
+					updated_at?: string
+					write_down_amount: number
+				}
+				Update: {
+					carrying_total_value?: number
+					carrying_unit_value?: number
+					created_at?: string
+					damage_number?: string
+					disposed_quantity?: number
+					id?: string
+					journal_entry_id?: string | null
+					original_quantity?: number
+					original_total_value?: number
+					original_unit_cost?: number
+					product_id?: string
+					proof_document_id?: string | null
+					proof_path?: string | null
+					reason?: string
+					recorded_by_employee_id?: string | null
+					recovery_unit_value?: number
+					remaining_quantity?: number
+					reversed_quantity?: number
+					sold_quantity?: number
+					status?: Database['public']['Enums']['inventory_damage_lot_status']
+					updated_at?: string
+					write_down_amount?: number
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'inventory_damage_lots_journal_entry_id_fkey'
+						columns: ['journal_entry_id']
+						isOneToOne: true
+						referencedRelation: 'finance_journal_entries'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'inventory_damage_lots_product_id_fkey'
+						columns: ['product_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_inventory_summary'
+						referencedColumns: ['product_id']
+					},
+					{
+						foreignKeyName: 'inventory_damage_lots_product_id_fkey'
+						columns: ['product_id']
+						isOneToOne: false
+						referencedRelation: 'products'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'inventory_damage_lots_proof_document_id_fkey'
+						columns: ['proof_document_id']
+						isOneToOne: false
+						referencedRelation: 'proof_documents'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'inventory_damage_lots_recorded_by_employee_id_fkey'
+						columns: ['recorded_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'inventory_damage_lots_recorded_by_employee_id_fkey'
+						columns: ['recorded_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			inventory_damage_transactions: {
+				Row: {
+					amount: number
+					carrying_amount: number
+					counterparty_name: string | null
+					created_at: string
+					created_by_employee_id: string | null
+					id: string
+					journal_entry_id: string | null
+					lot_id: string
+					manager_employee_id: string | null
+					payment_status: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					quantity: number
+					reason: string | null
+					transaction_type: Database['public']['Enums']['inventory_damage_transaction_type']
+					unit_price: number | null
+					write_down_reversal_amount: number
+				}
+				Insert: {
+					amount?: number
+					carrying_amount?: number
+					counterparty_name?: string | null
+					created_at?: string
+					created_by_employee_id?: string | null
+					id?: string
+					journal_entry_id?: string | null
+					lot_id: string
+					manager_employee_id?: string | null
+					payment_status?: string | null
+					proof_document_id?: string | null
+					proof_path?: string | null
+					quantity: number
+					reason?: string | null
+					transaction_type: Database['public']['Enums']['inventory_damage_transaction_type']
+					unit_price?: number | null
+					write_down_reversal_amount?: number
+				}
+				Update: {
+					amount?: number
+					carrying_amount?: number
+					counterparty_name?: string | null
+					created_at?: string
+					created_by_employee_id?: string | null
+					id?: string
+					journal_entry_id?: string | null
+					lot_id?: string
+					manager_employee_id?: string | null
+					payment_status?: string | null
+					proof_document_id?: string | null
+					proof_path?: string | null
+					quantity?: number
+					reason?: string | null
+					transaction_type?: Database['public']['Enums']['inventory_damage_transaction_type']
+					unit_price?: number | null
+					write_down_reversal_amount?: number
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'inventory_damage_transactions_created_by_employee_id_fkey'
+						columns: ['created_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'inventory_damage_transactions_created_by_employee_id_fkey'
+						columns: ['created_by_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'inventory_damage_transactions_journal_entry_id_fkey'
+						columns: ['journal_entry_id']
+						isOneToOne: true
+						referencedRelation: 'finance_journal_entries'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'inventory_damage_transactions_lot_id_fkey'
+						columns: ['lot_id']
+						isOneToOne: false
+						referencedRelation: 'inventory_damage_lots'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'inventory_damage_transactions_manager_employee_id_fkey'
+						columns: ['manager_employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'inventory_damage_transactions_manager_employee_id_fkey'
+						columns: ['manager_employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'inventory_damage_transactions_proof_document_id_fkey'
+						columns: ['proof_document_id']
+						isOneToOne: false
+						referencedRelation: 'proof_documents'
+						referencedColumns: ['id']
+					},
+				]
+			}
 			inventory_reservations: {
 				Row: {
 					created_at: string
@@ -4790,6 +5018,18 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			ceo_search_finance_damage_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
 			ceo_search_finance_payroll_vtable: {
 				Row: {
 					entity_id: string | null
@@ -5898,6 +6138,10 @@ export type Database = {
 				Args: { p_period_end?: string; p_period_start?: string }
 				Returns: Json
 			}
+			finance_accounting_dashboard_without_damage: {
+				Args: { p_period_end?: string; p_period_start?: string }
+				Returns: Json
+			}
 			finance_backfill_accounting_sources: { Args: never; Returns: Json }
 			finance_cancel_customer_order: {
 				Args: { p_order_id: string; p_proof?: Json; p_reason: string }
@@ -6144,6 +6388,40 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			inventory_dispose_damaged_inventory: {
+				Args: {
+					p_lot_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_quantity: number
+					p_reason: string
+				}
+				Returns: {
+					amount: number
+					carrying_amount: number
+					counterparty_name: string | null
+					created_at: string
+					created_by_employee_id: string | null
+					id: string
+					journal_entry_id: string | null
+					lot_id: string
+					manager_employee_id: string | null
+					payment_status: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					quantity: number
+					reason: string | null
+					transaction_type: Database['public']['Enums']['inventory_damage_transaction_type']
+					unit_price: number | null
+					write_down_reversal_amount: number
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'inventory_damage_transactions'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			inventory_evaluate_order: {
 				Args: { p_order_id: string }
 				Returns: {
@@ -6190,6 +6468,118 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'supplier_product_links'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			inventory_record_damage: {
+				Args: {
+					p_product_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_quantity: number
+					p_reason: string
+					p_recovery_percent?: number
+					p_recovery_unit_value?: number
+				}
+				Returns: {
+					carrying_total_value: number
+					carrying_unit_value: number
+					created_at: string
+					damage_number: string
+					disposed_quantity: number
+					id: string
+					journal_entry_id: string | null
+					original_quantity: number
+					original_total_value: number
+					original_unit_cost: number
+					product_id: string
+					proof_document_id: string | null
+					proof_path: string | null
+					reason: string
+					recorded_by_employee_id: string | null
+					recovery_unit_value: number
+					remaining_quantity: number
+					reversed_quantity: number
+					sold_quantity: number
+					status: Database['public']['Enums']['inventory_damage_lot_status']
+					updated_at: string
+					write_down_amount: number
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'inventory_damage_lots'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			inventory_reverse_damage: {
+				Args: {
+					p_lot_id: string
+					p_manager_employee_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_quantity: number
+					p_reason: string
+				}
+				Returns: {
+					amount: number
+					carrying_amount: number
+					counterparty_name: string | null
+					created_at: string
+					created_by_employee_id: string | null
+					id: string
+					journal_entry_id: string | null
+					lot_id: string
+					manager_employee_id: string | null
+					payment_status: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					quantity: number
+					reason: string | null
+					transaction_type: Database['public']['Enums']['inventory_damage_transaction_type']
+					unit_price: number | null
+					write_down_reversal_amount: number
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'inventory_damage_transactions'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			inventory_sell_damaged_inventory: {
+				Args: {
+					p_counterparty_name: string
+					p_lot_id: string
+					p_payment_status: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_quantity: number
+					p_unit_sale_price: number
+				}
+				Returns: {
+					amount: number
+					carrying_amount: number
+					counterparty_name: string | null
+					created_at: string
+					created_by_employee_id: string | null
+					id: string
+					journal_entry_id: string | null
+					lot_id: string
+					manager_employee_id: string | null
+					payment_status: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					quantity: number
+					reason: string | null
+					transaction_type: Database['public']['Enums']['inventory_damage_transaction_type']
+					unit_price: number | null
+					write_down_reversal_amount: number
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'inventory_damage_transactions'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -7949,6 +8339,42 @@ export type Database = {
 					title: string
 				}[]
 			}
+			service_inventory_dispose_damaged_inventory: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_lot_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_quantity: number
+					p_reason: string
+				}
+				Returns: {
+					amount: number
+					carrying_amount: number
+					counterparty_name: string | null
+					created_at: string
+					created_by_employee_id: string | null
+					id: string
+					journal_entry_id: string | null
+					lot_id: string
+					manager_employee_id: string | null
+					payment_status: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					quantity: number
+					reason: string | null
+					transaction_type: Database['public']['Enums']['inventory_damage_transaction_type']
+					unit_price: number | null
+					write_down_reversal_amount: number
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'inventory_damage_transactions'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			service_inventory_evaluate_order: {
 				Args: {
 					p_actor_pool: string
@@ -8007,6 +8433,124 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'supplier_product_links'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_inventory_record_damage: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_product_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_quantity: number
+					p_reason: string
+					p_recovery_percent?: number
+					p_recovery_unit_value?: number
+				}
+				Returns: {
+					carrying_total_value: number
+					carrying_unit_value: number
+					created_at: string
+					damage_number: string
+					disposed_quantity: number
+					id: string
+					journal_entry_id: string | null
+					original_quantity: number
+					original_total_value: number
+					original_unit_cost: number
+					product_id: string
+					proof_document_id: string | null
+					proof_path: string | null
+					reason: string
+					recorded_by_employee_id: string | null
+					recovery_unit_value: number
+					remaining_quantity: number
+					reversed_quantity: number
+					sold_quantity: number
+					status: Database['public']['Enums']['inventory_damage_lot_status']
+					updated_at: string
+					write_down_amount: number
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'inventory_damage_lots'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_inventory_reverse_damage: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_lot_id: string
+					p_manager_employee_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_quantity: number
+					p_reason: string
+				}
+				Returns: {
+					amount: number
+					carrying_amount: number
+					counterparty_name: string | null
+					created_at: string
+					created_by_employee_id: string | null
+					id: string
+					journal_entry_id: string | null
+					lot_id: string
+					manager_employee_id: string | null
+					payment_status: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					quantity: number
+					reason: string | null
+					transaction_type: Database['public']['Enums']['inventory_damage_transaction_type']
+					unit_price: number | null
+					write_down_reversal_amount: number
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'inventory_damage_transactions'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_inventory_sell_damaged_inventory: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_counterparty_name: string
+					p_lot_id: string
+					p_payment_status: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_quantity: number
+					p_unit_sale_price: number
+				}
+				Returns: {
+					amount: number
+					carrying_amount: number
+					counterparty_name: string | null
+					created_at: string
+					created_by_employee_id: string | null
+					id: string
+					journal_entry_id: string | null
+					lot_id: string
+					manager_employee_id: string | null
+					payment_status: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					quantity: number
+					reason: string | null
+					transaction_type: Database['public']['Enums']['inventory_damage_transaction_type']
+					unit_price: number | null
+					write_down_reversal_amount: number
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'inventory_damage_transactions'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -9463,6 +10007,10 @@ export type Database = {
 				| 'finance_journal_reversed'
 				| 'finance_journal_voided'
 				| 'finance_accounting_backfilled'
+				| 'inventory_damage_recorded'
+				| 'inventory_damage_sold'
+				| 'inventory_damage_disposed'
+				| 'inventory_damage_reversed'
 			catalog_availability_status:
 				| 'available'
 				| 'low_stock'
@@ -9537,8 +10085,21 @@ export type Database = {
 				| 'manual_adjustment'
 				| 'warehouse_receiving'
 				| 'dispatch_delivery'
+				| 'inventory_damage_lot'
+				| 'inventory_damage_transaction'
 			finance_journal_status: 'draft' | 'posted' | 'voided' | 'reversed'
 			finance_normal_balance: 'debit' | 'credit'
+			inventory_damage_lot_status:
+				| 'open'
+				| 'sold'
+				| 'disposed'
+				| 'reversed'
+				| 'closed'
+			inventory_damage_transaction_type:
+				| 'recorded'
+				| 'sold'
+				| 'disposed'
+				| 'reversed'
 			inventory_reservation_status: 'reserved' | 'released' | 'consumed'
 			loading_task_status: 'pending' | 'loading' | 'approved' | 'rejected'
 			notification_channel: 'email' | 'sms' | 'whatsapp' | 'push'
@@ -9912,6 +10473,10 @@ export const Constants = {
 				'finance_journal_reversed',
 				'finance_journal_voided',
 				'finance_accounting_backfilled',
+				'inventory_damage_recorded',
+				'inventory_damage_sold',
+				'inventory_damage_disposed',
+				'inventory_damage_reversed',
 			],
 			catalog_availability_status: [
 				'available',
@@ -9995,9 +10560,24 @@ export const Constants = {
 				'manual_adjustment',
 				'warehouse_receiving',
 				'dispatch_delivery',
+				'inventory_damage_lot',
+				'inventory_damage_transaction',
 			],
 			finance_journal_status: ['draft', 'posted', 'voided', 'reversed'],
 			finance_normal_balance: ['debit', 'credit'],
+			inventory_damage_lot_status: [
+				'open',
+				'sold',
+				'disposed',
+				'reversed',
+				'closed',
+			],
+			inventory_damage_transaction_type: [
+				'recorded',
+				'sold',
+				'disposed',
+				'reversed',
+			],
 			inventory_reservation_status: ['reserved', 'released', 'consumed'],
 			loading_task_status: ['pending', 'loading', 'approved', 'rejected'],
 			notification_channel: ['email', 'sms', 'whatsapp', 'push'],

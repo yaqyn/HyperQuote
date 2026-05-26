@@ -4,6 +4,7 @@ import {
 	INTERNAL_LIVE_REFETCH_MS,
 	INTERNAL_LIVE_STALE_MS,
 } from '../../lib/internal-live-query'
+import { getDamagedInventoryOverview } from '../../lib/server/damaged-inventory'
 import { getInventoryOverview } from '../../lib/server/inventory'
 import { getCustomerOrdersList } from '../../lib/server/orders'
 import { getStockOverview } from '../../lib/server/stock'
@@ -33,6 +34,14 @@ export function useProcurementOverview() {
 		refetchOnWindowFocus: 'always',
 		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
+	const damagedQuery = useQuery({
+		queryKey: ['inventory-damage'],
+		queryFn: () => getDamagedInventoryOverview({ data: {} }),
+		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
+		refetchIntervalInBackground: true,
+		refetchOnWindowFocus: 'always',
+		staleTime: INTERNAL_LIVE_STALE_MS,
+	})
 
 	const totals = useMemo(() => {
 		const totalMaterials = stockQuery.data?.totals.total ?? 0
@@ -43,8 +52,10 @@ export function useProcurementOverview() {
 		const criticalItems = stockQuery.data?.totals.critical ?? 0
 		const blockedOrders = ordersQuery.data?.totals.blocked ?? 0
 		const readyOrders = ordersQuery.data?.totals.ready ?? 0
+		const damagedOpenLots = damagedQuery.data?.totals.openLots ?? 0
+		const damagedUnits = damagedQuery.data?.totals.remainingUnits ?? 0
 		const combinedAlerts =
-			outItems + criticalItems + urgentPrices + blockedOrders
+			outItems + criticalItems + urgentPrices + blockedOrders + damagedOpenLots
 
 		return {
 			totalMaterials,
@@ -55,16 +66,25 @@ export function useProcurementOverview() {
 			criticalItems,
 			blockedOrders,
 			readyOrders,
+			damagedOpenLots,
+			damagedUnits,
 			combinedAlerts,
 			attention: {
 				stock: outItems + criticalItems,
 				procurement: urgentPrices + pendingRequests,
 				orders: blockedOrders,
+				damaged: damagedOpenLots,
 			},
 		}
-	}, [stockQuery.data, inventoryQuery.data, ordersQuery.data])
+	}, [
+		stockQuery.data,
+		inventoryQuery.data,
+		ordersQuery.data,
+		damagedQuery.data,
+	])
 
 	return {
+		damagedQuery,
 		stockQuery,
 		inventoryQuery,
 		ordersQuery,

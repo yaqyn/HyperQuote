@@ -1,5 +1,6 @@
 import { Button } from 'react-aria-components/Button'
 import { useProcurementStore } from '../../stores/procurement'
+import type { ProcurementTab } from '../../types/procurement'
 import { useProcurementOverview } from './useProcurementOverview'
 
 /**
@@ -8,7 +9,7 @@ import { useProcurementOverview } from './useProcurementOverview'
  *
  */
 interface Chapter {
-	id: 'stock' | 'procurement' | 'orders'
+	id: ProcurementTab
 	title: string
 }
 
@@ -24,6 +25,10 @@ const CHAPTERS: Chapter[] = [
 	{
 		id: 'orders',
 		title: 'Orders',
+	},
+	{
+		id: 'damaged',
+		title: 'Damaged',
 	},
 ]
 

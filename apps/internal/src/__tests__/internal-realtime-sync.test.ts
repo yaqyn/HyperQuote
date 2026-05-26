@@ -53,9 +53,21 @@ describe('internalRealtimeQueryKeysForTable', () => {
 
 		expect(keys).toContain('stock-overview')
 		expect(keys).toContain('inventory-overview')
+		expect(keys).toContain('inventory-damage')
 		expect(keys).toContain('customer-orders')
 		expect(keys).toContain('customer-order-detail')
 		expect(keys).toContain('warehouse-queue')
+	})
+
+	it('refreshes inventory, finance, and Search when damaged stock changes', () => {
+		const keys = keyNamesForTable('inventory_damage_lots')
+
+		expect(keys).toContain('inventory-damage')
+		expect(keys).toContain('stock-overview')
+		expect(keys).toContain('inventory-overview')
+		expect(keys).toContain('finance-accounting')
+		expect(keys).toContain('internal-search')
+		expect(keys).toContain('internal-search-activity-feed')
 	})
 
 	it('refreshes warehouse and dispatch when loaded order state changes', () => {

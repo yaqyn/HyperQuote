@@ -25,6 +25,7 @@ const CUSTOMER_QUERY_KEYS = [
 
 const CATALOG_QUERY_KEYS = [
 	['product-catalog'],
+	['inventory-damage'],
 	['inventory-overview'],
 	['inventory-product-detail'],
 	['inventory-top-suppliers'],
@@ -60,8 +61,10 @@ const ORDER_FLOW_QUERY_KEYS = [
 
 const FINANCE_QUERY_KEYS = [
 	['finance-inbox'],
+	['finance-accounting'],
 	['customer-orders'],
 	['customer-order-detail'],
+	['inventory-damage'],
 	['stock-overview'],
 	['inventory-overview'],
 	['warehouse-receiving-queue'],
@@ -147,6 +150,16 @@ const TABLE_QUERY_KEYS: Record<string, readonly QueryKeyPrefix[]> = {
 	employee_roles: [...ADMIN_QUERY_KEYS, ...EMPLOYEE_QUERY_KEYS],
 	employees: [...ADMIN_QUERY_KEYS, ...EMPLOYEE_QUERY_KEYS],
 	finance_payment_followups: FINANCE_QUERY_KEYS,
+	inventory_damage_lots: [
+		...CATALOG_QUERY_KEYS,
+		...FINANCE_QUERY_KEYS,
+		...SEARCH_QUERY_KEYS,
+	],
+	inventory_damage_transactions: [
+		...CATALOG_QUERY_KEYS,
+		...FINANCE_QUERY_KEYS,
+		...SEARCH_QUERY_KEYS,
+	],
 	inventory_reservations: [...ORDER_FLOW_QUERY_KEYS, ...CATALOG_QUERY_KEYS],
 	inventory_stock: [
 		...CATALOG_QUERY_KEYS,

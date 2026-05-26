@@ -14,8 +14,17 @@ const historicalBackfillMigrationSql = readRepoFile(
 const ceoSearchFinanceMigrationSql = readRepoFile(
 	'supabase/migrations/20260526013854_ceo_search_finance_vtables.sql',
 )
+const damageEnumMigrationSql = readRepoFile(
+	'supabase/migrations/20260526021103_inventory_damage_enum_values.sql',
+)
+const damageMigrationSql = readRepoFile(
+	'supabase/migrations/20260526021104_inventory_damage_system.sql',
+)
 const accountingViewSource = readRepoFile(
 	'apps/internal/src/components/finance/FinanceAccountingView.tsx',
+)
+const financeServerSource = readRepoFile(
+	'apps/internal/src/lib/server/finance.ts',
 )
 const financeModuleSource = readRepoFile(
 	'apps/internal/src/components/finance/FinanceModule.tsx',
@@ -115,6 +124,64 @@ describe('finance accounting rebuild', () => {
 		expect(ceoSearchFinanceMigrationSql).toContain(
 			"'ceo_search_finance_payroll_vtable'",
 		)
+	})
+
+	it('records damaged inventory as stock movement plus accounting journals', () => {
+		expect(damageEnumMigrationSql).toContain('inventory_damage_recorded')
+		expect(damageEnumMigrationSql).toContain('inventory_damage_transaction')
+		expect(damageMigrationSql).toContain(
+			'create table if not exists public.inventory_damage_lots',
+		)
+		expect(damageMigrationSql).toContain(
+			'create table if not exists public.inventory_damage_transactions',
+		)
+		expect(damageMigrationSql).toContain(
+			'create or replace function public.inventory_record_damage',
+		)
+		expect(damageMigrationSql).toContain(
+			'create or replace function public.inventory_sell_damaged_inventory',
+		)
+		expect(damageMigrationSql).toContain(
+			'create or replace function public.inventory_dispose_damaged_inventory',
+		)
+		expect(damageMigrationSql).toContain(
+			'create or replace function public.inventory_reverse_damage',
+		)
+		expect(damageMigrationSql).toContain(
+			'set on_hand_quantity = on_hand_quantity - p_quantity',
+		)
+		expect(damageMigrationSql).toContain(
+			'set on_hand_quantity = on_hand_quantity + p_quantity',
+		)
+		expect(damageMigrationSql).toContain("'1210'")
+		expect(damageMigrationSql).toContain("'1211'")
+		expect(damageMigrationSql).toContain("'5410'")
+		expect(damageMigrationSql).toContain("'5110'")
+		expect(damageMigrationSql).toContain("'4110'")
+	})
+
+	it('routes damaged inventory through CEO finance search and AI vtables', () => {
+		expect(damageMigrationSql).toContain(
+			'create or replace view public.ceo_search_finance_damage_vtable',
+		)
+		expect(damageMigrationSql).toContain(
+			'from public.ceo_search_finance_damage_vtable',
+		)
+		expect(damageMigrationSql).toContain("'ceo_search_finance_damage_vtable'")
+		expect(damageMigrationSql).toContain('finance_inventory_damage_lot')
+		expect(damageMigrationSql).toContain('finance_inventory_damage_transaction')
+	})
+
+	it('keeps damaged inventory visible in the accounting asset register', () => {
+		expect(damageMigrationSql).toContain(
+			'finance_accounting_dashboard_without_damage',
+		)
+		expect(damageMigrationSql).toContain('damagedInventoryAssets')
+		expect(damageMigrationSql).toContain('damage_assets')
+		expect(financeServerSource).toContain('damagedInventoryAssets?: number')
+		expect(accountingViewSource).toContain('Damaged inventory')
+		expect(accountingViewSource).toContain("row.condition === 'damaged'")
+		expect(accountingViewSource).toContain("row.lotId ?? 'good'")
 	})
 
 	it('presents the accounting overview as a wired operating dashboard', () => {

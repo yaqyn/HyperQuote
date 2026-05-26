@@ -1,1 +1,1 @@
-export type ProcurementTab = 'stock' | 'procurement' | 'orders'
+export type ProcurementTab = 'stock' | 'procurement' | 'orders' | 'damaged'

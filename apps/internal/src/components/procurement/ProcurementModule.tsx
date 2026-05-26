@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { setEmployeePresence } from '../../lib/server/employee-presence'
 import { useProcurementStore } from '../../stores/procurement'
 import { CompendiumIndex } from './CompendiumIndex'
+import { DamagedInventoryView } from './damaged/DamagedInventoryView'
 import { InventoryView } from './inventory/InventoryView'
 import { OrdersView } from './orders/OrdersView'
 import { ProcurementShortcuts } from './ProcurementShortcuts'
@@ -70,6 +71,7 @@ export function ProcurementModule() {
 		stock: <StockView />,
 		procurement: <InventoryView />,
 		orders: <OrdersView />,
+		damaged: <DamagedInventoryView />,
 	}
 
 	return (

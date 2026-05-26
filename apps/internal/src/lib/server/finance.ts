@@ -146,6 +146,8 @@ export interface FinanceAccountingOverview {
 	basis: string
 	cashBalance: number
 	cashMovement: number
+	damagedInventoryAssets?: number
+	damagedInventoryLotCount?: number
 	inventoryAssets: number
 	totalAssets: number
 	receivables: number
@@ -170,6 +172,9 @@ export interface FinanceAccountingCashFlow {
 }
 
 export interface FinanceAccountingInventoryAsset {
+	condition?: 'good' | 'damaged' | string
+	damageNumber?: string
+	lotId?: string
 	productId: string
 	sku: string
 	productName: string
@@ -180,6 +185,10 @@ export interface FinanceAccountingInventoryAsset {
 	valuation: number
 	supplierName: string | null
 	needsCostReview: boolean
+	originalUnitCost?: number
+	reason?: string
+	status?: string
+	writeDownAmount?: number
 }
 
 export interface FinanceAccountingReceivable {
