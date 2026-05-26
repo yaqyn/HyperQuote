@@ -90,6 +90,11 @@ describe('inventory controls', () => {
 		expect(damagedView).toContain('Sell')
 		expect(damagedView).toContain('Dispose')
 		expect(damagedView).toContain('Reverse')
+		expect(damagedView).toContain('DAMAGE_STATUS_FILTERS')
+		expect(damagedView).toContain('Closed damaged stock')
+		expect(damagedView).toContain(
+			"lot.status === 'open' && lot.remainingQuantity > 0",
+		)
 		expect(damagedView).toContain('managerPassword')
 		expect(damagedView).toContain('ProofUploadField')
 		expect(damagedServer).toContain('recordInventoryDamage')

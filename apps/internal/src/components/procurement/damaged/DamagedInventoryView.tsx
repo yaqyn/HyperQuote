@@ -50,6 +50,17 @@ import { filterProcurementProducts } from '../productFilters'
 
 type DamageAction = 'sell' | 'dispose' | 'reverse'
 type DamageableProduct = DamagedInventoryOverview['products'][number]
+type DamageStatusFilter = 'all' | 'damaged' | 'disposed' | 'sold'
+
+const DAMAGE_STATUS_FILTERS: Array<{
+	id: DamageStatusFilter
+	label: string
+}> = [
+	{ id: 'all', label: 'All' },
+	{ id: 'damaged', label: 'Damaged' },
+	{ id: 'disposed', label: 'Disposed' },
+	{ id: 'sold', label: 'Sold' },
+]
 
 const ACTION_COPY: Record<
 	DamageAction,
@@ -159,6 +170,7 @@ export function DamagedInventoryView() {
 	const activeCategory = useProcurementStore((s) => s.activeCategory)
 	const queryClient = useQueryClient()
 	const [search, setSearch] = useState('')
+	const [statusFilter, setStatusFilter] = useState<DamageStatusFilter>('all')
 	const [recordOpen, setRecordOpen] = useState(false)
 	const [actionState, setActionState] = useState<{
 		action: DamageAction
@@ -174,14 +186,39 @@ export function DamagedInventoryView() {
 		staleTime: INTERNAL_LIVE_STALE_MS,
 	})
 
-	const filteredLots = useMemo(() => {
-		if (!data) return []
-		return filterProcurementProducts(
+	const groupedLots = useMemo(() => {
+		if (!data) return groupDamageLots([], statusFilter)
+		const filtered = filterProcurementProducts(
 			data.lots,
 			activeCategory,
 			search,
 			(lot) => [lot.damageNumber, lot.reason, lot.status],
 		)
+		return groupDamageLots(filtered, statusFilter)
+	}, [activeCategory, data, search, statusFilter])
+
+	const hasVisibleLots =
+		groupedLots.damaged.length > 0 ||
+		groupedLots.sold.length > 0 ||
+		groupedLots.disposed.length > 0 ||
+		groupedLots.closed.length > 0
+
+	const statusCounts = useMemo(() => {
+		if (!data) {
+			return { all: 0, damaged: 0, disposed: 0, sold: 0 }
+		}
+		const filtered = filterProcurementProducts(
+			data.lots,
+			activeCategory,
+			search,
+			(lot) => [lot.damageNumber, lot.reason, lot.status],
+		)
+		return {
+			all: filtered.length,
+			damaged: filtered.filter((lot) => lot.status === 'open').length,
+			disposed: filtered.filter((lot) => lot.status === 'disposed').length,
+			sold: filtered.filter((lot) => lot.status === 'sold').length,
+		}
 	}, [activeCategory, data, search])
 
 	const actionLot =
@@ -220,20 +257,18 @@ export function DamagedInventoryView() {
 				<DamageToolbar
 					search={search}
 					setSearch={setSearch}
+					statusCounts={statusCounts}
+					statusFilter={statusFilter}
+					setStatusFilter={setStatusFilter}
 					onRecord={() => setRecordOpen(true)}
 				/>
 				<DamageSummary totals={data.totals} />
 
-				{filteredLots.length > 0 ? (
-					<ol className="mt-4 grid gap-3 lg:gap-4">
-						{filteredLots.map((lot) => (
-							<DamageLotCard
-								key={lot.id}
-								lot={lot}
-								onAction={(action) => setActionState({ action, lotId: lot.id })}
-							/>
-						))}
-					</ol>
+				{hasVisibleLots ? (
+					<DamageGroupedList
+						groups={groupedLots}
+						onAction={(lotId, action) => setActionState({ action, lotId })}
+					/>
 				) : (
 					<div className="mt-8 rounded-md border border-[var(--rule-soft)] bg-[var(--folio)] px-4 py-8 text-center">
 						<p className="font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--ink)]">
@@ -265,10 +300,16 @@ function DamageToolbar({
 	onRecord,
 	search,
 	setSearch,
+	setStatusFilter,
+	statusCounts,
+	statusFilter,
 }: {
 	onRecord: () => void
 	search: string
 	setSearch: (value: string) => void
+	setStatusFilter: (value: DamageStatusFilter) => void
+	statusCounts: Record<DamageStatusFilter, number>
+	statusFilter: DamageStatusFilter
 }) {
 	return (
 		<div className="flex flex-col gap-3 pb-2 md:flex-row md:items-center">
@@ -279,6 +320,25 @@ function DamageToolbar({
 				placeholder="Search product, SKU, damage no., or reason"
 				className="md:flex-1"
 			/>
+			<div className="grid grid-cols-4 rounded-md border border-[var(--rule-soft)] bg-[var(--folio)] p-1 md:w-auto">
+				{DAMAGE_STATUS_FILTERS.map((filter) => (
+					<button
+						key={filter.id}
+						type="button"
+						onClick={() => setStatusFilter(filter.id)}
+						className={`min-h-8 rounded px-2 font-[family-name:var(--font-archivo)] text-[11px] font-semibold transition-colors ${
+							statusFilter === filter.id
+								? 'bg-[var(--ink)] text-[var(--folio)]'
+								: 'text-[var(--ink-mid)] hover:bg-black/[0.035] hover:text-[var(--ink)]'
+						}`}
+					>
+						<span>{filter.label}</span>
+						<span className="ml-1 font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums opacity-55">
+							{statusCounts[filter.id]}
+						</span>
+					</button>
+				))}
+			</div>
 			<EmployeeActionButton
 				tone="danger"
 				size="sm"
@@ -289,6 +349,152 @@ function DamageToolbar({
 				Record damage
 			</EmployeeActionButton>
 		</div>
+	)
+}
+
+function groupDamageLots(
+	lots: InventoryDamageLotView[],
+	filter: DamageStatusFilter,
+) {
+	const damaged = lots.filter((lot) => lot.status === 'open')
+	const sold = lots.filter((lot) => lot.status === 'sold')
+	const disposed = lots.filter((lot) => lot.status === 'disposed')
+	const closed = lots.filter(
+		(lot) =>
+			lot.status !== 'open' &&
+			lot.status !== 'sold' &&
+			lot.status !== 'disposed',
+	)
+
+	return {
+		damaged: filter === 'all' || filter === 'damaged' ? damaged : [],
+		disposed: filter === 'all' || filter === 'disposed' ? disposed : [],
+		sold: filter === 'all' || filter === 'sold' ? sold : [],
+		closed: filter === 'all' ? closed : [],
+	}
+}
+
+function DamageGroupedList({
+	groups,
+	onAction,
+}: {
+	groups: ReturnType<typeof groupDamageLots>
+	onAction: (lotId: string, action: DamageAction) => void
+}) {
+	const archivedCount =
+		groups.sold.length + groups.disposed.length + groups.closed.length
+	return (
+		<div className="mt-4">
+			{groups.damaged.length > 0 && (
+				<ol className="grid gap-3 lg:gap-4">
+					{groups.damaged.map((lot) => (
+						<DamageLotCard
+							key={lot.id}
+							lot={lot}
+							onAction={(action) => onAction(lot.id, action)}
+						/>
+					))}
+				</ol>
+			)}
+
+			{archivedCount > 0 && (
+				<div className={groups.damaged.length > 0 ? 'mt-6' : ''}>
+					<div className="mb-4 flex items-center gap-3">
+						<span className="h-px flex-1 bg-[var(--rule-soft)]" />
+						<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--ink-mid)]">
+							Closed damaged stock
+						</span>
+						<span className="h-px flex-1 bg-[var(--rule-soft)]" />
+					</div>
+					<div className="grid gap-4">
+						<DamageArchivedSection
+							label="Sold"
+							lots={groups.sold}
+							tone="success"
+						/>
+						<DamageArchivedSection
+							label="Disposed"
+							lots={groups.disposed}
+							tone="danger"
+						/>
+						<DamageArchivedSection
+							label="Closed"
+							lots={groups.closed}
+							tone="neutral"
+						/>
+					</div>
+				</div>
+			)}
+		</div>
+	)
+}
+
+function DamageArchivedSection({
+	label,
+	lots,
+	tone,
+}: {
+	label: string
+	lots: InventoryDamageLotView[]
+	tone: 'danger' | 'neutral' | 'success'
+}) {
+	if (lots.length === 0) return null
+	return (
+		<section className="rounded-md border border-[var(--rule-soft)] bg-[var(--folio)]">
+			<header className="flex items-center justify-between gap-3 border-b border-[var(--rule-soft)] px-3 py-2.5">
+				<h3 className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold uppercase tracking-[0.1em] text-[var(--ink)]">
+					{label}
+				</h3>
+				<span className="font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--ink-mid)]">
+					{lots.length}
+				</span>
+			</header>
+			<ol className="divide-y divide-[var(--rule-soft)]">
+				{lots.map((lot) => (
+					<DamageArchivedRow key={lot.id} lot={lot} tone={tone} />
+				))}
+			</ol>
+		</section>
+	)
+}
+
+function DamageArchivedRow({
+	lot,
+	tone,
+}: {
+	lot: InventoryDamageLotView
+	tone: 'danger' | 'neutral' | 'success'
+}) {
+	const resolvedQuantity =
+		lot.status === 'sold'
+			? lot.soldQuantity
+			: lot.status === 'disposed'
+				? lot.disposedQuantity
+				: lot.reversedQuantity
+	return (
+		<li className="grid gap-2 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+			<div className="min-w-0">
+				<div className="flex min-w-0 flex-wrap items-center gap-2">
+					<span className="truncate font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--ink)]">
+						{lot.productName}
+					</span>
+					<EmployeeStatusPill tone={tone} className="px-2 py-0.5 text-[9px]">
+						{lot.status}
+					</EmployeeStatusPill>
+				</div>
+				<p className="mt-1 truncate font-[family-name:var(--font-geist-mono)] text-[11px] text-[var(--ink-mid)]">
+					{lot.damageNumber} · {quantity(resolvedQuantity, lot.unit)}
+				</p>
+			</div>
+			<div className="text-left sm:text-right">
+				<p className="font-[family-name:var(--font-geist-mono)] text-[12px] font-semibold tabular-nums text-[var(--ink)]">
+					{money(lot.carryingTotalValue)}
+				</p>
+				<p className="mt-0.5 font-[family-name:var(--font-archivo)] text-[10px] text-[var(--ink-mid)]">
+					original NRV
+				</p>
+			</div>
+		</li>
 	)
 }
 
@@ -329,12 +535,16 @@ function DamageLotCard({
 	lot: InventoryDamageLotView
 	onAction: (action: DamageAction) => void
 }) {
-	const canAct = lot.remainingQuantity > 0
+	const canAct = lot.status === 'open' && lot.remainingQuantity > 0
 	const activity = lot.transactions.slice(0, 3)
 
 	return (
 		<li className="rounded-md border border-[var(--rule-soft)] bg-[var(--folio)]">
-			<div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+			<div
+				className={`grid gap-4 p-4 ${
+					canAct ? 'lg:grid-cols-[minmax(0,1fr)_18rem]' : ''
+				}`}
+			>
 				<div className="min-w-0">
 					<div className="flex flex-wrap items-start justify-between gap-3">
 						<div className="min-w-0">
@@ -409,41 +619,40 @@ function DamageLotCard({
 					)}
 				</div>
 
-				<div className="flex flex-col gap-2 lg:border-l lg:border-[var(--rule-soft)] lg:pl-4">
-					<EmployeeActionButton
-						tone="success"
-						size="sm"
-						leading={<Banknote aria-hidden="true" size={14} />}
-						onClick={() => onAction('sell')}
-						disabled={!canAct}
-						fullWidthOnMobile
-						className="w-full"
-					>
-						Sell
-					</EmployeeActionButton>
-					<EmployeeActionButton
-						tone="neutral"
-						size="sm"
-						leading={<ArchiveX aria-hidden="true" size={14} />}
-						onClick={() => onAction('dispose')}
-						disabled={!canAct}
-						fullWidthOnMobile
-						className="w-full"
-					>
-						Dispose
-					</EmployeeActionButton>
-					<EmployeeActionButton
-						tone="primary"
-						size="sm"
-						leading={<RotateCcw aria-hidden="true" size={14} />}
-						onClick={() => onAction('reverse')}
-						disabled={!canAct}
-						fullWidthOnMobile
-						className="w-full"
-					>
-						Reverse
-					</EmployeeActionButton>
-				</div>
+				{canAct && (
+					<div className="flex flex-col gap-2 lg:border-l lg:border-[var(--rule-soft)] lg:pl-4">
+						<EmployeeActionButton
+							tone="success"
+							size="sm"
+							leading={<Banknote aria-hidden="true" size={14} />}
+							onClick={() => onAction('sell')}
+							fullWidthOnMobile
+							className="w-full"
+						>
+							Sell
+						</EmployeeActionButton>
+						<EmployeeActionButton
+							tone="neutral"
+							size="sm"
+							leading={<ArchiveX aria-hidden="true" size={14} />}
+							onClick={() => onAction('dispose')}
+							fullWidthOnMobile
+							className="w-full"
+						>
+							Dispose
+						</EmployeeActionButton>
+						<EmployeeActionButton
+							tone="primary"
+							size="sm"
+							leading={<RotateCcw aria-hidden="true" size={14} />}
+							onClick={() => onAction('reverse')}
+							fullWidthOnMobile
+							className="w-full"
+						>
+							Reverse
+						</EmployeeActionButton>
+					</div>
+				)}
 			</div>
 		</li>
 	)
