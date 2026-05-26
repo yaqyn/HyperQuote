@@ -8,6 +8,12 @@ const migrationSql = readRepoFile(
 const automationMigrationSql = readRepoFile(
 	'supabase/migrations/20260526005441_finance_accounting_inventory_automation.sql',
 )
+const historicalBackfillMigrationSql = readRepoFile(
+	'supabase/migrations/20260526010549_finance_accounting_historical_asset_totals.sql',
+)
+const accountingViewSource = readRepoFile(
+	'apps/internal/src/components/finance/FinanceAccountingView.tsx',
+)
 const financeModuleSource = readRepoFile(
 	'apps/internal/src/components/finance/FinanceModule.tsx',
 )
@@ -60,6 +66,26 @@ describe('finance accounting rebuild', () => {
 		)
 		expect(automationMigrationSql).toContain('inventoryAssets')
 		expect(automationMigrationSql).toContain('primary supplier raw cost')
+	})
+
+	it('catches up existing operational rows and leads with total assets', () => {
+		expect(historicalBackfillMigrationSql).toContain(
+			'finance_record_customer_payment_journal',
+		)
+		expect(historicalBackfillMigrationSql).toContain(
+			'finance_record_supplier_payment_journal',
+		)
+		expect(historicalBackfillMigrationSql).toContain(
+			'finance_record_order_review_journal',
+		)
+		expect(historicalBackfillMigrationSql).toContain(
+			'finance_record_refill_review_journal',
+		)
+		expect(historicalBackfillMigrationSql).toContain(
+			'finance_record_payroll_review_journal',
+		)
+		expect(accountingViewSource).toContain('EGP total assets')
+		expect(accountingViewSource).toContain('dashboard.overview.totalAssets')
 	})
 
 	it('replaces the stale Finance history placeholder with Accounting', () => {

@@ -239,10 +239,10 @@ function AccountingMasthead({
 							Accounting
 						</span>
 						<strong className="break-words font-[family-name:var(--font-geist-mono)] text-[26px] font-semibold leading-none text-[var(--color-text)] tabular-nums sm:text-[34px]">
-							{formatDecimalEgp(dashboard.overview.cashBalance)}
+							{formatDecimalEgp(dashboard.overview.totalAssets)}
 						</strong>
 						<span className="font-[family-name:var(--font-geist-mono)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
-							EGP cash
+							EGP total assets
 						</span>
 					</div>
 					<p className="mt-2 max-w-[620px] font-[family-name:var(--font-bricolage)] text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">
@@ -360,6 +360,7 @@ function OverviewView({
 				metrics={[
 					['Total assets', dashboard.overview.totalAssets],
 					['Inventory assets', dashboard.overview.inventoryAssets],
+					['Cash balance', dashboard.overview.cashBalance],
 					['Cash movement', dashboard.overview.cashMovement],
 					['Receivables', dashboard.overview.receivables],
 					['Payables', dashboard.overview.payables],
