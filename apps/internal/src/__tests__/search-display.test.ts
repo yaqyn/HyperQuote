@@ -783,6 +783,23 @@ describe('Search display formatting', () => {
 				employee_name: 'Mona Finance',
 				source: 'finance_payroll',
 			}),
+			row(
+				'activity',
+				'Local Finance from Finance paid salary for Mona Finance',
+				'Finance',
+				{
+					area: 'Finance',
+					source: 'activity_finance_operating',
+				},
+			),
+			row('activity', 'Ahmed Inventory marked Wood damaged', 'Inventory', {
+				area: 'Inventory',
+				source: 'activity_inventory_damage',
+			}),
+			row('activity', 'Sales moved ORD-1 to confirmed', 'Sales', {
+				area: 'Sales',
+				source: 'activity',
+			}),
 			row('dispatch', 'DEL-1', 'assigned'),
 			row('driver', 'Mina Farid', 'available'),
 			row('support', 'Ticket 1', 'open', { source: 'ticket' }),
@@ -844,6 +861,7 @@ describe('Search display formatting', () => {
 			['Payroll payments', 0],
 			['Fuel expenses', 0],
 			['Company assets', 0],
+			['Finance activity', 2],
 			['Finance inbox', 1],
 			['Customer orders', 1],
 			['Approvals', 1],

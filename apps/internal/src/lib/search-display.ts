@@ -2291,6 +2291,12 @@ export function buildSearchSummarySections(
 					rows,
 					'finance_company_asset',
 				),
+				bucket(
+					'finance-activity',
+					'Finance activity',
+					rows,
+					isFinanceActivitySearchRow,
+				),
 				entitySection('finance-inbox', 'Finance inbox', rows, 'payment'),
 				bucket(
 					'finance-customer-orders',
@@ -2379,6 +2385,22 @@ function isDamagedInventoryLotSearchRow(row: SearchDisplayIndexRow): boolean {
 	return (
 		row.entity_type === 'finance' &&
 		rowMetadataSourceKey(row) === 'finance_inventory_damage_lot'
+	)
+}
+
+function isFinanceActivitySearchRow(row: SearchDisplayIndexRow): boolean {
+	const source = rowMetadataSourceKey(row)
+	const metadata = metadataObject(row.metadata)
+	const area = normalizeToken(
+		stringValue(metadata, 'area') ??
+			stringValue(metadata, 'department') ??
+			row.subtitle,
+	)
+	return (
+		row.entity_type === 'activity' &&
+		(source === 'activity_finance_operating' ||
+			source === 'activity_inventory_damage' ||
+			area === 'finance')
 	)
 }
 

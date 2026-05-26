@@ -41,8 +41,8 @@ describe('internal AI vtable context', () => {
 		expect(financeEntities).toContain('payment')
 		expect(financeEntities).toContain('finance')
 		expect(financeEntities).toContain('finance_payroll')
+		expect(financeEntities).toContain('activity')
 		expect(financeEntities).not.toContain('employee')
-		expect(financeEntities).not.toContain('activity')
 		expect(searchEntities).toContain('employee')
 		expect(searchEntities).toContain('finance_payroll')
 		expect(searchEntities).toContain('activity')
@@ -64,7 +64,10 @@ describe('internal AI vtable context', () => {
 		const stressMigration = readWorkspaceFile(
 			'supabase/migrations/20260526043645_finance_activity_search_stress_fixes.sql',
 		)
-		const migration = `${baseMigration}\n${financeMigration}\n${operatingFinanceMigration}\n${polishMigration}\n${stressMigration}`
+		const financeActivityScopeMigration = readWorkspaceFile(
+			'supabase/migrations/20260526052010_finance_ai_activity_scope.sql',
+		)
+		const migration = `${baseMigration}\n${financeMigration}\n${operatingFinanceMigration}\n${polishMigration}\n${stressMigration}\n${financeActivityScopeMigration}`
 		const aiChatSource = readWorkspaceFile('apps/internal/src/lib/ai-chat.ts')
 		const authServerSource = readWorkspaceFile('packages/auth/src/server.ts')
 		const normalEntities = allowedInternalAiVtables('employee').map(
@@ -95,6 +98,19 @@ describe('internal AI vtable context', () => {
 		)
 		expect(aiChatSource).toContain('p_active_panel: options.panelId ?? null')
 		expect(polishMigration).toContain('p_active_panel text default null')
+		expect(financeActivityScopeMigration).toContain(
+			"when active_panel = 'finance' then array[",
+		)
+		expect(financeActivityScopeMigration).toContain("'activity'")
+		expect(financeActivityScopeMigration).toContain(
+			"d.metadata->>'source' in (",
+		)
+		expect(financeActivityScopeMigration).toContain(
+			"'activity_finance_operating'",
+		)
+		expect(financeActivityScopeMigration).toContain(
+			"'activity_inventory_damage'",
+		)
 		for (const entityType of normalEntities) {
 			expect(normalBranch).toContain(`'${entityType}'`)
 		}
@@ -137,6 +153,12 @@ describe('internal AI vtable context', () => {
 		expect(normalPanelExcludedRequest('summarize activity history')).toContain(
 			'activity history',
 		)
+		expect(
+			normalPanelExcludedRequest(
+				'summarize finance activity history',
+				'finance',
+			),
+		).toBeNull()
 		expect(normalPanelExcludedRequest('show overdue payments')).toContain(
 			'finance records',
 		)
@@ -245,6 +267,18 @@ describe('internal AI vtable context', () => {
 			'ceo_search_finance_payroll_payment_vtable',
 			'ceo_search_finance_fuel_vtable',
 			'ceo_search_finance_company_asset_vtable',
+			'ceo_search_inventory_damage_activity_vtable',
+		])
+		expect(
+			buildInternalAiContextPackage({
+				panelId: 'finance',
+				queriedEntityTypes: ['activity'],
+				query: 'activity history',
+				rows: [],
+				scope: 'employee',
+			}).readEntities,
+		).toEqual([
+			'ceo_search_finance_activity_vtable',
 			'ceo_search_inventory_damage_activity_vtable',
 		])
 		expect(

@@ -33,6 +33,10 @@ const FINANCE_ENTITY_TYPES = new Set([
 	'finance_payroll_payment',
 	'payment',
 ])
+const FINANCE_ACTIVITY_READ_ENTITIES = [
+	'ceo_search_finance_activity_vtable',
+	'ceo_search_inventory_damage_activity_vtable',
+] as const
 const FINANCE_READ_ENTITY_RE =
 	/^ceo_search_(?:finance|payment)(?:_|$)|^ceo_search_inventory_damage_activity_vtable$/
 const MAX_ROWS_PER_ENTITY = 6
@@ -93,6 +97,10 @@ const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 			'truck fuel',
 			'company asset',
 			'company assets',
+			'activity',
+			'activities',
+			'audit',
+			'audit history',
 		],
 		label: 'Finance accounting',
 		normalPanelAccess: false,
@@ -292,12 +300,21 @@ export function allowedInternalAiVtables(
 ): InternalAiVtable[] {
 	if (scope === 'search') return [...INTERNAL_AI_VTABLES]
 	const canReadFinance = isFinancePanelAi({ panelId, scope })
-	return INTERNAL_AI_VTABLES.filter(
-		(vtable) =>
-			(vtable.normalPanelAccess ||
-				(canReadFinance && FINANCE_ENTITY_TYPES.has(vtable.entityType))) &&
-			!NORMAL_PANEL_EXCLUDED_ENTITY_TYPES.has(vtable.entityType),
-	)
+	return INTERNAL_AI_VTABLES.filter((vtable) => {
+		const financeScopedActivity =
+			canReadFinance && vtable.entityType === 'activity'
+		if (
+			NORMAL_PANEL_EXCLUDED_ENTITY_TYPES.has(vtable.entityType) &&
+			!financeScopedActivity
+		) {
+			return false
+		}
+		return (
+			vtable.normalPanelAccess ||
+			(canReadFinance &&
+				(FINANCE_ENTITY_TYPES.has(vtable.entityType) || financeScopedActivity))
+		)
+	})
 }
 
 export function requestedInternalAiEntityTypes({
@@ -324,11 +341,12 @@ export function normalPanelExcludedRequest(
 	panelId?: string | null,
 ): string | null {
 	const lower = userText.toLowerCase()
-	if (/\b(activities|activity|audit log|audit history)\b/.test(lower)) {
-		return 'Normal internal AI cannot read activity history. Open Search for audited activity analysis.'
-	}
 	if (/\b(employee|employees|staff)\b/.test(lower)) {
 		return 'Normal internal AI cannot read employee information. Open Search for employee-aware analysis.'
+	}
+	if (/\b(activities|activity|audit log|audit history)\b/.test(lower)) {
+		if (panelId === 'finance') return null
+		return 'Normal internal AI cannot read activity history. Open Search for audited activity analysis.'
 	}
 	if (
 		panelId !== 'finance' &&
@@ -401,11 +419,19 @@ function readEntitiesForEntityTypes({
 			vtable,
 		]),
 	)
-	const entities = entityTypes.flatMap(
-		(entityType) => byEntityType.get(entityType)?.readEntities ?? [],
-	)
-	if (scope === 'search') entities.unshift('ceo_search_index')
 	const canReadFinance = isFinancePanelAi({ panelId, scope })
+	const entities = entityTypes.flatMap((entityType) => {
+		const normalizedEntityType = entityType.trim().toLowerCase()
+		if (
+			scope !== 'search' &&
+			canReadFinance &&
+			normalizedEntityType === 'activity'
+		) {
+			return FINANCE_ACTIVITY_READ_ENTITIES
+		}
+		return byEntityType.get(normalizedEntityType)?.readEntities ?? []
+	})
+	if (scope === 'search') entities.unshift('ceo_search_index')
 	return [
 		...new Set(
 			entities.filter(
@@ -440,7 +466,7 @@ export function buildInternalAiContextPackage({
 		scope === 'search'
 			? 'Search panel AI can read all approved internal vtables, including employees and activities.'
 			: panelId === 'finance'
-				? 'Finance panel AI can read finance/payment vtables plus normal operational context, but not employee directory or activity history.'
+				? 'Finance panel AI can read finance/payment vtables, finance-scoped activity history, and normal operational context, but not employee directory or non-finance activity history.'
 				: 'Normal internal AI can read operational vtables except finance records, employee information, and activities.'
 	const lines = [
 		`Mode: ${
@@ -499,7 +525,7 @@ export function buildInternalAiSystemPrompt({
 Internal AI contract:
 - Active mode: ${mode}.
 - Normal internal mode may use operational vtable context except finance records, employee information, and activities.
-- Finance panel mode may use finance/payment vtable context plus normal operational context, but not employee directory or activity history.
+- Finance panel mode may use finance/payment vtable context, finance-scoped activity history, and normal operational context, but not employee directory or non-finance activity history.
 - Search panel mode may use all approved vtable context.
 - Never perform writes from chat. If the user asks for an action, point to the authorized panel action.
 - Keep answers natural and specific. Mention exact names, numbers, statuses, dates, and panels when present.
@@ -535,7 +561,7 @@ Internal AI tool contract:
 - Infer the user's target from natural, messy, slangy, misspelled, repeated, or casual text. Do not require exact keywords from the user.
 - Choose entity_types for the records the user wants. Put only meaningful filters in query. If the user only asks to list records, set query to an empty string.
 - Normal internal mode may read operational vtable context except finance records, employee information, and activities.
-- Finance panel mode may read finance/payment vtable context plus normal operational context, but not employee directory or activity history.
+- Finance panel mode may read finance/payment vtable context, finance-scoped activity history, and normal operational context, but not employee directory or non-finance activity history.
 - Search panel mode may read all approved vtable context, including employees and activities.
 - Never perform writes from chat. If the user asks for an action, point to the authorized panel action.
 - If a tool result has records, answer from those records. Do not tell the user to open another panel just to find them.
@@ -558,7 +584,7 @@ function buildFallbackAnswer({
 		return scope === 'search'
 			? `Search panel AI checked all approved vtables for "${query || 'general operational summary'}" and found no matching records.`
 			: panelId === 'finance'
-				? `Finance panel AI checked finance and allowed operational vtables for "${query || 'general operational summary'}" and found no matching records. Employee directory and activities were not read.`
+				? `Finance panel AI checked finance, finance activity, and allowed operational vtables for "${query || 'general operational summary'}" and found no matching records. Employee directory and non-finance activities were not read.`
 				: `Normal internal AI checked allowed operational vtables for "${query || 'general operational summary'}" and found no matching records. Finance records, employee information, and activities were not read.`
 	}
 
@@ -567,7 +593,7 @@ function buildFallbackAnswer({
 		scope === 'search'
 			? `Search panel AI read the approved vtable context for "${query || 'general operational summary'}".`
 			: panelId === 'finance'
-				? `Finance panel AI read finance and allowed operational vtable context for "${query || 'general operational summary'}". Employee directory and activities were not read.`
+				? `Finance panel AI read finance, finance activity, and allowed operational vtable context for "${query || 'general operational summary'}". Employee directory and non-finance activities were not read.`
 				: `Normal internal AI read allowed operational vtable context for "${query || 'general operational summary'}". Finance records, employee information, and activities were not read.`,
 	]
 	for (const [entityType, entityRows] of Object.entries(grouped)) {
