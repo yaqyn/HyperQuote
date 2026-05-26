@@ -26,6 +26,9 @@ const damageActivitySearchMigrationSql = readRepoFile(
 const operatingFinanceMigrationSql = readRepoFile(
 	'supabase/migrations/20260526031533_finance_payroll_fuel_company_asset_system.sql',
 )
+const financeActivityStressMigrationSql = readRepoFile(
+	'supabase/migrations/20260526043645_finance_activity_search_stress_fixes.sql',
+)
 const accountingViewSource = readRepoFile(
 	'apps/internal/src/components/finance/FinanceAccountingView.tsx',
 )
@@ -228,6 +231,30 @@ describe('finance accounting rebuild', () => {
 		expect(accountingViewSource).toContain('PAY')
 		expect(accountingViewSource).toContain('FuelExpensesView')
 		expect(accountingViewSource).toContain('CompanyAssetsView')
+	})
+
+	it('records finance operating actions as human searchable activities', () => {
+		expect(financeActivityStressMigrationSql).toContain(
+			'ceo_search_finance_activity_vtable',
+		)
+		expect(financeActivityStressMigrationSql).toContain(
+			"'finance_adjustment_created'",
+		)
+		expect(financeActivityStressMigrationSql).toContain(
+			"'category', created_adjustment.category",
+		)
+		expect(financeActivityStressMigrationSql).toContain(
+			"'description', created_adjustment.description",
+		)
+		expect(financeActivityStressMigrationSql).toContain(
+			"'proof_path', clean_proof_path",
+		)
+		expect(financeActivityStressMigrationSql).toContain(
+			'activity_finance_operating',
+		)
+		expect(financeActivityStressMigrationSql).toContain(
+			'refresh_ceo_search_documents_without_finance_activity',
+		)
 	})
 
 	it('presents the accounting overview as a wired operating dashboard', () => {

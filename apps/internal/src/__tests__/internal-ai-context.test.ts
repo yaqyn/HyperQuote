@@ -61,7 +61,10 @@ describe('internal AI vtable context', () => {
 		const polishMigration = readWorkspaceFile(
 			'supabase/migrations/20260526040753_finance_ai_order_report_polish.sql',
 		)
-		const migration = `${baseMigration}\n${financeMigration}\n${operatingFinanceMigration}\n${polishMigration}`
+		const stressMigration = readWorkspaceFile(
+			'supabase/migrations/20260526043645_finance_activity_search_stress_fixes.sql',
+		)
+		const migration = `${baseMigration}\n${financeMigration}\n${operatingFinanceMigration}\n${polishMigration}\n${stressMigration}`
 		const aiChatSource = readWorkspaceFile('apps/internal/src/lib/ai-chat.ts')
 		const authServerSource = readWorkspaceFile('packages/auth/src/server.ts')
 		const normalEntities = allowedInternalAiVtables('employee').map(
@@ -237,6 +240,7 @@ describe('internal AI vtable context', () => {
 		).toEqual([
 			'ceo_search_finance_vtable',
 			'ceo_search_finance_damage_vtable',
+			'ceo_search_finance_activity_vtable',
 			'ceo_search_finance_payroll_vtable',
 			'ceo_search_finance_payroll_payment_vtable',
 			'ceo_search_finance_fuel_vtable',
@@ -277,6 +281,7 @@ describe('internal AI vtable context', () => {
 				'ceo_search_payment_vtable',
 				'ceo_search_finance_vtable',
 				'ceo_search_finance_damage_vtable',
+				'ceo_search_finance_activity_vtable',
 				'ceo_search_inventory_damage_activity_vtable',
 			]),
 		)
@@ -303,6 +308,7 @@ describe('internal AI vtable context', () => {
 			expect.arrayContaining([
 				'ceo_search_finance_vtable',
 				'ceo_search_finance_damage_vtable',
+				'ceo_search_finance_activity_vtable',
 				'ceo_search_inventory_damage_activity_vtable',
 				'ceo_search_inventory_vtable',
 			]),

@@ -599,6 +599,56 @@ describe('Search display formatting', () => {
 		)
 	})
 
+	it('projects finance operating activity as human searchable facts', () => {
+		const row: SearchDisplayIndexRow = {
+			entity_type: 'activity',
+			entity_id: 'activity-finance-1',
+			title:
+				'Local Finance from Finance paid salary for Local Sales for 2026-04 amount EGP 12,345.00 with proof on May 26, 2026, 07:36 AM',
+			subtitle: 'Finance',
+			metadata: {
+				activity_sentence:
+					'Local Finance from Finance paid salary for Local Sales for 2026-04 amount EGP 12,345.00 with proof on May 26, 2026, 07:36 AM',
+				action: 'finance_payroll_paid',
+				actor: 'Local Finance',
+				amount: '12345',
+				amount_label: 'EGP 12,345.00',
+				area: 'Finance',
+				department: 'Finance',
+				employee: 'Local Sales',
+				entry_number: 'JE-2026-0001',
+				proofs: 'stress-salary-paid.pdf',
+				source: 'activity_finance_operating',
+				target: 'Local Sales',
+				what: 'Paid salary for Local Sales for 2026-04 amount EGP 12,345.00',
+				when: 'May 26, 2026, 07:36 AM',
+			},
+		}
+
+		expect(buildSearchDisplayTitle(row)).toBe(row.title)
+		expect(buildSearchPreviewFields(row)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Who', value: 'Local Finance' },
+				{ label: 'Panel', value: 'Finance' },
+				{
+					label: 'What',
+					value: 'Paid salary for Local Sales for 2026-04 amount EGP 12,345.00',
+				},
+				{ label: 'Proofs', value: 'stress-salary-paid.pdf' },
+				{ label: 'Target', value: 'Local Sales' },
+				{ label: 'Amount', value: 'EGP 12,345' },
+			]),
+		)
+		expect(buildSearchDetailFields(row)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Story', value: row.title },
+				{ label: 'Panel', value: 'Finance' },
+				{ label: 'Entry no.', value: 'JE-2026-0001' },
+				{ label: 'Amount', value: 'EGP 12,345' },
+			]),
+		)
+	})
+
 	it('builds business summary buckets for the Search dashboard', () => {
 		vi.useFakeTimers()
 		vi.setSystemTime(new Date('2026-05-21T12:00:00Z'))
@@ -637,6 +687,11 @@ describe('Search display formatting', () => {
 				source: 'finance_accounting_overview',
 				total_assets: 1000,
 			}),
+			row('finance', 'Damaged inventory - Wood', 'open', {
+				damage_number: 'DMG-2026-0001',
+				product: 'Wood',
+				source: 'finance_inventory_damage_lot',
+			}),
 			row('finance_payroll', 'Payroll - Mona Finance', 'Finance', {
 				base_salary: 12000,
 				employee_name: 'Mona Finance',
@@ -670,7 +725,7 @@ describe('Search display formatting', () => {
 			['Accepted orders', 1],
 		])
 		expect(counts('inventory', rows)).toEqual([
-			['Inventory orders', 0],
+			['Damaged stock', 1],
 			['Needs update', 2],
 			['Low stock', 1],
 		])
@@ -713,6 +768,16 @@ describe('Search display formatting', () => {
 			}),
 			row('finance', 'Journal entry JE-1', 'draft', {
 				source: 'finance_journal_entry',
+			}),
+			row('finance', 'Damaged inventory - Wood', 'open', {
+				damage_number: 'DMG-2026-0001',
+				product: 'Wood',
+				source: 'finance_inventory_damage_lot',
+			}),
+			row('finance', 'Damaged inventory sold - Wood', 'posted', {
+				damage_number: 'DMG-2026-0001',
+				product: 'Wood',
+				source: 'finance_inventory_damage_transaction',
 			}),
 			row('finance_payroll', 'Payroll - Mona Finance', 'Finance', {
 				employee_name: 'Mona Finance',
@@ -761,6 +826,7 @@ describe('Search display formatting', () => {
 			['Customers', 1],
 		])
 		expect(sectionCounts('inventory', rows)).toEqual([
+			['Damaged stock', 2],
 			['Inventory items', 1],
 			['Price work', 1],
 			['Categories', 1],
@@ -773,7 +839,7 @@ describe('Search display formatting', () => {
 			['Documents', 1],
 		])
 		expect(sectionCounts('finance', rows)).toEqual([
-			['Accounting', 1],
+			['Accounting', 3],
 			['Payroll', 1],
 			['Payroll payments', 0],
 			['Fuel expenses', 0],

@@ -1872,6 +1872,11 @@ export function buildSearchDetailFields(
 				detailField('Driver phone', stringValue(metadata, 'driver_phone')),
 				detailField('Truck', stringValue(metadata, 'truck')),
 				detailField('Truck type', stringValue(metadata, 'truck_type')),
+				detailField('Entry no.', stringValue(metadata, 'entry_number')),
+				detailField('Asset no.', stringValue(metadata, 'asset_number')),
+				detailField('Receipt', stringValue(metadata, 'receipt_file')),
+				detailField('Category', stringValue(metadata, 'category')),
+				detailField('Description', stringValue(metadata, 'description')),
 				detailField('Support case', stringValue(metadata, 'support_reference')),
 				detailField(
 					'Support subject',
@@ -2164,7 +2169,12 @@ export function buildSearchSummaryBuckets(
 			]
 		case 'inventory':
 			return [
-				bucket('inventory-orders', 'Inventory orders', rows, isInventoryOrder),
+				bucket(
+					'inventory-damaged',
+					'Damaged stock',
+					rows,
+					isDamagedInventoryLotSearchRow,
+				),
 				bucket('inventory-needs-update', 'Needs update', rows, isStaleStock),
 				bucket('inventory-low-stock', 'Low stock', rows, isLowStock),
 			]
@@ -2236,6 +2246,12 @@ export function buildSearchSummarySections(
 			]
 		case 'inventory':
 			return [
+				bucket(
+					'inventory-damaged',
+					'Damaged stock',
+					rows,
+					isDamagedInventorySearchRow,
+				),
 				entitySection('inventory-items', 'Inventory items', rows, 'inventory'),
 				entitySection('inventory-pricing', 'Price work', rows, 'pricing'),
 				entitySection('inventory-categories', 'Categories', rows, 'category'),
@@ -2345,6 +2361,24 @@ function rowMetadataSourceKey(row: SearchDisplayIndexRow): string {
 	return (
 		normalizeToken(stringValue(metadataObject(row.metadata), 'source')) ||
 		rowSourceKey(row)
+	)
+}
+
+export function isDamagedInventorySearchRow(
+	row: SearchDisplayIndexRow,
+): boolean {
+	const source = rowMetadataSourceKey(row)
+	return (
+		row.entity_type === 'finance' &&
+		(source === 'finance_inventory_damage_lot' ||
+			source === 'finance_inventory_damage_transaction')
+	)
+}
+
+function isDamagedInventoryLotSearchRow(row: SearchDisplayIndexRow): boolean {
+	return (
+		row.entity_type === 'finance' &&
+		rowMetadataSourceKey(row) === 'finance_inventory_damage_lot'
 	)
 }
 

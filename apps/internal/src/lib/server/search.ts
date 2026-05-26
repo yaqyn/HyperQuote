@@ -8,6 +8,7 @@ import {
 	buildSearchSummaryBuckets,
 	buildSearchSummaryNote,
 	buildSearchSummarySections,
+	isDamagedInventorySearchRow,
 	type SearchDisplayIndexRow,
 } from '../search-display'
 import { searchPattern, searchTokens } from '../search-query'
@@ -484,6 +485,26 @@ async function fetchSummaryRowsForModule(
 	moduleId: SearchSummaryModuleId,
 	client: SearchClient,
 ): Promise<SearchIndexRow[]> {
+	if (moduleId === 'inventory') {
+		const [baseRows, financeRows] = await Promise.all([
+			fetchRowsForEntityTypes(
+				SUMMARY_ENTITY_TYPES[moduleId],
+				client,
+				SEARCH_SUMMARY_ENTITY_LIMIT,
+			),
+			fetchSearchRows(
+				{
+					entityType: 'finance',
+					limit: SEARCH_SUMMARY_ENTITY_LIMIT,
+				},
+				client,
+			),
+		])
+		return [
+			...baseRows,
+			...financeRows.filter((row) => isDamagedInventorySearchRow(row)),
+		]
+	}
 	return fetchRowsForEntityTypes(
 		SUMMARY_ENTITY_TYPES[moduleId],
 		client,

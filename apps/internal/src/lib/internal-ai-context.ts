@@ -99,6 +99,7 @@ const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 		readEntities: [
 			'ceo_search_finance_vtable',
 			'ceo_search_finance_damage_vtable',
+			'ceo_search_finance_activity_vtable',
 			'ceo_search_finance_payroll_vtable',
 			'ceo_search_finance_payroll_payment_vtable',
 			'ceo_search_finance_fuel_vtable',

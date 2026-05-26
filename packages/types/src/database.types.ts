@@ -5362,6 +5362,18 @@ export type Database = {
 				}
 				Relationships: []
 			}
+			ceo_search_finance_activity_vtable: {
+				Row: {
+					entity_id: string | null
+					entity_type: string | null
+					metadata: Json | null
+					search_text: string | null
+					sort_at: string | null
+					subtitle: string | null
+					title: string | null
+				}
+				Relationships: []
+			}
 			ceo_search_finance_company_asset_vtable: {
 				Row: {
 					entity_id: string | null
@@ -5772,6 +5784,7 @@ export type Database = {
 				}
 				Returns: string
 			}
+			ceo_activity_money_label: { Args: { p_value: string }; Returns: string }
 			ceo_activity_source_label: {
 				Args: {
 					p_action: Database['public']['Enums']['audit_event_type']
