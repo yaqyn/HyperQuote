@@ -38,6 +38,13 @@ run(process.execPath, [
 run(process.execPath, ['scripts/assert-supabase-api-boundary.mjs'], {
 	SUPABASE_DB_URL: dbUrl,
 })
+run(
+	process.execPath,
+	['scripts/verify-showcase-baseline.mjs', '--production', '--exact-auth'],
+	{
+		SUPABASE_DB_URL: dbUrl,
+	},
+)
 
 function run(command, args, extraEnv = {}) {
 	const result = spawnSync(command, args, {
