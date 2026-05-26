@@ -232,16 +232,32 @@ const MONEY_INPUT_CLASS =
 const SELECT_CLASS =
 	'h-10 min-w-0 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-archivo)] text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]'
 
-function isAdjustmentType(value: string): value is AdjustmentType {
-	return ADJUSTMENT_TYPES.some((type) => type.id === value)
-}
-
 function firstAdjustmentCategory(type: AdjustmentType): string {
 	return ADJUSTMENT_CATEGORY_OPTIONS[type][0]?.id ?? ''
 }
 
 function adjustmentTypeCopy(type: AdjustmentType) {
 	return ADJUSTMENT_TYPES.find((option) => option.id === type)
+}
+
+function adjustmentTypeLabel(value: string): string {
+	return (
+		ADJUSTMENT_TYPES.find((option) => option.id === value)?.label ??
+		accountingLabel(value)
+	)
+}
+
+function accountingLabel(value: string): string {
+	const clean = value.replaceAll('_', ' ').trim()
+	if (!clean) return 'Unknown'
+	return clean.charAt(0).toUpperCase() + clean.slice(1)
+}
+
+function adjustmentStatusTone(status: string) {
+	if (status === 'posted') return 'success'
+	if (status === 'review_required') return 'warning'
+	if (status === 'voided' || status === 'rejected') return 'danger'
+	return 'neutral'
 }
 
 function mutationErrorMessage(error: unknown): string | null {
@@ -1669,6 +1685,9 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 		categoryOptions.find((option) => option.id === category) ??
 		categoryOptions[0]
 	const selectedType = adjustmentTypeCopy(adjustmentType)
+	const amountValue = Number(amount)
+	const amountPreview =
+		amountValue > 0 ? formatDecimalEgp(amountValue) : 'Enter amount'
 
 	const createMutation = useMutation({
 		mutationFn: () =>
@@ -1694,76 +1713,117 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 
 	return (
 		<section className="mt-6">
-			<SectionHeader
-				title="Damages and adjustments"
-				meta={`${rows.length} rows`}
-			/>
+			<SectionHeader title="Adjustments" meta={`${rows.length} records`} />
 			<form
-				className="mt-3 grid gap-3 rounded-md border border-[var(--color-border)] p-4 lg:grid-cols-[180px_minmax(0,1fr)_140px_auto]"
+				className="mt-4 border-y border-[var(--color-border)] py-4"
 				onSubmit={(event) => {
 					event.preventDefault()
 					if (canSubmit) createMutation.mutate()
 				}}
 			>
-				<select
-					value={adjustmentType}
-					onChange={(event) => {
-						if (isAdjustmentType(event.target.value)) {
-							setAdjustmentType(event.target.value)
-							setCategory(firstAdjustmentCategory(event.target.value))
-						}
-					}}
-					className={SELECT_CLASS}
-				>
-					{ADJUSTMENT_TYPES.map((type) => (
-						<option key={type.id} value={type.id}>
-							{type.label}
-						</option>
-					))}
-				</select>
-				<div className="grid gap-3 sm:grid-cols-2">
-					<select
-						value={category}
-						onChange={(event) => setCategory(event.target.value)}
-						className={SELECT_CLASS}
-					>
-						{categoryOptions.map((option) => (
-							<option key={option.id} value={option.id}>
-								{option.label}
-							</option>
-						))}
-					</select>
-					<div className="min-h-10 rounded-md border border-black/[0.08] bg-black/[0.015] px-3 py-2 dark:border-white/[0.1] dark:bg-white/[0.025]">
-						<p className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text)]">
-							{selectedType?.note}
-						</p>
-						<p className="mt-1 font-[family-name:var(--font-bricolage)] text-[12px] leading-relaxed text-[var(--color-text-muted)]">
-							{selectedCategory?.description}
-						</p>
+				<div className="grid gap-4">
+					<div>
+						<div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+							<p className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+								Adjustment type
+							</p>
+							<p className="max-w-[560px] font-[family-name:var(--font-bricolage)] text-[12px] leading-relaxed text-[var(--color-text-muted)]">
+								{selectedType?.note}
+							</p>
+						</div>
+						<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+							{ADJUSTMENT_TYPES.map((type) => {
+								const active = type.id === adjustmentType
+								return (
+									<button
+										key={type.id}
+										type="button"
+										aria-pressed={active}
+										onClick={() => {
+											setAdjustmentType(type.id)
+											setCategory(firstAdjustmentCategory(type.id))
+										}}
+										className={`min-h-11 rounded-md border px-3 py-2 text-left font-[family-name:var(--font-archivo)] text-[12px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 ${
+											active
+												? 'border-[var(--color-primary)]/35 bg-[var(--color-primary)]/[0.08] text-[var(--color-text)]'
+												: 'border-black/[0.1] bg-[var(--color-surface)] text-[var(--color-text-muted)] hover:border-[var(--color-primary)]/30 hover:text-[var(--color-text)] dark:border-white/[0.12]'
+										}`}
+									>
+										{type.label}
+									</button>
+								)
+							})}
+						</div>
 					</div>
-					<input
-						value={proofPath}
-						onChange={(event) => setProofPath(event.target.value)}
-						placeholder="Proof path"
-						className={`${COMPACT_INPUT_CLASS} sm:col-span-2`}
-					/>
+
+					<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_160px_minmax(220px,0.8fr)_auto] lg:items-end">
+						<label className="grid min-w-0 gap-1.5">
+							<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+								Category
+							</span>
+							<select
+								value={category}
+								onChange={(event) => setCategory(event.target.value)}
+								className={SELECT_CLASS}
+							>
+								{categoryOptions.map((option) => (
+									<option key={option.id} value={option.id}>
+										{option.label}
+									</option>
+								))}
+							</select>
+						</label>
+						<label className="grid min-w-0 gap-1.5">
+							<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+								Amount
+							</span>
+							<input
+								value={amount}
+								onChange={(event) => setAmount(event.target.value)}
+								inputMode="decimal"
+								placeholder="0.00"
+								className={MONEY_INPUT_CLASS}
+							/>
+						</label>
+						<label className="grid min-w-0 gap-1.5">
+							<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+								Proof
+							</span>
+							<input
+								value={proofPath}
+								onChange={(event) => setProofPath(event.target.value)}
+								placeholder="Proof path"
+								className={COMPACT_INPUT_CLASS}
+							/>
+						</label>
+						<EmployeeActionButton
+							type="submit"
+							size="sm"
+							leading={<Plus aria-hidden="true" size={14} />}
+							disabled={!canSubmit || createMutation.isPending}
+							fullWidthOnMobile
+							className="lg:min-h-10"
+						>
+							{createMutation.isPending ? 'Saving' : 'Record'}
+						</EmployeeActionButton>
+					</div>
+
+					<div className="grid gap-2 bg-black/[0.025] px-3 py-3 dark:bg-white/[0.035] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+						<div className="min-w-0">
+							<p className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text)]">
+								{selectedCategory?.label}
+							</p>
+							<p className="mt-1 break-words font-[family-name:var(--font-bricolage)] text-[12px] leading-relaxed text-[var(--color-text-muted)]">
+								{selectedCategory?.description}
+							</p>
+						</div>
+						<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
+							{amountPreview}
+						</span>
+					</div>
+
+					<MutationError error={createMutation.error} />
 				</div>
-				<input
-					value={amount}
-					onChange={(event) => setAmount(event.target.value)}
-					inputMode="decimal"
-					placeholder="Amount"
-					className={MONEY_INPUT_CLASS}
-				/>
-				<EmployeeActionButton
-					type="submit"
-					size="sm"
-					leading={<Plus aria-hidden="true" size={14} />}
-					disabled={!canSubmit || createMutation.isPending}
-				>
-					{createMutation.isPending ? 'Saving' : 'Add'}
-				</EmployeeActionButton>
-				<MutationError error={createMutation.error} className="lg:col-span-4" />
 			</form>
 			{rows.length === 0 ? (
 				<EmptyRows label="No adjustments in this view" />
@@ -1772,21 +1832,29 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 					{rows.map((row) => (
 						<div
 							key={row.id}
-							className="grid gap-2 py-3 lg:grid-cols-[minmax(0,1fr)_140px_150px] lg:items-center"
+							className="grid gap-3 py-4 md:grid-cols-[minmax(0,1fr)_150px_130px] md:items-center"
 						>
 							<div className="min-w-0">
-								<p className="break-words font-[family-name:var(--font-bricolage)] text-[13px] font-semibold text-[var(--color-text)]">
-									{row.category}
-								</p>
+								<div className="flex min-w-0 flex-wrap items-center gap-2">
+									<p className="break-words font-[family-name:var(--font-bricolage)] text-[14px] font-semibold text-[var(--color-text)]">
+										{row.category}
+									</p>
+									<span className="rounded-md bg-black/[0.04] px-2 py-1 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)] dark:bg-white/[0.06]">
+										{adjustmentTypeLabel(row.type)}
+									</span>
+								</div>
 								<p className="mt-0.5 break-words font-[family-name:var(--font-bricolage)] text-[12px] text-[var(--color-text-muted)]">
 									{row.description}
+								</p>
+								<p className="mt-2 break-words font-[family-name:var(--font-geist-mono)] text-[10.5px] text-[var(--color-text-subtle)]">
+									{row.proofPath ? `Proof: ${row.proofPath}` : 'No proof path'}
 								</p>
 							</div>
 							<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
 								{formatDecimalEgp(row.amount)}
 							</span>
 							<EmployeeStatusPill
-								tone={row.status === 'posted' ? 'success' : 'warning'}
+								tone={adjustmentStatusTone(row.status)}
 								className="w-fit px-2 py-1 text-[11px]"
 							>
 								{row.status.replaceAll('_', ' ')}
