@@ -18,15 +18,15 @@ const URLS = {
 
 const ACCOUNTS = {
 	customer: {
-		email: 'Customer@HyperQuote.net',
+		email: 'customer@hyperquote.net',
 		password: '123456',
 	},
 	driver: {
-		email: 'Driver@HyperQuote.net',
+		email: 'driver@hyperquote.net',
 		password: '123456',
 	},
 	internal: {
-		email: 'Admin@HyperQuote.net',
+		email: 'admin@hyperquote.net',
 		password: '123456',
 	},
 }

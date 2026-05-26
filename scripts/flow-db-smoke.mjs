@@ -8,9 +8,9 @@ const FLOW_PASSWORD =
 	['hyperquote', 'local', 'only', '2026'].join('-')
 
 const ACCOUNTS = {
-	customer: { email: 'Customer@HyperQuote.net', password: '123456' },
+	customer: { email: 'customer@hyperquote.net', password: '123456' },
 	driver: { email: 'local-driver@hyperquote.local', password: FLOW_PASSWORD },
-	employee: { email: 'Admin@HyperQuote.net', password: '123456' },
+	employee: { email: 'admin@hyperquote.net', password: '123456' },
 }
 
 main().catch((error) => {

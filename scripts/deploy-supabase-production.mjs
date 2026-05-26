@@ -20,7 +20,14 @@ if (missing.length > 0) {
 }
 
 run('supabase', ['migration', 'list', '--db-url', dbUrl])
-run('supabase', ['db', 'push', '--db-url', dbUrl, '--include-seed', '--yes'])
+run('supabase', ['db', 'push', '--db-url', dbUrl, '--yes'])
+run(
+	process.execPath,
+	['scripts/seed-showcase-baseline.mjs', '--production', '--quiet'],
+	{
+		SUPABASE_DB_URL: dbUrl,
+	},
+)
 run(process.execPath, [
 	'scripts/seed-local-auth.mjs',
 	'--production',

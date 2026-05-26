@@ -67,12 +67,12 @@ const COOKIE_NAMES = {
 }
 
 const LOCAL_INVENTORY = {
-	email: 'Admin@HyperQuote.net',
+	email: 'admin@hyperquote.net',
 	password: '123456',
 }
 
 const LOCAL_SALES = {
-	email: 'Manager@HyperQuote.net',
+	email: 'manager@hyperquote.net',
 	password: '123456',
 }
 
@@ -1013,7 +1013,7 @@ async function localCustomer(
 	const { data, error } = await service
 		.from('customers')
 		.select('id, company_name')
-		.eq('email', 'Customer@HyperQuote.net')
+		.eq('email', 'customer@hyperquote.net')
 		.single()
 	if (error || !data) {
 		throw new Error(error?.message ?? 'Local customer not found')

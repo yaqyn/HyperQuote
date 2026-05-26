@@ -23,7 +23,7 @@
 		"@hyperquote/forms": "workspace:*",
 		"@hyperquote/ui": "workspace:*",
 		"@tanstack/react-query": "^5.100.10",
-		"@tanstack/react-router": "^1.170.4",
+		"@tanstack/react-router": "^1.170.8",
 		"i18next": "^26.2.0",
 		"jsqr": "^1.4.0",
 		"lucide-react": "^1.16.0",

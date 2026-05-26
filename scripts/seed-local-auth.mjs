@@ -7,17 +7,17 @@ const LOCAL_ACCOUNTS = {
 	customer: {
 		companyName: 'Customer Company',
 		contactName: 'Customer',
-		email: 'Customer@HyperQuote.net',
+		email: 'customer@hyperquote.net',
 		password: '123456',
 		phone: '+201000000000',
 	},
 	driver: {
-		email: 'Driver@HyperQuote.net',
+		email: 'driver@hyperquote.net',
 		fullName: 'Driver',
 		password: '123456',
 		phone: '+201000000002',
-		truckPlateNumber: 'HQ-DRIVER-1',
-		vehicleLabel: 'Driver Truck',
+		truckPlateNumber: 'HQ-TRUCK-1',
+		vehicleLabel: 'Truck 1',
 	},
 }
 
@@ -49,7 +49,7 @@ const EMPLOYEE_ROLES = [
 ]
 
 const ADMIN_ACCOUNT = {
-	email: 'Admin@HyperQuote.net',
+	email: 'admin@hyperquote.net',
 	fullName: 'Admin',
 	isCeo: true,
 	panels: PANEL_PERMISSIONS,
@@ -59,7 +59,7 @@ const ADMIN_ACCOUNT = {
 }
 
 const MANAGER_ACCOUNT = {
-	email: 'Manager@HyperQuote.net',
+	email: 'manager@hyperquote.net',
 	fullName: 'Manager',
 	panels: [
 		'sales',
@@ -84,7 +84,7 @@ const MANAGER_ACCOUNT = {
 }
 
 const ADVISOR_ACCOUNT = {
-	email: 'Advisor@HyperQuote.net',
+	email: 'advisor@hyperquote.net',
 	fullName: 'Advisor',
 	panels: ['sales', 'warehouse'],
 	password: '123456',
