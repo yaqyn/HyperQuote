@@ -146,10 +146,13 @@ export interface FinanceAccountingOverview {
 	basis: string
 	cashBalance: number
 	cashMovement: number
+	inventoryAssets: number
+	totalAssets: number
 	receivables: number
 	payables: number
 	unpostedCount: number
 	reviewRequiredCount: number
+	inventoryCostReviewCount: number
 }
 
 export interface FinanceAccountingIncomeStatement {
@@ -164,6 +167,19 @@ export interface FinanceAccountingCashFlow {
 	supplierPayments: number
 	manualCashAdjustments: number
 	netCashMovement: number
+}
+
+export interface FinanceAccountingInventoryAsset {
+	productId: string
+	sku: string
+	productName: string
+	onHand: number
+	reserved: number
+	available: number
+	unitCost: number
+	valuation: number
+	supplierName: string | null
+	needsCostReview: boolean
 }
 
 export interface FinanceAccountingReceivable {
@@ -260,6 +276,7 @@ export interface FinanceAccountingDashboard {
 	overview: FinanceAccountingOverview
 	incomeStatement: FinanceAccountingIncomeStatement
 	cashFlow: FinanceAccountingCashFlow
+	inventoryAssets: FinanceAccountingInventoryAsset[]
 	receivables: FinanceAccountingReceivable[]
 	payables: FinanceAccountingPayable[]
 	payroll: FinanceAccountingPayroll

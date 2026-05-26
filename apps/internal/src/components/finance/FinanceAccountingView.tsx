@@ -6,6 +6,8 @@ import {
 	Calculator,
 	ClipboardList,
 	Landmark,
+	type LucideIcon,
+	PackageCheck,
 	Plus,
 	ReceiptText,
 	RefreshCcw,
@@ -18,6 +20,7 @@ import {
 	createFinanceAdjustment,
 	type FinanceAccountingAdjustment,
 	type FinanceAccountingDashboard,
+	type FinanceAccountingInventoryAsset,
 	type FinanceAccountingJournalEntry,
 	type FinanceAccountingPayable,
 	type FinanceAccountingReceivable,
@@ -37,6 +40,7 @@ type AccountingView =
 	| 'overview'
 	| 'income'
 	| 'cash'
+	| 'inventory'
 	| 'receivables'
 	| 'payables'
 	| 'payroll'
@@ -46,11 +50,12 @@ type AccountingView =
 const ACCOUNTING_VIEWS: Array<{
 	id: AccountingView
 	label: string
-	icon: typeof Calculator
+	icon: LucideIcon
 }> = [
 	{ id: 'overview', label: 'Overview', icon: Calculator },
 	{ id: 'income', label: 'Income', icon: ClipboardList },
 	{ id: 'cash', label: 'Cash flow', icon: Landmark },
+	{ id: 'inventory', label: 'Inventory assets', icon: PackageCheck },
 	{ id: 'receivables', label: 'Receivables', icon: ReceiptText },
 	{ id: 'payables', label: 'Payables', icon: ReceiptText },
 	{ id: 'payroll', label: 'Payroll', icon: ClipboardList },
@@ -153,6 +158,9 @@ export function FinanceAccountingView() {
 				{activeView === 'overview' && <OverviewView dashboard={dashboard} />}
 				{activeView === 'income' && <IncomeView dashboard={dashboard} />}
 				{activeView === 'cash' && <CashFlowView dashboard={dashboard} />}
+				{activeView === 'inventory' && (
+					<InventoryAssetsView rows={dashboard.inventoryAssets} />
+				)}
 				{activeView === 'receivables' && (
 					<ReceivablesView rows={dashboard.receivables} />
 				)}
@@ -290,6 +298,7 @@ function AccountingViewStrip({
 	onSelect: (view: AccountingView) => void
 }) {
 	const counts: Partial<Record<AccountingView, number>> = {
+		inventory: dashboard.inventoryAssets.length,
 		receivables: dashboard.receivables.length,
 		payables: dashboard.payables.length,
 		adjustments: dashboard.adjustments.length,
@@ -301,7 +310,7 @@ function AccountingViewStrip({
 			aria-label="Accounting views"
 			className="sticky top-0 z-10 -mx-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:bg-transparent lg:px-0 lg:backdrop-blur-none"
 		>
-			<ul className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+			<ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-9">
 				{ACCOUNTING_VIEWS.map((view) => {
 					const Icon = view.icon
 					return (
@@ -349,6 +358,8 @@ function OverviewView({
 		<section className="mt-6">
 			<MetricGrid
 				metrics={[
+					['Total assets', dashboard.overview.totalAssets],
+					['Inventory assets', dashboard.overview.inventoryAssets],
 					['Cash movement', dashboard.overview.cashMovement],
 					['Receivables', dashboard.overview.receivables],
 					['Payables', dashboard.overview.payables],
@@ -455,6 +466,65 @@ function StatementRows({ rows }: { rows: Array<[string, number]> }) {
 				</div>
 			))}
 		</div>
+	)
+}
+
+function InventoryAssetsView({
+	rows,
+}: {
+	rows: FinanceAccountingInventoryAsset[]
+}) {
+	return (
+		<section className="mt-6">
+			<SectionHeader title="Inventory assets" meta={`${rows.length} rows`} />
+			{rows.length === 0 ? (
+				<EmptyRows label="No stock assets in this view" />
+			) : (
+				<div className="mt-3 overflow-x-auto">
+					<table className="min-w-full border-y border-[var(--color-border)] text-left">
+						<thead>
+							<tr className="font-[family-name:var(--font-archivo)] text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+								<th className="py-2 pr-4 font-semibold">SKU</th>
+								<th className="py-2 pr-4 font-semibold">Product</th>
+								<th className="py-2 pr-4 text-right font-semibold">On hand</th>
+								<th className="py-2 pr-4 text-right font-semibold">Reserved</th>
+								<th className="py-2 pr-4 text-right font-semibold">
+									Unit cost
+								</th>
+								<th className="py-2 pr-4 text-right font-semibold">Value</th>
+								<th className="py-2 pr-4 font-semibold">Basis</th>
+							</tr>
+						</thead>
+						<tbody className="divide-y divide-[var(--color-border)]">
+							{rows.map((row) => (
+								<tr key={row.productId} className="text-[12.5px]">
+									<td className="py-3 pr-4 font-[family-name:var(--font-geist-mono)] text-[var(--color-text)]">
+										{row.sku}
+									</td>
+									<td className="py-3 pr-4 font-[family-name:var(--font-bricolage)] text-[var(--color-text)]">
+										{row.productName}
+									</td>
+									<QuantityCell value={row.onHand} />
+									<QuantityCell value={row.reserved} />
+									<MoneyCell value={row.unitCost} />
+									<MoneyCell value={row.valuation} strong />
+									<td className="py-3 pr-4">
+										<EmployeeStatusPill
+											tone={row.needsCostReview ? 'warning' : 'success'}
+											className="px-2 py-1 text-[11px]"
+										>
+											{row.needsCostReview
+												? 'Needs cost review'
+												: (row.supplierName ?? 'Supplier cost')}
+										</EmployeeStatusPill>
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+			)}
+		</section>
 	)
 }
 
@@ -949,6 +1019,17 @@ function SectionHeader({ title, meta }: { title: string; meta?: string }) {
 				</span>
 			)}
 		</div>
+	)
+}
+
+function QuantityCell({ value }: { value: number }) {
+	return (
+		<td className="py-3 pr-4 text-right font-[family-name:var(--font-geist-mono)] text-[12.5px] tabular-nums text-[var(--color-text)]">
+			{value.toLocaleString('en-US', {
+				maximumFractionDigits: 2,
+				minimumFractionDigits: 0,
+			})}
+		</td>
 	)
 }
 

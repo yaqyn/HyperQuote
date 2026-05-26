@@ -5,6 +5,9 @@ import { describe, expect, it } from 'vitest'
 const migrationSql = readRepoFile(
 	'supabase/migrations/20260525215935_finance_accounting_subledger.sql',
 )
+const automationMigrationSql = readRepoFile(
+	'supabase/migrations/20260526005441_finance_accounting_inventory_automation.sql',
+)
 const financeModuleSource = readRepoFile(
 	'apps/internal/src/components/finance/FinanceModule.tsx',
 )
@@ -37,6 +40,26 @@ describe('finance accounting rebuild', () => {
 		expect(migrationSql).toContain(
 			'Payroll, tax, and social-insurance accruals require accountant/legal sign-off.',
 		)
+	})
+
+	it('wires accounting records from operational sources automatically', () => {
+		expect(automationMigrationSql).toContain(
+			'finance_customer_payments_sync_journal',
+		)
+		expect(automationMigrationSql).toContain(
+			'finance_supplier_payments_sync_journal',
+		)
+		expect(automationMigrationSql).toContain(
+			'finance_orders_sync_review_journal',
+		)
+		expect(automationMigrationSql).toContain(
+			'finance_refills_sync_review_journal',
+		)
+		expect(automationMigrationSql).toContain(
+			'finance_employee_compensation_sync_review_journal',
+		)
+		expect(automationMigrationSql).toContain('inventoryAssets')
+		expect(automationMigrationSql).toContain('primary supplier raw cost')
 	})
 
 	it('replaces the stale Finance history placeholder with Accounting', () => {
