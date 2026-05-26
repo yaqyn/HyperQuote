@@ -9,6 +9,7 @@ import {
 	buildInternalAiToolSystemPrompt,
 	internalAiPolicyRefusal,
 	normalPanelExcludedRequest,
+	requestedInternalAiEntityTypes,
 	resolveInternalAiScope,
 } from '../lib/internal-ai-context'
 import type { SearchDisplayIndexRow } from '../lib/search-display'
@@ -219,6 +220,30 @@ describe('internal AI vtable context', () => {
 				scope: 'search',
 			}).readEntities,
 		).toEqual(['ceo_search_index', 'ceo_search_finance_payroll_vtable'])
+	})
+
+	it('routes broad Search AI finance intent to the CEO finance vtable', () => {
+		const entityTypes = requestedInternalAiEntityTypes({
+			query: 'show finance panel records',
+			scope: 'search',
+		})
+
+		expect(entityTypes).toContain('payment')
+		expect(entityTypes).toContain('finance')
+		expect(
+			buildInternalAiContextPackage({
+				queriedEntityTypes: entityTypes,
+				query: 'show finance panel records',
+				rows: [],
+				scope: 'search',
+			}).readEntities,
+		).toEqual(
+			expect.arrayContaining([
+				'ceo_search_index',
+				'ceo_search_payment_vtable',
+				'ceo_search_finance_vtable',
+			]),
+		)
 	})
 
 	it('tells Lyon to infer natural language intent and call tools', () => {

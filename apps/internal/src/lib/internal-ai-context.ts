@@ -57,6 +57,7 @@ const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 	{
 		entityType: 'finance',
 		keywords: [
+			'finance',
 			'accounting',
 			'ledger',
 			'journal',
