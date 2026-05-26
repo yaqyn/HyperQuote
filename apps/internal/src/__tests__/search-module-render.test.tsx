@@ -397,6 +397,85 @@ describe('SearchModule first render', () => {
 		expect(useInternalStore.getState().activeModule).toBe('procurement')
 	})
 
+	it('opens finance accounting search results in the finance app module', async () => {
+		const accountingRow = {
+			accent: '#BAE6FD',
+			details: [
+				{ label: 'Record type', value: 'Journal entry' },
+				{ label: 'Entry', value: 'JE-2026-000001' },
+			],
+			preview: [
+				{ label: 'Record', value: 'Journal entry' },
+				{ label: 'Status', value: 'Draft' },
+			],
+			rowId: 'journal_entry:11111111-2222-4333-8444-555555555555',
+			tableId: 'finance-accounting' as const,
+			tableLabel: 'Finance accounting',
+			title: 'Journal entry JE-2026-000001',
+		}
+		serverSearchMocks.searchInternalDb.mockResolvedValue({
+			query: 'journal',
+			results: [
+				{
+					accent: '#BAE6FD',
+					label: 'Finance accounting',
+					rowCount: 1,
+					rows: [{ ...accountingRow, matchedFields: ['Record'] }],
+					tableId: 'finance-accounting',
+				},
+			],
+			tableMatches: [],
+			tables: [
+				{
+					accent: '#BAE6FD',
+					label: 'Finance accounting',
+					rowCount: 1,
+					tableId: 'finance-accounting',
+				},
+			],
+		})
+
+		const queryClient = new QueryClient({
+			defaultOptions: { queries: { retry: false } },
+		})
+		activeContainer = document.createElement('div')
+		document.body.appendChild(activeContainer)
+		activeRoot = createRoot(activeContainer)
+
+		await act(async () => {
+			activeRoot?.render(
+				<QueryClientProvider client={queryClient}>
+					<SearchModule />
+				</QueryClientProvider>,
+			)
+		})
+
+		await setSearchQuery('journal')
+		await waitForSearchModuleUpdate(() =>
+			Boolean(activeContainer?.textContent?.includes(accountingRow.title)),
+		)
+
+		const resultButton = Array.from(
+			activeContainer.querySelectorAll('button'),
+		).find((button) => button.textContent?.includes(accountingRow.title))
+		expect(resultButton).toBeInTheDocument()
+
+		await act(async () => {
+			resultButton?.click()
+		})
+
+		const openFinanceButton = Array.from(
+			activeContainer.querySelectorAll('button'),
+		).find((button) => button.textContent?.includes('Open Finance'))
+		expect(openFinanceButton).toBeInTheDocument()
+
+		await act(async () => {
+			openFinanceButton?.click()
+		})
+
+		expect(useInternalStore.getState().activeModule).toBe('finance')
+	})
+
 	it('previews activity proof documents inside the app window', async () => {
 		const activityRow = {
 			accent: '#8b5cf6',
