@@ -10,7 +10,12 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
-import { productionSupabaseConfig, repoRoot } from './production-config.mjs'
+import {
+	productionAuthAdvisorConfig,
+	productionPlanGatedAuthAdvisorConfig,
+	productionSupabaseConfig,
+	repoRoot,
+} from './production-config.mjs'
 
 const required = ['SUPABASE_PROJECT_REF', 'SUPABASE_ACCESS_TOKEN']
 const missing = required.filter((name) => !process.env[name]?.trim())
@@ -42,6 +47,15 @@ try {
 		tempRoot,
 		'--yes',
 	])
+	await updateProductionAuthConfig(
+		productionAuthAdvisorConfig,
+		'Production Supabase Auth advisor settings updated.',
+	)
+	await updateProductionAuthConfig(
+		productionPlanGatedAuthAdvisorConfig,
+		'Production Supabase plan-gated Auth advisor settings updated.',
+		{ allowPaymentRequired: true },
+	)
 } catch (error) {
 	exitCode = 1
 	console.error(error instanceof Error ? error.message : String(error))
@@ -75,4 +89,35 @@ function supabaseConfigEnv() {
 			process.env.SUPABASE_AUTH_SMS_TWILIO_VERIFY_SERVICE_SID ??
 			process.env.TWILIO_VERIFY_SERVICE_SID,
 	}
+}
+
+async function updateProductionAuthConfig(
+	config,
+	successMessage,
+	options = {},
+) {
+	const response = await fetch(
+		`https://api.supabase.com/v1/projects/${process.env.SUPABASE_PROJECT_REF}/config/auth`,
+		{
+			body: JSON.stringify(config),
+			headers: {
+				Authorization: `Bearer ${process.env.SUPABASE_ACCESS_TOKEN}`,
+				'Content-Type': 'application/json',
+			},
+			method: 'PATCH',
+		},
+	)
+	if (!response.ok) {
+		const message = await response.text()
+		if (options.allowPaymentRequired && response.status === 402) {
+			console.warn(
+				`Skipped plan-gated Supabase Auth advisor settings: ${message}`,
+			)
+			return
+		}
+		throw new Error(
+			`Supabase Auth config update failed with HTTP ${response.status}: ${message}`,
+		)
+	}
+	console.log(successMessage)
 }

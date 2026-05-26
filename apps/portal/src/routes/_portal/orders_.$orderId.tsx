@@ -580,43 +580,15 @@ function downloadOrderReport(
 		month: 'short',
 		year: 'numeric',
 	}).format(new Date(data.report.generatedAt))
-	const sections = data.report.sections
-		.map(
-			(section) => `
-				<section>
-					<h2>${escapeHtml(section.label)} <span>${escapeHtml(section.status)}</span></h2>
-					<p>${escapeHtml(section.summary)}</p>
-					<table>
-						<tbody>
-							${section.facts
-								.map(
-									(fact) => `
-										<tr>
-											<th>${escapeHtml(fact.label)}</th>
-											<td>${escapeHtml(formatExportFact(fact, moneyFmt))}</td>
-										</tr>
-									`,
-								)
-								.join('')}
-						</tbody>
-					</table>
-					${
-						section.lines.length > 0
-							? `<ul>${section.lines
-									.map((line) => `<li>${escapeHtml(line)}</li>`)
-									.join('')}</ul>`
-							: ''
-					}
-				</section>
-			`,
-		)
-		.join('')
-	const html = `<!doctype html>
-<html lang="${locale.startsWith('ar') ? 'ar' : 'en'}">
-<head>
-	<meta charset="utf-8" />
-	<title>${escapeHtml(data.order.reference)} order report</title>
-	<style>
+	const reportDocument = document.implementation.createHTMLDocument(
+		`${data.order.reference} order report`,
+	)
+	reportDocument.documentElement.lang = locale.startsWith('ar') ? 'ar' : 'en'
+	const meta = reportDocument.createElement('meta')
+	meta.setAttribute('charset', 'utf-8')
+	reportDocument.head.append(meta)
+	const style = reportDocument.createElement('style')
+	style.textContent = `
 		body{font-family:Inter,Arial,sans-serif;margin:40px;color:#151515;line-height:1.45}
 		header{border-bottom:2px solid #151515;margin-bottom:28px;padding-bottom:14px}
 		h1{font-size:28px;margin:0 0 8px}
@@ -628,22 +600,63 @@ function downloadOrderReport(
 		th{width:220px;color:#555}
 		ul{margin:12px 0 0;padding-left:20px}
 		li{margin:4px 0}
-	</style>
-</head>
-<body>
-	<header>
-		<h1>${escapeHtml(data.order.reference)}</h1>
-		<p>Generated ${escapeHtml(generated)}</p>
-	</header>
-	${sections}
-</body>
-</html>`
-	const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+	`
+	reportDocument.head.append(style)
+
+	const header = reportDocument.createElement('header')
+	appendReportText(reportDocument, header, 'h1', data.order.reference)
+	appendReportText(reportDocument, header, 'p', `Generated ${generated}`)
+	reportDocument.body.append(header)
+
+	for (const section of data.report.sections) {
+		const sectionElement = reportDocument.createElement('section')
+		const heading = appendReportText(
+			reportDocument,
+			sectionElement,
+			'h2',
+			section.label,
+		)
+		appendReportText(reportDocument, heading, 'span', section.status)
+		appendReportText(reportDocument, sectionElement, 'p', section.summary)
+
+		const table = reportDocument.createElement('table')
+		const tableBody = reportDocument.createElement('tbody')
+		for (const fact of section.facts) {
+			const row = reportDocument.createElement('tr')
+			appendReportText(reportDocument, row, 'th', fact.label)
+			appendReportText(
+				reportDocument,
+				row,
+				'td',
+				formatExportFact(fact, moneyFmt),
+			)
+			tableBody.append(row)
+		}
+		table.append(tableBody)
+		sectionElement.append(table)
+
+		if (section.lines.length > 0) {
+			const list = reportDocument.createElement('ul')
+			for (const line of section.lines) {
+				appendReportText(reportDocument, list, 'li', line)
+			}
+			sectionElement.append(list)
+		}
+
+		reportDocument.body.append(sectionElement)
+	}
+
+	const blob = new Blob(
+		[`<!doctype html>\n${reportDocument.documentElement.outerHTML}`],
+		{ type: 'text/html;charset=utf-8' },
+	)
 	const url = URL.createObjectURL(blob)
 	const anchor = document.createElement('a')
 	anchor.href = url
 	anchor.download = data.report.exportFileName
+	document.body.append(anchor)
 	anchor.click()
+	anchor.remove()
 	window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
@@ -659,13 +672,16 @@ function formatExportFact(fact: LifecycleFact, moneyFmt: Intl.NumberFormat) {
 	return fact.value.replaceAll('_', ' ')
 }
 
-function escapeHtml(value: string) {
-	return value
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;')
-		.replaceAll("'", '&#39;')
+function appendReportText<K extends keyof HTMLElementTagNameMap>(
+	reportDocument: Document,
+	parent: Node,
+	tagName: K,
+	text: string,
+) {
+	const element = reportDocument.createElement(tagName)
+	element.textContent = text
+	parent.appendChild(element)
+	return element
 }
 
 function OrderStatusHero({

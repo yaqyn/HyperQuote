@@ -40,6 +40,17 @@ const reverseDamageInput = damageLotQuantityInput.extend({
 	reason: z.string().trim().min(5).max(600),
 })
 
+type DamageLotQuantityInput = z.infer<typeof damageLotQuantityInput>
+
+function damageLotQuantityProofParams(data: DamageLotQuantityInput) {
+	return {
+		p_lot_id: data.lotId,
+		p_proof_document_id: data.proofDocumentId ?? null,
+		p_proof_path: data.proofPath,
+		p_quantity: data.quantity,
+	}
+}
+
 export interface DamageableInventoryProduct {
 	availableQuantity: number
 	category: string
@@ -60,20 +71,20 @@ export interface InventoryDamageApproverView {
 	roleLabel: string
 }
 
-export type InventoryDamageLotStatus =
+type InventoryDamageLotStatus =
 	| 'open'
 	| 'sold'
 	| 'disposed'
 	| 'reversed'
 	| 'closed'
 
-export type InventoryDamageTransactionType =
+type InventoryDamageTransactionType =
 	| 'recorded'
 	| 'sold'
 	| 'disposed'
 	| 'reversed'
 
-export interface InventoryDamageTransactionView {
+interface InventoryDamageTransactionView {
 	amount: number
 	carryingAmount: number
 	counterpartyName: string | null
@@ -643,12 +654,9 @@ export const sellDamagedInventory = createServerFn({ method: 'POST' })
 			'inventory_sell_damaged_inventory',
 			{
 				p_counterparty_name: data.counterpartyName,
-				p_lot_id: data.lotId,
 				p_payment_status: data.paymentStatus,
-				p_proof_document_id: data.proofDocumentId ?? null,
-				p_proof_path: data.proofPath,
-				p_quantity: data.quantity,
 				p_unit_sale_price: data.unitSalePrice,
+				...damageLotQuantityProofParams(data),
 			},
 		)
 		if (error) return { success: false as const, error: error.message }
@@ -663,11 +671,8 @@ export const disposeDamagedInventory = createServerFn({ method: 'POST' })
 		const { data: transaction, error } = await auth.client.rpc(
 			'inventory_dispose_damaged_inventory',
 			{
-				p_lot_id: data.lotId,
-				p_proof_document_id: data.proofDocumentId ?? null,
-				p_proof_path: data.proofPath,
-				p_quantity: data.quantity,
 				p_reason: data.reason,
+				...damageLotQuantityProofParams(data),
 			},
 		)
 		if (error) return { success: false as const, error: error.message }
@@ -706,12 +711,9 @@ export const reverseInventoryDamage = createServerFn({ method: 'POST' })
 		const { data: transaction, error } = await auth.client.rpc(
 			'inventory_reverse_damage',
 			{
-				p_lot_id: data.lotId,
 				p_manager_employee_id: verified.employee.id,
-				p_proof_document_id: data.proofDocumentId ?? null,
-				p_proof_path: data.proofPath,
-				p_quantity: data.quantity,
 				p_reason: data.reason,
+				...damageLotQuantityProofParams(data),
 			},
 		)
 		if (error) return { success: false as const, error: error.message }

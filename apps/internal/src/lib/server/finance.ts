@@ -142,7 +142,7 @@ interface FinanceInboxTotals {
 	deliveredPartialCount: number
 }
 
-export interface FinanceAccountingOverview {
+interface FinanceAccountingOverview {
 	basis: string
 	cashBalance: number
 	cashMovement: number
@@ -161,14 +161,14 @@ export interface FinanceAccountingOverview {
 	inventoryCostReviewCount: number
 }
 
-export interface FinanceAccountingIncomeStatement {
+interface FinanceAccountingIncomeStatement {
 	revenue: number
 	expenses: number
 	netPerformance: number | null
 	warnings: string[]
 }
 
-export interface FinanceAccountingCashFlow {
+interface FinanceAccountingCashFlow {
 	bonusPayments?: number
 	companyAssetPurchases?: number
 	customerReceipts: number
@@ -222,7 +222,7 @@ export interface FinanceAccountingPayable {
 	status: string
 }
 
-export interface FinanceAccountingPayroll {
+interface FinanceAccountingPayroll {
 	canViewDetail: boolean
 	employeeCount: number
 	periodMonth?: string
@@ -299,7 +299,7 @@ export interface FinanceAccountingAdjustment {
 	createdAt: string
 }
 
-export interface FinanceAccountingJournalLine {
+interface FinanceAccountingJournalLine {
 	lineNumber: number
 	accountCode: string
 	accountName: string

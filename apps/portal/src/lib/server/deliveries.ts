@@ -14,7 +14,7 @@ import {
 	mapOrderStatus,
 } from './order-utils'
 
-export type DeliveryStage =
+type DeliveryStage =
 	| 'confirmed'
 	| 'being_prepared'
 	| 'out_for_delivery'
@@ -89,7 +89,7 @@ interface OrderAcceptanceInfo {
 	message: string
 }
 
-export interface OrderReviewInfo {
+interface OrderReviewInfo {
 	submittedAt: string
 	message: string
 }
@@ -121,7 +121,7 @@ interface OrderClosureInfo {
 	reachedStage: DeliveryStage
 }
 
-export interface OrderReportFact {
+interface OrderReportFact {
 	label: string
 	value: string
 }
@@ -143,7 +143,7 @@ export interface OrderReportSection {
 	lines: string[]
 }
 
-export interface OrderReport {
+interface OrderReport {
 	exportFileName: string
 	generatedAt: string
 	sections: OrderReportSection[]

@@ -47,6 +47,15 @@ export const requiredProductionBuildEnvNames = [
 	'SUPABASE_ANON_KEY',
 ]
 
+export const productionAuthAdvisorConfig = {
+	mfa_totp_enroll_enabled: true,
+	mfa_totp_verify_enabled: true,
+}
+
+export const productionPlanGatedAuthAdvisorConfig = {
+	password_hibp_enabled: true,
+}
+
 const commonRuntimeSecretNames = [
 	'COOKIE_DOMAIN',
 	'SUPABASE_ANON_KEY',
