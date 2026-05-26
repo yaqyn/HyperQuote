@@ -2,7 +2,6 @@ import { createSupabaseBrowserClient } from '@hyperquote/auth'
 import { z } from 'zod'
 import type {
 	CompletionSubmissionProof,
-	DeliveryRejectionProof,
 	DriverDashboard,
 	DriverDelivery,
 	DriverFuelReceipt,
@@ -371,13 +370,7 @@ export function createSupabaseDriverRepository(
 
 	async function mutateDelivery(
 		deliveryId: string,
-		action:
-			| 'accept'
-			| 'start'
-			| 'arrival-secret'
-			| 'complete'
-			| 'reject'
-			| 'reopen',
+		action: 'accept' | 'start' | 'arrival-secret' | 'complete' | 'reopen',
 		body?: Record<string, unknown>,
 	) {
 		return apiRequest(
@@ -435,15 +428,6 @@ export function createSupabaseDriverRepository(
 
 		async listTeamMessages(): Promise<TeamMessage[]> {
 			return apiRequest('/api/driver/team/messages', z.array(teamMessageSchema))
-		},
-
-		async rejectDelivery(
-			deliveryId: string,
-			_driverId: string,
-			reason: string,
-			proof: DeliveryRejectionProof | null,
-		): Promise<DriverDelivery> {
-			return mutateDelivery(deliveryId, 'reject', { proof, reason })
 		},
 
 		async reopenRoute(

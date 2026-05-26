@@ -2,6 +2,7 @@
 	"active": {
 		"accept": "اقبل التوصيل",
 		"arrival": "سجل الوصول",
+		"callDispatch": "اتصل بالتوزيع",
 		"completed": "اكتمل التوصيل.",
 		"current": "التوصيل الحالي",
 		"eta": "الوصول",
@@ -167,11 +168,6 @@
 	},
 	"shell": {
 		"driver": "السائق النشط"
-	},
-	"rejection": {
-		"evidence": "الدليل",
-		"reason": "السبب",
-		"submit": "رفض التوصيل"
 	},
 	"state": {
 		"dashboardErrorBody": "تعذر تحميل ملف السائق من Supabase. سجل الخروج وحاول مرة أخرى، أو تواصل مع فريق التوزيع.",

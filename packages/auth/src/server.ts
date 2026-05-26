@@ -431,7 +431,6 @@ const ACTOR_RPC_NAMES = new Set([
 	'driver_confirm_delivery',
 	'driver_list_active_drivers',
 	'driver_list_team_messages',
-	'driver_reject_delivery',
 	'driver_reopen_delivery_route',
 	'driver_send_team_message',
 	'driver_set_online',

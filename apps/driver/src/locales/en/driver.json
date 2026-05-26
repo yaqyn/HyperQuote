@@ -2,6 +2,7 @@
 	"active": {
 		"accept": "Accept delivery",
 		"arrival": "Record arrival",
+		"callDispatch": "Call dispatch",
 		"completed": "Delivery completed.",
 		"current": "Active delivery",
 		"eta": "ETA",
@@ -167,11 +168,6 @@
 	},
 	"shell": {
 		"driver": "Active driver"
-	},
-	"rejection": {
-		"evidence": "Evidence",
-		"reason": "Reason",
-		"submit": "Reject delivery"
 	},
 	"state": {
 		"dashboardErrorBody": "The driver profile could not be loaded from Supabase. Sign out and try again, or contact dispatch.",

@@ -61,11 +61,6 @@ const arrivalSecretInput = z.object({
 	secretCode: z.string().min(1),
 })
 
-const rejectInput = z.object({
-	proof: z.unknown().nullable().optional(),
-	reason: z.string().min(1),
-})
-
 const messageInput = z.object({
 	body: z.string().min(1),
 })
@@ -541,14 +536,6 @@ async function handleDriverApi(request: Request, env: DriverApiEnv) {
 					}
 					throw error
 				}
-			} else if (action === 'reject') {
-				const input = await requestBody(request, rejectInput)
-				const { error } = await ctx.service.rpc('driver_reject_delivery', {
-					p_delivery_id: deliveryId,
-					p_proof: input.proof ?? {},
-					p_reason: input.reason,
-				})
-				if (error) throw error
 			} else if (action === 'reopen') {
 				const { error } = await ctx.service.rpc(
 					'driver_reopen_delivery_route',

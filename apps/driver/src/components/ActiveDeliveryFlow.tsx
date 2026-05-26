@@ -1,9 +1,8 @@
 import jsQR from 'jsqr'
 import {
-	ArrowLeft,
 	ClipboardList,
 	Navigation,
-	OctagonX,
+	PhoneCall,
 	QrCode,
 	ScanLine,
 } from 'lucide-react'
@@ -29,13 +28,10 @@ interface ActiveDeliveryFlowProps {
 	completionStage: 'idle' | 'verifying' | 'location' | 'completing'
 	isCompleting: boolean
 	isMutating: boolean
-	isRejecting: boolean
 	language: DriverLanguage
 	nextDelivery: DriverDelivery | null
 	onAccept: (deliveryId: string) => void
-	onReject: (deliveryId: string, reason: string, evidenceText: string) => void
 	onStart: (deliveryId: string) => void
-	rejectError?: string | null
 }
 
 export function ActiveDeliveryFlow({
@@ -46,13 +42,10 @@ export function ActiveDeliveryFlow({
 	completionStage,
 	isCompleting,
 	isMutating,
-	isRejecting,
 	language,
 	nextDelivery,
 	onAccept,
-	onReject,
 	onStart,
-	rejectError,
 }: ActiveDeliveryFlowProps) {
 	const { t } = useTranslation('driver')
 	const delivery = activeDelivery ?? nextDelivery
@@ -103,6 +96,9 @@ export function ActiveDeliveryFlow({
 					onPress={() => onStart(delivery.id)}
 				/>
 			)}
+			{['assigned', 'accepted', 'in_transit', 'arrived'].includes(
+				delivery.status,
+			) && <CallDispatchButton phone={delivery.warehouseContact.phone} />}
 			{actionError && (
 				<p
 					role="alert"
@@ -113,25 +109,13 @@ export function ActiveDeliveryFlow({
 			)}
 			{(delivery.status === 'in_transit' || delivery.status === 'arrived') && (
 				<CompletionVerificationForm
-					allowReject={delivery.status === 'in_transit'}
 					deliveryId={delivery.id}
 					errorMessage={completeError}
 					completionStage={completionStage}
 					isCompleting={isCompleting}
 					isMutating={isMutating}
-					isRejecting={isRejecting}
 					key={delivery.id}
 					onComplete={completeDelivery}
-					onReject={onReject}
-					rejectError={rejectError}
-				/>
-			)}
-			{['assigned', 'accepted'].includes(delivery.status) && (
-				<RejectionForm
-					deliveryId={delivery.id}
-					errorMessage={rejectError}
-					isRejecting={isRejecting}
-					onReject={onReject}
 				/>
 			)}
 			{delivery.status === 'completed' && (
@@ -145,6 +129,22 @@ export function ActiveDeliveryFlow({
 				</p>
 			)}
 		</div>
+	)
+}
+
+function CallDispatchButton({ phone }: { phone: string }) {
+	const { t } = useTranslation('driver')
+	const normalizedPhone = phone.trim()
+	if (!normalizedPhone) return null
+
+	return (
+		<a
+			href={`tel:${normalizedPhone}`}
+			className="mt-3 flex h-10 w-full items-center justify-between border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm font-semibold text-[var(--color-text)] outline-none transition hover:border-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 sm:h-11"
+		>
+			<span>{t('active.callDispatch')}</span>
+			<PhoneCall aria-hidden="true" size={17} />
+		</a>
 	)
 }
 
@@ -357,30 +357,21 @@ function QrSecretScanner({
 }
 
 function CompletionVerificationForm({
-	allowReject,
 	deliveryId,
 	errorMessage,
 	completionStage,
 	isCompleting,
 	isMutating,
-	isRejecting,
 	onComplete,
-	onReject,
-	rejectError,
 }: {
-	allowReject: boolean
 	deliveryId: string
 	errorMessage?: string | null
 	completionStage: 'idle' | 'verifying' | 'location' | 'completing'
 	isCompleting: boolean
 	isMutating: boolean
-	isRejecting: boolean
 	onComplete: (deliveryId: string, secretCode: string) => void
-	onReject: (deliveryId: string, reason: string, evidenceText: string) => void
-	rejectError?: string | null
 }) {
 	const { t } = useTranslation('driver')
-	const [mode, setMode] = useState<'secret' | 'reject'>('secret')
 	const [secretCode, setSecretCode] = useState('')
 	const [submitted, setSubmitted] = useState(false)
 	const isSubmitting = (submitted || isCompleting) && !errorMessage
@@ -403,7 +394,6 @@ function CompletionVerificationForm({
 			const code = extractDeliverySecretCode(value)
 			if (!code) return
 			setSubmitted(true)
-			setMode('secret')
 			onComplete(deliveryId, code)
 		},
 		[deliveryId, isMutating, isSubmitting, onComplete],
@@ -413,20 +403,6 @@ function CompletionVerificationForm({
 		return (
 			<div className="mt-3 border border-[#047857]/25 bg-[#047857]/10 px-3 py-2 text-sm font-semibold text-[#047857]">
 				<p role="status">{statusMessage}</p>
-			</div>
-		)
-	}
-
-	if (allowReject && mode === 'reject') {
-		return (
-			<div className="mt-2">
-				<RejectionFields
-					deliveryId={deliveryId}
-					errorMessage={rejectError}
-					isRejecting={isRejecting}
-					onCancel={() => setMode('secret')}
-					onReject={onReject}
-				/>
 			</div>
 		)
 	}
@@ -459,12 +435,7 @@ function CompletionVerificationForm({
 				onSecretScanned={submitSecret}
 			/>
 
-			<div
-				className={[
-					'grid gap-2',
-					allowReject ? 'grid-cols-[minmax(0,1fr)_3rem]' : '',
-				].join(' ')}
-			>
+			<div className="grid gap-2">
 				<Button
 					type="submit"
 					isDisabled={!canSubmit}
@@ -473,17 +444,6 @@ function CompletionVerificationForm({
 					<span>{t('verification.complete')}</span>
 					<ClipboardList aria-hidden="true" size={17} />
 				</Button>
-				{allowReject && (
-					<Button
-						type="button"
-						aria-label={t('rejection.submit')}
-						isDisabled={isRejecting}
-						onPress={() => setMode('reject')}
-						className="grid h-10 w-12 place-items-center border border-[#B91C1C]/35 bg-[#B91C1C]/8 text-[#B91C1C] outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/30 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
-					>
-						<OctagonX aria-hidden="true" size={18} />
-					</Button>
-				)}
 			</div>
 			{errorMessage && (
 				<p
@@ -494,128 +454,5 @@ function CompletionVerificationForm({
 				</p>
 			)}
 		</form>
-	)
-}
-
-function RejectionFields({
-	deliveryId,
-	errorMessage,
-	isRejecting,
-	onCancel,
-	onReject,
-}: {
-	deliveryId: string
-	errorMessage?: string | null
-	isRejecting: boolean
-	onCancel?: () => void
-	onReject: (deliveryId: string, reason: string, evidenceText: string) => void
-}) {
-	const { t } = useTranslation('driver')
-	const [reason, setReason] = useState('')
-	const [evidenceText, setEvidenceText] = useState('')
-	const canReject = reason.trim().length >= 3 && evidenceText.trim().length >= 3
-
-	return (
-		<>
-			<div className="grid gap-2 sm:grid-cols-2">
-				<TextField>
-					<Label className="mb-1.5 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-[var(--color-text-muted)]">
-						{t('rejection.reason')}
-					</Label>
-					<Input
-						value={reason}
-						onChange={(event) => setReason(event.target.value)}
-						className="h-10 w-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15 sm:h-11"
-					/>
-				</TextField>
-				<TextField>
-					<Label className="mb-1.5 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase text-[var(--color-text-muted)]">
-						{t('rejection.evidence')}
-					</Label>
-					<Input
-						value={evidenceText}
-						onChange={(event) => setEvidenceText(event.target.value)}
-						className="h-10 w-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/15 sm:h-11"
-					/>
-				</TextField>
-			</div>
-			<div
-				className={[
-					'mt-2 grid gap-2 sm:mt-3',
-					onCancel ? 'grid-cols-[3rem_minmax(0,1fr)]' : '',
-				].join(' ')}
-			>
-				{onCancel && (
-					<Button
-						type="button"
-						aria-label={t('arrival.backToRoute')}
-						isDisabled={isRejecting}
-						onPress={onCancel}
-						className="grid h-10 w-12 place-items-center border border-[var(--color-border)] bg-[var(--color-surface)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
-					>
-						<ArrowLeft aria-hidden="true" size={17} />
-					</Button>
-				)}
-				<Button
-					type="button"
-					isDisabled={!canReject || isRejecting}
-					onPress={() =>
-						onReject(deliveryId, reason.trim(), evidenceText.trim())
-					}
-					className="flex h-10 w-full items-center justify-between border border-[#B91C1C]/35 bg-[#B91C1C]/8 px-3 text-sm font-semibold text-[#B91C1C] outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/30 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11"
-				>
-					<span>{t('rejection.submit')}</span>
-					<OctagonX aria-hidden="true" size={17} />
-				</Button>
-			</div>
-			{errorMessage && (
-				<p
-					role="alert"
-					className="mt-2 text-xs font-semibold text-[#B91C1C] sm:text-sm"
-				>
-					{errorMessage}
-				</p>
-			)}
-		</>
-	)
-}
-
-function RejectionForm({
-	deliveryId,
-	errorMessage,
-	isRejecting,
-	onReject,
-}: {
-	deliveryId: string
-	errorMessage?: string | null
-	isRejecting: boolean
-	onReject: (deliveryId: string, reason: string, evidenceText: string) => void
-}) {
-	const { t } = useTranslation('driver')
-	const [isOpen, setIsOpen] = useState(false)
-
-	if (!isOpen && !errorMessage) {
-		return (
-			<Button
-				type="button"
-				isDisabled={isRejecting}
-				onPress={() => setIsOpen(true)}
-				className="mt-3 flex h-9 w-full items-center justify-between border border-[#B91C1C]/25 bg-[#B91C1C]/8 px-3 text-xs font-semibold text-[#B91C1C] outline-none focus-visible:ring-2 focus-visible:ring-[#B91C1C]/30 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:text-sm"
-			>
-				<span>{t('rejection.submit')}</span>
-				<OctagonX aria-hidden="true" size={16} />
-			</Button>
-		)
-	}
-
-	return (
-		<div className="mt-3 border-t border-[var(--color-border)] pt-3">
-			<RejectionFields
-				deliveryId={deliveryId}
-				errorMessage={errorMessage}
-				isRejecting={isRejecting}
-				onReject={onReject}
-			/>
-		</div>
 	)
 }

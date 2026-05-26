@@ -73,6 +73,63 @@ describe('driver app contracts', () => {
 		expect(source).not.toContain('mutateAsync(routeCandidate.id)')
 	})
 
+	it('keeps driver exceptions as dispatch calls instead of driver rejection', () => {
+		const activeFlowSource = readFileSync(
+			new URL('../components/ActiveDeliveryFlow.tsx', import.meta.url),
+			'utf8',
+		)
+		const apiSource = readFileSync(
+			new URL('../api.ts', import.meta.url),
+			'utf8',
+		)
+		const shellSource = readFileSync(
+			new URL('../components/DriverShell.tsx', import.meta.url),
+			'utf8',
+		)
+		const repositorySource = readFileSync(
+			new URL('../lib/supabase-driver-repository.ts', import.meta.url),
+			'utf8',
+		)
+		const authSource = readFileSync(
+			new URL('../../../../packages/auth/src/server.ts', import.meta.url),
+			'utf8',
+		)
+		const driverRejectSource = latestMigrationFunctionSource(
+			'public.driver_reject_delivery',
+		)
+		const workflowGuardSource = latestMigrationFunctionSource(
+			'app_private.workflow_state_change_is_authorized',
+		)
+
+		expect(activeFlowSource).toContain('active.callDispatch')
+		expect(activeFlowSource).toMatch(/href=\{`tel:\$\{normalizedPhone\}`\}/)
+		expect(activeFlowSource).not.toContain('RejectionForm')
+		expect(activeFlowSource).not.toContain('rejection.submit')
+		expect(apiSource).not.toContain('driver_reject_delivery')
+		expect(apiSource).not.toContain("action === 'reject'")
+		expect(shellSource).not.toContain('rejectDelivery')
+		expect(repositorySource).not.toContain('rejectDelivery(')
+		expect(repositorySource).not.toContain("| 'reject'")
+		expect(authSource).not.toContain("'driver_reject_delivery'")
+		expect(driverRejectSource).toContain('driver_contact_dispatch_required')
+		expect(workflowGuardSource).not.toContain('public.driver_reject_delivery')
+	})
+
+	it('releases actual delivery drivers when dispatch returns a loaded order', () => {
+		const source = latestMigrationFunctionSource(
+			'public.dispatch_return_loaded_order',
+		)
+
+		expect(source).toContain('release_driver_ids')
+		expect(source).toMatch(
+			/select driver_id[\s\S]*from public\.loading_task_drivers[\s\S]*union[\s\S]*select driver_id[\s\S]*from public\.deliveries/,
+		)
+		expect(source).toContain('where id = any(release_driver_ids)')
+		expect(source).toContain("status <> 'disabled'")
+		expect(source).toContain('where id = any(release_truck_ids)')
+		expect(source).toContain("status <> 'maintenance'")
+	})
+
 	it('keeps warehouse sign-off as the route-starting confirmation', () => {
 		const warehouseApproveSource = latestMigrationFunctionSource(
 			'public.warehouse_approve_loading',

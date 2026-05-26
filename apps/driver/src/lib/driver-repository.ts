@@ -157,12 +157,6 @@ export interface DriverRepository {
 	listActiveDrivers(): Promise<DriverProfile[]>
 	listDeliveries(): Promise<DriverDelivery[]>
 	listTeamMessages(): Promise<TeamMessage[]>
-	rejectDelivery(
-		deliveryId: string,
-		driverId: string,
-		reason: string,
-		proof: DeliveryRejectionProof | null,
-	): Promise<DriverDelivery>
 	reopenRoute(deliveryId: string, driverId: string): Promise<DriverDelivery>
 	sendTeamMessage(driverId: string, body: string): Promise<TeamMessage>
 	setOnline(driverId: string, online: boolean): Promise<DriverProfile>

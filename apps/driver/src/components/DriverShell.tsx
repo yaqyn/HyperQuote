@@ -195,36 +195,6 @@ export function DriverShell({ session }: DriverShellProps) {
 			driverRepository.setOnline(session.driverId, online),
 		onSuccess: invalidateDriverQueries,
 	})
-	const rejectDelivery = useMutation({
-		mutationFn: async ({
-			deliveryId,
-			evidenceText,
-			reason,
-		}: {
-			deliveryId: string
-			evidenceText: string
-			reason: string
-		}) => {
-			const location = await locationProvider.getCurrentPosition()
-			return driverRepository.rejectDelivery(
-				deliveryId,
-				session.driverId,
-				reason,
-				reason || evidenceText
-					? {
-							capturedAt: new Date().toISOString(),
-							evidenceText,
-							location,
-							reason,
-						}
-					: null,
-			)
-		},
-		onSuccess: (delivery) => {
-			setRecentOutcomeDelivery(delivery)
-			invalidateDriverQueries()
-		},
-	})
 
 	const currentDriver = dashboard.data?.currentDriver
 	const activeDelivery = dashboard.data?.activeDelivery ?? null
@@ -508,18 +478,10 @@ export function DriverShell({ session }: DriverShellProps) {
 								startDelivery.isPending ||
 								completeDelivery.isPending
 							}
-							isRejecting={rejectDelivery.isPending}
 							language={language}
 							nextDelivery={nextDelivery}
 							onAccept={(deliveryId) => acceptDelivery.mutate(deliveryId)}
-							onReject={(deliveryId, reason, evidenceText) =>
-								rejectDelivery.mutate({ deliveryId, evidenceText, reason })
-							}
 							onStart={(deliveryId) => startDelivery.mutate(deliveryId)}
-							rejectError={driverMutationError(
-								rejectDelivery.error,
-								errorMessages,
-							)}
 						/>
 					</div>
 				</section>
