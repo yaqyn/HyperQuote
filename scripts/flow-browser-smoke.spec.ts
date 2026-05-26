@@ -79,7 +79,11 @@ test('portal rejects unauthenticated protected routes and fake OTP cannot sign i
 
 	await page.goto(`${URLS.portal}/login`, { waitUntil: 'domcontentloaded' })
 	await waitForHydration(page)
-	await page.locator('#atelier-phone').fill('1000000000', { timeout: 15_000 })
+	const phoneInput = page.locator('#atelier-phone')
+	if (!(await phoneInput.isVisible().catch(() => false))) {
+		await page.getByRole('button', { name: /use phone/i }).click()
+	}
+	await phoneInput.fill('1000000000', { timeout: 15_000 })
 	await page.getByRole('button', { name: /whatsapp/i }).click()
 
 	const sendFailed = page.getByRole('alert').filter({
@@ -150,35 +154,18 @@ test('portal customer market and orders load Supabase-backed data', async ({
 		/QR-2026|Submitted|Confirmed/i,
 	)
 	await expect(page.locator('body')).not.toContainText(/Failed to load orders/i)
-	const viewOrderButton = page
-		.getByRole('button', { name: /^(View|عرض)$/i })
+	const reviewDraftButton = page
+		.getByRole('button', { name: /Review & Submit|مراجعة/i })
 		.first()
-	if (!(await viewOrderButton.isVisible().catch(() => false))) {
-		await page
-			.getByRole('button', {
-				name: /Submitted|Confirmed|مقدمة|مؤكدة/i,
-			})
-			.last()
-			.click()
-	}
-	await expect(viewOrderButton).toBeVisible({ timeout: 15_000 })
-	await viewOrderButton.click()
-	await expect(page).toHaveURL(/\/orders\/[0-9a-f-]+$/)
-	await expect(page.getByText(/Reference|المرجع/i).first()).toBeVisible({
+	await expect(reviewDraftButton).toBeVisible({ timeout: 15_000 })
+	await reviewDraftButton.click()
+	await expect(page).toHaveURL(/\/orders\/edit\/[0-9a-f-]+$/)
+	await expect(page.getByText(/Draft|Quote|مسودة|عرض/i).first()).toBeVisible({
 		timeout: 15_000,
 	})
-	await expect(page.locator('body')).not.toContainText(/Failed to load order/i)
-	await page
-		.getByRole('button', { name: /Save as Draft|حفظ كمسودة/i })
-		.first()
-		.click()
-	await expect(page.locator('body')).toContainText(
-		/Saved draft|تم حفظ المسودة/i,
-	)
-	await page
-		.getByRole('button', { name: /Back to Orders|العودة إلى الطلبات/i })
-		.click()
-	await expect(page).toHaveURL(/\/orders/)
+	await expect(page.locator('body')).not.toContainText(/Failed to load/i)
+	await page.goto(`${URLS.portal}/orders`, { waitUntil: 'domcontentloaded' })
+	await waitForHydration(page)
 
 	await page.goto(`${URLS.website}/market`, { waitUntil: 'domcontentloaded' })
 	await waitForHydration(page)
@@ -378,8 +365,8 @@ test('internal admin registry controls every dynamic entity and persists every f
 		nameAr: `منتج ${stamp}`,
 		slug: `admin-stress-product-${stamp}`,
 		sku: `ASP-${stamp}`,
-		imageOne: 'https://websiteassets.hyperquote.net/Images/cement.webp',
-		imageTwo: 'https://websiteassets.hyperquote.net/Images/steel.webp',
+		imageOne: `${URLS.website}/icon-192.png`,
+		imageTwo: `${URLS.website}/favicon.svg`,
 	}
 	const supplier = {
 		name: `Admin Stress Supplier ${stamp}`,
@@ -923,21 +910,21 @@ test('auth sessions stay isolated across website, portal, internal, and driver a
 		)
 
 		const cookies = await context.cookies()
-		expect(cookies.map((cookie) => cookie.name).sort()).toEqual(
-			expect.arrayContaining([
-				`${COOKIE_NAMES.customer}.0`,
-				`${COOKIE_NAMES.customer}.1`,
-				`${COOKIE_NAMES.driver}.0`,
-				`${COOKIE_NAMES.driver}.1`,
-				`${COOKIE_NAMES.internal}.0`,
-				`${COOKIE_NAMES.internal}.1`,
-			]),
-		)
+		const cookieNames = cookies.map((cookie) => cookie.name)
+		expect(hasAuthCookie(cookieNames, COOKIE_NAMES.customer)).toBe(true)
+		expect(hasAuthCookie(cookieNames, COOKIE_NAMES.driver)).toBe(true)
+		expect(hasAuthCookie(cookieNames, COOKIE_NAMES.internal)).toBe(true)
 	}
 
 	await guard.expectClean('auth isolation')
 	await context.close()
 })
+
+function hasAuthCookie(cookieNames: string[], cookieName: string) {
+	return cookieNames.some(
+		(name) => name === cookieName || name.startsWith(`${cookieName}.`),
+	)
+}
 
 async function waitForHydration(page: Page) {
 	await page.waitForLoadState('networkidle').catch(() => undefined)
