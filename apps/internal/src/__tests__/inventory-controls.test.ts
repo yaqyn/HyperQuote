@@ -97,6 +97,7 @@ describe('inventory controls', () => {
 		expect(damagedServer).toContain('disposeDamagedInventory')
 		expect(damagedServer).toContain('reverseInventoryDamage')
 		expect(damagedServer).toContain('verifyEmployeeCredential')
+		expect(damagedServer).toContain('[89ab][0-9a-f]{3}-[0-9a-f]{12}')
 		expect(damagedServer).toContain("allowedPanels: new Set(['inventory'])")
 		expect(employeeCredentials).toContain(
 			'employee_panel_permissions(panel, can_write)',
