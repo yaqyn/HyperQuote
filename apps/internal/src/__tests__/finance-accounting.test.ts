@@ -99,6 +99,17 @@ describe('finance accounting rebuild', () => {
 		expect(accountingViewSource).toContain("onSelect('journal')")
 	})
 
+	it('keeps the accounting surface tuned for tablet breakpoints', () => {
+		expect(accountingViewSource).toContain('md:grid-cols-5 xl:grid-cols-9')
+		expect(accountingViewSource).toContain('md:grid-cols-2')
+		expect(accountingViewSource).toContain(
+			'lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]',
+		)
+		expect(accountingViewSource).toContain(
+			'lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]',
+		)
+	})
+
 	it('replaces the stale Finance history placeholder with Accounting', () => {
 		expect(financeModuleSource).not.toContain('HistoryPlaceholder')
 		expect(financeModuleSource).not.toContain('History is not connected yet')

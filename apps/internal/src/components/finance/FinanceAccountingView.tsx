@@ -140,7 +140,7 @@ export function FinanceAccountingView() {
 
 	return (
 		<div className="relative">
-			<div className="mx-auto flex max-w-[1180px] flex-col px-4 pt-6 pb-16 sm:px-6 lg:px-10 lg:pt-8">
+			<div className="mx-auto flex max-w-[1180px] flex-col px-4 pt-6 pb-16 sm:px-6 lg:px-8 lg:pt-8 xl:px-10">
 				<AccountingMasthead
 					dashboard={dashboard}
 					periodStart={periodStart}
@@ -314,9 +314,9 @@ function AccountingViewStrip({
 	return (
 		<nav
 			aria-label="Accounting views"
-			className="sticky top-0 z-10 -mx-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:bg-transparent lg:px-0 lg:backdrop-blur-none"
+			className="sticky top-0 z-10 -mx-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:mx-0 lg:bg-transparent lg:px-0 xl:static xl:backdrop-blur-none"
 		>
-			<ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-9">
+			<ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-9">
 				{ACCOUNTING_VIEWS.map((view) => {
 					const Icon = view.icon
 					return (
@@ -414,9 +414,9 @@ function OverviewView({
 
 	return (
 		<section className="mt-6 space-y-8">
-			<div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
+			<div className="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
 				<div className="space-y-6">
-					<div className="grid gap-6 lg:grid-cols-2">
+					<div className="grid gap-6 md:grid-cols-2">
 						<AccountingPanel title="Balance sheet" meta={dashboard.period.end}>
 							<LedgerRows rows={balanceRows} countLabels={COUNT_METRICS} />
 						</AccountingPanel>
@@ -429,9 +429,9 @@ function OverviewView({
 						title="Period movement"
 						meta={dashboard.period.start}
 					>
-						<div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-end">
+						<div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_220px] md:items-end">
 							<LedgerRows rows={movementRows} countLabels={COUNT_METRICS} />
-							<div className="border-t border-[var(--color-border)] pt-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
+							<div className="border-t border-[var(--color-border)] pt-4 md:border-t-0 md:border-l md:pt-0 md:pl-5">
 								<p className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
 									Net business performance
 								</p>
@@ -476,7 +476,7 @@ function OverviewView({
 				</AccountingPanel>
 			</div>
 
-			<div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+			<div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
 				<AccountingPanel
 					title="Inventory asset register"
 					meta={`${dashboard.inventoryAssets.length} rows`}
