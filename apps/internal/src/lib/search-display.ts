@@ -93,6 +93,17 @@ const sourceLabels: Record<string, string> = {
 	customer_payment: 'Customer receipt',
 	delivery_proof: 'Delivery proof',
 	document: 'Document',
+	finance_account: 'Finance account',
+	finance_accounting_overview: 'Finance overview',
+	finance_adjustment: 'Finance adjustment',
+	finance_cash_flow: 'Cash flow',
+	finance_income_statement: 'Income statement',
+	finance_inventory_asset: 'Inventory asset',
+	finance_journal_entry: 'Journal entry',
+	finance_payable: 'Supplier payable',
+	finance_payment_followup: 'Finance follow-up',
+	finance_payroll: 'Finance payroll',
+	finance_receivable: 'Customer receivable',
 	price_update: 'Price update',
 	price_update_request: 'Price request',
 	pricing_rule: 'Pricing rule',
@@ -534,6 +545,27 @@ function financePaymentStatus(row: SearchDisplayIndexRow): string | null {
 	)
 }
 
+function financeRecordType(row: SearchDisplayIndexRow): string | null {
+	const metadata = metadataObject(row.metadata)
+	return (
+		formatSource(stringValue(metadata, 'source')) ??
+		humanizeIdentifier(row.title)
+	)
+}
+
+function financePrimaryAmount(metadata: JsonObject): string | null {
+	return (
+		formatMoney(numberValue(metadata, 'total_assets')) ??
+		formatMoney(numberValue(metadata, 'net_cash_movement')) ??
+		formatMoney(numberValue(metadata, 'net_performance')) ??
+		formatMoney(numberValue(metadata, 'remaining_due')) ??
+		formatMoney(numberValue(metadata, 'valuation')) ??
+		formatMoney(numberValue(metadata, 'amount')) ??
+		formatMoney(numberValue(metadata, 'total_due')) ??
+		formatMoney(numberValue(metadata, 'cash_balance'))
+	)
+}
+
 function genericPreviewFields(
 	row: SearchDisplayIndexRow,
 ): SearchPreviewField[] {
@@ -657,6 +689,53 @@ export function buildSearchPreviewFields(
 					'Product',
 					stringValue(metadata, 'product_name') ??
 						stringValue(metadata, 'item_summary'),
+				),
+			)
+		case 'finance':
+			return fields(
+				previewField('Record', financeRecordType(row)),
+				previewField(
+					'Status',
+					financePaymentStatus(row) ??
+						formatStatus(stringValue(metadata, 'status')),
+				),
+				previewField('Amount', financePrimaryAmount(metadata)),
+				previewField(
+					'Counterparty',
+					stringValue(metadata, 'customer_name') ??
+						stringValue(metadata, 'supplier_name') ??
+						stringValue(metadata, 'counterparty_type'),
+				),
+				previewField(
+					'Product',
+					stringValue(metadata, 'product_name') ??
+						stringValue(metadata, 'product_sku'),
+				),
+				previewField(
+					'Record no.',
+					stringValue(metadata, 'entry_number') ??
+						stringValue(metadata, 'order_number') ??
+						stringValue(metadata, 'account_code'),
+				),
+				previewField(
+					'Review',
+					booleanValue(metadata, 'requires_accountant_signoff') === true
+						? 'Accountant sign-off'
+						: null,
+				),
+			)
+		case 'finance_payroll':
+			return fields(
+				previewField('Employee', stringValue(metadata, 'employee_name')),
+				previewField('Department', stringValue(metadata, 'department')),
+				previewField('Title', stringValue(metadata, 'title')),
+				previewField(
+					'Base salary',
+					formatMoney(numberValue(metadata, 'base_salary')),
+				),
+				previewField(
+					'Social insurance',
+					formatMoney(numberValue(metadata, 'social_insurance_salary')),
 				),
 			)
 		case 'inventory': {
@@ -1063,6 +1142,96 @@ export function buildSearchDetailFields(
 					stringValue(metadata, 'follow_up_notes'),
 				),
 				detailField('Recorded', formatDateTime(metadata.created_at)),
+			)
+		case 'finance':
+			return details(
+				detailField('Record type', financeRecordType(row)),
+				detailField(
+					'Status',
+					financePaymentStatus(row) ??
+						formatStatus(stringValue(metadata, 'status')),
+				),
+				detailField(
+					'Accounting period',
+					stringValue(metadata, 'accounting_period'),
+				),
+				detailField(
+					'Accounting date',
+					formatDateTime(metadata.accounting_date),
+				),
+				detailField(
+					'Total assets',
+					formatMoney(numberValue(metadata, 'total_assets')),
+				),
+				detailField(
+					'Cash balance',
+					formatMoney(numberValue(metadata, 'cash_balance')),
+				),
+				detailField(
+					'Net cash movement',
+					formatMoney(numberValue(metadata, 'net_cash_movement')),
+				),
+				detailField('Revenue', formatMoney(numberValue(metadata, 'revenue'))),
+				detailField('Expenses', formatMoney(numberValue(metadata, 'expenses'))),
+				detailField(
+					'Net performance',
+					formatMoney(numberValue(metadata, 'net_performance')),
+				),
+				detailField(
+					'Total due',
+					formatMoney(numberValue(metadata, 'total_due')),
+				),
+				detailField('Paid', formatMoney(numberValue(metadata, 'amount_paid'))),
+				detailField(
+					'Remaining',
+					formatMoney(numberValue(metadata, 'remaining_due')),
+				),
+				detailField(
+					'Valuation',
+					formatMoney(numberValue(metadata, 'valuation')),
+				),
+				detailField('Amount', formatMoney(numberValue(metadata, 'amount'))),
+				detailField('Entry', stringValue(metadata, 'entry_number')),
+				detailField('Account', stringValue(metadata, 'account_name')),
+				detailField('Account code', stringValue(metadata, 'account_code')),
+				detailField('Customer', stringValue(metadata, 'customer_name')),
+				detailField('Supplier', stringValue(metadata, 'supplier_name')),
+				detailField('Product', stringValue(metadata, 'product_name')),
+				detailField('Description', stringValue(metadata, 'description')),
+				detailField('Sign-off reason', stringValue(metadata, 'signoff_reason')),
+				detailField(
+					'Review required',
+					formatNumber(numberValue(metadata, 'review_required_count')),
+				),
+				detailField(
+					'Unposted journals',
+					formatNumber(numberValue(metadata, 'unposted_count')),
+				),
+				detailField('Proof', stringValue(metadata, 'proof_path')),
+				detailField('Created', formatDateTime(metadata.created_at)),
+				detailField('Updated', formatDateTime(metadata.updated_at)),
+			)
+		case 'finance_payroll':
+			return details(
+				detailField('Employee', stringValue(metadata, 'employee_name')),
+				detailField(
+					'Employee status',
+					formatStatus(stringValue(metadata, 'employee_status')),
+				),
+				detailField('Department', stringValue(metadata, 'department')),
+				detailField('Title', stringValue(metadata, 'title')),
+				detailField('Hire date', formatDateTime(metadata.hire_date)),
+				detailField(
+					'Base salary',
+					formatMoney(numberValue(metadata, 'base_salary')),
+				),
+				detailField(
+					'Social insurance salary',
+					formatMoney(numberValue(metadata, 'social_insurance_salary')),
+				),
+				detailField('Currency', stringValue(metadata, 'salary_currency')),
+				detailField('Updated by', stringValue(metadata, 'updated_by')),
+				detailField('Updated', formatDateTime(metadata.updated_at)),
 			)
 		case 'inventory': {
 			const unit = stringValue(metadata, 'unit_of_measure')
@@ -1566,6 +1735,27 @@ export function buildSearchSummaryNote(
 			]
 				.filter(Boolean)
 				.join(' - ')
+		case 'finance':
+			return [
+				financeRecordType(row),
+				financePaymentStatus(row) ??
+					formatStatus(stringValue(metadata, 'status')),
+				stringValue(metadata, 'customer_name') ??
+					stringValue(metadata, 'supplier_name') ??
+					stringValue(metadata, 'product_name') ??
+					stringValue(metadata, 'account_name'),
+				financePrimaryAmount(metadata),
+			]
+				.filter(Boolean)
+				.join(' - ')
+		case 'finance_payroll':
+			return [
+				stringValue(metadata, 'employee_name'),
+				stringValue(metadata, 'department'),
+				formatMoney(numberValue(metadata, 'base_salary')),
+			]
+				.filter(Boolean)
+				.join(' - ')
 		case 'inventory': {
 			const unit = stringValue(metadata, 'unit_of_measure')
 			return [
@@ -1751,6 +1941,12 @@ export function buildSearchSummaryBuckets(
 		case 'finance':
 			return [
 				bucket(
+					'finance-accounting',
+					'Accounting records',
+					rows,
+					(row) => row.entity_type === 'finance',
+				),
+				bucket(
 					'finance-receivables',
 					'Customer receivables',
 					rows,
@@ -1763,6 +1959,12 @@ export function buildSearchSummaryBuckets(
 					isSupplierPayable,
 				),
 				bucket('finance-paid', 'Paid', rows, isPaidFinanceRow),
+				bucket(
+					'finance-payroll',
+					'Payroll',
+					rows,
+					(row) => row.entity_type === 'finance_payroll',
+				),
 			]
 		case 'dispatch':
 			return [
@@ -1822,6 +2024,8 @@ export function buildSearchSummarySections(
 			]
 		case 'finance':
 			return [
+				entitySection('finance-accounting', 'Accounting', rows, 'finance'),
+				entitySection('finance-payroll', 'Payroll', rows, 'finance_payroll'),
 				entitySection('finance-inbox', 'Finance inbox', rows, 'payment'),
 				bucket(
 					'finance-customer-orders',
@@ -2005,23 +2209,25 @@ function isWarehouseReceiving(row: SearchDisplayIndexRow): boolean {
 
 function isPaidFinanceRow(row: SearchDisplayIndexRow): boolean {
 	return (
-		row.entity_type === 'payment' &&
+		(row.entity_type === 'payment' || row.entity_type === 'finance') &&
 		['completed', 'paid', 'settled'].includes(rowPaymentStatusKey(row))
 	)
 }
 
 function isCustomerReceivable(row: SearchDisplayIndexRow): boolean {
+	const source = rowMetadataSourceKey(row)
 	return (
-		row.entity_type === 'payment' &&
-		rowMetadataSourceKey(row) === 'customer_payment' &&
+		(row.entity_type === 'payment' || row.entity_type === 'finance') &&
+		(source === 'customer_payment' || source === 'finance_receivable') &&
 		!isPaidFinanceRow(row)
 	)
 }
 
 function isSupplierPayable(row: SearchDisplayIndexRow): boolean {
+	const source = rowMetadataSourceKey(row)
 	return (
-		row.entity_type === 'payment' &&
-		rowMetadataSourceKey(row) === 'supplier_payment' &&
+		(row.entity_type === 'payment' || row.entity_type === 'finance') &&
+		(source === 'supplier_payment' || source === 'finance_payable') &&
 		!isPaidFinanceRow(row)
 	)
 }

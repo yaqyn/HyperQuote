@@ -249,6 +249,59 @@ describe('Search display formatting', () => {
 		)
 	})
 
+	it('projects finance accounting and payroll rows', () => {
+		const accountingRow: SearchDisplayIndexRow = {
+			entity_type: 'finance',
+			entity_id: 'journal_entry:entry-1',
+			title: 'Journal entry JE-2026-000001',
+			subtitle: 'draft',
+			metadata: {
+				accounting_period: '2026-05',
+				amount: 2500,
+				entry_number: 'JE-2026-000001',
+				requires_accountant_signoff: true,
+				source: 'finance_journal_entry',
+				status: 'draft',
+			},
+		}
+		const payrollRow: SearchDisplayIndexRow = {
+			entity_type: 'finance_payroll',
+			entity_id: 'finance_payroll:employee-1',
+			title: 'Payroll - Mona Finance',
+			subtitle: 'Finance',
+			metadata: {
+				base_salary: 12000,
+				department: 'Finance',
+				employee_name: 'Mona Finance',
+				social_insurance_salary: 8000,
+				source: 'finance_payroll',
+				title: 'Accountant',
+			},
+		}
+
+		expect(buildSearchPreviewFields(accountingRow)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Record', value: 'Journal entry' },
+				{ label: 'Status', value: 'Draft' },
+				{ label: 'Amount', value: 'EGP 2,500' },
+				{ label: 'Review', value: 'Accountant sign-off' },
+			]),
+		)
+		expect(buildSearchDetailFields(accountingRow)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Entry', value: 'JE-2026-000001' },
+				{ label: 'Accounting period', value: '2026-05' },
+			]),
+		)
+		expect(buildSearchPreviewFields(payrollRow)).toEqual(
+			expect.arrayContaining([
+				{ label: 'Employee', value: 'Mona Finance' },
+				{ label: 'Base salary', value: 'EGP 12,000' },
+				{ label: 'Social insurance', value: 'EGP 8,000' },
+			]),
+		)
+	})
+
 	it('replaces raw source and action titles where the index title is technical', () => {
 		expect(
 			buildSearchDisplayTitle(row('payment', 'customer_payment', 'paid')),
@@ -483,6 +536,15 @@ describe('Search display formatting', () => {
 			row('payment', 'customer_payment', 'unpaid'),
 			row('payment', 'supplier_payment', 'partial'),
 			row('payment', 'customer_payment', 'paid'),
+			row('finance', 'Finance accounting overview', 'overview', {
+				source: 'finance_accounting_overview',
+				total_assets: 1000,
+			}),
+			row('finance_payroll', 'Payroll - Mona Finance', 'Finance', {
+				base_salary: 12000,
+				employee_name: 'Mona Finance',
+				source: 'finance_payroll',
+			}),
 			row('dispatch', 'DEL-1', 'out_for_delivery'),
 			row('driver', 'Mina Farid', 'available', { driver_status: 'available' }),
 			row('driver', 'Omar Adel', 'offline', { driver_status: 'offline' }),
@@ -521,9 +583,11 @@ describe('Search display formatting', () => {
 			['Rejected', 1],
 		])
 		expect(counts('finance', rows)).toEqual([
+			['Accounting records', 1],
 			['Customer receivables', 1],
 			['Supplier payables', 1],
 			['Paid', 1],
+			['Payroll', 1],
 		])
 		expect(counts('dispatch', rows)).toEqual([
 			['Deliveries', 1],
@@ -551,6 +615,13 @@ describe('Search display formatting', () => {
 			row('payment', 'Customer payment - ORD-1', 'unpaid', {
 				source: 'customer_payment',
 				payment_status: 'unpaid',
+			}),
+			row('finance', 'Journal entry JE-1', 'draft', {
+				source: 'finance_journal_entry',
+			}),
+			row('finance_payroll', 'Payroll - Mona Finance', 'Finance', {
+				employee_name: 'Mona Finance',
+				source: 'finance_payroll',
 			}),
 			row('dispatch', 'DEL-1', 'assigned'),
 			row('driver', 'Mina Farid', 'available'),
@@ -607,6 +678,8 @@ describe('Search display formatting', () => {
 			['Documents', 1],
 		])
 		expect(sectionCounts('finance', rows)).toEqual([
+			['Accounting', 1],
+			['Payroll', 1],
 			['Finance inbox', 1],
 			['Customer orders', 1],
 			['Approvals', 1],

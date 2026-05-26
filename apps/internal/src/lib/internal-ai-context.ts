@@ -55,6 +55,26 @@ const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 		readEntities: ['ceo_search_payment_vtable'],
 	},
 	{
+		entityType: 'finance',
+		keywords: [
+			'accounting',
+			'ledger',
+			'journal',
+			'asset',
+			'assets',
+			'receivable',
+			'receivables',
+			'payable',
+			'payables',
+			'cash flow',
+			'income statement',
+			'balance sheet',
+		],
+		label: 'Finance accounting',
+		normalPanelAccess: true,
+		readEntities: ['ceo_search_finance_vtable'],
+	},
+	{
 		entityType: 'approval',
 		keywords: ['approval', 'approvals', 'approve', 'pending approval'],
 		label: 'Approvals',
@@ -156,6 +176,13 @@ const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 		readEntities: ['ceo_search_employee_vtable'],
 	},
 	{
+		entityType: 'finance_payroll',
+		keywords: ['payroll', 'salary', 'salaries', 'social insurance'],
+		label: 'Finance payroll',
+		normalPanelAccess: false,
+		readEntities: ['ceo_search_finance_payroll_vtable'],
+	},
+	{
 		entityType: 'activity',
 		keywords: ['activity', 'activities', 'audit', 'event', 'history'],
 		label: 'Activities',
@@ -210,7 +237,11 @@ export function normalPanelExcludedRequest(userText: string): string | null {
 	if (/\b(activities|activity|audit log|audit history)\b/.test(lower)) {
 		return 'Normal internal AI cannot read activity history. Open Search for audited activity analysis.'
 	}
-	if (/\b(employee|employees|staff|salary|salaries)\b/.test(lower)) {
+	if (
+		/\b(employee|employees|staff|payroll|salary|salaries|social insurance)\b/.test(
+			lower,
+		)
+	) {
 		return 'Normal internal AI cannot read employee information. Open Search for employee-aware analysis.'
 	}
 	return null

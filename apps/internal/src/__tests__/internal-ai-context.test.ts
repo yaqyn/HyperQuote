@@ -29,17 +29,24 @@ describe('internal AI vtable context', () => {
 		)
 
 		expect(normalEntities).toContain('payment')
+		expect(normalEntities).toContain('finance')
 		expect(normalEntities).toContain('document')
 		expect(normalEntities).not.toContain('employee')
+		expect(normalEntities).not.toContain('finance_payroll')
 		expect(normalEntities).not.toContain('activity')
 		expect(searchEntities).toContain('employee')
+		expect(searchEntities).toContain('finance_payroll')
 		expect(searchEntities).toContain('activity')
 	})
 
 	it('keeps the DB search RPC aligned with AI vtable scopes', () => {
-		const migration = readWorkspaceFile(
+		const baseMigration = readWorkspaceFile(
 			'supabase/migrations/20260525065956_internal_ai_scoped_search_documents.sql',
 		)
+		const financeMigration = readWorkspaceFile(
+			'supabase/migrations/20260526013854_ceo_search_finance_vtables.sql',
+		)
+		const migration = `${baseMigration}\n${financeMigration}`
 		const aiChatSource = readWorkspaceFile('apps/internal/src/lib/ai-chat.ts')
 		const authServerSource = readWorkspaceFile('packages/auth/src/server.ts')
 		const normalEntities = allowedInternalAiVtables('employee').map(
@@ -48,18 +55,21 @@ describe('internal AI vtable context', () => {
 		const searchEntities = allowedInternalAiVtables('search').map(
 			(vtable) => vtable.entityType,
 		)
-		const normalBranch = migration.slice(
-			migration.indexOf('else array['),
-			migration.indexOf('\n\t\t\tend', migration.indexOf('else array[')),
+		const normalBranch = financeMigration.slice(
+			financeMigration.indexOf('else array['),
+			financeMigration.indexOf(
+				'\n\t\t\tend',
+				financeMigration.indexOf('else array['),
+			),
 		)
 
 		expect(aiChatSource).toContain("client.rpc('internal_ai_search_documents'")
 		expect(aiChatSource).not.toContain(".from('ceo_search_documents')")
 		expect(authServerSource).toContain("'internal_ai_search_documents'")
-		expect(migration).toContain(
+		expect(baseMigration).toContain(
 			'create or replace function app_private.internal_ai_search_documents',
 		)
-		expect(migration).toContain(
+		expect(baseMigration).toContain(
 			'create or replace function public.service_internal_ai_search_documents',
 		)
 		expect(migration).toContain(
@@ -69,6 +79,7 @@ describe('internal AI vtable context', () => {
 			expect(normalBranch).toContain(`'${entityType}'`)
 		}
 		expect(normalBranch).not.toContain("'employee'")
+		expect(normalBranch).not.toContain("'finance_payroll'")
 		expect(normalBranch).not.toContain("'activity'")
 		for (const entityType of searchEntities) {
 			expect(migration).toContain(`'${entityType}'`)
@@ -95,6 +106,9 @@ describe('internal AI vtable context', () => {
 
 	it('blocks employee and activity requests in normal panel mode', () => {
 		expect(normalPanelExcludedRequest('show employee salaries')).toContain(
+			'employee information',
+		)
+		expect(normalPanelExcludedRequest('show payroll')).toContain(
 			'employee information',
 		)
 		expect(normalPanelExcludedRequest('summarize activity history')).toContain(
@@ -161,6 +175,50 @@ describe('internal AI vtable context', () => {
 		expect(systemPrompt).toContain('Do not tell the user to open another panel')
 		expect(systemPrompt).toContain('"Next step" headings')
 		expect(systemPrompt).toContain('current screen')
+	})
+
+	it('maps accounting and payroll rows to the correct read entities', () => {
+		const accountingRow: SearchDisplayIndexRow = {
+			entity_id: 'journal_entry:entry-1',
+			entity_type: 'finance',
+			metadata: {
+				entry_number: 'JE-2026-000001',
+				source: 'finance_journal_entry',
+				status: 'draft',
+			},
+			search_text: 'finance accounting journal',
+			sort_at: '2026-05-26T09:00:00Z',
+			subtitle: 'draft',
+			title: 'Journal entry JE-2026-000001',
+		}
+		const payrollRow: SearchDisplayIndexRow = {
+			entity_id: 'finance_payroll:employee-1',
+			entity_type: 'finance_payroll',
+			metadata: {
+				base_salary: 12000,
+				employee_name: 'Mona Finance',
+				source: 'finance_payroll',
+			},
+			search_text: 'finance payroll salary Mona Finance',
+			sort_at: '2026-05-26T09:00:00Z',
+			subtitle: 'Finance',
+			title: 'Payroll - Mona Finance',
+		}
+
+		expect(
+			buildInternalAiContextPackage({
+				query: 'journal',
+				rows: [accountingRow],
+				scope: 'employee',
+			}).readEntities,
+		).toEqual(['ceo_search_finance_vtable'])
+		expect(
+			buildInternalAiContextPackage({
+				query: 'payroll',
+				rows: [payrollRow],
+				scope: 'search',
+			}).readEntities,
+		).toEqual(['ceo_search_index', 'ceo_search_finance_payroll_vtable'])
 	})
 
 	it('tells Lyon to infer natural language intent and call tools', () => {

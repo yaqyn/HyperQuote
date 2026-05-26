@@ -84,6 +84,8 @@ const SOURCE_PANEL_BY_TABLE: Record<SearchRow['tableId'], SourcePanelId> = {
 	drivers: 'dispatch',
 	'driver-locations': 'dispatch',
 	employees: 'admin',
+	'finance-accounting': 'finance',
+	'finance-payroll': 'finance',
 	inventory: 'procurement',
 	orders: 'sales',
 	payments: 'finance',

@@ -4,6 +4,8 @@ type SearchTableId =
 	| 'orders'
 	| 'customers'
 	| 'payments'
+	| 'finance-accounting'
+	| 'finance-payroll'
 	| 'employees'
 	| 'inventory'
 	| 'pricing'

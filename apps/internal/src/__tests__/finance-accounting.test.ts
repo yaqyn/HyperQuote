@@ -11,6 +11,9 @@ const automationMigrationSql = readRepoFile(
 const historicalBackfillMigrationSql = readRepoFile(
 	'supabase/migrations/20260526010549_finance_accounting_historical_asset_totals.sql',
 )
+const ceoSearchFinanceMigrationSql = readRepoFile(
+	'supabase/migrations/20260526013854_ceo_search_finance_vtables.sql',
+)
 const accountingViewSource = readRepoFile(
 	'apps/internal/src/components/finance/FinanceAccountingView.tsx',
 )
@@ -86,6 +89,32 @@ describe('finance accounting rebuild', () => {
 		)
 		expect(accountingViewSource).toContain('EGP total assets')
 		expect(accountingViewSource).toContain('dashboard.overview.totalAssets')
+	})
+
+	it('publishes accounting data through CEO search vtables', () => {
+		expect(ceoSearchFinanceMigrationSql).toContain(
+			'create or replace view public.ceo_search_finance_vtable',
+		)
+		expect(ceoSearchFinanceMigrationSql).toContain(
+			'create or replace view public.ceo_search_finance_payroll_vtable',
+		)
+		expect(ceoSearchFinanceMigrationSql).toContain(
+			'select * from public.ceo_search_finance_vtable',
+		)
+		expect(ceoSearchFinanceMigrationSql).toContain(
+			'select * from public.ceo_search_finance_payroll_vtable',
+		)
+		expect(ceoSearchFinanceMigrationSql).toContain("'finance_journal_entries'")
+		expect(ceoSearchFinanceMigrationSql).toContain(
+			"'finance_payment_followups'",
+		)
+		expect(ceoSearchFinanceMigrationSql).toContain("'supplier_product_links'")
+		expect(ceoSearchFinanceMigrationSql).toContain(
+			"'ceo_search_finance_vtable'",
+		)
+		expect(ceoSearchFinanceMigrationSql).toContain(
+			"'ceo_search_finance_payroll_vtable'",
+		)
 	})
 
 	it('presents the accounting overview as a wired operating dashboard', () => {
