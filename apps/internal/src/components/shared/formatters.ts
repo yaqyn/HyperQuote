@@ -2,7 +2,8 @@ export function formatDecimalEgp(
 	value: number,
 	minimumFractionDigits = 2,
 ): string {
-	return value.toLocaleString('en-EG', {
+	const normalized = Object.is(value, -0) ? 0 : value
+	return normalized.toLocaleString('en-EG', {
 		maximumFractionDigits: minimumFractionDigits,
 		minimumFractionDigits,
 	})

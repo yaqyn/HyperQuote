@@ -38,8 +38,20 @@ const journalActionProofMigrationSql = readRepoFile(
 const journalActivitySearchMigrationSql = readRepoFile(
 	'supabase/migrations/20260526081311_finance_journal_activity_search.sql',
 )
+const overviewReconciliationMigrationSql = readRepoFile(
+	'supabase/migrations/20260526083048_finance_overview_reconciliation.sql',
+)
+const financeSearchOpenWorkFilterMigrationSql = readRepoFile(
+	'supabase/migrations/20260526083846_finance_search_open_work_filter.sql',
+)
+const financeSearchPrivateLegacyViewsMigrationSql = readRepoFile(
+	'supabase/migrations/20260526084445_finance_search_private_legacy_views.sql',
+)
 const accountingViewSource = readRepoFile(
 	'apps/internal/src/components/finance/FinanceAccountingView.tsx',
+)
+const searchDisplaySource = readRepoFile(
+	'apps/internal/src/lib/search-display.ts',
 )
 const financeServerSource = readRepoFile(
 	'apps/internal/src/lib/server/finance.ts',
@@ -345,6 +357,60 @@ describe('finance accounting rebuild', () => {
 		expect(accountingViewSource).toContain('Journal activity')
 		expect(accountingViewSource).toContain("onSelect('inventory')")
 		expect(accountingViewSource).toContain("onSelect('journal')")
+		expect(accountingViewSource).toContain('Cash on hand')
+		expect(accountingViewSource).toContain('Cash overdraft')
+		expect(accountingViewSource).toContain('pendingFuelExpenseAmount')
+		expect(accountingViewSource).toContain('payrollDueAmount')
+		expect(accountingViewSource).toContain(
+			'formatDecimalEgp(pendingFuelAmount)',
+		)
+		expect(accountingViewSource).toContain('dashboard.journal.length')
+		expect(accountingViewSource).toContain('entries`')
+		expect(accountingViewSource).toContain('View')
+	})
+
+	it('keeps the CEO finance overview search row reconciled with operating finance', () => {
+		expect(overviewReconciliationMigrationSql).toContain(
+			'ceo_search_finance_vtable_without_reconciled_overview',
+		)
+		expect(overviewReconciliationMigrationSql).toContain('cash_asset_balance')
+		expect(overviewReconciliationMigrationSql).toContain('cash_overdraft')
+		expect(overviewReconciliationMigrationSql).toContain('total_liabilities')
+		expect(overviewReconciliationMigrationSql).toContain(
+			'pending_fuel_expense_amount',
+		)
+		expect(overviewReconciliationMigrationSql).toContain('payroll_due_amount')
+		expect(overviewReconciliationMigrationSql).toContain(
+			"jl.source_type = 'employee_payroll_payment'",
+		)
+		expect(overviewReconciliationMigrationSql).toContain(
+			"jl.source_type = 'truck_fuel_expense'",
+		)
+		expect(overviewReconciliationMigrationSql).toContain(
+			"'finance_accounting_overview'",
+		)
+		expect(overviewReconciliationMigrationSql).toContain(
+			"'finance_income_statement'",
+		)
+		expect(overviewReconciliationMigrationSql).toContain("'finance_cash_flow'")
+		expect(financeSearchOpenWorkFilterMigrationSql).toContain(
+			'ceo_search_finance_vtable_without_open_work_filter',
+		)
+		expect(financeSearchOpenWorkFilterMigrationSql).toContain(
+			"'finance_receivable', 'finance_payable'",
+		)
+		expect(financeSearchOpenWorkFilterMigrationSql).toContain(
+			"(metadata->>'remaining_due')::numeric",
+		)
+		expect(financeSearchPrivateLegacyViewsMigrationSql).toContain(
+			'set schema app_private',
+		)
+		expect(financeSearchPrivateLegacyViewsMigrationSql).toContain(
+			'from app_private.ceo_search_finance_vtable_without_open_work_filter',
+		)
+		expect(searchDisplaySource).toContain('Cash overdraft')
+		expect(searchDisplaySource).toContain('Pending fuel amount')
+		expect(searchDisplaySource).toContain('Payroll due amount')
 	})
 
 	it('keeps the accounting surface tuned for tablet breakpoints', () => {

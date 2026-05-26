@@ -11,4 +11,8 @@ describe('finance money display', () => {
 		expect(formatDecimalEgp(partial)).toBe('0.69')
 		expect(formatDecimalEgp(remaining)).toBe('0.68')
 	})
+
+	it('does not render negative zero for empty outward movements', () => {
+		expect(formatDecimalEgp(-0)).toBe('0.00')
+	})
 })

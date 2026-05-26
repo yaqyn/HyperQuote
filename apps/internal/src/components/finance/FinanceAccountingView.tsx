@@ -722,8 +722,24 @@ function OverviewView({
 	dashboard: FinanceAccountingDashboard
 	onSelect: (view: AccountingView) => void
 }) {
+	const pendingFuelRows =
+		dashboard.fuelExpenses?.filter((row) => row.status === 'submitted') ?? []
+	const pendingFuelAmount =
+		dashboard.overview.pendingFuelExpenseAmount ??
+		pendingFuelRows.reduce((sum, row) => sum + Number(row.amount ?? 0), 0)
+	const cashOverdraft = dashboard.overview.cashOverdraft ?? 0
+	const payrollDueAmount =
+		dashboard.overview.payrollDueAmount ??
+		dashboard.payroll.details.reduce((sum, employee) => {
+			if (employee.salaryPaidThisMonth) return sum
+			return sum + Number(employee.baseSalary ?? 0)
+		}, 0)
 	const balanceRows: Array<[string, number]> = [
-		['Cash balance', dashboard.overview.cashBalance],
+		[
+			'Cash on hand',
+			dashboard.overview.cashAssetBalance ??
+				Math.max(dashboard.overview.cashBalance, 0),
+		],
 		['Inventory assets', dashboard.overview.inventoryAssets],
 		['Damaged inventory', dashboard.overview.damagedInventoryAssets ?? 0],
 		['Company assets', dashboard.overview.companyAssets ?? 0],
@@ -732,12 +748,17 @@ function OverviewView({
 	]
 	const obligationRows: Array<[string, number]> = [
 		['Payables', dashboard.overview.payables],
+	]
+	if (cashOverdraft > 0) {
+		obligationRows.push(['Cash overdraft', cashOverdraft])
+	}
+	obligationRows.push(
 		['Draft journals', dashboard.overview.unpostedCount],
 		['Review required', dashboard.overview.reviewRequiredCount],
 		['Cost reviews', dashboard.overview.inventoryCostReviewCount],
 		['Pending fuel receipts', dashboard.overview.pendingFuelExpenseCount ?? 0],
 		['Payroll due', dashboard.overview.payrollDueCount ?? 0],
-	]
+	)
 	const movementRows: Array<[string, number]> = [
 		['Customer receipts', dashboard.cashFlow.customerReceipts],
 		['Supplier payments', -dashboard.cashFlow.supplierPayments],
@@ -769,15 +790,14 @@ function OverviewView({
 		{
 			count: dashboard.payroll.payrollDueCount ?? 0,
 			label: 'Payroll',
-			meta: `${formatDecimalEgp(dashboard.payroll.monthlyBaseSalary)} monthly`,
+			meta: `${formatDecimalEgp(payrollDueAmount)} due`,
 			target: 'payroll',
 		},
 		{
 			count:
-				dashboard.fuelExpenses?.filter((row) => row.status === 'submitted')
-					.length ?? 0,
+				dashboard.overview.pendingFuelExpenseCount ?? pendingFuelRows.length,
 			label: 'Fuel receipts',
-			meta: formatDecimalEgp(dashboard.cashFlow.fuelExpenses ?? 0),
+			meta: `${formatDecimalEgp(pendingFuelAmount)} pending`,
 			target: 'fuel',
 		},
 		{
@@ -787,9 +807,9 @@ function OverviewView({
 			target: 'companyAssets',
 		},
 		{
-			count: dashboard.journal.length,
+			count: dashboard.overview.unpostedCount,
 			label: 'Journal entries',
-			meta: `${dashboard.overview.unpostedCount} draft`,
+			meta: `${dashboard.journal.length} entries`,
 			target: 'journal',
 		},
 	]
@@ -850,7 +870,7 @@ function OverviewView({
 									</span>
 								</span>
 								<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
-									Open
+									View
 								</span>
 							</button>
 						))}

@@ -1257,12 +1257,44 @@ export function buildSearchDetailFields(
 					formatMoney(numberValue(metadata, 'total_assets')),
 				),
 				detailField(
+					'Total liabilities',
+					formatMoney(numberValue(metadata, 'total_liabilities')),
+				),
+				detailField(
+					'Net assets',
+					formatMoney(numberValue(metadata, 'net_assets')),
+				),
+				detailField(
 					'Cash balance',
 					formatMoney(numberValue(metadata, 'cash_balance')),
 				),
 				detailField(
+					'Cash on hand',
+					formatMoney(numberValue(metadata, 'cash_asset_balance')),
+				),
+				detailField(
+					'Cash overdraft',
+					formatMoney(numberValue(metadata, 'cash_overdraft')),
+				),
+				detailField(
 					'Net cash movement',
 					formatMoney(numberValue(metadata, 'net_cash_movement')),
+				),
+				detailField(
+					'Cash movement',
+					formatMoney(numberValue(metadata, 'cash_movement')),
+				),
+				detailField(
+					'Inventory assets',
+					formatMoney(numberValue(metadata, 'inventory_assets')),
+				),
+				detailField(
+					'Damaged inventory',
+					formatMoney(numberValue(metadata, 'damaged_inventory_assets')),
+				),
+				detailField(
+					'Company assets',
+					formatMoney(numberValue(metadata, 'company_assets')),
 				),
 				detailField('Revenue', formatMoney(numberValue(metadata, 'revenue'))),
 				detailField('Expenses', formatMoney(numberValue(metadata, 'expenses'))),
@@ -1352,6 +1384,22 @@ export function buildSearchDetailFields(
 				detailField(
 					'Unposted journals',
 					formatNumber(numberValue(metadata, 'unposted_count')),
+				),
+				detailField(
+					'Pending fuel receipts',
+					formatNumber(numberValue(metadata, 'pending_fuel_expense_count')),
+				),
+				detailField(
+					'Pending fuel amount',
+					formatMoney(numberValue(metadata, 'pending_fuel_expense_amount')),
+				),
+				detailField(
+					'Payroll due',
+					formatNumber(numberValue(metadata, 'payroll_due_count')),
+				),
+				detailField(
+					'Payroll due amount',
+					formatMoney(numberValue(metadata, 'payroll_due_amount')),
 				),
 				detailField('Proof', stringValue(metadata, 'proof_path')),
 				detailField('Created', formatDateTime(metadata.created_at)),

@@ -144,16 +144,22 @@ interface FinanceInboxTotals {
 
 interface FinanceAccountingOverview {
 	basis: string
+	cashAssetBalance?: number
 	cashBalance: number
 	cashMovement: number
+	cashOverdraft?: number
 	companyAssetCount?: number
 	companyAssets?: number
 	damagedInventoryAssets?: number
 	damagedInventoryLotCount?: number
 	inventoryAssets: number
+	netAssets?: number
+	payrollDueAmount?: number
 	payrollDueCount?: number
+	pendingFuelExpenseAmount?: number
 	pendingFuelExpenseCount?: number
 	totalAssets: number
+	totalLiabilities?: number
 	receivables: number
 	payables: number
 	unpostedCount: number
