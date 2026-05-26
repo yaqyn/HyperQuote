@@ -128,12 +128,9 @@ export interface DeliveryRejectionProof {
 }
 
 export interface FuelReceiptSubmission {
-	amount?: number
+	amount: number
 	deliveryId?: string | null
-	expenseDate?: string
-	fuelLiters?: number
 	note?: string
-	odometerKm?: number
 	receiptFileName: string
 	receiptImageDataUrl: string
 	receiptMimeType: string

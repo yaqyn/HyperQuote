@@ -115,6 +115,56 @@ describe('driver app contracts', () => {
 		expect(workflowGuardSource).not.toContain('public.driver_reject_delivery')
 	})
 
+	it('keeps fuel receipts limited to amount, proof, and notes from the driver', () => {
+		const fuelPanelSource = readFileSync(
+			new URL('../components/FuelPanel.tsx', import.meta.url),
+			'utf8',
+		)
+		const apiSource = readFileSync(
+			new URL('../api.ts', import.meta.url),
+			'utf8',
+		)
+		const repositorySource = readFileSync(
+			new URL('../lib/driver-repository.ts', import.meta.url),
+			'utf8',
+		)
+		const fuelInputStart = apiSource.indexOf('const fuelReceiptInput')
+		const fuelInputEnd = apiSource.indexOf('const UUID_PATTERN', fuelInputStart)
+		const fuelInputBlock = apiSource.slice(fuelInputStart, fuelInputEnd)
+		const fuelSubmissionStart = repositorySource.indexOf(
+			'export interface FuelReceiptSubmission',
+		)
+		const fuelSubmissionEnd = repositorySource.indexOf(
+			'export interface DriverRepository',
+			fuelSubmissionStart,
+		)
+		const fuelSubmissionBlock = repositorySource.slice(
+			fuelSubmissionStart,
+			fuelSubmissionEnd,
+		)
+
+		expect(fuelPanelSource).toContain('navigator.mediaDevices.getUserMedia')
+		expect(fuelPanelSource).toContain('captureCameraPhoto')
+		expect(fuelPanelSource).toContain('receiptPhotoFromCanvas')
+		expect(fuelPanelSource).toContain("t('fuel.amount')")
+		expect(fuelPanelSource).toContain("t('fuel.proof')")
+		expect(fuelPanelSource).toContain("t('fuel.note')")
+		expect(fuelPanelSource).not.toContain('fuelLiters')
+		expect(fuelPanelSource).not.toContain('odometerKm')
+		expect(fuelPanelSource).not.toContain("t('fuel.liters')")
+		expect(fuelPanelSource).not.toContain("t('fuel.odometer')")
+		expect(fuelInputBlock).toContain('amount: z.number().positive()')
+		expect(fuelInputBlock).not.toContain('fuelLiters')
+		expect(fuelInputBlock).not.toContain('odometerKm')
+		expect(fuelInputBlock).not.toContain('expenseDate')
+		expect(apiSource).toContain('p_fuel_liters: null')
+		expect(apiSource).toContain('p_odometer_km: null')
+		expect(fuelSubmissionBlock).toContain('amount: number')
+		expect(fuelSubmissionBlock).not.toContain('fuelLiters')
+		expect(fuelSubmissionBlock).not.toContain('odometerKm')
+		expect(fuelSubmissionBlock).not.toContain('expenseDate')
+	})
+
 	it('releases actual delivery drivers when dispatch returns a loaded order', () => {
 		const source = latestMigrationFunctionSource(
 			'public.dispatch_return_loaded_order',

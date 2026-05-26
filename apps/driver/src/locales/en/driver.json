@@ -83,17 +83,22 @@
 	},
 	"fuel": {
 		"amount": "Amount",
-		"autoTruck": "Assigned truck",
+		"amountError": "Enter the fuel amount.",
+		"cameraError": "Camera could not start. Use upload instead.",
+		"cameraStarting": "Starting camera...",
+		"cancelCamera": "Cancel",
 		"capture": "Capture fuel receipt",
-		"liters": "Liters",
+		"capturePhoto": "Capture proof",
 		"note": "Note",
-		"odometer": "Odometer",
 		"photoError": "Use a clear image under 1 MB.",
+		"proof": "Proof",
+		"retake": "Retake proof",
+		"startCamera": "Start camera",
 		"submit": "Submit fuel",
 		"submitted": "Fuel receipt submitted to finance.",
 		"submitting": "Submitting...",
 		"title": "Fuel",
-		"truck": "Truck"
+		"uploadProof": "Upload proof"
 	},
 	"info": {
 		"call": "Call contact",

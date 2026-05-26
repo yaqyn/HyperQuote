@@ -75,12 +75,9 @@ const locationUpdateInput = z.object({
 })
 
 const fuelReceiptInput = z.object({
-	amount: z.number().positive().optional(),
+	amount: z.number().positive(),
 	deliveryId: z.string().uuid().nullable().optional(),
-	expenseDate: z.string().optional(),
-	fuelLiters: z.number().positive().optional(),
 	note: z.string().trim().max(500).optional(),
-	odometerKm: z.number().min(0).optional(),
 	receiptFileName: z.string().trim().min(1).max(180),
 	receiptImageDataUrl: z.string().min(24).max(1_500_000),
 	receiptMimeType: z.string().trim().min(3).max(120),
@@ -466,12 +463,12 @@ async function handleDriverApi(request: Request, env: DriverApiEnv) {
 			const { data, error } = await ctx.service.rpc(
 				'driver_submit_fuel_receipt',
 				{
-					p_amount: input.amount ?? null,
+					p_amount: input.amount,
 					p_delivery_id: input.deliveryId ?? null,
-					p_expense_date: input.expenseDate ?? null,
-					p_fuel_liters: input.fuelLiters ?? null,
+					p_expense_date: null,
+					p_fuel_liters: null,
 					p_note: input.note ?? null,
-					p_odometer_km: input.odometerKm ?? null,
+					p_odometer_km: null,
 					p_receipt_file_name: input.receiptFileName,
 					p_receipt_image_data_url: input.receiptImageDataUrl,
 					p_receipt_mime_type: input.receiptMimeType,
