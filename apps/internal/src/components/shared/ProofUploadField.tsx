@@ -23,6 +23,7 @@ const imageMimeByExtension: Record<string, string> = {
 }
 
 interface ProofUploadFieldProps {
+	className?: string
 	disabled?: boolean
 	label: string
 	note?: string
@@ -36,6 +37,7 @@ interface ProofUploadFieldProps {
 }
 
 export function ProofUploadField({
+	className = 'mt-6',
 	disabled = false,
 	label,
 	note = 'PDF or image under 1 MB.',
@@ -89,7 +91,7 @@ export function ProofUploadField({
 	}
 
 	return (
-		<div className="mt-6">
+		<div className={className}>
 			<label
 				htmlFor={inputId}
 				className="flex items-center gap-2 font-[family-name:var(--font-archivo)] font-semibold uppercase"

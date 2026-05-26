@@ -31,16 +31,19 @@ import {
 	postFinanceJournalEntry,
 	postTruckFuelExpense,
 	recordCompanyAsset,
+	rejectTruckFuelExpense,
 	reverseFinanceJournalEntry,
 	updateEmployeeCompensation,
 	voidFinanceDraftJournalEntry,
 } from '../../lib/server/finance'
+import type { UploadedProofDocument } from '../../lib/server/proofs'
 import {
 	EmployeeActionButton,
 	EmployeeFilterChip,
 	EmployeeStatusPill,
 } from '../shared/EmployeeControls'
 import { formatDecimalEgp } from '../shared/formatters'
+import { ProofUploadField } from '../shared/ProofUploadField'
 
 type AccountingView =
 	| 'overview'
@@ -258,6 +261,23 @@ function adjustmentStatusTone(status: string) {
 	if (status === 'review_required') return 'warning'
 	if (status === 'voided' || status === 'rejected') return 'danger'
 	return 'neutral'
+}
+
+function proofPathValue(
+	proof: UploadedProofDocument | null,
+): string | undefined {
+	return proof?.proofPath
+}
+
+function proofDocumentIdValue(
+	proof: UploadedProofDocument | null,
+): string | undefined {
+	return proof?.id
+}
+
+function confirmFinanceAction(message: string): boolean {
+	if (typeof window === 'undefined') return true
+	return window.confirm(message)
 }
 
 function mutationErrorMessage(error: unknown): string | null {
@@ -1178,11 +1198,15 @@ function PayrollEmployeeRow({
 	const [socialSalary, setSocialSalary] = useState(
 		String(employee.socialInsuranceSalary ?? 0),
 	)
-	const [salaryProof, setSalaryProof] = useState('')
-	const [payProof, setPayProof] = useState('')
+	const [salaryProof, setSalaryProof] = useState<UploadedProofDocument | null>(
+		null,
+	)
+	const [payProof, setPayProof] = useState<UploadedProofDocument | null>(null)
 	const [bonusAmount, setBonusAmount] = useState('')
 	const [bonusReason, setBonusReason] = useState('')
-	const [bonusProof, setBonusProof] = useState('')
+	const [bonusProof, setBonusProof] = useState<UploadedProofDocument | null>(
+		null,
+	)
 
 	const invalidate = () =>
 		queryClient.invalidateQueries({ queryKey: ['finance-accounting'] })
@@ -1194,13 +1218,14 @@ function PayrollEmployeeRow({
 					currency: 'EGP',
 					department: employee.department ?? undefined,
 					employeeId: employee.employeeId,
-					proofPath: salaryProof.trim() || undefined,
+					proofDocumentId: proofDocumentIdValue(salaryProof),
+					proofPath: proofPathValue(salaryProof),
 					socialInsuranceSalary: Number(socialSalary || 0),
 					title: employee.title ?? undefined,
 				},
 			}),
 		onSuccess: () => {
-			setSalaryProof('')
+			setSalaryProof(null)
 			invalidate()
 		},
 	})
@@ -1210,11 +1235,12 @@ function PayrollEmployeeRow({
 				data: {
 					employeeId: employee.employeeId,
 					periodMonth,
-					proofPath: payProof.trim() || undefined,
+					proofDocumentId: proofDocumentIdValue(payProof),
+					proofPath: proofPathValue(payProof),
 				},
 			}),
 		onSuccess: () => {
-			setPayProof('')
+			setPayProof(null)
 			invalidate()
 		},
 	})
@@ -1225,14 +1251,15 @@ function PayrollEmployeeRow({
 					amount: Number(bonusAmount),
 					employeeId: employee.employeeId,
 					periodMonth,
-					proofPath: bonusProof.trim() || undefined,
+					proofDocumentId: proofDocumentIdValue(bonusProof),
+					proofPath: proofPathValue(bonusProof),
 					reason: bonusReason.trim(),
 				},
 			}),
 		onSuccess: () => {
 			setBonusAmount('')
 			setBonusReason('')
-			setBonusProof('')
+			setBonusProof(null)
 			invalidate()
 		},
 	})
@@ -1241,15 +1268,13 @@ function PayrollEmployeeRow({
 	const canUpdate =
 		Number(baseSalary) >= 0 &&
 		Number(socialSalary || 0) >= 0 &&
-		salaryProof.trim().length > 0
+		salaryProof !== null
 	const canPay =
-		configuredSalary &&
-		!employee.salaryPaidThisMonth &&
-		payProof.trim().length > 0
+		configuredSalary && !employee.salaryPaidThisMonth && payProof !== null
 	const canBonus =
 		Number(bonusAmount) > 0 &&
 		bonusReason.trim().length >= 3 &&
-		bonusProof.trim().length > 0
+		bonusProof !== null
 
 	return (
 		<article className="rounded-md border border-[var(--color-border)] p-4">
@@ -1283,7 +1308,7 @@ function PayrollEmployeeRow({
 				</div>
 
 				<div className="grid gap-3">
-					<div className="grid gap-2 md:grid-cols-[120px_120px_minmax(0,1fr)_auto]">
+					<div className="grid gap-2 md:grid-cols-[120px_120px_auto]">
 						<input
 							value={baseSalary}
 							onChange={(event) => setBaseSalary(event.target.value)}
@@ -1298,52 +1323,65 @@ function PayrollEmployeeRow({
 							placeholder="Social salary"
 							className={MONEY_INPUT_CLASS}
 						/>
-						<input
-							value={salaryProof}
-							onChange={(event) => setSalaryProof(event.target.value)}
-							placeholder="Salary-change proof"
-							className={COMPACT_INPUT_CLASS}
-						/>
 						<EmployeeActionButton
 							size="sm"
 							tone="neutral"
-							onClick={() => updateMutation.mutate()}
+							onClick={() => {
+								if (
+									confirmFinanceAction(
+										`Update salary for ${employee.employeeName}?`,
+									)
+								) {
+									updateMutation.mutate()
+								}
+							}}
 							disabled={!canUpdate || updateMutation.isPending}
 						>
 							{updateMutation.isPending ? 'Saving' : 'Update'}
 						</EmployeeActionButton>
 					</div>
+					<ProofUploadField
+						className="mt-0"
+						label="Salary-change proof"
+						note="Upload approval, contract change, or HR sign-off under 1 MB."
+						value={salaryProof}
+						onChange={setSalaryProof}
+						panel="finance"
+						proofType="advisor_signoff"
+						relatedEntityId={employee.employeeId}
+						relatedEntityType="employee_compensation"
+						title={`Salary-change proof · ${employee.employeeName}`}
+					/>
 
-					<div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_96px_minmax(0,1fr)_auto]">
-						<input
+					<div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_96px] md:items-end">
+						<ProofUploadField
+							className="mt-0"
+							label="Salary payment proof"
+							note="Upload transfer receipt, cash voucher, or bank proof under 1 MB."
 							value={payProof}
-							onChange={(event) => setPayProof(event.target.value)}
-							placeholder="Salary payment proof"
-							className={COMPACT_INPUT_CLASS}
+							onChange={setPayProof}
+							panel="finance"
+							proofType="finance_out"
+							relatedEntityId={employee.employeeId}
+							relatedEntityType="employee_salary_payment"
+							title={`Salary payment proof · ${employee.employeeName}`}
 						/>
 						<EmployeeActionButton
 							size="sm"
 							tone="success"
 							leading={<Banknote aria-hidden="true" size={14} />}
-							onClick={() => salaryMutation.mutate()}
+							onClick={() => {
+								if (
+									confirmFinanceAction(
+										`Pay salary for ${employee.employeeName} for ${periodMonth}?`,
+									)
+								) {
+									salaryMutation.mutate()
+								}
+							}}
 							disabled={!canPay || salaryMutation.isPending}
 						>
 							{salaryMutation.isPending ? 'Paying' : 'PAY'}
-						</EmployeeActionButton>
-						<input
-							value={bonusProof}
-							onChange={(event) => setBonusProof(event.target.value)}
-							placeholder="Bonus proof"
-							className={COMPACT_INPUT_CLASS}
-						/>
-						<EmployeeActionButton
-							size="sm"
-							tone="primary"
-							leading={<Gift aria-hidden="true" size={14} />}
-							onClick={() => bonusMutation.mutate()}
-							disabled={!canBonus || bonusMutation.isPending}
-						>
-							{bonusMutation.isPending ? 'Saving' : 'Bonus'}
 						</EmployeeActionButton>
 					</div>
 					<div className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)]">
@@ -1360,6 +1398,37 @@ function PayrollEmployeeRow({
 							placeholder="Bonus reason"
 							className={COMPACT_INPUT_CLASS}
 						/>
+					</div>
+					<div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+						<ProofUploadField
+							className="mt-0"
+							label="Bonus proof"
+							note="Upload bonus approval, transfer receipt, or voucher under 1 MB."
+							value={bonusProof}
+							onChange={setBonusProof}
+							panel="finance"
+							proofType="finance_out"
+							relatedEntityId={employee.employeeId}
+							relatedEntityType="employee_bonus_payment"
+							title={`Bonus proof · ${employee.employeeName}`}
+						/>
+						<EmployeeActionButton
+							size="sm"
+							tone="primary"
+							leading={<Gift aria-hidden="true" size={14} />}
+							onClick={() => {
+								if (
+									confirmFinanceAction(
+										`Record ${formatDecimalEgp(Number(bonusAmount))} bonus for ${employee.employeeName}?`,
+									)
+								) {
+									bonusMutation.mutate()
+								}
+							}}
+							disabled={!canBonus || bonusMutation.isPending}
+						>
+							{bonusMutation.isPending ? 'Saving' : 'Bonus'}
+						</EmployeeActionButton>
 					</div>
 					<MutationError
 						error={
@@ -1408,7 +1477,8 @@ function FuelExpensesView({
 function FuelExpenseRow({ row }: { row: FinanceAccountingFuelExpense }) {
 	const queryClient = useQueryClient()
 	const [amount, setAmount] = useState(String(row.amount ?? ''))
-	const [proofPath, setProofPath] = useState('')
+	const [proofDocument, setProofDocument] =
+		useState<UploadedProofDocument | null>(null)
 	const [note, setNote] = useState('')
 	const mutation = useMutation({
 		mutationFn: () =>
@@ -1417,14 +1487,38 @@ function FuelExpenseRow({ row }: { row: FinanceAccountingFuelExpense }) {
 					amount: Number(amount),
 					expenseId: row.id,
 					note: note.trim() || undefined,
-					proofPath: proofPath.trim() || undefined,
+					proofDocumentId: proofDocumentIdValue(proofDocument),
+					proofPath: proofPathValue(proofDocument),
 				},
 			}),
 		onSuccess: () => {
+			setProofDocument(null)
+			setNote('')
+			queryClient.invalidateQueries({ queryKey: ['finance-accounting'] })
+		},
+	})
+	const rejectMutation = useMutation({
+		mutationFn: () =>
+			rejectTruckFuelExpense({
+				data: {
+					expenseId: row.id,
+					proofDocumentId: proofDocumentIdValue(proofDocument),
+					proofPath: proofPathValue(proofDocument),
+					reason: note.trim(),
+				},
+			}),
+		onSuccess: () => {
+			setProofDocument(null)
+			setNote('')
 			queryClient.invalidateQueries({ queryKey: ['finance-accounting'] })
 		},
 	})
 	const canPost = row.status === 'submitted' && Number(amount) > 0
+	const canReject =
+		row.status === 'submitted' &&
+		note.trim().length >= 3 &&
+		proofDocument !== null
+	const isBusy = mutation.isPending || rejectMutation.isPending
 
 	return (
 		<article className="rounded-md border border-[var(--color-border)] p-4">
@@ -1440,7 +1534,13 @@ function FuelExpenseRow({ row }: { row: FinanceAccountingFuelExpense }) {
 							{row.truckPlate ?? 'Truck'} · {row.driverName ?? 'Driver'}
 						</p>
 						<EmployeeStatusPill
-							tone={row.status === 'posted' ? 'success' : 'warning'}
+							tone={
+								row.status === 'posted'
+									? 'success'
+									: row.status === 'rejected'
+										? 'danger'
+										: 'warning'
+							}
 							className="px-2 py-1 text-[11px]"
 						>
 							{row.status}
@@ -1460,7 +1560,7 @@ function FuelExpenseRow({ row }: { row: FinanceAccountingFuelExpense }) {
 			</div>
 			{row.status === 'submitted' ? (
 				<div className="mt-4 space-y-2">
-					<div className="grid gap-2 sm:grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)_auto]">
+					<div className="grid gap-2 sm:grid-cols-[120px_minmax(0,1fr)_auto_auto]">
 						<input
 							value={amount}
 							onChange={(event) => setAmount(event.target.value)}
@@ -1469,28 +1569,59 @@ function FuelExpenseRow({ row }: { row: FinanceAccountingFuelExpense }) {
 							className={MONEY_INPUT_CLASS}
 						/>
 						<input
-							value={proofPath}
-							onChange={(event) => setProofPath(event.target.value)}
-							placeholder="Extra proof path"
-							className={COMPACT_INPUT_CLASS}
-						/>
-						<input
 							value={note}
 							onChange={(event) => setNote(event.target.value)}
-							placeholder="Finance note"
+							placeholder="Finance note or cancel reason"
 							className={COMPACT_INPUT_CLASS}
 						/>
 						<EmployeeActionButton
 							size="sm"
 							tone="success"
 							leading={<Fuel aria-hidden="true" size={14} />}
-							onClick={() => mutation.mutate()}
-							disabled={!canPost || mutation.isPending}
+							onClick={() => {
+								if (
+									confirmFinanceAction(
+										`Record fuel expense for ${row.truckPlate ?? 'truck'}?`,
+									)
+								) {
+									mutation.mutate()
+								}
+							}}
+							disabled={!canPost || isBusy}
 						>
 							{mutation.isPending ? 'Posting' : 'Post'}
 						</EmployeeActionButton>
+						<EmployeeActionButton
+							size="sm"
+							tone="danger"
+							leading={<Ban aria-hidden="true" size={14} />}
+							onClick={() => {
+								if (
+									confirmFinanceAction(
+										`Cancel fuel expense from ${row.driverName ?? 'driver'}?`,
+									)
+								) {
+									rejectMutation.mutate()
+								}
+							}}
+							disabled={!canReject || isBusy}
+						>
+							{rejectMutation.isPending ? 'Canceling' : 'Cancel'}
+						</EmployeeActionButton>
 					</div>
-					<MutationError error={mutation.error} />
+					<ProofUploadField
+						className="mt-0"
+						label="Extra fuel proof"
+						note="Upload extra finance proof, rejection support, or receipt supplement under 1 MB."
+						value={proofDocument}
+						onChange={setProofDocument}
+						panel="finance"
+						proofType="finance_out"
+						relatedEntityId={row.id}
+						relatedEntityType="truck_fuel_expense"
+						title={`Fuel proof · ${row.truckPlate ?? row.driverName ?? 'Fuel expense'}`}
+					/>
+					<MutationError error={mutation.error ?? rejectMutation.error} />
 				</div>
 			) : (
 				<p className="mt-4 font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold text-[var(--color-text)]">
@@ -1515,7 +1646,8 @@ function CompanyAssetsView({
 	const [cost, setCost] = useState('')
 	const [date, setDate] = useState(todayInputValue)
 	const [location, setLocation] = useState('')
-	const [proofPath, setProofPath] = useState('')
+	const [proofDocument, setProofDocument] =
+		useState<UploadedProofDocument | null>(null)
 	const [notes, setNotes] = useState('')
 	const mutation = useMutation({
 		mutationFn: () =>
@@ -1538,20 +1670,21 @@ function CompanyAssetsView({
 					location: location.trim() || undefined,
 					name,
 					notes: notes.trim() || undefined,
-					proofPath: proofPath.trim() || undefined,
+					proofDocumentId: proofDocumentIdValue(proofDocument),
+					proofPath: proofPathValue(proofDocument),
 				},
 			}),
 		onSuccess: () => {
 			setName('')
 			setCost('')
 			setLocation('')
-			setProofPath('')
+			setProofDocument(null)
 			setNotes('')
 			queryClient.invalidateQueries({ queryKey: ['finance-accounting'] })
 		},
 	})
 	const canSubmit =
-		name.trim().length >= 2 && Number(cost) > 0 && proofPath.trim().length > 0
+		name.trim().length >= 2 && Number(cost) > 0 && proofDocument !== null
 
 	return (
 		<section className="mt-6">
@@ -1615,11 +1748,16 @@ function CompanyAssetsView({
 					placeholder="Location"
 					className={COMPACT_INPUT_CLASS}
 				/>
-				<input
-					value={proofPath}
-					onChange={(event) => setProofPath(event.target.value)}
-					placeholder="Proof path"
-					className={COMPACT_INPUT_CLASS}
+				<ProofUploadField
+					className="mt-0 lg:col-span-2"
+					label="Asset proof"
+					note="Upload purchase invoice, ownership proof, or opening balance support under 1 MB."
+					value={proofDocument}
+					onChange={setProofDocument}
+					panel="finance"
+					proofType="finance_out"
+					relatedEntityType="company_asset"
+					title={`Company asset proof · ${name.trim() || 'New asset'}`}
 				/>
 				<EmployeeActionButton
 					type="submit"
@@ -1679,7 +1817,8 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 		firstAdjustmentCategory('company_expense'),
 	)
 	const [amount, setAmount] = useState('')
-	const [proofPath, setProofPath] = useState('')
+	const [proofDocument, setProofDocument] =
+		useState<UploadedProofDocument | null>(null)
 	const categoryOptions = ADJUSTMENT_CATEGORY_OPTIONS[adjustmentType]
 	const selectedCategory =
 		categoryOptions.find((option) => option.id === category) ??
@@ -1697,19 +1836,20 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 					category: selectedCategory?.label ?? category,
 					description: selectedCategory?.description ?? '',
 					amount: Number(amount),
-					proofPath: proofPath.trim() || undefined,
+					proofDocumentId: proofDocumentIdValue(proofDocument),
+					proofPath: proofPathValue(proofDocument),
 				},
 			}),
 		onSuccess: () => {
 			setCategory(firstAdjustmentCategory(adjustmentType))
 			setAmount('')
-			setProofPath('')
+			setProofDocument(null)
 			queryClient.invalidateQueries({ queryKey: ['finance-accounting'] })
 		},
 	})
 
 	const canSubmit =
-		!!selectedCategory && Number(amount) > 0 && proofPath.trim().length > 0
+		!!selectedCategory && Number(amount) > 0 && proofDocument !== null
 
 	return (
 		<section className="mt-6">
@@ -1742,6 +1882,7 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 										onClick={() => {
 											setAdjustmentType(type.id)
 											setCategory(firstAdjustmentCategory(type.id))
+											setProofDocument(null)
 										}}
 										className={`min-h-11 rounded-md border px-3 py-2 text-left font-[family-name:var(--font-archivo)] text-[12px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 ${
 											active
@@ -1756,7 +1897,7 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 						</div>
 					</div>
 
-					<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_160px_minmax(220px,0.8fr)_auto] lg:items-end">
+					<div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_160px_auto] lg:items-end">
 						<label className="grid min-w-0 gap-1.5">
 							<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
 								Category
@@ -1785,17 +1926,6 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 								className={MONEY_INPUT_CLASS}
 							/>
 						</label>
-						<label className="grid min-w-0 gap-1.5">
-							<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
-								Proof
-							</span>
-							<input
-								value={proofPath}
-								onChange={(event) => setProofPath(event.target.value)}
-								placeholder="Proof path"
-								className={COMPACT_INPUT_CLASS}
-							/>
-						</label>
 						<EmployeeActionButton
 							type="submit"
 							size="sm"
@@ -1807,6 +1937,17 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 							{createMutation.isPending ? 'Saving' : 'Record'}
 						</EmployeeActionButton>
 					</div>
+					<ProofUploadField
+						className="mt-0"
+						label="Adjustment proof"
+						note="Upload approval, credit note, debit note, or support document under 1 MB."
+						value={proofDocument}
+						onChange={setProofDocument}
+						panel="finance"
+						proofType="finance_out"
+						relatedEntityType="finance_adjustment"
+						title={`Adjustment proof · ${selectedCategory?.label ?? 'Finance adjustment'}`}
+					/>
 
 					<div className="grid gap-2 bg-black/[0.025] px-3 py-3 dark:bg-white/[0.035] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
 						<div className="min-w-0">

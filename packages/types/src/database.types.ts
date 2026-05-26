@@ -6862,6 +6862,46 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			finance_reject_truck_fuel_expense: {
+				Args: {
+					p_expense_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_reason: string
+				}
+				Returns: {
+					amount: number | null
+					created_at: string
+					currency: string
+					delivery_id: string | null
+					driver_id: string
+					expense_date: string
+					finance_note: string | null
+					fuel_liters: number | null
+					id: string
+					journal_entry_id: string | null
+					note: string | null
+					odometer_km: number | null
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					receipt_file_name: string
+					receipt_image_data_url: string
+					receipt_mime_type: string
+					receipt_size_bytes: number | null
+					status: Database['public']['Enums']['truck_fuel_expense_status']
+					submitted_at: string
+					truck_id: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'truck_fuel_expenses'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			finance_reverse_journal_entry: {
 				Args: { p_entry_id: string; p_reason: string }
 				Returns: {
@@ -9045,6 +9085,48 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			service_finance_reject_truck_fuel_expense: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_expense_id: string
+					p_proof_document_id?: string
+					p_proof_path?: string
+					p_reason: string
+				}
+				Returns: {
+					amount: number | null
+					created_at: string
+					currency: string
+					delivery_id: string | null
+					driver_id: string
+					expense_date: string
+					finance_note: string | null
+					fuel_liters: number | null
+					id: string
+					journal_entry_id: string | null
+					note: string | null
+					odometer_km: number | null
+					posted_at: string | null
+					posted_by_employee_id: string | null
+					proof_document_id: string | null
+					proof_path: string | null
+					receipt_file_name: string
+					receipt_image_data_url: string
+					receipt_mime_type: string
+					receipt_size_bytes: number | null
+					status: Database['public']['Enums']['truck_fuel_expense_status']
+					submitted_at: string
+					truck_id: string
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'truck_fuel_expenses'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			service_finance_reverse_journal_entry: {
 				Args: {
 					p_actor_pool: string
@@ -10889,6 +10971,7 @@ export type Database = {
 				| 'finance_company_asset_recorded'
 				| 'finance_company_asset_revalued'
 				| 'finance_company_asset_disposed'
+				| 'finance_fuel_expense_rejected'
 			catalog_availability_status:
 				| 'available'
 				| 'low_stock'
@@ -11386,6 +11469,7 @@ export const Constants = {
 				'finance_company_asset_recorded',
 				'finance_company_asset_revalued',
 				'finance_company_asset_disposed',
+				'finance_fuel_expense_rejected',
 			],
 			catalog_availability_status: [
 				'available',

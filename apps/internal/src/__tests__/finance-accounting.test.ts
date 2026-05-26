@@ -29,6 +29,9 @@ const operatingFinanceMigrationSql = readRepoFile(
 const financeActivityStressMigrationSql = readRepoFile(
 	'supabase/migrations/20260526043645_finance_activity_search_stress_fixes.sql',
 )
+const fuelRejectMigrationSql = readRepoFile(
+	'supabase/migrations/20260526074819_finance_fuel_reject_expense.sql',
+)
 const accountingViewSource = readRepoFile(
 	'apps/internal/src/components/finance/FinanceAccountingView.tsx',
 )
@@ -255,6 +258,32 @@ describe('finance accounting rebuild', () => {
 		expect(financeActivityStressMigrationSql).toContain(
 			'refresh_ceo_search_documents_without_finance_activity',
 		)
+	})
+
+	it('uses canonical proof uploads for finance operating actions', () => {
+		expect(accountingViewSource).toContain('ProofUploadField')
+		expect(accountingViewSource).toContain('Salary-change proof')
+		expect(accountingViewSource).toContain('Salary payment proof')
+		expect(accountingViewSource).toContain('Bonus proof')
+		expect(accountingViewSource).toContain('Extra fuel proof')
+		expect(accountingViewSource).toContain('Asset proof')
+		expect(accountingViewSource).toContain('Adjustment proof')
+		expect(accountingViewSource).toContain('proofDocumentIdValue')
+		expect(financeServerSource).toContain('proofDocumentId')
+		expect(financeServerSource).toContain('p_proof_document_id')
+	})
+
+	it('requires confirmation and supports canceling submitted fuel receipts', () => {
+		expect(accountingViewSource).toContain('confirmFinanceAction')
+		expect(accountingViewSource).toContain('rejectTruckFuelExpense')
+		expect(fuelRejectMigrationSql).toContain("'finance_fuel_expense_rejected'")
+		expect(fuelRejectMigrationSql).toContain(
+			'finance_reject_truck_fuel_expense',
+		)
+		expect(fuelRejectMigrationSql).toContain(
+			'service_finance_reject_truck_fuel_expense',
+		)
+		expect(fuelRejectMigrationSql).toContain('Rejected fuel expense for')
 	})
 
 	it('presents the accounting overview as a wired operating dashboard', () => {

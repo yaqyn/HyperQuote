@@ -940,6 +940,13 @@ const postTruckFuelExpenseInput = z.object({
 	note: z.string().trim().max(500).optional(),
 })
 
+const rejectTruckFuelExpenseInput = z.object({
+	expenseId: z.string().regex(UUID_RE),
+	reason: z.string().trim().min(3).max(500),
+	proofPath: z.string().trim().min(1).optional(),
+	proofDocumentId: z.string().trim().optional(),
+})
+
 const recordCompanyAssetInput = z.object({
 	assetType: z.enum([
 		'building',
@@ -1119,6 +1126,23 @@ export const postTruckFuelExpense = createServerFn({ method: 'POST' })
 				p_note: data.note?.trim() || null,
 				p_proof_document_id: optionalUuid(data.proofDocumentId),
 				p_proof_path: data.proofPath?.trim() || null,
+			},
+		)
+		if (error) throw new Error(error.message)
+		return { success: true as const, expenseId: expense?.id ?? data.expenseId }
+	})
+
+export const rejectTruckFuelExpense = createServerFn({ method: 'POST' })
+	.inputValidator(rejectTruckFuelExpenseInput)
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		const { data: expense, error } = await auth.client.rpc(
+			'finance_reject_truck_fuel_expense',
+			{
+				p_expense_id: data.expenseId,
+				p_proof_document_id: optionalUuid(data.proofDocumentId),
+				p_proof_path: data.proofPath?.trim() || null,
+				p_reason: data.reason,
 			},
 		)
 		if (error) throw new Error(error.message)

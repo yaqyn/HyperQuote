@@ -447,6 +447,7 @@ const ACTOR_RPC_NAMES = new Set([
 	'finance_pay_employee_salary',
 	'finance_post_journal_entry',
 	'finance_post_truck_fuel_expense',
+	'finance_reject_truck_fuel_expense',
 	'finance_record_company_asset',
 	'finance_reverse_journal_entry',
 	'finance_update_employee_compensation',
