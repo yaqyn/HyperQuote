@@ -5,6 +5,8 @@ import {
 	BookOpenCheck,
 	Building2,
 	Calculator,
+	Check,
+	ChevronDown,
 	Fuel,
 	Gift,
 	type LucideIcon,
@@ -13,6 +15,11 @@ import {
 	Undo2,
 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
+import { Button as AriaButton } from 'react-aria-components/Button'
+import { Label } from 'react-aria-components/Label'
+import { ListBox, ListBoxItem } from 'react-aria-components/ListBox'
+import { Popover } from 'react-aria-components/Popover'
+import { Select } from 'react-aria-components/Select'
 import { INTERNAL_LIVE_STALE_MS } from '../../lib/internal-live-query'
 import {
 	backfillFinanceAccountingSources,
@@ -574,7 +581,7 @@ function AccountingMasthead({
 							{formatDateLabel(periodStart)} to {formatDateLabel(periodEnd)}
 						</span>
 					</div>
-					<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+					<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch">
 						<div className="min-w-0">
 							<div className="grid grid-cols-2 gap-1 rounded-lg border border-black/[0.08] bg-black/[0.025] p-1 dark:border-white/[0.1] dark:bg-white/[0.035] sm:grid-cols-3 xl:grid-cols-6">
 								{ACCOUNTING_PERIOD_PRESETS.map((preset) => {
@@ -634,7 +641,7 @@ function AccountingMasthead({
 							onClick={onBackfill}
 							disabled={backfillBusy}
 							fullWidthOnMobile
-							className="sm:min-h-10"
+							className="h-full min-h-11 sm:min-h-0"
 						>
 							{backfillBusy ? 'Reconciling' : 'Reconcile'}
 						</EmployeeActionButton>
@@ -654,26 +661,129 @@ function AccountingViewStrip({
 	dashboard: FinanceAccountingDashboard
 	onSelect: (view: AccountingView) => void
 }) {
+	const pendingFuelCount =
+		dashboard.overview.pendingFuelExpenseCount ??
+		dashboard.fuelExpenses?.filter((row) => row.status === 'submitted')
+			.length ??
+		0
 	const counts: Partial<Record<AccountingView, number>> = {
 		companyAssets: dashboard.companyAssets?.length ?? 0,
-		fuel: dashboard.fuelExpenses?.length ?? 0,
+		fuel: pendingFuelCount,
 		payroll: dashboard.payroll.payrollDueCount,
 		adjustments: dashboard.adjustments.length,
 		journal: dashboard.journal.length,
 	}
+	const activeOption =
+		ACCOUNTING_VIEWS.find((view) => view.id === activeView) ??
+		ACCOUNTING_VIEWS[0]
+	const ActiveIcon = activeOption.icon
+	const activeCount = counts[activeOption.id]
+	const activeNeedsAttention = accountingViewNeedsAttention(
+		activeOption.id,
+		activeCount,
+	)
 
 	return (
 		<nav
 			aria-label="Accounting views"
-			className="sticky top-0 z-10 -mx-4 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-2 backdrop-blur [-webkit-overflow-scrolling:touch] sm:-mx-6 sm:px-6 sm:py-3 lg:mx-0 lg:bg-transparent lg:px-0 xl:static xl:backdrop-blur-none"
+			className="sticky top-0 z-10 -mx-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 sm:py-3 lg:mx-0 lg:bg-transparent lg:px-0 xl:static xl:backdrop-blur-none"
 		>
-			<ul className="flex min-w-max gap-2 sm:grid sm:min-w-0 sm:grid-cols-3 lg:grid-cols-6">
+			<div className="sm:hidden">
+				<Select
+					aria-label="Accounting view"
+					selectedKey={activeView}
+					onSelectionChange={(key) => {
+						if (isAccountingView(key)) onSelect(key)
+					}}
+				>
+					<Label className="sr-only">Accounting view</Label>
+					<AriaButton
+						className={`grid min-h-11 w-full grid-cols-[18px_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-lg border px-3 py-2 text-left font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.09em] outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/30 ${
+							activeNeedsAttention
+								? 'border-amber-400/40 bg-amber-400/[0.08] text-[var(--color-text)] dark:border-amber-300/35 dark:bg-amber-300/[0.08]'
+								: 'border-black/[0.08] bg-[var(--color-surface)] text-[var(--color-text)] dark:border-white/[0.1]'
+						}`}
+					>
+						<ActiveIcon aria-hidden="true" size={14} />
+						<span className="min-w-0 truncate">{activeOption.label}</span>
+						{typeof activeCount === 'number' && (
+							<span
+								className={`min-w-6 rounded-md px-1.5 py-0.5 text-center font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums ${
+									activeNeedsAttention
+										? 'bg-amber-500/[0.14] text-amber-800 dark:text-amber-200'
+										: 'bg-black/[0.05] text-[var(--color-text-muted)] dark:bg-white/[0.08]'
+								}`}
+							>
+								{activeCount.toLocaleString('en-US')}
+							</span>
+						)}
+						<ChevronDown
+							aria-hidden="true"
+							size={14}
+							className="text-[var(--color-text-subtle)]"
+						/>
+					</AriaButton>
+					<Popover
+						placement="bottom start"
+						offset={8}
+						className="min-w-[var(--trigger-width)] max-w-[calc(100vw-2rem)] rounded-xl border border-black/[0.1] bg-[var(--color-surface)] p-2 shadow-lg outline-none transition-[opacity,transform] duration-150 entering:-translate-y-1 entering:opacity-0 dark:border-white/[0.12]"
+					>
+						<ListBox className="max-h-[min(60vh,28rem)] overflow-y-auto outline-none">
+							{ACCOUNTING_VIEWS.map((view) => {
+								const Icon = view.icon
+								const count = counts[view.id]
+								const needsAttention = accountingViewNeedsAttention(
+									view.id,
+									count,
+								)
+								return (
+									<ListBoxItem
+										key={view.id}
+										id={view.id}
+										textValue={view.label}
+										className={`grid cursor-pointer grid-cols-[18px_minmax(0,1fr)_auto_auto] items-center gap-2 rounded-lg px-3 py-2.5 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.09em] outline-none data-[focused]:bg-black/[0.04] data-[hovered]:bg-black/[0.04] data-[selected]:text-[var(--color-primary)] dark:data-[focused]:bg-white/[0.05] dark:data-[hovered]:bg-white/[0.05] ${
+											needsAttention
+												? 'text-amber-800 dark:text-amber-200'
+												: 'text-[var(--color-text)]'
+										}`}
+									>
+										{({ isSelected }) => (
+											<>
+												<Icon aria-hidden="true" size={14} />
+												<span className="min-w-0 truncate">{view.label}</span>
+												{typeof count === 'number' && (
+													<span
+														className={`min-w-6 rounded-md px-1.5 py-0.5 text-center font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums ${
+															needsAttention
+																? 'bg-amber-500/[0.14] text-amber-800 dark:text-amber-200'
+																: 'bg-black/[0.05] text-[var(--color-text-muted)] dark:bg-white/[0.08]'
+														}`}
+													>
+														{count.toLocaleString('en-US')}
+													</span>
+												)}
+												{isSelected ? (
+													<Check aria-hidden="true" size={14} />
+												) : (
+													<span aria-hidden="true" />
+												)}
+											</>
+										)}
+									</ListBoxItem>
+								)
+							})}
+						</ListBox>
+					</Popover>
+				</Select>
+			</div>
+			<ul className="hidden gap-2 sm:grid sm:grid-cols-3 lg:grid-cols-6">
 				{ACCOUNTING_VIEWS.map((view) => {
 					const Icon = view.icon
 					const count = counts[view.id]
 					const active = activeView === view.id
+					const needsAttention = accountingViewNeedsAttention(view.id, count)
 					return (
-						<li key={view.id} className="w-[156px] shrink-0 sm:w-auto">
+						<li key={view.id}>
 							<button
 								type="button"
 								aria-pressed={active}
@@ -681,8 +791,12 @@ function AccountingViewStrip({
 								onClick={() => onSelect(view.id)}
 								className={`grid h-full min-h-11 w-full grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-3 py-2 text-left font-[family-name:var(--font-archivo)] text-[10.5px] font-semibold uppercase tracking-[0.09em] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 ${
 									active
-										? 'border-transparent bg-black/[0.045] text-[var(--color-text)] shadow-sm dark:bg-white/[0.06]'
-										: 'border-black/[0.08] text-[var(--color-text-subtle)] hover:border-[var(--color-primary)]/35 hover:bg-[var(--color-primary)]/[0.05] hover:text-[var(--color-text)] dark:border-white/[0.1]'
+										? needsAttention
+											? 'border-amber-400/35 bg-amber-400/[0.1] text-[var(--color-text)] shadow-sm dark:border-amber-300/35 dark:bg-amber-300/[0.08]'
+											: 'border-transparent bg-black/[0.045] text-[var(--color-text)] shadow-sm dark:bg-white/[0.06]'
+										: needsAttention
+											? 'border-amber-400/30 bg-amber-400/[0.07] text-amber-800 hover:border-amber-400/45 hover:bg-amber-400/[0.1] dark:border-amber-300/25 dark:bg-amber-300/[0.07] dark:text-amber-200'
+											: 'border-black/[0.08] text-[var(--color-text-subtle)] hover:border-[var(--color-primary)]/35 hover:bg-[var(--color-primary)]/[0.05] hover:text-[var(--color-text)] dark:border-white/[0.1]'
 								}`}
 							>
 								<Icon
@@ -698,9 +812,11 @@ function AccountingViewStrip({
 								{typeof count === 'number' && (
 									<span
 										className={`min-w-6 justify-self-end rounded-md px-1.5 py-0.5 text-center font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums ${
-											active
-												? 'bg-[var(--color-surface)] text-current dark:bg-black/25'
-												: 'bg-black/[0.05] text-[var(--color-text-muted)] dark:bg-white/[0.08]'
+											needsAttention
+												? 'bg-amber-500/[0.14] text-amber-800 dark:text-amber-200'
+												: active
+													? 'bg-[var(--color-surface)] text-current dark:bg-black/25'
+													: 'bg-black/[0.05] text-[var(--color-text-muted)] dark:bg-white/[0.08]'
 										}`}
 									>
 										{count.toLocaleString('en-US')}
@@ -713,6 +829,20 @@ function AccountingViewStrip({
 			</ul>
 		</nav>
 	)
+}
+
+function isAccountingView(value: unknown): value is AccountingView {
+	return (
+		typeof value === 'string' &&
+		ACCOUNTING_VIEWS.some((view) => view.id === value)
+	)
+}
+
+function accountingViewNeedsAttention(
+	view: AccountingView,
+	count: number | undefined,
+): boolean {
+	return (view === 'fuel' || view === 'payroll') && Number(count ?? 0) > 0
 }
 
 function OverviewView({

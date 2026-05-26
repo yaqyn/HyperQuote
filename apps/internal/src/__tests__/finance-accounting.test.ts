@@ -356,6 +356,8 @@ describe('finance accounting rebuild', () => {
 			'onPeriodPresetChange={applyPeriodPreset}',
 		)
 		expect(accountingViewSource).toContain('formatDateLabel(periodStart)')
+		expect(accountingViewSource).toContain('sm:items-stretch')
+		expect(accountingViewSource).toContain('h-full min-h-11 sm:min-h-0')
 		expect(accountingViewSource).toContain('Work queue')
 		expect(accountingViewSource).toContain('Supporting lists')
 		expect(accountingViewSource).toContain('Inventory asset register')
@@ -372,6 +374,14 @@ describe('finance accounting rebuild', () => {
 		expect(accountingViewSource).toContain('dashboard.journal.length')
 		expect(accountingViewSource).toContain('entries`')
 		expect(accountingViewSource).toContain('View')
+		expect(accountingViewSource).toContain('accountingViewNeedsAttention')
+		expect(accountingViewSource).toContain(
+			'dashboard.overview.pendingFuelExpenseCount',
+		)
+		expect(accountingViewSource).toContain('bg-amber-400/[0.07]')
+		expect(accountingViewSource).toContain(
+			"view === 'fuel' || view === 'payroll'",
+		)
 	})
 
 	it('keeps the CEO finance overview search row reconciled with operating finance', () => {
@@ -430,8 +440,12 @@ describe('finance accounting rebuild', () => {
 
 	it('keeps the accounting surface compact on phones', () => {
 		expect(accountingViewSource).toContain('overflow-x-auto')
-		expect(accountingViewSource).toContain('flex min-w-max')
-		expect(accountingViewSource).toContain('w-[156px] shrink-0 sm:w-auto')
+		expect(accountingViewSource).toContain('sm:hidden')
+		expect(accountingViewSource).toContain('hidden gap-2 sm:grid')
+		expect(accountingViewSource).toContain('selectedKey={activeView}')
+		expect(accountingViewSource).not.toContain('-mx-4 overflow-x-auto')
+		expect(accountingViewSource).not.toContain('flex min-w-max')
+		expect(accountingViewSource).not.toContain('w-[156px] shrink-0')
 		expect(accountingViewSource).toContain('grid grid-cols-2 gap-1')
 		expect(accountingViewSource).toContain('fullWidthOnMobile')
 		expect(accountingViewSource).toContain('hidden max-w-[620px]')
@@ -444,6 +458,10 @@ describe('finance accounting rebuild', () => {
 		expect(financeModuleSource).not.toContain('History is not connected yet')
 		expect(financeTabsSource).toContain("title: 'Payments'")
 		expect(financeTabsSource).toContain("title: 'Accounting'")
+		expect(financeTabsSource).not.toContain('dek:')
+		expect(financeTabsSource).not.toContain('mark:')
+		expect(financeTabsSource).not.toContain('receipts and supplier pay')
+		expect(financeTabsSource).not.toContain('journals and reports')
 		expect(financeTabsSource).not.toContain('Live ledger')
 	})
 })

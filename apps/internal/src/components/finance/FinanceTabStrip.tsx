@@ -4,25 +4,19 @@ import { type FinanceTab, useFinanceStore } from '../../stores/finance'
 
 interface Register {
 	id: FinanceTab
-	mark: string
 	title: string
-	dek: string
 	icon: LucideIcon
 }
 
 const REGISTERS: Register[] = [
 	{
 		id: 'payments',
-		mark: 'i',
 		title: 'Payments',
-		dek: 'receipts and supplier pay',
 		icon: ReceiptText,
 	},
 	{
 		id: 'accounting',
-		mark: 'ii',
 		title: 'Accounting',
-		dek: 'journals and reports',
 		icon: BookOpenCheck,
 	},
 ]
@@ -49,7 +43,7 @@ export function FinanceTabStrip() {
 							<Button
 								onPress={() => setActiveTab(register.id)}
 								aria-current={isActive ? 'page' : undefined}
-								className={`group relative flex min-h-[64px] w-full items-start gap-2 rounded-md border px-3 py-3 text-start outline-none transition-colors data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/35 ${
+								className={`group relative flex min-h-12 w-full items-center justify-center gap-2 rounded-md border px-3 py-2.5 text-center outline-none transition-colors data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/35 ${
 									isActive
 										? 'border-[var(--color-border)] bg-black/[0.035] dark:bg-white/[0.06]'
 										: 'border-black/[0.08] bg-[var(--color-surface)] hover:border-black/[0.18] hover:bg-black/[0.025] dark:border-white/[0.12] dark:hover:border-white/[0.2] dark:hover:bg-white/[0.04]'
@@ -59,49 +53,23 @@ export function FinanceTabStrip() {
 									aria-hidden="true"
 									size={16}
 									strokeWidth={2}
-									className={`mt-0.5 shrink-0 ${
+									className={`shrink-0 ${
 										isActive
 											? 'text-[var(--color-text)]'
 											: 'text-[var(--color-text-subtle)]'
 									}`}
 								/>
 								<span
-									className="mt-1 hidden font-[family-name:var(--font-geist-mono)] leading-none tabular-nums transition-colors sm:inline"
+									className="min-w-0 truncate font-[family-name:var(--font-archivo)] text-[14px] leading-tight transition-colors"
 									style={{
-										fontSize: '10px',
+										fontWeight: isActive ? 600 : 500,
 										color: isActive
 											? 'var(--color-text)'
-											: 'var(--color-text-subtle)',
-										letterSpacing: '0.14em',
+											: 'var(--color-text-muted)',
 									}}
 								>
-									{register.mark.toUpperCase()}
+									{register.title}
 								</span>
-								<div className="flex min-w-0 flex-col">
-									<span
-										className="break-words font-[family-name:var(--font-archivo)] leading-tight transition-colors"
-										style={{
-											fontSize: '14px',
-											fontWeight: isActive ? 600 : 400,
-											color: isActive
-												? 'var(--color-text)'
-												: 'var(--color-text-muted)',
-										}}
-									>
-										{register.title}
-									</span>
-									<span
-										className="mt-1 break-words font-[family-name:var(--font-archivo)] transition-colors"
-										style={{
-											fontSize: '11px',
-											color: isActive
-												? 'var(--color-text-muted)'
-												: 'var(--color-text-subtle)',
-										}}
-									>
-										{register.dek}
-									</span>
-								</div>
 							</Button>
 						</li>
 					)
