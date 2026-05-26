@@ -88,6 +88,17 @@ describe('finance accounting rebuild', () => {
 		expect(accountingViewSource).toContain('dashboard.overview.totalAssets')
 	})
 
+	it('presents the accounting overview as a wired operating dashboard', () => {
+		expect(accountingViewSource).toContain('Balance sheet')
+		expect(accountingViewSource).toContain('Liability and review')
+		expect(accountingViewSource).toContain('Period movement')
+		expect(accountingViewSource).toContain('Work queue')
+		expect(accountingViewSource).toContain('Inventory asset register')
+		expect(accountingViewSource).toContain('Journal activity')
+		expect(accountingViewSource).toContain("onSelect('inventory')")
+		expect(accountingViewSource).toContain("onSelect('journal')")
+	})
+
 	it('replaces the stale Finance history placeholder with Accounting', () => {
 		expect(financeModuleSource).not.toContain('HistoryPlaceholder')
 		expect(financeModuleSource).not.toContain('History is not connected yet')

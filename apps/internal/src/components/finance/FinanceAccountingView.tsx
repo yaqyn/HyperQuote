@@ -13,7 +13,7 @@ import {
 	RefreshCcw,
 	Undo2,
 } from 'lucide-react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { INTERNAL_LIVE_STALE_MS } from '../../lib/internal-live-query'
 import {
 	backfillFinanceAccountingSources,
@@ -73,7 +73,11 @@ const ADJUSTMENT_TYPES = [
 ] as const
 type AdjustmentType = (typeof ADJUSTMENT_TYPES)[number]['id']
 
-const COUNT_METRICS = new Set(['Review required', 'Draft journals'])
+const COUNT_METRICS = new Set([
+	'Review required',
+	'Draft journals',
+	'Cost reviews',
+])
 
 function isAdjustmentType(value: string): value is AdjustmentType {
 	return ADJUSTMENT_TYPES.some((type) => type.id === value)
@@ -155,7 +159,9 @@ export function FinanceAccountingView() {
 
 				<SignoffWarning warnings={dashboard.incomeStatement.warnings} />
 
-				{activeView === 'overview' && <OverviewView dashboard={dashboard} />}
+				{activeView === 'overview' && (
+					<OverviewView dashboard={dashboard} onSelect={setActiveView} />
+				)}
 				{activeView === 'income' && <IncomeView dashboard={dashboard} />}
 				{activeView === 'cash' && <CashFlowView dashboard={dashboard} />}
 				{activeView === 'inventory' && (
@@ -351,29 +357,307 @@ function SignoffWarning({ warnings }: { warnings: string[] }) {
 
 function OverviewView({
 	dashboard,
+	onSelect,
 }: {
 	dashboard: FinanceAccountingDashboard
+	onSelect: (view: AccountingView) => void
 }) {
+	const balanceRows: Array<[string, number]> = [
+		['Cash balance', dashboard.overview.cashBalance],
+		['Inventory assets', dashboard.overview.inventoryAssets],
+		['Receivables', dashboard.overview.receivables],
+		['Total assets', dashboard.overview.totalAssets],
+	]
+	const obligationRows: Array<[string, number]> = [
+		['Payables', dashboard.overview.payables],
+		['Draft journals', dashboard.overview.unpostedCount],
+		['Review required', dashboard.overview.reviewRequiredCount],
+		['Cost reviews', dashboard.overview.inventoryCostReviewCount],
+	]
+	const movementRows: Array<[string, number]> = [
+		['Customer receipts', dashboard.cashFlow.customerReceipts],
+		['Supplier payments', -dashboard.cashFlow.supplierPayments],
+		['Manual cash adjustments', dashboard.cashFlow.manualCashAdjustments],
+		['Net cash movement', dashboard.cashFlow.netCashMovement],
+	]
+	const queueRows: Array<{
+		count: number
+		label: string
+		meta: string
+		target: AccountingView
+	}> = [
+		{
+			count: dashboard.receivables.length,
+			label: 'Receivables',
+			meta: formatDecimalEgp(dashboard.overview.receivables),
+			target: 'receivables',
+		},
+		{
+			count: dashboard.payables.length,
+			label: 'Payables',
+			meta: formatDecimalEgp(dashboard.overview.payables),
+			target: 'payables',
+		},
+		{
+			count: dashboard.adjustments.length,
+			label: 'Adjustments',
+			meta: `${dashboard.overview.reviewRequiredCount} review`,
+			target: 'adjustments',
+		},
+		{
+			count: dashboard.journal.length,
+			label: 'Journal entries',
+			meta: `${dashboard.overview.unpostedCount} draft`,
+			target: 'journal',
+		},
+	]
+
 	return (
-		<section className="mt-6">
-			<MetricGrid
-				metrics={[
-					['Total assets', dashboard.overview.totalAssets],
-					['Inventory assets', dashboard.overview.inventoryAssets],
-					['Cash balance', dashboard.overview.cashBalance],
-					['Cash movement', dashboard.overview.cashMovement],
-					['Receivables', dashboard.overview.receivables],
-					['Payables', dashboard.overview.payables],
-					['Review required', dashboard.overview.reviewRequiredCount],
-					['Draft journals', dashboard.overview.unpostedCount],
-					['Net cash flow', dashboard.cashFlow.netCashMovement],
-				]}
-			/>
-			<div className="mt-8 grid gap-8 lg:grid-cols-2">
-				<IncomeView dashboard={dashboard} compact />
-				<CashFlowView dashboard={dashboard} compact />
+		<section className="mt-6 space-y-8">
+			<div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
+				<div className="space-y-6">
+					<div className="grid gap-6 lg:grid-cols-2">
+						<AccountingPanel title="Balance sheet" meta={dashboard.period.end}>
+							<LedgerRows rows={balanceRows} countLabels={COUNT_METRICS} />
+						</AccountingPanel>
+						<AccountingPanel title="Liability and review" meta="open">
+							<LedgerRows rows={obligationRows} countLabels={COUNT_METRICS} />
+						</AccountingPanel>
+					</div>
+
+					<AccountingPanel
+						title="Period movement"
+						meta={dashboard.period.start}
+					>
+						<div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-end">
+							<LedgerRows rows={movementRows} countLabels={COUNT_METRICS} />
+							<div className="border-t border-[var(--color-border)] pt-4 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-5">
+								<p className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+									Net business performance
+								</p>
+								<p className="mt-2 break-words font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold tabular-nums text-[var(--color-text)]">
+									{dashboard.incomeStatement.netPerformance === null
+										? 'Review'
+										: formatDecimalEgp(
+												dashboard.incomeStatement.netPerformance,
+											)}
+								</p>
+							</div>
+						</div>
+					</AccountingPanel>
+				</div>
+
+				<AccountingPanel title="Work queue" meta="current">
+					<div className="divide-y divide-[var(--color-border)] border-y border-[var(--color-border)]">
+						{queueRows.map((row) => (
+							<button
+								key={row.label}
+								type="button"
+								onClick={() => onSelect(row.target)}
+								className="grid w-full grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 py-3 text-left outline-none transition-colors hover:bg-black/[0.025] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/25 dark:hover:bg-white/[0.04]"
+							>
+								<span className="font-[family-name:var(--font-geist-mono)] text-[20px] font-semibold tabular-nums text-[var(--color-text)]">
+									{row.count}
+								</span>
+								<span className="min-w-0">
+									<span className="block break-words font-[family-name:var(--font-bricolage)] text-[13px] font-semibold text-[var(--color-text)]">
+										{row.label}
+									</span>
+									<span className="mt-0.5 block break-words font-[family-name:var(--font-geist-mono)] text-[11px] text-[var(--color-text-subtle)]">
+										{row.meta}
+									</span>
+								</span>
+								<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+									Open
+								</span>
+							</button>
+						))}
+					</div>
+				</AccountingPanel>
+			</div>
+
+			<div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+				<AccountingPanel
+					title="Inventory asset register"
+					meta={`${dashboard.inventoryAssets.length} rows`}
+				>
+					<InventoryPreview
+						rows={dashboard.inventoryAssets}
+						onOpen={() => onSelect('inventory')}
+					/>
+				</AccountingPanel>
+				<AccountingPanel
+					title="Journal activity"
+					meta={`${dashboard.journal.length} entries`}
+				>
+					<JournalPreview
+						rows={dashboard.journal}
+						onOpen={() => onSelect('journal')}
+					/>
+				</AccountingPanel>
 			</div>
 		</section>
+	)
+}
+
+function AccountingPanel({
+	children,
+	meta,
+	title,
+}: {
+	children: ReactNode
+	meta?: string
+	title: string
+}) {
+	return (
+		<section>
+			<SectionHeader title={title} meta={meta} />
+			<div className="mt-3">{children}</div>
+		</section>
+	)
+}
+
+function LedgerRows({
+	countLabels,
+	rows,
+}: {
+	countLabels: Set<string>
+	rows: Array<[string, number]>
+}) {
+	return (
+		<div className="divide-y divide-[var(--color-border)] border-y border-[var(--color-border)]">
+			{rows.map(([label, value], index) => {
+				const isLast = index === rows.length - 1
+				return (
+					<div
+						key={label}
+						className={`grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-3 ${
+							isLast ? 'ledger-double-rule' : ''
+						}`}
+					>
+						<span className="break-words font-[family-name:var(--font-bricolage)] text-[13px] text-[var(--color-text-muted)]">
+							{label}
+						</span>
+						<span
+							className={`font-[family-name:var(--font-geist-mono)] text-[13px] tabular-nums text-[var(--color-text)] ${
+								isLast ? 'font-semibold' : ''
+							}`}
+						>
+							{countLabels.has(label)
+								? value.toString()
+								: formatDecimalEgp(value)}
+						</span>
+					</div>
+				)
+			})}
+		</div>
+	)
+}
+
+function InventoryPreview({
+	onOpen,
+	rows,
+}: {
+	onOpen: () => void
+	rows: FinanceAccountingInventoryAsset[]
+}) {
+	const previewRows = rows.slice(0, 5)
+	if (previewRows.length === 0) {
+		return (
+			<div>
+				<EmptyRows label="No stock assets" />
+				<OpenSectionButton onClick={onOpen}>Open inventory</OpenSectionButton>
+			</div>
+		)
+	}
+	return (
+		<div>
+			<div className="divide-y divide-[var(--color-border)] border-y border-[var(--color-border)]">
+				{previewRows.map((row) => (
+					<div
+						key={row.productId}
+						className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+					>
+						<div className="min-w-0">
+							<p className="break-words font-[family-name:var(--font-bricolage)] text-[13px] font-semibold text-[var(--color-text)]">
+								{row.productName}
+							</p>
+							<p className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[11px] text-[var(--color-text-subtle)]">
+								{row.sku} · {formatQuantity(row.onHand)} on hand
+							</p>
+						</div>
+						<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
+							{formatDecimalEgp(row.valuation)}
+						</span>
+					</div>
+				))}
+			</div>
+			<OpenSectionButton onClick={onOpen}>Open inventory</OpenSectionButton>
+		</div>
+	)
+}
+
+function JournalPreview({
+	onOpen,
+	rows,
+}: {
+	onOpen: () => void
+	rows: FinanceAccountingJournalEntry[]
+}) {
+	const previewRows = rows.slice(0, 4)
+	if (previewRows.length === 0) {
+		return (
+			<div>
+				<EmptyRows label="No journal entries" />
+				<OpenSectionButton onClick={onOpen}>Open journal</OpenSectionButton>
+			</div>
+		)
+	}
+	return (
+		<div>
+			<div className="divide-y divide-[var(--color-border)] border-y border-[var(--color-border)]">
+				{previewRows.map((entry) => {
+					const total = entry.lines.reduce((sum, line) => sum + line.debit, 0)
+					return (
+						<div
+							key={entry.id}
+							className="grid gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+						>
+							<div className="min-w-0">
+								<p className="break-words font-[family-name:var(--font-bricolage)] text-[13px] font-semibold text-[var(--color-text)]">
+									{entry.description}
+								</p>
+								<p className="mt-0.5 font-[family-name:var(--font-geist-mono)] text-[11px] text-[var(--color-text-subtle)]">
+									{entry.entryNumber} · {entry.status}
+								</p>
+							</div>
+							<span className="font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold tabular-nums text-[var(--color-text)]">
+								{formatDecimalEgp(total)}
+							</span>
+						</div>
+					)
+				})}
+			</div>
+			<OpenSectionButton onClick={onOpen}>Open journal</OpenSectionButton>
+		</div>
+	)
+}
+
+function OpenSectionButton({
+	children,
+	onClick,
+}: {
+	children: ReactNode
+	onClick: () => void
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			className="mt-3 font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)] outline-none hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/25"
+		>
+			{children}
+		</button>
 	)
 }
 
@@ -1026,12 +1310,16 @@ function SectionHeader({ title, meta }: { title: string; meta?: string }) {
 function QuantityCell({ value }: { value: number }) {
 	return (
 		<td className="py-3 pr-4 text-right font-[family-name:var(--font-geist-mono)] text-[12.5px] tabular-nums text-[var(--color-text)]">
-			{value.toLocaleString('en-US', {
-				maximumFractionDigits: 2,
-				minimumFractionDigits: 0,
-			})}
+			{formatQuantity(value)}
 		</td>
 	)
+}
+
+function formatQuantity(value: number) {
+	return value.toLocaleString('en-US', {
+		maximumFractionDigits: 2,
+		minimumFractionDigits: 0,
+	})
 }
 
 function MoneyCell({
