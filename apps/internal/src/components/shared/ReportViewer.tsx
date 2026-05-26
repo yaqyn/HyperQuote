@@ -295,6 +295,20 @@ function ReportContent({ report }: { report: ResolvedReport }) {
 				</section>
 			)}
 
+			{STAGE_ORDER.filter(
+				(stage) => stage !== 'submitted' && stage !== 'evaluated',
+			).map((stage) => {
+				const section = report.sections[stage]
+				if (!section) return null
+				return (
+					<GenericReportStageSection
+						key={stage}
+						label={STAGE_LABEL[stage]}
+						section={section}
+					/>
+				)
+			})}
+
 			{/* Pending stages — still to come */}
 			{unfilled.length > 0 && (
 				<section className="mt-8 pt-5 border-t border-dashed border-black/[0.12] dark:border-white/[0.14]">
@@ -310,6 +324,61 @@ function ReportContent({ report }: { report: ResolvedReport }) {
 			)}
 		</DispatchBody>
 	)
+}
+
+function GenericReportStageSection({
+	label,
+	section,
+}: {
+	label: string
+	section: Record<string, unknown>
+}) {
+	const entries = Object.entries(section).filter(
+		([, value]) => value !== null && value !== undefined && value !== '',
+	)
+	if (entries.length === 0) return null
+	return (
+		<section>
+			<DispatchSection label={label} />
+			<Grid>
+				{entries.map(([key, value]) => (
+					<Detail key={key} label={humanizeKey(key)}>
+						{Array.isArray(value) ? (
+							<ul className="mt-1 space-y-1">
+								{value.map((item) => (
+									<li
+										key={`${key}-${formatReportValue(item)}`}
+										className="font-[family-name:var(--font-archivo)] text-[13px] text-[var(--color-text)]"
+									>
+										{formatReportValue(item)}
+									</li>
+								))}
+							</ul>
+						) : (
+							<Mono>{formatReportValue(value)}</Mono>
+						)}
+					</Detail>
+				))}
+			</Grid>
+		</section>
+	)
+}
+
+function humanizeKey(value: string): string {
+	return value
+		.replace(/([a-z])([A-Z])/g, '$1 $2')
+		.replace(/_/g, ' ')
+		.replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function formatReportValue(value: unknown): string {
+	if (typeof value === 'number') return formatMoney(value)
+	if (typeof value === 'string') {
+		if (/^\d{4}-\d{2}-\d{2}/.test(value)) return formatRelative(value)
+		return value.replace(/_/g, ' ')
+	}
+	if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+	return JSON.stringify(value)
 }
 
 function Grid({ children }: { children: ReactNode }) {

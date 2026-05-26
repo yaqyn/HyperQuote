@@ -9178,6 +9178,7 @@ export type Database = {
 			}
 			service_internal_ai_search_documents: {
 				Args: {
+					p_active_panel?: string
 					p_actor_pool: string
 					p_actor_user_id: string
 					p_agent_scope: Database['public']['Enums']['ai_agent_scope']

@@ -2177,12 +2177,6 @@ export function buildSearchSummaryBuckets(
 		case 'finance':
 			return [
 				bucket(
-					'finance-accounting',
-					'Accounting records',
-					rows,
-					(row) => row.entity_type === 'finance',
-				),
-				bucket(
 					'finance-receivables',
 					'Customer receivables',
 					rows,
@@ -2194,7 +2188,6 @@ export function buildSearchSummaryBuckets(
 					rows,
 					isSupplierPayable,
 				),
-				bucket('finance-paid', 'Paid', rows, isPaidFinanceRow),
 				bucket(
 					'finance-payroll',
 					'Payroll',
@@ -2202,18 +2195,6 @@ export function buildSearchSummaryBuckets(
 					(row) =>
 						row.entity_type === 'finance_payroll' ||
 						row.entity_type === 'finance_payroll_payment',
-				),
-				entitySection(
-					'finance-fuel',
-					'Fuel expenses',
-					rows,
-					'finance_fuel_expense',
-				),
-				entitySection(
-					'finance-company-assets',
-					'Company assets',
-					rows,
-					'finance_company_asset',
 				),
 			]
 		case 'dispatch':

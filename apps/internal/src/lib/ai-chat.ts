@@ -102,7 +102,7 @@ export const internalChatFn = createServerFn({ method: 'POST' })
 		}
 
 		const chunks: StreamChunk[] = []
-		const refusal = internalPolicyRefusal(userText, scope)
+		const refusal = internalPolicyRefusal(userText, scope, input.panelId)
 		let readEntities: string[] = []
 		const source = await getInternalAiSource(auth.client, input.messages, {
 			panelId: input.panelId,
@@ -147,6 +147,7 @@ async function getInternalAiSource(
 	if (await isAIEnabled()) {
 		try {
 			const result = await runInternalAiToolLoop(client, messages, {
+				panelId: options.panelId,
 				scope: options.scope,
 			})
 			options.setReadEntities(result.readEntities)
@@ -169,8 +170,9 @@ async function getInternalAiSource(
 function internalPolicyRefusal(
 	userText: string,
 	scope: InternalAiScope,
+	panelId?: string | null,
 ): string | null {
-	return internalAiPolicyRefusal(userText, scope)
+	return internalAiPolicyRefusal(userText, scope, panelId)
 }
 
 async function refreshSearchDocumentsIfDirty(client: InternalSupabaseClient) {
@@ -188,11 +190,13 @@ async function buildAiContext(
 ) {
 	const query = searchQueryFromPrompt(options.userText)
 	const requestedEntityTypes = requestedInternalAiEntityTypes({
+		panelId: options.panelId,
 		query,
 		scope: options.scope,
 	})
 	const result = await fetchInternalAiRows(client, {
 		entityTypes: requestedEntityTypes,
+		panelId: options.panelId,
 		query: '',
 		scope: options.scope,
 	})
@@ -210,12 +214,13 @@ async function fetchInternalAiRows(
 	options: {
 		entityTypes?: string[]
 		limitPerEntity?: number
+		panelId?: string | null
 		query: string
 		scope: InternalAiScope
 	},
 ): Promise<{ queriedEntityTypes: string[]; rows: SearchDisplayIndexRow[] }> {
 	const allowedByEntityType = new Map(
-		allowedInternalAiVtables(options.scope).map((vtable) => [
+		allowedInternalAiVtables(options.scope, options.panelId).map((vtable) => [
 			vtable.entityType,
 			vtable,
 		]),
@@ -235,6 +240,7 @@ async function fetchInternalAiRows(
 		p_agent_scope: options.scope,
 		p_entity_types: entityTypesToQuery,
 		p_limit_per_entity: options.limitPerEntity ?? INTERNAL_AI_ENTITY_LIMIT,
+		p_active_panel: options.panelId ?? null,
 		p_search_tokens: tokensToApply,
 	})
 	if (error) throw new Error(error.message)
@@ -248,14 +254,17 @@ async function fetchInternalAiRows(
 async function runInternalAiToolLoop(
 	client: InternalSupabaseClient,
 	messages: Array<{ role: 'user' | 'assistant'; content: string }>,
-	options: { scope: InternalAiScope },
+	options: { panelId?: string | null; scope: InternalAiScope },
 ): Promise<{ answer: string; readEntities: string[] }> {
 	const modelMessages = messages.slice(-INTERNAL_AI_MODEL_MESSAGE_LIMIT)
-	const systemPrompt = buildInternalAiToolSystemPrompt({ scope: options.scope })
+	const systemPrompt = buildInternalAiToolSystemPrompt({
+		panelId: options.panelId,
+		scope: options.scope,
+	})
 	const toolCompletion = await completeChatWithTools(
 		modelMessages,
 		systemPrompt,
-		internalAiToolDefinitions(options.scope),
+		internalAiToolDefinitions(options.scope, options.panelId),
 		{ temperature: 0.1 },
 	)
 	const toolCalls = toolCompletion.toolCalls.slice(
@@ -275,6 +284,7 @@ async function runInternalAiToolLoop(
 	const toolMessages: ChatRequestMessage[] = []
 	for (const toolCall of toolCalls) {
 		const result = await executeInternalAiToolCall(client, toolCall, {
+			panelId: options.panelId,
 			scope: options.scope,
 		})
 		for (const readEntity of result.readEntities) {
@@ -312,8 +322,9 @@ async function runInternalAiToolLoop(
 
 function internalAiToolDefinitions(
 	scope: InternalAiScope,
+	panelId?: string | null,
 ): ChatToolDefinition[] {
-	const allowedEntityTypes = allowedInternalAiVtables(scope).map(
+	const allowedEntityTypes = allowedInternalAiVtables(scope, panelId).map(
 		(vtable) => vtable.entityType,
 	)
 	return [
@@ -359,7 +370,7 @@ function internalAiToolDefinitions(
 async function executeInternalAiToolCall(
 	client: InternalSupabaseClient,
 	toolCall: ChatToolCall,
-	options: { scope: InternalAiScope },
+	options: { panelId?: string | null; scope: InternalAiScope },
 ): Promise<{ content: string; readEntities: string[] }> {
 	if (toolCall.function.name !== 'search_internal_records') {
 		return {
@@ -385,10 +396,12 @@ async function executeInternalAiToolCall(
 	const result = await fetchInternalAiRows(client, {
 		entityTypes: parsed.value.entity_types ?? [],
 		limitPerEntity: parsed.value.limit_per_entity ?? INTERNAL_AI_ENTITY_LIMIT,
+		panelId: options.panelId,
 		query,
 		scope: options.scope,
 	})
 	const contextPackage = buildInternalAiContextPackage({
+		panelId: options.panelId,
 		query,
 		queriedEntityTypes: result.queriedEntityTypes,
 		rows: result.rows,

@@ -242,9 +242,7 @@ describe('finance accounting rebuild', () => {
 	})
 
 	it('keeps the accounting surface tuned for tablet breakpoints', () => {
-		expect(accountingViewSource).toContain(
-			'md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11',
-		)
+		expect(accountingViewSource).toContain('sm:grid-cols-3 lg:grid-cols-6')
 		expect(accountingViewSource).toContain('md:grid-cols-2')
 		expect(accountingViewSource).toContain(
 			'lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]',
@@ -257,7 +255,7 @@ describe('finance accounting rebuild', () => {
 	it('keeps the accounting surface compact on phones', () => {
 		expect(accountingViewSource).toContain('overflow-x-auto')
 		expect(accountingViewSource).toContain('flex min-w-max')
-		expect(accountingViewSource).toContain('w-[148px] shrink-0 sm:w-auto')
+		expect(accountingViewSource).toContain('w-[132px] shrink-0 sm:w-auto')
 		expect(accountingViewSource).toContain('grid grid-cols-2 gap-2 sm:flex')
 		expect(accountingViewSource).toContain('fullWidthOnMobile')
 		expect(accountingViewSource).toContain('hidden max-w-[620px]')

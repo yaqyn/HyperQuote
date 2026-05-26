@@ -132,6 +132,46 @@ interface SupabaseReportOrderRow {
 	delivered_at: string | null
 }
 
+interface SupabaseReportPaymentRow {
+	amount: number
+	payment_fraction: number
+	proof_path: string
+	status: string
+	created_at: string
+}
+
+interface SupabaseReportReservationRow {
+	quantity: number
+	status: string
+	created_at: string
+	products: { name: string } | { name: string }[] | null
+}
+
+interface SupabaseReportLoadingTaskRow {
+	status: string
+	proof: JsonObject
+	rejection_reason: string | null
+	created_at: string
+	updated_at: string
+}
+
+interface SupabaseReportDeliveryRow {
+	delivery_number: string
+	status: string
+	driver_id: string | null
+	truck_id: string | null
+	started_at: string | null
+	arrived_at: string | null
+	completed_at: string | null
+	rejection_reason: string | null
+	updated_at: string
+	drivers:
+		| { name: string; phone: string }
+		| { name: string; phone: string }[]
+		| null
+	trucks: { plate_number: string } | { plate_number: string }[] | null
+}
+
 interface SupabaseReportSavedLineItem {
 	productSlug?: string
 	productName: string
@@ -252,6 +292,17 @@ function extractRejectedProofNote(value: unknown): string | null {
 	if (note?.trim()) return note
 	const proof = stringOrNull(value.proof)
 	return proof?.trim() ? proof : null
+}
+
+function compactJsonObject(
+	entries: Record<string, JsonObject[keyof JsonObject]>,
+): JsonObject {
+	const result: JsonObject = {}
+	for (const [key, value] of Object.entries(entries)) {
+		if (value === null || value === undefined || value === '') continue
+		result[key] = value
+	}
+	return result
 }
 
 function mapSupabaseStage(
@@ -376,6 +427,54 @@ async function getSupabaseOrderReport(
 			| SupabaseReportQuoteVersionRow
 			| undefined) ?? null
 	const order = orderData as unknown as SupabaseReportOrderRow | null
+	const [payments, reservations, loadingTask, delivery] = order
+		? await Promise.all([
+				auth.client
+					.from('customer_payments')
+					.select('amount, payment_fraction, proof_path, status, created_at')
+					.eq('order_id', order.id)
+					.order('created_at', { ascending: false }),
+				auth.client
+					.from('inventory_reservations')
+					.select('quantity, status, created_at, products(name)')
+					.eq('order_id', order.id)
+					.order('created_at', { ascending: true }),
+				auth.client
+					.from('loading_tasks')
+					.select('status, proof, rejection_reason, created_at, updated_at')
+					.eq('order_id', order.id)
+					.maybeSingle(),
+				auth.client
+					.from('deliveries')
+					.select(
+						'delivery_number, status, driver_id, truck_id, started_at, arrived_at, completed_at, rejection_reason, updated_at, drivers(name, phone), trucks(plate_number)',
+					)
+					.eq('order_id', order.id)
+					.order('updated_at', { ascending: false })
+					.limit(1),
+			])
+		: [
+				{ data: [], error: null },
+				{ data: [], error: null },
+				{ data: null, error: null },
+				{ data: [], error: null },
+			]
+	if (payments.error) throw new Error(payments.error.message)
+	if (reservations.error) throw new Error(reservations.error.message)
+	if (loadingTask.error) throw new Error(loadingTask.error.message)
+	if (delivery.error) throw new Error(delivery.error.message)
+
+	const paymentRows =
+		(payments.data as unknown as SupabaseReportPaymentRow[] | null) ?? []
+	const reservationRows =
+		(reservations.data as unknown as SupabaseReportReservationRow[] | null) ??
+		[]
+	const loadingTaskRow =
+		(loadingTask.data as unknown as SupabaseReportLoadingTaskRow | null) ?? null
+	const deliveryRow =
+		((delivery.data ?? [])[0] as unknown as
+			| SupabaseReportDeliveryRow
+			| undefined) ?? null
 	const customer = firstRelation(request.customers)
 	const address = firstRelation(request.customer_addresses)
 	const salesAddress = isSalesQuoteAddress(address) ? address : null
@@ -425,6 +524,72 @@ async function getSupabaseOrderReport(
 			validUntil: new Date(
 				new Date(version.created_at).getTime() + 15 * 86_400_000,
 			).toISOString(),
+		}
+	}
+
+	if (order) {
+		const paidTotal = paymentRows.reduce((sum, row) => sum + row.amount, 0)
+		const partialPayment = paymentRows.find(
+			(row) => row.payment_fraction === 0.5,
+		)
+		const fullPayment = paymentRows.find((row) => row.payment_fraction === 1)
+		if (partialPayment || paidTotal > 0) {
+			report.sections.finance_partial = compactJsonObject({
+				amountPaid: paidTotal,
+				lastPaymentAt: paymentRows[0]?.created_at ?? null,
+				lastProof: paymentRows[0]?.proof_path ?? null,
+				paymentCount: paymentRows.length,
+				status: paidTotal >= order.total_amount ? 'paid' : 'partial',
+			})
+		}
+		if (reservationRows.length > 0) {
+			report.sections.inventory_orders = compactJsonObject({
+				reservedLines: reservationRows.length,
+				reservedUnits: reservationRows.reduce(
+					(sum, row) => sum + row.quantity,
+					0,
+				),
+				items: reservationRows.map((row) => {
+					const product = firstRelation(row.products)
+					return `${product?.name ?? 'Product'}: ${row.quantity} ${row.status}`
+				}),
+			})
+		}
+		if (fullPayment || paidTotal >= order.total_amount) {
+			report.sections.finance_full = compactJsonObject({
+				amountPaid: paidTotal,
+				orderTotal: order.total_amount,
+				paidAt: paymentRows[0]?.created_at ?? null,
+				status: 'paid',
+			})
+		}
+		if (loadingTaskRow) {
+			report.sections.warehouse = compactJsonObject({
+				status: loadingTaskRow.status,
+				rejectionReason: loadingTaskRow.rejection_reason,
+				updatedAt: loadingTaskRow.updated_at,
+			})
+		}
+		if (deliveryRow) {
+			const driver = firstRelation(deliveryRow.drivers)
+			const truck = firstRelation(deliveryRow.trucks)
+			report.sections.dispatch = compactJsonObject({
+				deliveryNumber: deliveryRow.delivery_number,
+				driver: driver?.name ?? deliveryRow.driver_id,
+				driverPhone: driver?.phone ?? null,
+				rejectionReason: deliveryRow.rejection_reason,
+				startedAt: deliveryRow.started_at,
+				status: deliveryRow.status,
+				truck: truck?.plate_number ?? deliveryRow.truck_id,
+				updatedAt: deliveryRow.updated_at,
+			})
+		}
+		if (order.delivered_at || deliveryRow?.completed_at) {
+			report.sections.delivered = compactJsonObject({
+				deliveredAt: order.delivered_at ?? deliveryRow?.completed_at ?? null,
+				deliveryNumber: deliveryRow?.delivery_number ?? null,
+				status: 'delivered',
+			})
 		}
 	}
 

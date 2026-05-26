@@ -27,10 +27,9 @@ import {
 } from '../../lib/delivery-location-copy'
 import { portalHead } from '../../lib/page-meta'
 import {
-	type DeliveryStage,
 	getOrderDetail,
 	type OrderDetailResult,
-	type OrderReviewInfo,
+	type OrderReportSection,
 } from '../../lib/server/deliveries'
 import { saveOrderAsDraft } from '../../lib/server/orders'
 import { toast } from '../../lib/toast'
@@ -181,6 +180,20 @@ function OrderDetailPage({ orderId }: { orderId: string }) {
 							<span className={DETAIL_VALUE_META_CLASS}>{formattedDate}</span>
 							<button
 								type="button"
+								onClick={() =>
+									downloadOrderReport(
+										orderData,
+										isAr ? 'ar-EG' : 'en-GB',
+										moneyFmt,
+									)
+								}
+								className="inline-flex h-9 items-center gap-2 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+							>
+								<Download size={13} strokeWidth={1.8} />
+								{t('tracking.downloadReport')}
+							</button>
+							<button
+								type="button"
 								onClick={() => saveDraftMutation.mutate()}
 								disabled={saveDraftMutation.isPending}
 								className="h-9 rounded-xl border border-[var(--p-border)] px-3 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-60"
@@ -212,19 +225,11 @@ function OrderDetailPage({ orderId }: { orderId: string }) {
 					total={total}
 				/>
 
-				{isSubmitted && orderData.review ? (
-					<SubmittedReviewSummary
-						review={orderData.review}
-						dateFmt={dateFmt}
-						itemCount={order.itemCount}
-					/>
-				) : (
-					<OrderLifecycleSummary
-						data={orderData}
-						dateFmt={dateFmt}
-						moneyFmt={moneyFmt}
-					/>
-				)}
+				<OrderReportPanel
+					data={orderData}
+					dateFmt={dateFmt}
+					moneyFmt={moneyFmt}
+				/>
 
 				{/* Items */}
 				<section className={isSubmitted ? 'mt-8 sm:mt-10' : 'mt-12 sm:mt-14'}>
@@ -437,44 +442,230 @@ type LifecycleFact = {
 	value: string
 }
 
-function SubmittedReviewSummary({
-	review,
+const REPORT_SECTION_LABEL_KEYS: Record<
+	OrderReportSection['id'],
+	ParseKeys<'portal'>
+> = {
+	confirmed: 'tracking.reportConfirmed',
+	delivered: 'tracking.reportDelivered',
+	dispatch: 'tracking.reportDispatch',
+	payment: 'tracking.reportPayment',
+	processing: 'tracking.reportProcessing',
+	stopped: 'tracking.reportStopped',
+	submitted: 'tracking.reportSubmitted',
+}
+
+const REPORT_STATUS_LABEL_KEYS: Record<
+	OrderReportSection['status'],
+	ParseKeys<'portal'>
+> = {
+	completed: 'tracking.reportCompleted',
+	current: 'tracking.reportCurrent',
+	future: 'tracking.reportFuture',
+	stopped: 'tracking.reportStopped',
+}
+
+function OrderReportPanel({
+	data,
 	dateFmt,
-	itemCount,
+	moneyFmt,
 }: {
-	review: OrderReviewInfo
+	data: OrderDetailResult
 	dateFmt: Intl.DateTimeFormat
-	itemCount: number
+	moneyFmt: Intl.NumberFormat
 }) {
 	const { t } = useTranslation('portal')
-
+	const sections = data.report.sections
 	return (
 		<section className="mt-8 sm:mt-10">
-			<div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] px-4 py-4 sm:px-5 lg:px-6">
-				<p className={DETAIL_LABEL_CLASS}>{t('tracking.reviewingOrder')}</p>
-				<h2 className="mt-2 text-[22px] font-semibold leading-tight text-[var(--p-text)] sm:text-[26px]">
-					{t('tracking.submitted')}
-				</h2>
-				<p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-[var(--p-text-muted)]">
-					{review.message || t('tracking.reviewingOrderMessage')}
-				</p>
-				<dl className="mt-4 grid gap-2 sm:grid-cols-2">
-					<div className="rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-2">
-						<dt className={DETAIL_LABEL_CLASS}>{t('tracking.submittedAt')}</dt>
-						<dd className="mt-1 text-[13px] text-[var(--p-text)]">
-							{dateFmt.format(new Date(review.submittedAt))}
-						</dd>
+			<div className="overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)]">
+				<header className="border-b border-[var(--p-border)] px-4 py-4 sm:px-5 lg:px-6">
+					<p className={DETAIL_LABEL_CLASS}>{t('tracking.orderReport')}</p>
+					<div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+						<h2 className="text-[22px] font-semibold leading-tight text-[var(--p-text)] sm:text-[26px]">
+							{data.order.reference}
+						</h2>
+						<span className="rounded-full border border-[var(--p-border)] px-3 py-1 text-[12px] font-medium text-[var(--p-text-muted)]">
+							{t('tracking.reportGenerated', {
+								date: formatReportDate(data.report.generatedAt, dateFmt),
+							})}
+						</span>
 					</div>
-					<div className="rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-2">
-						<dt className={DETAIL_LABEL_CLASS}>{t('tracking.itemsOrdered')}</dt>
-						<dd className="mt-1 text-[13px] text-[var(--p-text)]">
-							{t('orders.items', { count: itemCount })}
-						</dd>
-					</div>
-				</dl>
+				</header>
+				<div className="divide-y divide-[var(--p-border)]">
+					{sections.map((section) => (
+						<LifecycleBlock
+							key={section.id}
+							icon={reportSectionIcon(section)}
+							title={t(REPORT_SECTION_LABEL_KEYS[section.id])}
+							eyebrow={t(REPORT_STATUS_LABEL_KEYS[section.status])}
+							body={section.summary}
+							facts={section.facts.map((fact) => ({
+								label: fact.label,
+								value: formatReportFact(fact, dateFmt, moneyFmt),
+							}))}
+							lines={section.lines}
+							linesLabel={
+								section.lines.length > 0
+									? t('tracking.reportDetails')
+									: undefined
+							}
+						/>
+					))}
+				</div>
 			</div>
 		</section>
 	)
+}
+
+function reportSectionIcon(section: OrderReportSection): ReactNode {
+	if (section.status === 'stopped')
+		return <FileText size={16} strokeWidth={1.8} />
+	switch (section.id) {
+		case 'submitted':
+			return <UserRound size={16} strokeWidth={1.8} />
+		case 'confirmed':
+		case 'payment':
+			return <FileText size={16} strokeWidth={1.8} />
+		case 'dispatch':
+			return <Truck size={16} strokeWidth={1.8} />
+		case 'delivered':
+			return <Check size={16} strokeWidth={2.2} />
+		default:
+			return <Clock size={16} strokeWidth={1.8} />
+	}
+}
+
+function formatReportDate(
+	value: string | null | undefined,
+	dateFmt: Intl.DateTimeFormat,
+) {
+	if (!value) return ''
+	const date = new Date(value)
+	if (Number.isNaN(date.getTime())) return value
+	return dateFmt.format(date)
+}
+
+function formatReportFact(
+	fact: LifecycleFact,
+	dateFmt: Intl.DateTimeFormat,
+	moneyFmt: Intl.NumberFormat,
+) {
+	const lower = fact.label.toLowerCase()
+	if (
+		/(at|date|eta|updated|submitted|delivered|generated)/.test(lower) &&
+		/^\d{4}-\d{2}-\d{2}/.test(fact.value)
+	) {
+		return formatReportDate(fact.value, dateFmt)
+	}
+	const numericValue = Number(fact.value)
+	if (
+		Number.isFinite(numericValue) &&
+		/(total|vat|fee|discount|paid|remaining|subtotal|amount)/.test(lower)
+	) {
+		return `EGP ${moneyFmt.format(numericValue)}`
+	}
+	return fact.value.replaceAll('_', ' ')
+}
+
+function downloadOrderReport(
+	data: OrderDetailResult,
+	locale: string,
+	moneyFmt: Intl.NumberFormat,
+) {
+	const generated = new Intl.DateTimeFormat(locale, {
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit',
+		month: 'short',
+		year: 'numeric',
+	}).format(new Date(data.report.generatedAt))
+	const sections = data.report.sections
+		.map(
+			(section) => `
+				<section>
+					<h2>${escapeHtml(section.label)} <span>${escapeHtml(section.status)}</span></h2>
+					<p>${escapeHtml(section.summary)}</p>
+					<table>
+						<tbody>
+							${section.facts
+								.map(
+									(fact) => `
+										<tr>
+											<th>${escapeHtml(fact.label)}</th>
+											<td>${escapeHtml(formatExportFact(fact, moneyFmt))}</td>
+										</tr>
+									`,
+								)
+								.join('')}
+						</tbody>
+					</table>
+					${
+						section.lines.length > 0
+							? `<ul>${section.lines
+									.map((line) => `<li>${escapeHtml(line)}</li>`)
+									.join('')}</ul>`
+							: ''
+					}
+				</section>
+			`,
+		)
+		.join('')
+	const html = `<!doctype html>
+<html lang="${locale.startsWith('ar') ? 'ar' : 'en'}">
+<head>
+	<meta charset="utf-8" />
+	<title>${escapeHtml(data.order.reference)} order report</title>
+	<style>
+		body{font-family:Inter,Arial,sans-serif;margin:40px;color:#151515;line-height:1.45}
+		header{border-bottom:2px solid #151515;margin-bottom:28px;padding-bottom:14px}
+		h1{font-size:28px;margin:0 0 8px}
+		h2{font-size:18px;margin:28px 0 8px}
+		h2 span{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-left:8px}
+		p{color:#444;margin:0 0 12px}
+		table{width:100%;border-collapse:collapse;margin:12px 0}
+		th,td{border-top:1px solid #ddd;padding:8px;text-align:left;font-size:13px}
+		th{width:220px;color:#555}
+		ul{margin:12px 0 0;padding-left:20px}
+		li{margin:4px 0}
+	</style>
+</head>
+<body>
+	<header>
+		<h1>${escapeHtml(data.order.reference)}</h1>
+		<p>Generated ${escapeHtml(generated)}</p>
+	</header>
+	${sections}
+</body>
+</html>`
+	const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+	const url = URL.createObjectURL(blob)
+	const anchor = document.createElement('a')
+	anchor.href = url
+	anchor.download = data.report.exportFileName
+	anchor.click()
+	window.setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+function formatExportFact(fact: LifecycleFact, moneyFmt: Intl.NumberFormat) {
+	const lower = fact.label.toLowerCase()
+	const numericValue = Number(fact.value)
+	if (
+		Number.isFinite(numericValue) &&
+		/(total|vat|fee|discount|paid|remaining|subtotal|amount)/.test(lower)
+	) {
+		return `EGP ${moneyFmt.format(numericValue)}`
+	}
+	return fact.value.replaceAll('_', ' ')
+}
+
+function escapeHtml(value: string) {
+	return value
+		.replaceAll('&', '&amp;')
+		.replaceAll('<', '&lt;')
+		.replaceAll('>', '&gt;')
+		.replaceAll('"', '&quot;')
+		.replaceAll("'", '&#39;')
 }
 
 function OrderStatusHero({
@@ -611,173 +802,6 @@ function HeroMetric({ label, value }: { label: string; value: string }) {
 	)
 }
 
-function OrderLifecycleSummary({
-	data,
-	dateFmt,
-	moneyFmt,
-}: {
-	data: OrderDetailResult
-	dateFmt: Intl.DateTimeFormat
-	moneyFmt: Intl.NumberFormat
-}) {
-	const { t } = useTranslation('portal')
-	const { order, acceptance, payment, delivery, completion, closure } = data
-	const driverPlaceLabel = delivery
-		? describeDriverLocationForCustomer(delivery)
-		: null
-	const destinationLabel = delivery
-		? (customerDeliveryDestinationPlace(delivery) ?? delivery.route.destination)
-		: null
-	const statusLabel = t(getOrderStatusLabelKey(order.status))
-	if (!acceptance) return null
-
-	return (
-		<section className="mt-8 sm:mt-10">
-			<div className="overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)]">
-				<header className="border-b border-[var(--p-border)] px-4 py-4 sm:px-5 lg:px-6">
-					<p className={DETAIL_LABEL_CLASS}>{t('tracking.orderStatus')}</p>
-					<div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-						<h2 className="text-[22px] font-semibold leading-tight text-[var(--p-text)] sm:text-[26px]">
-							{statusLabel}
-						</h2>
-						<span className="rounded-full border border-[var(--p-border)] px-3 py-1 text-[12px] font-medium text-[var(--p-text-muted)]">
-							{order.description}
-						</span>
-					</div>
-				</header>
-
-				<div className="divide-y divide-[var(--p-border)]">
-					<LifecycleBlock
-						icon={<UserRound size={16} strokeWidth={1.8} />}
-						title={t('tracking.requestAccepted')}
-						eyebrow={`${acceptance.employeeName} · ${acceptance.employeeRole}`}
-						body={acceptance.message}
-						facts={[
-							{
-								label: t('tracking.acceptedAt'),
-								value: dateFmt.format(new Date(acceptance.acceptedAt)),
-							},
-							{
-								label: t('tracking.itemsOrdered'),
-								value: t('orders.items', { count: order.itemCount }),
-							},
-						]}
-					/>
-
-					{payment && (
-						<LifecycleBlock
-							icon={<FileText size={16} strokeWidth={1.8} />}
-							title={t('tracking.paymentAccepted')}
-							eyebrow={`${payment.method} · ${payment.reference}`}
-							facts={[
-								{ label: t('tracking.bankName'), value: payment.bankName },
-								{
-									label: t('tracking.amount'),
-									value: `EGP ${moneyFmt.format(payment.paidAmount)}`,
-								},
-								{
-									label: t('tracking.paidAt'),
-									value: dateFmt.format(new Date(payment.paidAt)),
-								},
-								{ label: t('tracking.reviewedBy'), value: payment.reviewedBy },
-							]}
-							lines={payment.reportLines}
-							linesLabel={t('tracking.preparationReport')}
-						/>
-					)}
-
-					{delivery && (
-						<LifecycleBlock
-							icon={<Truck size={16} strokeWidth={1.8} />}
-							title={t('tracking.loadedForDelivery')}
-							eyebrow={`${delivery.driverName} · ${delivery.truckNumber}`}
-							facts={[
-								{ label: t('tracking.driverId'), value: delivery.driverId },
-								{
-									label: t('tracking.driverPhone'),
-									value: delivery.driverPhone,
-								},
-								{
-									label: t('tracking.truckNumber'),
-									value: delivery.truckNumber,
-								},
-								{ label: t('tracking.vehicle'), value: delivery.vehiclePlate },
-								...(driverPlaceLabel
-									? [
-											{
-												label: t('tracking.driverLocation'),
-												value: driverPlaceLabel,
-											},
-										]
-									: []),
-								{
-									label: t('tracking.route'),
-									value: `${driverPlaceLabel ?? delivery.route.origin} / ${destinationLabel ?? delivery.route.destination}`,
-								},
-								{
-									label: t('tracking.distance'),
-									value: t('tracking.distanceKm', {
-										count: delivery.route.distanceKm,
-									}),
-								},
-							]}
-						/>
-					)}
-
-					{completion && (
-						<LifecycleBlock
-							icon={<Check size={16} strokeWidth={2.2} />}
-							title={t('tracking.deliveryComplete')}
-							eyebrow={completion.proofOfDelivery}
-							body={completion.message}
-							facts={[
-								{
-									label: t('tracking.deliveredAt'),
-									value: dateFmt.format(new Date(completion.deliveredAt)),
-								},
-								{
-									label: t('tracking.receivedBy'),
-									value: completion.receivedBy,
-								},
-								{
-									label: t('tracking.proofOfDelivery'),
-									value: completion.proofOfDelivery,
-								},
-							]}
-							lines={completion.summaryLines}
-							linesLabel={t('tracking.finalSummary')}
-						/>
-					)}
-
-					{closure && (
-						<LifecycleBlock
-							icon={<FileText size={16} strokeWidth={1.8} />}
-							title={t(
-								closure.type === 'cancelled'
-									? 'tracking.cancelled'
-									: 'tracking.rejected',
-							)}
-							eyebrow={closure.reason}
-							body={closure.note}
-							facts={[
-								{ label: t('tracking.handledBy'), value: closure.handledBy },
-								{
-									label: t('tracking.handledAt'),
-									value: dateFmt.format(new Date(closure.handledAt)),
-								},
-								{
-									label: t('tracking.reachedStage'),
-									value: t(DELIVERY_STAGE_KEYS[closure.reachedStage]),
-								},
-							]}
-						/>
-					)}
-				</div>
-			</div>
-		</section>
-	)
-}
-
 function LifecycleBlock({
 	icon,
 	title,
@@ -845,14 +869,6 @@ function LifecycleBlock({
 			</div>
 		</article>
 	)
-}
-
-const DELIVERY_STAGE_KEYS: Record<DeliveryStage, ParseKeys<'portal'>> = {
-	confirmed: 'tracking.confirmed',
-	being_prepared: 'tracking.beingPrepared',
-	out_for_delivery: 'tracking.outForDelivery',
-	delivered: 'tracking.delivered',
-	invoice_generated: 'tracking.invoiceGenerated',
 }
 
 function getOrderStatusLabelKey(status: OrderStatus): ParseKeys<'portal'> {

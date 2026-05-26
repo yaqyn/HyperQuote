@@ -25,6 +25,16 @@ export interface InternalAiContextPackage {
 }
 
 const NORMAL_PANEL_EXCLUDED_ENTITY_TYPES = new Set(['activity', 'employee'])
+const FINANCE_ENTITY_TYPES = new Set([
+	'finance',
+	'finance_company_asset',
+	'finance_fuel_expense',
+	'finance_payroll',
+	'finance_payroll_payment',
+	'payment',
+])
+const FINANCE_READ_ENTITY_RE =
+	/^ceo_search_(?:finance|payment)(?:_|$)|^ceo_search_inventory_damage_activity_vtable$/
 const MAX_ROWS_PER_ENTITY = 6
 const MAX_CONTEXT_LINES = 80
 const MAX_FIELD_VALUE_LENGTH = 160
@@ -51,7 +61,7 @@ const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 		entityType: 'payment',
 		keywords: ['finance', 'payment', 'payments', 'invoice', 'paid', 'cash'],
 		label: 'Payments',
-		normalPanelAccess: true,
+		normalPanelAccess: false,
 		readEntities: ['ceo_search_payment_vtable'],
 	},
 	{
@@ -85,7 +95,7 @@ const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 			'company assets',
 		],
 		label: 'Finance accounting',
-		normalPanelAccess: true,
+		normalPanelAccess: false,
 		readEntities: [
 			'ceo_search_finance_vtable',
 			'ceo_search_finance_damage_vtable',
@@ -213,11 +223,32 @@ const INTERNAL_AI_VTABLES: readonly InternalAiVtable[] = [
 		entityType: 'finance_payroll',
 		keywords: ['payroll', 'salary', 'salaries', 'social insurance'],
 		label: 'Finance payroll',
-		normalPanelAccess: true,
+		normalPanelAccess: false,
 		readEntities: [
 			'ceo_search_finance_payroll_vtable',
 			'ceo_search_finance_payroll_payment_vtable',
 		],
+	},
+	{
+		entityType: 'finance_payroll_payment',
+		keywords: ['salary paid', 'bonus paid', 'payroll payment'],
+		label: 'Payroll payments',
+		normalPanelAccess: false,
+		readEntities: ['ceo_search_finance_payroll_payment_vtable'],
+	},
+	{
+		entityType: 'finance_fuel_expense',
+		keywords: ['fuel', 'fuel expense', 'truck fuel', 'diesel'],
+		label: 'Fuel expenses',
+		normalPanelAccess: false,
+		readEntities: ['ceo_search_finance_fuel_vtable'],
+	},
+	{
+		entityType: 'finance_company_asset',
+		keywords: ['company asset', 'company assets', 'building', 'vehicle'],
+		label: 'Company assets',
+		normalPanelAccess: false,
+		readEntities: ['ceo_search_finance_company_asset_vtable'],
 	},
 	{
 		entityType: 'activity',
@@ -244,25 +275,40 @@ export function searchQueryFromPrompt(userText: string): string {
 	return userText.replace(/^search internal database for:\s*/i, '').trim()
 }
 
+function isFinancePanelAi({
+	panelId,
+	scope,
+}: {
+	panelId?: string | null
+	scope: InternalAiScope
+}): boolean {
+	return scope === 'search' || panelId === 'finance'
+}
+
 export function allowedInternalAiVtables(
 	scope: InternalAiScope,
+	panelId?: string | null,
 ): InternalAiVtable[] {
 	if (scope === 'search') return [...INTERNAL_AI_VTABLES]
+	const canReadFinance = isFinancePanelAi({ panelId, scope })
 	return INTERNAL_AI_VTABLES.filter(
 		(vtable) =>
-			vtable.normalPanelAccess &&
+			(vtable.normalPanelAccess ||
+				(canReadFinance && FINANCE_ENTITY_TYPES.has(vtable.entityType))) &&
 			!NORMAL_PANEL_EXCLUDED_ENTITY_TYPES.has(vtable.entityType),
 	)
 }
 
 export function requestedInternalAiEntityTypes({
+	panelId,
 	query,
 	scope,
 }: {
+	panelId?: string | null
 	query: string
 	scope: InternalAiScope
 }): string[] {
-	const allowed = allowedInternalAiVtables(scope)
+	const allowed = allowedInternalAiVtables(scope, panelId)
 	const lower = query.toLowerCase()
 	const matches = allowed.filter((vtable) =>
 		vtable.keywords.some((keyword) => lower.includes(keyword)),
@@ -272,7 +318,10 @@ export function requestedInternalAiEntityTypes({
 	)
 }
 
-export function normalPanelExcludedRequest(userText: string): string | null {
+export function normalPanelExcludedRequest(
+	userText: string,
+	panelId?: string | null,
+): string | null {
 	const lower = userText.toLowerCase()
 	if (/\b(activities|activity|audit log|audit history)\b/.test(lower)) {
 		return 'Normal internal AI cannot read activity history. Open Search for audited activity analysis.'
@@ -280,12 +329,21 @@ export function normalPanelExcludedRequest(userText: string): string | null {
 	if (/\b(employee|employees|staff)\b/.test(lower)) {
 		return 'Normal internal AI cannot read employee information. Open Search for employee-aware analysis.'
 	}
+	if (
+		panelId !== 'finance' &&
+		/\b(finance|accounting|ledger|journal|payroll|salary|salaries|bonus|fuel expense|truck fuel|company asset|company assets|receivable|receivables|payable|payables|cash flow|income statement|balance sheet|write[- ]?off|write[- ]?down|nrv|payment|payments|invoice|refund)\b/.test(
+			lower,
+		)
+	) {
+		return 'Normal panel AI cannot read finance records. Use Finance AI for finance data or Search AI for CEO-wide analysis.'
+	}
 	return null
 }
 
 export function internalAiPolicyRefusal(
 	userText: string,
 	scope: InternalAiScope,
+	panelId?: string | null,
 ): string | null {
 	const lower = userText.toLowerCase()
 	const asksWrite =
@@ -306,33 +364,38 @@ export function internalAiPolicyRefusal(
 		return 'I cannot reveal raw exports, secrets, tokens, or credentials.'
 	}
 	if (scope === 'employee') {
-		return normalPanelExcludedRequest(userText)
+		return normalPanelExcludedRequest(userText, panelId)
 	}
 	return null
 }
 
 function readEntitiesForRows({
+	panelId,
 	rows,
 	scope,
 }: {
+	panelId?: string | null
 	rows: SearchDisplayIndexRow[]
 	scope: InternalAiScope
 }): string[] {
 	return readEntitiesForEntityTypes({
 		entityTypes: rows.map((row) => row.entity_type),
+		panelId,
 		scope,
 	})
 }
 
 function readEntitiesForEntityTypes({
 	entityTypes,
+	panelId,
 	scope,
 }: {
 	entityTypes: string[]
+	panelId?: string | null
 	scope: InternalAiScope
 }): string[] {
 	const byEntityType = new Map(
-		allowedInternalAiVtables(scope).map((vtable) => [
+		allowedInternalAiVtables(scope, panelId).map((vtable) => [
 			vtable.entityType,
 			vtable,
 		]),
@@ -341,10 +404,18 @@ function readEntitiesForEntityTypes({
 		(entityType) => byEntityType.get(entityType)?.readEntities ?? [],
 	)
 	if (scope === 'search') entities.unshift('ceo_search_index')
-	return [...new Set(entities)]
+	const canReadFinance = isFinancePanelAi({ panelId, scope })
+	return [
+		...new Set(
+			entities.filter(
+				(entity) => canReadFinance || !FINANCE_READ_ENTITY_RE.test(entity),
+			),
+		),
+	]
 }
 
 export function buildInternalAiContextPackage({
+	panelId,
 	query,
 	queriedEntityTypes,
 	rows,
@@ -357,15 +428,27 @@ export function buildInternalAiContextPackage({
 	scope: InternalAiScope
 }): InternalAiContextPackage {
 	const readEntities = queriedEntityTypes
-		? readEntitiesForEntityTypes({ entityTypes: queriedEntityTypes, scope })
-		: readEntitiesForRows({ rows, scope })
+		? readEntitiesForEntityTypes({
+				entityTypes: queriedEntityTypes,
+				panelId,
+				scope,
+			})
+		: readEntitiesForRows({ panelId, rows, scope })
 	const grouped = groupRows(rows)
 	const accessLine =
 		scope === 'search'
 			? 'Search panel AI can read all approved internal vtables, including employees and activities.'
-			: 'Normal internal AI can read all operational vtables except employee information and activities.'
+			: panelId === 'finance'
+				? 'Finance panel AI can read finance/payment vtables plus normal operational context, but not employee directory or activity history.'
+				: 'Normal internal AI can read operational vtables except finance records, employee information, and activities.'
 	const lines = [
-		`Mode: ${scope === 'search' ? 'Search panel AI' : 'Normal internal AI'}`,
+		`Mode: ${
+			scope === 'search'
+				? 'Search panel AI'
+				: panelId === 'finance'
+					? 'Finance panel AI'
+					: 'Normal internal AI'
+		}`,
 		`User query: ${query || 'general operational summary'}`,
 		accessLine,
 		'Use only the records below. Do not invent missing values. Stay read-only.',
@@ -388,7 +471,7 @@ export function buildInternalAiContextPackage({
 	const context = lines.slice(0, MAX_CONTEXT_LINES).join('\n')
 	return {
 		context,
-		fallbackText: buildFallbackAnswer({ query, rows, scope }),
+		fallbackText: buildFallbackAnswer({ panelId, query, rows, scope }),
 		readEntities,
 		rows,
 	}
@@ -396,6 +479,7 @@ export function buildInternalAiContextPackage({
 
 export function buildInternalAiSystemPrompt({
 	context,
+	panelId,
 	scope,
 }: {
 	context: string
@@ -403,10 +487,18 @@ export function buildInternalAiSystemPrompt({
 	scope: InternalAiScope
 }): string {
 	const base = scope === 'search' ? SEARCH_ASSISTANT : OPS_ASSISTANT
+	const mode =
+		scope === 'search'
+			? 'Search panel mode'
+			: panelId === 'finance'
+				? 'Finance panel mode'
+				: 'Normal internal mode'
 	return `${base}
 
 Internal AI contract:
-- Normal internal mode may use all operational vtable context except employee information and activities.
+- Active mode: ${mode}.
+- Normal internal mode may use operational vtable context except finance records, employee information, and activities.
+- Finance panel mode may use finance/payment vtable context plus normal operational context, but not employee directory or activity history.
 - Search panel mode may use all approved vtable context.
 - Never perform writes from chat. If the user asks for an action, point to the authorized panel action.
 - Keep answers natural and specific. Mention exact names, numbers, statuses, dates, and panels when present.
@@ -420,19 +512,29 @@ ${context}`
 }
 
 export function buildInternalAiToolSystemPrompt({
+	panelId,
 	scope,
 }: {
+	panelId?: string | null
 	scope: InternalAiScope
 }): string {
 	const base = scope === 'search' ? SEARCH_ASSISTANT : OPS_ASSISTANT
+	const mode =
+		scope === 'search'
+			? 'Search panel mode'
+			: panelId === 'finance'
+				? 'Finance panel mode'
+				: 'Normal internal mode'
 	return `${base}
 
 Internal AI tool contract:
+- Active mode: ${mode}.
 - Tools are the source of truth for company records.
 - When the user asks about operational records, call search_internal_records before answering.
 - Infer the user's target from natural, messy, slangy, misspelled, repeated, or casual text. Do not require exact keywords from the user.
 - Choose entity_types for the records the user wants. Put only meaningful filters in query. If the user only asks to list records, set query to an empty string.
-- Normal internal mode may read all operational vtable context except employee information and activities.
+- Normal internal mode may read operational vtable context except finance records, employee information, and activities.
+- Finance panel mode may read finance/payment vtable context plus normal operational context, but not employee directory or activity history.
 - Search panel mode may read all approved vtable context, including employees and activities.
 - Never perform writes from chat. If the user asks for an action, point to the authorized panel action.
 - If a tool result has records, answer from those records. Do not tell the user to open another panel just to find them.
@@ -441,6 +543,7 @@ Internal AI tool contract:
 }
 
 function buildFallbackAnswer({
+	panelId,
 	query,
 	rows,
 	scope,
@@ -453,14 +556,18 @@ function buildFallbackAnswer({
 	if (rows.length === 0) {
 		return scope === 'search'
 			? `Search panel AI checked all approved vtables for "${query || 'general operational summary'}" and found no matching records.`
-			: `Normal internal AI checked allowed operational vtables for "${query || 'general operational summary'}" and found no matching records. Employee information and activities were not read.`
+			: panelId === 'finance'
+				? `Finance panel AI checked finance and allowed operational vtables for "${query || 'general operational summary'}" and found no matching records. Employee directory and activities were not read.`
+				: `Normal internal AI checked allowed operational vtables for "${query || 'general operational summary'}" and found no matching records. Finance records, employee information, and activities were not read.`
 	}
 
 	const grouped = groupRows(rows)
 	const lines = [
 		scope === 'search'
 			? `Search panel AI read the approved vtable context for "${query || 'general operational summary'}".`
-			: `Normal internal AI read allowed operational vtable context for "${query || 'general operational summary'}". Employee information and activities were not read.`,
+			: panelId === 'finance'
+				? `Finance panel AI read finance and allowed operational vtable context for "${query || 'general operational summary'}". Employee directory and activities were not read.`
+				: `Normal internal AI read allowed operational vtable context for "${query || 'general operational summary'}". Finance records, employee information, and activities were not read.`,
 	]
 	for (const [entityType, entityRows] of Object.entries(grouped)) {
 		const label =

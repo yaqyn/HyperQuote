@@ -25,16 +25,24 @@ describe('internal AI vtable context', () => {
 		const normalEntities = allowedInternalAiVtables('employee').map(
 			(vtable) => vtable.entityType,
 		)
+		const financeEntities = allowedInternalAiVtables('employee', 'finance').map(
+			(vtable) => vtable.entityType,
+		)
 		const searchEntities = allowedInternalAiVtables('search').map(
 			(vtable) => vtable.entityType,
 		)
 
-		expect(normalEntities).toContain('payment')
-		expect(normalEntities).toContain('finance')
-		expect(normalEntities).toContain('finance_payroll')
 		expect(normalEntities).toContain('document')
+		expect(normalEntities).not.toContain('payment')
+		expect(normalEntities).not.toContain('finance')
+		expect(normalEntities).not.toContain('finance_payroll')
 		expect(normalEntities).not.toContain('employee')
 		expect(normalEntities).not.toContain('activity')
+		expect(financeEntities).toContain('payment')
+		expect(financeEntities).toContain('finance')
+		expect(financeEntities).toContain('finance_payroll')
+		expect(financeEntities).not.toContain('employee')
+		expect(financeEntities).not.toContain('activity')
 		expect(searchEntities).toContain('employee')
 		expect(searchEntities).toContain('finance_payroll')
 		expect(searchEntities).toContain('activity')
@@ -50,7 +58,10 @@ describe('internal AI vtable context', () => {
 		const operatingFinanceMigration = readWorkspaceFile(
 			'supabase/migrations/20260526031533_finance_payroll_fuel_company_asset_system.sql',
 		)
-		const migration = `${baseMigration}\n${financeMigration}\n${operatingFinanceMigration}`
+		const polishMigration = readWorkspaceFile(
+			'supabase/migrations/20260526040753_finance_ai_order_report_polish.sql',
+		)
+		const migration = `${baseMigration}\n${financeMigration}\n${operatingFinanceMigration}\n${polishMigration}`
 		const aiChatSource = readWorkspaceFile('apps/internal/src/lib/ai-chat.ts')
 		const authServerSource = readWorkspaceFile('packages/auth/src/server.ts')
 		const normalEntities = allowedInternalAiVtables('employee').map(
@@ -59,11 +70,11 @@ describe('internal AI vtable context', () => {
 		const searchEntities = allowedInternalAiVtables('search').map(
 			(vtable) => vtable.entityType,
 		)
-		const normalBranch = operatingFinanceMigration.slice(
-			operatingFinanceMigration.indexOf('else array['),
-			operatingFinanceMigration.indexOf(
+		const normalBranch = polishMigration.slice(
+			polishMigration.indexOf('else array['),
+			polishMigration.indexOf(
 				'\n\t\t\tend',
-				operatingFinanceMigration.indexOf('else array['),
+				polishMigration.indexOf('else array['),
 			),
 		)
 
@@ -79,9 +90,14 @@ describe('internal AI vtable context', () => {
 		expect(migration).toContain(
 			"if p_agent_scope = 'search' and not public.can_access_ceo_search()",
 		)
+		expect(aiChatSource).toContain('p_active_panel: options.panelId ?? null')
+		expect(polishMigration).toContain('p_active_panel text default null')
 		for (const entityType of normalEntities) {
 			expect(normalBranch).toContain(`'${entityType}'`)
 		}
+		expect(normalBranch).not.toContain("'payment'")
+		expect(normalBranch).not.toContain("'finance'")
+		expect(normalBranch).not.toContain("'finance_payroll'")
 		expect(normalBranch).not.toContain("'employee'")
 		expect(normalBranch).not.toContain("'activity'")
 		for (const entityType of searchEntities) {
@@ -111,11 +127,16 @@ describe('internal AI vtable context', () => {
 		expect(normalPanelExcludedRequest('show employee salaries')).toContain(
 			'employee information',
 		)
-		expect(normalPanelExcludedRequest('show payroll')).toBeNull()
+		expect(normalPanelExcludedRequest('show payroll')).toContain(
+			'finance records',
+		)
+		expect(normalPanelExcludedRequest('show payroll', 'finance')).toBeNull()
 		expect(normalPanelExcludedRequest('summarize activity history')).toContain(
 			'activity history',
 		)
-		expect(normalPanelExcludedRequest('show overdue payments')).toBeNull()
+		expect(normalPanelExcludedRequest('show overdue payments')).toContain(
+			'finance records',
+		)
 	})
 
 	it('blocks workflow writes without blocking read-only status questions', () => {
@@ -126,7 +147,7 @@ describe('internal AI vtable context', () => {
 			internalAiPolicyRefusal('change status to delivered', 'search'),
 		).toContain('read-only')
 		expect(
-			internalAiPolicyRefusal('show approved orders', 'employee'),
+			internalAiPolicyRefusal('show approved orders', 'employee', 'sales'),
 		).toBeNull()
 		expect(
 			internalAiPolicyRefusal('summarize rejected orders', 'search'),
@@ -152,14 +173,14 @@ describe('internal AI vtable context', () => {
 		}
 
 		const context = buildInternalAiContextPackage({
-			panelId: 'sales',
+			panelId: 'finance',
 			query: 'payments',
 			rows: [row],
 			scope: 'employee',
 		})
 
 		expect(context.readEntities).toEqual(['ceo_search_payment_vtable'])
-		expect(context.context).toContain('Normal internal AI')
+		expect(context.context).toContain('Finance panel AI')
 		expect(context.context).not.toContain('Active panel')
 		expect(context.context).not.toContain('Sales')
 		expect(context.context).toContain('Local Cairo Contractors')
@@ -167,10 +188,10 @@ describe('internal AI vtable context', () => {
 		expect(context.context).not.toContain('entity_id')
 		const systemPrompt = buildInternalAiSystemPrompt({
 			context: context.context,
-			panelId: 'sales',
+			panelId: 'finance',
 			scope: 'employee',
 		})
-		expect(systemPrompt).toContain('except employee information and activities')
+		expect(systemPrompt).toContain('Finance panel mode may use')
 		expect(systemPrompt).not.toContain('Active panel')
 		expect(systemPrompt).not.toContain('Sales')
 		expect(systemPrompt).toContain('Do not tell the user to open another panel')
@@ -208,6 +229,7 @@ describe('internal AI vtable context', () => {
 
 		expect(
 			buildInternalAiContextPackage({
+				panelId: 'finance',
 				query: 'journal',
 				rows: [accountingRow],
 				scope: 'employee',
@@ -262,6 +284,7 @@ describe('internal AI vtable context', () => {
 
 	it('routes damaged inventory questions to finance damage records', () => {
 		const entityTypes = requestedInternalAiEntityTypes({
+			panelId: 'finance',
 			query: 'show damaged inventory write downs and NRV',
 			scope: 'employee',
 		})
@@ -270,6 +293,7 @@ describe('internal AI vtable context', () => {
 		expect(entityTypes).toContain('inventory')
 		expect(
 			buildInternalAiContextPackage({
+				panelId: 'finance',
 				queriedEntityTypes: entityTypes,
 				query: 'show damaged inventory write downs and NRV',
 				rows: [],
@@ -293,6 +317,6 @@ describe('internal AI vtable context', () => {
 		expect(prompt).toContain('Do not require exact keywords')
 		expect(prompt).toContain('Tools are the source of truth')
 		expect(prompt).toContain('generic navigation advice')
-		expect(prompt).toContain('except employee information and activities')
+		expect(prompt).toContain('except finance records')
 	})
 })

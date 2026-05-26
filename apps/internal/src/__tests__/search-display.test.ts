@@ -680,13 +680,9 @@ describe('Search display formatting', () => {
 			['Rejected', 1],
 		])
 		expect(counts('finance', rows)).toEqual([
-			['Accounting records', 1],
 			['Customer receivables', 1],
 			['Supplier payables', 1],
-			['Paid', 1],
 			['Payroll', 1],
-			['Fuel expenses', 0],
-			['Company assets', 0],
 		])
 		expect(counts('dispatch', rows)).toEqual([
 			['Deliveries', 1],

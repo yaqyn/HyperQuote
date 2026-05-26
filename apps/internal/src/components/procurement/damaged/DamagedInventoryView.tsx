@@ -547,8 +547,26 @@ function RecordDamageDialog({
 			dismissDisabled={mutation.isPending}
 		>
 			<DispatchBody className="space-y-5">
-				<DispatchSection label="Stock" />
-				<div className="grid gap-4 md:grid-cols-[minmax(0,1.3fr)_minmax(12rem,0.7fr)]">
+				<div className="rounded-md border border-[var(--color-border)] bg-black/[0.015] p-4 dark:bg-white/[0.025]">
+					<div className="flex items-start gap-3">
+						<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+							<PackageX aria-hidden="true" size={18} />
+						</span>
+						<div className="min-w-0">
+							<p className="font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--color-text)]">
+								Move stock out of sellable inventory
+							</p>
+							<p className="mt-1 font-[family-name:var(--font-bricolage)] text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">
+								This creates a damaged lot, lowers sellable stock, estimates the
+								write-down, and keeps the lot available for sale, disposal, or
+								approved reversal.
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<DispatchSection label="Stock and valuation" />
+				<div className="grid gap-4 md:grid-cols-[minmax(0,1.2fr)_minmax(12rem,0.8fr)]">
 					<DispatchField label="Product" required>
 						<select
 							value={selectedProduct?.productId ?? productId}
@@ -599,30 +617,48 @@ function RecordDamageDialog({
 					</div>
 				)}
 
-				<div className="grid gap-4 md:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
+				<div className="grid gap-4 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
 					<DispatchField label="Recovery value" required>
-						<div className="flex min-h-10 items-center rounded-md border border-black/[0.1] bg-black/[0.015] px-3 dark:border-white/[0.12] dark:bg-white/[0.025]">
-							<input
-								value={recoveryPercentText}
-								onChange={(event) =>
-									setRecoveryPercentText(
-										normalizeIntegerInput(event.target.value).slice(0, 3),
-									)
-								}
-								inputMode="numeric"
-								className="min-w-0 flex-1 bg-transparent font-[family-name:var(--font-archivo)] text-[16px] text-[var(--color-text)] outline-none sm:text-[14px]"
-								placeholder="50"
-							/>
-							<span className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text-muted)]">
-								%
-							</span>
+						<div className="rounded-md border border-black/[0.1] bg-black/[0.015] p-2 dark:border-white/[0.12] dark:bg-white/[0.025]">
+							<div className="flex min-h-10 items-center px-2">
+								<input
+									value={recoveryPercentText}
+									onChange={(event) =>
+										setRecoveryPercentText(
+											normalizeIntegerInput(event.target.value).slice(0, 3),
+										)
+									}
+									inputMode="numeric"
+									className="min-w-0 flex-1 bg-transparent font-[family-name:var(--font-geist-mono)] text-[22px] font-semibold text-[var(--color-text)] outline-none"
+									placeholder="50"
+								/>
+								<span className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text-muted)]">
+									%
+								</span>
+							</div>
+							<div className="mt-2 grid grid-cols-4 gap-1.5">
+								{['0', '25', '50', '75'].map((value) => (
+									<button
+										key={value}
+										type="button"
+										onClick={() => setRecoveryPercentText(value)}
+										className={`h-8 rounded-md border font-[family-name:var(--font-geist-mono)] text-[11px] font-semibold ${
+											recoveryPercentText === value
+												? 'border-[var(--color-text)] bg-[var(--color-text)] text-[var(--color-surface)]'
+												: 'border-black/[0.08] text-[var(--color-text-muted)] hover:border-black/[0.18] dark:border-white/[0.1]'
+										}`}
+									>
+										{value}%
+									</button>
+								))}
+							</div>
 						</div>
 					</DispatchField>
 					<DispatchField label="Reason" required>
 						<textarea
 							value={reason}
 							onChange={(event) => setReason(event.target.value)}
-							className={`${DispatchInputClass()} min-h-24 resize-y`}
+							className={`${DispatchInputClass()} min-h-32 resize-y`}
 							placeholder="Water leak in bay A"
 						/>
 					</DispatchField>

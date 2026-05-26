@@ -1,19 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-	AlertTriangle,
 	Ban,
 	Banknote,
 	BookOpenCheck,
 	Building2,
 	Calculator,
-	ClipboardList,
 	Fuel,
 	Gift,
-	Landmark,
 	type LucideIcon,
-	PackageCheck,
 	Plus,
-	ReceiptText,
 	RefreshCcw,
 	Undo2,
 } from 'lucide-react'
@@ -66,27 +61,161 @@ const ACCOUNTING_VIEWS: Array<{
 	icon: LucideIcon
 }> = [
 	{ id: 'overview', label: 'Overview', icon: Calculator },
-	{ id: 'income', label: 'Income', icon: ClipboardList },
-	{ id: 'cash', label: 'Cash flow', icon: Landmark },
-	{ id: 'inventory', label: 'Inventory assets', icon: PackageCheck },
 	{ id: 'companyAssets', label: 'Company assets', icon: Building2 },
-	{ id: 'fuel', label: 'Fuel expenses', icon: Fuel },
-	{ id: 'receivables', label: 'Receivables', icon: ReceiptText },
-	{ id: 'payables', label: 'Payables', icon: ReceiptText },
+	{ id: 'fuel', label: 'Fuel', icon: Fuel },
 	{ id: 'payroll', label: 'Payroll', icon: Banknote },
 	{ id: 'adjustments', label: 'Adjustments', icon: Plus },
 	{ id: 'journal', label: 'Journal', icon: BookOpenCheck },
 ]
 
 const ADJUSTMENT_TYPES = [
-	{ id: 'company_expense', label: 'Company expense' },
-	{ id: 'damage', label: 'Damage' },
-	{ id: 'refund', label: 'Refund' },
-	{ id: 'write_off', label: 'Write-off' },
-	{ id: 'credit_adjustment', label: 'Credit adjustment' },
-	{ id: 'debit_adjustment', label: 'Debit adjustment' },
+	{
+		id: 'company_expense',
+		label: 'Company expense',
+		note: 'Posts an operating expense adjustment with proof.',
+	},
+	{
+		id: 'damage',
+		label: 'Damage',
+		note: 'Use only for finance-side damage corrections; stock damage starts in Inventory.',
+	},
+	{
+		id: 'refund',
+		label: 'Refund',
+		note: 'Tracks customer or supplier money returned with support proof.',
+	},
+	{
+		id: 'write_off',
+		label: 'Write-off',
+		note: 'Removes value that will not be recovered.',
+	},
+	{
+		id: 'credit_adjustment',
+		label: 'Credit adjustment',
+		note: 'Adds a documented credit to the ledger.',
+	},
+	{
+		id: 'debit_adjustment',
+		label: 'Debit adjustment',
+		note: 'Adds a documented debit to the ledger.',
+	},
 ] as const
 type AdjustmentType = (typeof ADJUSTMENT_TYPES)[number]['id']
+
+const ADJUSTMENT_CATEGORY_OPTIONS: Record<
+	AdjustmentType,
+	Array<{ id: string; label: string; description: string }>
+> = {
+	company_expense: [
+		{
+			id: 'utilities',
+			label: 'Utilities',
+			description: 'Electricity, water, telecom, internet, and site services.',
+		},
+		{
+			id: 'office_supplies',
+			label: 'Office supplies',
+			description: 'Consumables used by the company team.',
+		},
+		{
+			id: 'maintenance',
+			label: 'Maintenance',
+			description:
+				'Small repairs or maintenance not recorded as a company asset.',
+		},
+		{
+			id: 'permits_and_fees',
+			label: 'Permits and fees',
+			description: 'Government fees, licenses, permits, or compliance costs.',
+		},
+	],
+	credit_adjustment: [
+		{
+			id: 'customer_credit',
+			label: 'Customer credit',
+			description: 'Credit applied to a customer balance after review.',
+		},
+		{
+			id: 'supplier_credit',
+			label: 'Supplier credit',
+			description: 'Credit received from a supplier after review.',
+		},
+		{
+			id: 'opening_balance_credit',
+			label: 'Opening balance credit',
+			description: 'Credit correction from a verified opening-balance proof.',
+		},
+	],
+	damage: [
+		{
+			id: 'inventory_damage_review',
+			label: 'Inventory damage review',
+			description:
+				'Finance correction for an inventory damage lot already recorded.',
+		},
+		{
+			id: 'damage_count_correction',
+			label: 'Damage count correction',
+			description: 'Corrects a previously approved damage valuation.',
+		},
+		{
+			id: 'damage_disposal_cost',
+			label: 'Disposal cost',
+			description: 'Cost paid to dispose of damaged stock.',
+		},
+	],
+	debit_adjustment: [
+		{
+			id: 'customer_debit',
+			label: 'Customer debit',
+			description: 'Debit applied to a customer balance after review.',
+		},
+		{
+			id: 'supplier_debit',
+			label: 'Supplier debit',
+			description: 'Debit applied to a supplier balance after review.',
+		},
+		{
+			id: 'opening_balance_debit',
+			label: 'Opening balance debit',
+			description: 'Debit correction from a verified opening-balance proof.',
+		},
+	],
+	refund: [
+		{
+			id: 'customer_refund',
+			label: 'Customer refund',
+			description: 'Money returned to a customer.',
+		},
+		{
+			id: 'supplier_refund',
+			label: 'Supplier refund',
+			description: 'Money returned by or to a supplier.',
+		},
+		{
+			id: 'overpayment_return',
+			label: 'Overpayment return',
+			description: 'Return of money paid above the approved balance.',
+		},
+	],
+	write_off: [
+		{
+			id: 'uncollectible_receivable',
+			label: 'Uncollectible receivable',
+			description: 'Receivable balance approved as not recoverable.',
+		},
+		{
+			id: 'inventory_write_off',
+			label: 'Inventory write-off',
+			description: 'Inventory value approved for full write-off.',
+		},
+		{
+			id: 'rounding_write_off',
+			label: 'Rounding write-off',
+			description: 'Small rounding difference closed with proof.',
+		},
+	],
+}
 
 const COUNT_METRICS = new Set([
 	'Review required',
@@ -105,6 +234,20 @@ const SELECT_CLASS =
 
 function isAdjustmentType(value: string): value is AdjustmentType {
 	return ADJUSTMENT_TYPES.some((type) => type.id === value)
+}
+
+function firstAdjustmentCategory(type: AdjustmentType): string {
+	return ADJUSTMENT_CATEGORY_OPTIONS[type][0]?.id ?? ''
+}
+
+function adjustmentTypeCopy(type: AdjustmentType) {
+	return ADJUSTMENT_TYPES.find((option) => option.id === type)
+}
+
+function mutationErrorMessage(error: unknown): string | null {
+	if (!error) return null
+	if (error instanceof Error) return error.message
+	return 'The action could not be recorded.'
 }
 
 function todayInputValue() {
@@ -180,8 +323,6 @@ export function FinanceAccountingView() {
 					dashboard={dashboard}
 					onSelect={setActiveView}
 				/>
-
-				<SignoffWarning warnings={dashboard.incomeStatement.warnings} />
 
 				{activeView === 'overview' && (
 					<OverviewView dashboard={dashboard} onSelect={setActiveView} />
@@ -334,11 +475,8 @@ function AccountingViewStrip({
 	onSelect: (view: AccountingView) => void
 }) {
 	const counts: Partial<Record<AccountingView, number>> = {
-		inventory: dashboard.inventoryAssets.length,
 		companyAssets: dashboard.companyAssets?.length ?? 0,
 		fuel: dashboard.fuelExpenses?.length ?? 0,
-		receivables: dashboard.receivables.length,
-		payables: dashboard.payables.length,
 		payroll: dashboard.payroll.payrollDueCount,
 		adjustments: dashboard.adjustments.length,
 		journal: dashboard.journal.length,
@@ -347,13 +485,13 @@ function AccountingViewStrip({
 	return (
 		<nav
 			aria-label="Accounting views"
-			className="sticky top-0 z-10 -mx-4 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-2 backdrop-blur [-webkit-overflow-scrolling:touch] sm:-mx-6 sm:overflow-visible sm:px-6 sm:py-3 lg:mx-0 lg:bg-transparent lg:px-0 xl:static xl:backdrop-blur-none"
+			className="sticky top-0 z-10 -mx-4 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-2 backdrop-blur [-webkit-overflow-scrolling:touch] sm:-mx-6 sm:px-6 sm:py-3 lg:mx-0 lg:bg-transparent lg:px-0 xl:static xl:backdrop-blur-none"
 		>
-			<ul className="flex min-w-max gap-2 sm:grid sm:min-w-0 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11">
+			<ul className="flex min-w-max gap-2 sm:grid sm:min-w-0 sm:grid-cols-3 lg:grid-cols-6">
 				{ACCOUNTING_VIEWS.map((view) => {
 					const Icon = view.icon
 					return (
-						<li key={view.id} className="w-[148px] shrink-0 sm:w-auto">
+						<li key={view.id} className="w-[132px] shrink-0 sm:w-auto">
 							<EmployeeFilterChip
 								active={activeView === view.id}
 								count={counts[view.id]}
@@ -371,20 +509,6 @@ function AccountingViewStrip({
 				})}
 			</ul>
 		</nav>
-	)
-}
-
-function SignoffWarning({ warnings }: { warnings: string[] }) {
-	if (warnings.length === 0) return null
-	return (
-		<div className="mt-5 flex gap-3 rounded-md border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3 text-amber-800 dark:text-amber-300">
-			<AlertTriangle aria-hidden="true" size={18} className="mt-0.5 shrink-0" />
-			<div className="min-w-0 space-y-1 font-[family-name:var(--font-bricolage)] text-[12.5px] leading-relaxed">
-				{warnings.map((warning) => (
-					<p key={warning}>{warning}</p>
-				))}
-			</div>
-		</div>
 	)
 }
 
@@ -1221,6 +1345,13 @@ function PayrollEmployeeRow({
 							className={COMPACT_INPUT_CLASS}
 						/>
 					</div>
+					<MutationError
+						error={
+							updateMutation.error ??
+							salaryMutation.error ??
+							bonusMutation.error
+						}
+					/>
 				</div>
 			</div>
 		</article>
@@ -1312,35 +1443,38 @@ function FuelExpenseRow({ row }: { row: FinanceAccountingFuelExpense }) {
 				</div>
 			</div>
 			{row.status === 'submitted' ? (
-				<div className="mt-4 grid gap-2 sm:grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)_auto]">
-					<input
-						value={amount}
-						onChange={(event) => setAmount(event.target.value)}
-						inputMode="decimal"
-						placeholder="Amount"
-						className={MONEY_INPUT_CLASS}
-					/>
-					<input
-						value={proofPath}
-						onChange={(event) => setProofPath(event.target.value)}
-						placeholder="Extra proof path"
-						className={COMPACT_INPUT_CLASS}
-					/>
-					<input
-						value={note}
-						onChange={(event) => setNote(event.target.value)}
-						placeholder="Finance note"
-						className={COMPACT_INPUT_CLASS}
-					/>
-					<EmployeeActionButton
-						size="sm"
-						tone="success"
-						leading={<Fuel aria-hidden="true" size={14} />}
-						onClick={() => mutation.mutate()}
-						disabled={!canPost || mutation.isPending}
-					>
-						{mutation.isPending ? 'Posting' : 'Post'}
-					</EmployeeActionButton>
+				<div className="mt-4 space-y-2">
+					<div className="grid gap-2 sm:grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)_auto]">
+						<input
+							value={amount}
+							onChange={(event) => setAmount(event.target.value)}
+							inputMode="decimal"
+							placeholder="Amount"
+							className={MONEY_INPUT_CLASS}
+						/>
+						<input
+							value={proofPath}
+							onChange={(event) => setProofPath(event.target.value)}
+							placeholder="Extra proof path"
+							className={COMPACT_INPUT_CLASS}
+						/>
+						<input
+							value={note}
+							onChange={(event) => setNote(event.target.value)}
+							placeholder="Finance note"
+							className={COMPACT_INPUT_CLASS}
+						/>
+						<EmployeeActionButton
+							size="sm"
+							tone="success"
+							leading={<Fuel aria-hidden="true" size={14} />}
+							onClick={() => mutation.mutate()}
+							disabled={!canPost || mutation.isPending}
+						>
+							{mutation.isPending ? 'Posting' : 'Post'}
+						</EmployeeActionButton>
+					</div>
+					<MutationError error={mutation.error} />
 				</div>
 			) : (
 				<p className="mt-4 font-[family-name:var(--font-geist-mono)] text-[13px] font-semibold text-[var(--color-text)]">
@@ -1485,6 +1619,7 @@ function CompanyAssetsView({
 					placeholder="Notes"
 					className={`${COMPACT_INPUT_CLASS} lg:col-span-4`}
 				/>
+				<MutationError error={mutation.error} className="lg:col-span-4" />
 			</form>
 			{rows.length === 0 ? (
 				<EmptyRows label="No company assets recorded" />
@@ -1524,25 +1659,30 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 	const queryClient = useQueryClient()
 	const [adjustmentType, setAdjustmentType] =
 		useState<AdjustmentType>('company_expense')
-	const [category, setCategory] = useState('')
-	const [description, setDescription] = useState('')
+	const [category, setCategory] = useState(
+		firstAdjustmentCategory('company_expense'),
+	)
 	const [amount, setAmount] = useState('')
 	const [proofPath, setProofPath] = useState('')
+	const categoryOptions = ADJUSTMENT_CATEGORY_OPTIONS[adjustmentType]
+	const selectedCategory =
+		categoryOptions.find((option) => option.id === category) ??
+		categoryOptions[0]
+	const selectedType = adjustmentTypeCopy(adjustmentType)
 
 	const createMutation = useMutation({
 		mutationFn: () =>
 			createFinanceAdjustment({
 				data: {
 					adjustmentType,
-					category,
-					description,
+					category: selectedCategory?.label ?? category,
+					description: selectedCategory?.description ?? '',
 					amount: Number(amount),
 					proofPath: proofPath.trim() || undefined,
 				},
 			}),
 		onSuccess: () => {
-			setCategory('')
-			setDescription('')
+			setCategory(firstAdjustmentCategory(adjustmentType))
 			setAmount('')
 			setProofPath('')
 			queryClient.invalidateQueries({ queryKey: ['finance-accounting'] })
@@ -1550,9 +1690,7 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 	})
 
 	const canSubmit =
-		category.trim().length >= 2 &&
-		description.trim().length >= 5 &&
-		Number(amount) > 0
+		!!selectedCategory && Number(amount) > 0 && proofPath.trim().length > 0
 
 	return (
 		<section className="mt-6">
@@ -1572,9 +1710,10 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 					onChange={(event) => {
 						if (isAdjustmentType(event.target.value)) {
 							setAdjustmentType(event.target.value)
+							setCategory(firstAdjustmentCategory(event.target.value))
 						}
 					}}
-					className="h-10 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-archivo)] text-[12px] text-[var(--color-text)] outline-none dark:border-white/[0.12]"
+					className={SELECT_CLASS}
 				>
 					{ADJUSTMENT_TYPES.map((type) => (
 						<option key={type.id} value={type.id}>
@@ -1583,23 +1722,30 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 					))}
 				</select>
 				<div className="grid gap-3 sm:grid-cols-2">
-					<input
+					<select
 						value={category}
 						onChange={(event) => setCategory(event.target.value)}
-						placeholder="Category"
-						className="h-10 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-archivo)] text-[12px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)] dark:border-white/[0.12]"
-					/>
-					<input
-						value={description}
-						onChange={(event) => setDescription(event.target.value)}
-						placeholder="Description"
-						className="h-10 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-archivo)] text-[12px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)] dark:border-white/[0.12]"
-					/>
+						className={SELECT_CLASS}
+					>
+						{categoryOptions.map((option) => (
+							<option key={option.id} value={option.id}>
+								{option.label}
+							</option>
+						))}
+					</select>
+					<div className="min-h-10 rounded-md border border-black/[0.08] bg-black/[0.015] px-3 py-2 dark:border-white/[0.1] dark:bg-white/[0.025]">
+						<p className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text)]">
+							{selectedType?.note}
+						</p>
+						<p className="mt-1 font-[family-name:var(--font-bricolage)] text-[12px] leading-relaxed text-[var(--color-text-muted)]">
+							{selectedCategory?.description}
+						</p>
+					</div>
 					<input
 						value={proofPath}
 						onChange={(event) => setProofPath(event.target.value)}
 						placeholder="Proof path"
-						className="h-10 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-archivo)] text-[12px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)] dark:border-white/[0.12] sm:col-span-2"
+						className={`${COMPACT_INPUT_CLASS} sm:col-span-2`}
 					/>
 				</div>
 				<input
@@ -1607,7 +1753,7 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 					onChange={(event) => setAmount(event.target.value)}
 					inputMode="decimal"
 					placeholder="Amount"
-					className="h-10 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text)] outline-none placeholder:text-[var(--color-text-subtle)] dark:border-white/[0.12]"
+					className={MONEY_INPUT_CLASS}
 				/>
 				<EmployeeActionButton
 					type="submit"
@@ -1617,6 +1763,7 @@ function AdjustmentsView({ rows }: { rows: FinanceAccountingAdjustment[] }) {
 				>
 					{createMutation.isPending ? 'Saving' : 'Add'}
 				</EmployeeActionButton>
+				<MutationError error={createMutation.error} className="lg:col-span-4" />
 			</form>
 			{rows.length === 0 ? (
 				<EmptyRows label="No adjustments in this view" />
@@ -1867,6 +2014,24 @@ function SectionHeader({ title, meta }: { title: string; meta?: string }) {
 				</span>
 			)}
 		</div>
+	)
+}
+
+function MutationError({
+	className = '',
+	error,
+}: {
+	className?: string
+	error: unknown
+}) {
+	const message = mutationErrorMessage(error)
+	if (!message) return null
+	return (
+		<p
+			className={`rounded-md border border-red-600/20 bg-red-600/[0.04] px-3 py-2 font-[family-name:var(--font-archivo)] text-[12px] text-red-700 dark:text-red-300 ${className}`}
+		>
+			{message}
+		</p>
 	)
 }
 
