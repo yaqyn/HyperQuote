@@ -1,0 +1,25 @@
+import type { SVGProps } from 'react'
+
+export default function DriverIcon({
+	style,
+	...props
+}: SVGProps<SVGSVGElement>) {
+	return (
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			xmlnsXlink="http://www.w3.org/1999/xlink"
+			aria-hidden="true"
+			role="img"
+			width="512"
+			height="512"
+			viewBox="0 0 20 20"
+			style={{ color: 'rgb(61, 127, 245)', ...style }}
+			{...props}
+		>
+			<path
+				fill="currentColor"
+				d="m0 0l6 4l8-4l6 4v16l-6-4l-8 4l-6-4zm7 6v11l6-3V3z"
+			/>
+		</svg>
+	)
+}

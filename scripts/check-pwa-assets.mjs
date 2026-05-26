@@ -5,6 +5,9 @@ import { inflateSync } from 'node:zlib'
 const ROOT = process.cwd()
 const BRAND_BLUE = '#2563EB'
 const WHITE = '#ffffff'
+const ICON_MARK_DOMINANT_MIN_RATIO = 0.46
+const ICON_MARK_DOMINANT_MAX_RATIO = 0.54
+const ICON_MARK_SECONDARY_MIN_RATIO = 0.2
 
 const APPS = [
 	{
@@ -371,15 +374,15 @@ function validatePngAsset(path, asset, app) {
 		png.width === asset.size && png.height === asset.size,
 		`${app.key}: ${path} must be ${asset.size}x${asset.size}, got ${png.width}x${png.height}`,
 	)
-	validateIconVisual(path, png, asset, app)
+	validateIconVisual(path, png, app)
 }
 
-function validateIconVisual(path, png, asset, app) {
+function validateIconVisual(path, png, app) {
 	const background = hexToRgb(app.backgroundColor)
 	const foreground = hexToRgb(app.foregroundColor)
 	const stats = measureIconVisual(png, background, foreground)
-	const minBounds = asset.visual === 'maskable' ? 0.42 : 0.45
-	const maxBounds = asset.visual === 'maskable' ? 0.7 : 0.8
+	const dominantRatio = Math.max(stats.widthRatio, stats.heightRatio)
+	const secondaryRatio = Math.min(stats.widthRatio, stats.heightRatio)
 	const minForegroundPixels = Math.max(
 		20,
 		Math.floor(png.width * png.height * 0.0025),
@@ -399,12 +402,13 @@ function validateIconVisual(path, png, asset, app) {
 		`${app.key}: ${path} must contain the expected ${app.foregroundColor} icon mark`,
 	)
 	assert(
-		stats.widthRatio >= minBounds && stats.widthRatio <= maxBounds,
-		`${app.key}: ${path} icon width must fit launcher safe bounds, got ${stats.widthRatio.toFixed(2)}`,
+		dominantRatio >= ICON_MARK_DOMINANT_MIN_RATIO &&
+			dominantRatio <= ICON_MARK_DOMINANT_MAX_RATIO,
+		`${app.key}: ${path} icon mark must fill about 50% of the launcher frame, got ${dominantRatio.toFixed(2)}`,
 	)
 	assert(
-		stats.heightRatio >= minBounds && stats.heightRatio <= maxBounds,
-		`${app.key}: ${path} icon height must fit launcher safe bounds, got ${stats.heightRatio.toFixed(2)}`,
+		secondaryRatio >= ICON_MARK_SECONDARY_MIN_RATIO,
+		`${app.key}: ${path} icon mark secondary axis is too small, got ${secondaryRatio.toFixed(2)}`,
 	)
 	assert(
 		Math.abs(stats.centerX - 0.5) <= 0.04 &&
