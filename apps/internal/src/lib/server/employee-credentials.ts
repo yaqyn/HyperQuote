@@ -5,6 +5,11 @@ interface EmployeeRoleRow {
 	role: string
 }
 
+interface EmployeePanelPermissionRow {
+	can_write: boolean
+	panel: string
+}
+
 interface EmployeeCredentialRow {
 	id: string
 	user_id: string | null
@@ -12,6 +17,7 @@ interface EmployeeCredentialRow {
 	email: string
 	status: string
 	is_ceo: boolean
+	employee_panel_permissions: EmployeePanelPermissionRow[] | null
 	employee_roles: EmployeeRoleRow[] | null
 }
 
@@ -26,12 +32,14 @@ export type EmployeeCredentialResult =
 	| { success: false; error: string }
 
 export async function verifyEmployeeCredential({
+	allowedPanels = new Set(),
 	allowedRoles,
 	client,
 	employeeId,
 	method,
 	password,
 }: {
+	allowedPanels?: ReadonlySet<string>
 	allowedRoles: ReadonlySet<string>
 	client: SupabaseClient
 	employeeId: string
@@ -48,7 +56,7 @@ export async function verifyEmployeeCredential({
 	const { data, error } = await client
 		.from('employees')
 		.select(
-			'id, user_id, full_name, email, status, is_ceo, employee_roles(role)',
+			'id, user_id, full_name, email, status, is_ceo, employee_roles(role), employee_panel_permissions(panel, can_write)',
 		)
 		.eq('id', employeeId)
 		.maybeSingle()
@@ -69,10 +77,16 @@ export async function verifyEmployeeCredential({
 	const roles = new Set(
 		(employee.employee_roles ?? []).map((role) => role.role),
 	)
+	const writePanels = new Set(
+		(employee.employee_panel_permissions ?? [])
+			.filter((permission) => permission.can_write)
+			.map((permission) => permission.panel),
+	)
 	const roleAllowed =
 		employee.is_ceo ||
 		roles.has('admin') ||
-		[...allowedRoles].some((role) => roles.has(role))
+		[...allowedRoles].some((role) => roles.has(role)) ||
+		[...allowedPanels].some((panel) => writePanels.has(panel))
 	if (!roleAllowed) {
 		return { success: false, error: 'Employee role cannot sign this action' }
 	}

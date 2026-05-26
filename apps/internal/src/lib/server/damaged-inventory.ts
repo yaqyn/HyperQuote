@@ -692,6 +692,7 @@ export const reverseInventoryDamage = createServerFn({ method: 'POST' })
 		}
 
 		const verified = await verifyEmployeeCredential({
+			allowedPanels: new Set(['inventory']),
 			allowedRoles: new Set(['admin', 'inventory']),
 			client: auth.client,
 			employeeId: data.managerEmployeeId,

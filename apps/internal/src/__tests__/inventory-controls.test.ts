@@ -72,6 +72,9 @@ describe('inventory controls', () => {
 		const damagedServer = readWorkspaceFile(
 			'apps/internal/src/lib/server/damaged-inventory.ts',
 		)
+		const employeeCredentials = readWorkspaceFile(
+			'apps/internal/src/lib/server/employee-credentials.ts',
+		)
 		const procurementModule = readWorkspaceFile(
 			'apps/internal/src/components/procurement/ProcurementModule.tsx',
 		)
@@ -94,6 +97,13 @@ describe('inventory controls', () => {
 		expect(damagedServer).toContain('disposeDamagedInventory')
 		expect(damagedServer).toContain('reverseInventoryDamage')
 		expect(damagedServer).toContain('verifyEmployeeCredential')
+		expect(damagedServer).toContain("allowedPanels: new Set(['inventory'])")
+		expect(employeeCredentials).toContain(
+			'employee_panel_permissions(panel, can_write)',
+		)
+		expect(employeeCredentials).toContain(
+			'[...allowedPanels].some((panel) => writePanels.has(panel))',
+		)
 		expect(authServer).toContain('inventory_record_damage')
 		expect(authServer).toContain('inventory_sell_damaged_inventory')
 		expect(authServer).toContain('inventory_dispose_damaged_inventory')
