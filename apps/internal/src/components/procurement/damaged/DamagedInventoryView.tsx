@@ -726,15 +726,25 @@ function RecordDamageDialog({
 						/>
 					</DamageFormField>
 					<DamageFormField label="Units damaged" required>
-						<input
-							value={quantityText}
-							onChange={(event) =>
-								setQuantityText(normalizeDecimalInput(event.target.value))
-							}
-							inputMode="decimal"
-							className={DispatchInputClass()}
-							placeholder="0"
-						/>
+						<div className="relative">
+							<input
+								value={quantityText}
+								onChange={(event) =>
+									setQuantityText(normalizeDecimalInput(event.target.value))
+								}
+								inputMode="decimal"
+								className={`${DispatchInputClass()} pr-24`}
+								placeholder="0"
+							/>
+							{selectedProduct && (
+								<span className="pointer-events-none absolute inset-y-0 right-3 flex max-w-20 items-center justify-end truncate font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text-subtle)]">
+									{quantity(
+										selectedProduct.availableQuantity,
+										selectedProduct.unit,
+									)}
+								</span>
+							)}
+						</div>
 					</DamageFormField>
 				</div>
 
