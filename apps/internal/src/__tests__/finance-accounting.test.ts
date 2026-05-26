@@ -110,6 +110,17 @@ describe('finance accounting rebuild', () => {
 		)
 	})
 
+	it('keeps the accounting surface compact on phones', () => {
+		expect(accountingViewSource).toContain('overflow-x-auto')
+		expect(accountingViewSource).toContain('flex min-w-max')
+		expect(accountingViewSource).toContain('w-[148px] shrink-0 sm:w-auto')
+		expect(accountingViewSource).toContain('grid grid-cols-2 gap-2 sm:flex')
+		expect(accountingViewSource).toContain('fullWidthOnMobile')
+		expect(accountingViewSource).toContain('hidden max-w-[620px]')
+		expect(accountingViewSource).toContain('py-2')
+		expect(accountingViewSource).toContain('mt-4 space-y-6 sm:mt-6')
+	})
+
 	it('replaces the stale Finance history placeholder with Accounting', () => {
 		expect(financeModuleSource).not.toContain('HistoryPlaceholder')
 		expect(financeModuleSource).not.toContain('History is not connected yet')

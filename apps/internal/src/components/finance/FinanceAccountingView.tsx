@@ -140,7 +140,7 @@ export function FinanceAccountingView() {
 
 	return (
 		<div className="relative">
-			<div className="mx-auto flex max-w-[1180px] flex-col px-4 pt-6 pb-16 sm:px-6 lg:px-8 lg:pt-8 xl:px-10">
+			<div className="mx-auto flex max-w-[1180px] flex-col px-4 pt-5 pb-16 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 xl:px-10">
 				<AccountingMasthead
 					dashboard={dashboard}
 					periodStart={periodStart}
@@ -237,8 +237,8 @@ function AccountingMasthead({
 	backfillBusy: boolean
 }) {
 	return (
-		<header className="border-b border-[var(--color-border)] pb-4">
-			<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+		<header className="border-b border-[var(--color-border)] pb-3 sm:pb-4">
+			<div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-end lg:justify-between">
 				<div className="min-w-0">
 					<div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
 						<span className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text-muted)]">
@@ -251,13 +251,13 @@ function AccountingMasthead({
 							EGP total assets
 						</span>
 					</div>
-					<p className="mt-2 max-w-[620px] font-[family-name:var(--font-bricolage)] text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">
+					<p className="mt-2 hidden max-w-[620px] font-[family-name:var(--font-bricolage)] text-[12.5px] leading-relaxed text-[var(--color-text-muted)] sm:block">
 						{dashboard.overview.basis}
 					</p>
 				</div>
 
-				<div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-					<label className="flex min-w-[150px] flex-col gap-1">
+				<div className="grid grid-cols-2 gap-2 sm:flex sm:items-end">
+					<label className="flex min-w-0 flex-col gap-1 sm:min-w-[150px]">
 						<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
 							From
 						</span>
@@ -265,10 +265,10 @@ function AccountingMasthead({
 							type="date"
 							value={periodStart}
 							onChange={(event) => onPeriodStartChange(event.target.value)}
-							className="h-10 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
+							className="h-10 min-w-0 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
 						/>
 					</label>
-					<label className="flex min-w-[150px] flex-col gap-1">
+					<label className="flex min-w-0 flex-col gap-1 sm:min-w-[150px]">
 						<span className="font-[family-name:var(--font-archivo)] text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
 							To
 						</span>
@@ -276,7 +276,7 @@ function AccountingMasthead({
 							type="date"
 							value={periodEnd}
 							onChange={(event) => onPeriodEndChange(event.target.value)}
-							className="h-10 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
+							className="h-10 min-w-0 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-geist-mono)] text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/55 focus:ring-2 focus:ring-[var(--color-primary)]/15 dark:border-white/[0.12]"
 						/>
 					</label>
 					<EmployeeActionButton
@@ -285,6 +285,8 @@ function AccountingMasthead({
 						leading={<RefreshCcw aria-hidden="true" size={14} />}
 						onClick={onBackfill}
 						disabled={backfillBusy}
+						fullWidthOnMobile
+						className="col-span-2"
 					>
 						{backfillBusy ? 'Reconciling' : 'Reconcile'}
 					</EmployeeActionButton>
@@ -314,23 +316,23 @@ function AccountingViewStrip({
 	return (
 		<nav
 			aria-label="Accounting views"
-			className="sticky top-0 z-10 -mx-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:mx-0 lg:bg-transparent lg:px-0 xl:static xl:backdrop-blur-none"
+			className="sticky top-0 z-10 -mx-4 overflow-x-auto border-b border-[var(--color-border)] bg-[var(--color-surface)]/95 px-4 py-2 backdrop-blur [-webkit-overflow-scrolling:touch] sm:-mx-6 sm:overflow-visible sm:px-6 sm:py-3 lg:mx-0 lg:bg-transparent lg:px-0 xl:static xl:backdrop-blur-none"
 		>
-			<ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-9">
+			<ul className="flex min-w-max gap-2 sm:grid sm:min-w-0 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-9">
 				{ACCOUNTING_VIEWS.map((view) => {
 					const Icon = view.icon
 					return (
-						<li key={view.id}>
+						<li key={view.id} className="w-[148px] shrink-0 sm:w-auto">
 							<EmployeeFilterChip
 								active={activeView === view.id}
 								count={counts[view.id]}
 								tone={view.id === 'journal' ? 'primary' : 'neutral'}
 								onClick={() => onSelect(view.id)}
-								className="h-full w-full"
+								className="h-full w-full whitespace-nowrap"
 							>
-								<span className="inline-flex items-center gap-1.5">
+								<span className="inline-flex min-w-0 items-center gap-1.5">
 									<Icon aria-hidden="true" size={13} />
-									{view.label}
+									<span className="truncate">{view.label}</span>
 								</span>
 							</EmployeeFilterChip>
 						</li>
@@ -413,7 +415,7 @@ function OverviewView({
 	]
 
 	return (
-		<section className="mt-6 space-y-8">
+		<section className="mt-4 space-y-6 sm:mt-6 sm:space-y-8">
 			<div className="grid gap-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
 				<div className="space-y-6">
 					<div className="grid gap-6 md:grid-cols-2">
@@ -476,7 +478,7 @@ function OverviewView({
 				</AccountingPanel>
 			</div>
 
-			<div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+			<div className="grid gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
 				<AccountingPanel
 					title="Inventory asset register"
 					meta={`${dashboard.inventoryAssets.length} rows`}
