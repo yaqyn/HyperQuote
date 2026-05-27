@@ -1,4 +1,5 @@
 import { GlassWindow } from '@hyperquote/ui/glass/GlassWindow'
+import { useBackButtonDismissLayer } from '@hyperquote/ui/navigation/back-button'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MODULES } from '../../lib/modules'
@@ -203,6 +204,12 @@ export function ModuleWindow({ moduleId, isOpen, onClose }: ModuleWindowProps) {
 		useAIChatStore.getState().close()
 		onClose()
 	}, [moduleId, onClose, saveWindowState])
+
+	useBackButtonDismissLayer({
+		enabled: isOpen,
+		onDismiss: handleClose,
+		priority: 10,
+	})
 
 	useEffect(() => {
 		if (!isOpen) return

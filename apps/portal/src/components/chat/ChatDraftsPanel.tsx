@@ -942,7 +942,7 @@ export function ChatDraftsPanel({
 							<motion.div
 								key="draft-menu"
 								role="menu"
-								className="absolute inset-x-0 top-full z-30 mt-2 max-h-[min(70vh,420px)] overflow-y-auto rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-elevated)] p-2 shadow-2xl"
+								className="absolute inset-x-0 top-full z-30 mt-2 max-h-[min(70vh,420px)] touch-pan-y overflow-y-auto overscroll-contain rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-elevated)] p-2 shadow-2xl [-webkit-overflow-scrolling:touch]"
 								{...chatMenuMotion(shouldReduceMotion, 'top')}
 							>
 								<label className="flex h-9 items-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-2 transition-colors focus-within:border-[var(--p-border-strong)]">
@@ -1039,7 +1039,7 @@ export function ChatDraftsPanel({
 				</div>
 			</header>
 
-			<div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+			<div className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain px-4 py-4 [-webkit-overflow-scrolling:touch]">
 				<AnimatePresence mode="wait" initial={false}>
 					{editor ? (
 						<motion.div
@@ -1170,7 +1170,7 @@ export function ChatDraftsPanel({
 													type="search"
 												/>
 											</label>
-											<div className="mt-2 max-h-72 space-y-2 overflow-y-auto">
+											<div className="mt-2 max-h-72 touch-pan-y space-y-2 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
 												{productSearchFailed ? (
 													<p className="py-3 text-center text-[12px] text-[var(--p-error)]">
 														{t('orders.error')}

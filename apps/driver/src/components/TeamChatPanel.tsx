@@ -120,7 +120,7 @@ export function TeamChatPanel({
 				</section>
 			)}
 
-			<div className="driver-chat-stream min-h-0 flex-1 space-y-3 overflow-auto p-3 sm:p-4">
+			<div className="driver-chat-stream min-h-0 flex-1 touch-pan-y space-y-3 overflow-auto overscroll-contain p-3 [-webkit-overflow-scrolling:touch] sm:p-4">
 				{messages.map((message) => {
 					const isMine = message.authorDriverId === currentDriverId
 					return (

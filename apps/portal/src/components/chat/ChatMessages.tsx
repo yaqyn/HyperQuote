@@ -65,7 +65,7 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 			<div
 				ref={scrollRef}
 				onScroll={handleScroll}
-				className="flex-1 overflow-y-auto overscroll-contain px-5 pb-4 pt-6 sm:px-8 sm:pb-7 sm:pt-7 lg:px-12"
+				className="flex-1 touch-pan-y overflow-y-auto overscroll-contain px-5 pb-4 pt-6 [-webkit-overflow-scrolling:touch] sm:px-8 sm:pb-7 sm:pt-7 lg:px-12"
 			>
 				<ul
 					className="mx-auto flex w-full max-w-[820px] flex-col gap-4 sm:gap-6"

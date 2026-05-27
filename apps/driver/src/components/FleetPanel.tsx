@@ -1,6 +1,7 @@
+import { useBackButtonDismissLayer } from '@hyperquote/ui/navigation/back-button'
 import { ClipboardList, MessageCircle, UsersRound } from 'lucide-react'
 import type { Key } from 'react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { TabList, TabPanel, Tabs } from 'react-aria-components/Tabs'
 import { useTranslation } from 'react-i18next'
 import type {
@@ -105,9 +106,24 @@ export function FleetPanel({
 		if (sent) setDraftMessage('')
 	}
 
+	const handleBackFromChat = useCallback(() => {
+		onSelectedTabChange(lastNonChatTab)
+	}, [lastNonChatTab, onSelectedTabChange])
+
+	useBackButtonDismissLayer({
+		enabled: selectedTab === 'chat',
+		onDismiss: handleBackFromChat,
+		priority: 100,
+	})
+
 	if (selectedTab === 'chat') {
 		return (
-			<PanelShell hideHeader reserveRail={false} title={t('fleet.title')}>
+			<PanelShell
+				hideHeader
+				reserveRail={false}
+				scrollable={false}
+				title={t('fleet.title')}
+			>
 				<TeamChatPanel
 					currentDriverId={currentDriverId}
 					drivers={drivers}
@@ -115,7 +131,7 @@ export function FleetPanel({
 					focusedDriver={focusedDriver}
 					language={language}
 					messages={messages}
-					onBack={() => onSelectedTabChange(lastNonChatTab)}
+					onBack={handleBackFromChat}
 					onClearFocus={() => setFocusedDriverId(null)}
 					onDraftChange={setDraftMessage}
 					onMentionDriver={handleMentionDriver}
@@ -203,7 +219,7 @@ export function FleetPanel({
 						focusedDriver={focusedDriver}
 						language={language}
 						messages={messages}
-						onBack={() => onSelectedTabChange(lastNonChatTab)}
+						onBack={handleBackFromChat}
 						onClearFocus={() => setFocusedDriverId(null)}
 						onDraftChange={setDraftMessage}
 						onMentionDriver={handleMentionDriver}

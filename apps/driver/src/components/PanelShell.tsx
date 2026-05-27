@@ -5,11 +5,13 @@ export function PanelShell({
 	children,
 	hideHeader = false,
 	reserveRail = true,
+	scrollable = true,
 	title,
 }: {
 	children: ReactNode
 	hideHeader?: boolean
 	reserveRail?: boolean
+	scrollable?: boolean
 	title: string
 }) {
 	const reduceMotion = useReducedMotion()
@@ -32,7 +34,11 @@ export function PanelShell({
 				</header>
 			)}
 			<div
-				className={`driver-panel-body min-h-0 flex-1 overflow-auto ${
+				className={`driver-panel-body min-h-0 flex-1 overscroll-contain ${
+					scrollable
+						? 'touch-pan-y overflow-auto [-webkit-overflow-scrolling:touch]'
+						: 'overflow-hidden'
+				} ${
 					reserveRail
 						? 'pb-[calc(4.25rem+env(safe-area-inset-bottom))]'
 						: 'pb-[env(safe-area-inset-bottom)]'

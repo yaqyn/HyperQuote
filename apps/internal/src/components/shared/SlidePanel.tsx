@@ -1,3 +1,4 @@
+import { useBackButtonDismissLayer } from '@hyperquote/ui/navigation/back-button'
 import {
 	useDocumentScrollLock,
 	useVisualViewportKeyboard,
@@ -193,6 +194,11 @@ export function SlidePanel({
 		enabled: keyboardAware && isOpen,
 	})
 	useDocumentScrollLock(keyboardAware && isOpen)
+	useBackButtonDismissLayer({
+		enabled: isOpen,
+		onDismiss: onClose,
+		priority: 100,
+	})
 	const panelStyle: SlidePanelStyle = {
 		'--slide-panel-max-width': `${maxWidth}px`,
 		...(keyboard.isOpen
@@ -218,8 +224,8 @@ export function SlidePanel({
 			: {}),
 	}
 	const panelShellClass = isDark
-		? `slide-panel-shell fixed inset-0 ${edgeClass} ${shadowClass} z-30 flex w-full max-w-none flex-col rounded-none border-white/[0.075] bg-[#050505] text-white md:absolute md:inset-y-0 md:max-w-[var(--slide-panel-max-width)]`
-		: `slide-panel-shell fixed inset-0 ${edgeClass} ${shadowClass} z-30 flex w-full max-w-none flex-col rounded-none border-black/[0.08] bg-[var(--color-surface)] dark:border-white/[0.08] md:absolute md:inset-y-0 md:max-w-[var(--slide-panel-max-width)]`
+		? `slide-panel-shell fixed inset-0 ${edgeClass} ${shadowClass} z-30 flex w-full max-w-none touch-pan-y flex-col overscroll-contain rounded-none border-white/[0.075] bg-[#050505] text-white md:absolute md:inset-y-0 md:max-w-[var(--slide-panel-max-width)]`
+		: `slide-panel-shell fixed inset-0 ${edgeClass} ${shadowClass} z-30 flex w-full max-w-none touch-pan-y flex-col overscroll-contain rounded-none border-black/[0.08] bg-[var(--color-surface)] dark:border-white/[0.08] md:absolute md:inset-y-0 md:max-w-[var(--slide-panel-max-width)]`
 	const mobileBarClass = isDark
 		? 'slide-panel-mobile-bar flex h-12 shrink-0 items-center gap-2 border-b border-white/[0.075] bg-[#050505] px-2 md:hidden'
 		: 'slide-panel-mobile-bar flex h-12 shrink-0 items-center gap-2 border-b border-black/[0.06] px-2 dark:border-white/[0.08] md:hidden'
@@ -371,7 +377,9 @@ export function SlidePanel({
 								<div className="flex shrink-0 items-center">{mobileAction}</div>
 							)}
 						</div>
-						<div className="min-h-0 flex-1">{children}</div>
+						<div className="min-h-0 flex-1 overflow-hidden overscroll-contain">
+							{children}
+						</div>
 					</motion.div>
 				</>
 			)}

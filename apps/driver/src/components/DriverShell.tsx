@@ -1,3 +1,4 @@
+import { useBackButtonDismissLayer } from '@hyperquote/ui/navigation/back-button'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LogOut, MapPinned, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import {
@@ -354,6 +355,17 @@ export function DriverShell({ session }: DriverShellProps) {
 
 		setIsChromeCollapsed(true)
 	}
+
+	const closeOpenPanel = useCallback(() => {
+		setOpenPanel(null)
+		setIsChromeCollapsed(false)
+	}, [])
+
+	useBackButtonDismissLayer({
+		enabled: openPanel !== null && !isChromeCollapsed,
+		onDismiss: closeOpenPanel,
+		priority: 10,
+	})
 
 	if (dashboard.isPending) {
 		return (

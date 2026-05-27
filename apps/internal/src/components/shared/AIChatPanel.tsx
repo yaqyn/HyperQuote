@@ -149,11 +149,11 @@ export function AIChatPanel({ tone = 'default' }: { tone?: AIChatPanelTone }) {
 				/>
 
 				{/* Thread */}
-				<div className="relative min-h-0 flex-1">
+				<div className="relative min-h-0 flex-1 overflow-hidden overscroll-contain">
 					<div
 						ref={scrollRef}
 						data-lyon-thread="true"
-						className="absolute inset-0 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6"
+						className="absolute inset-0 touch-pan-y overflow-y-auto overscroll-contain px-5 py-5 [-webkit-overflow-scrolling:touch] sm:px-7 sm:py-6"
 					>
 						{messages.length === 0 ? (
 							<EmptyState

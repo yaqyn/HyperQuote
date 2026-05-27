@@ -1,3 +1,4 @@
+import { useBackButtonDismissLayer } from '@hyperquote/ui/navigation/back-button'
 import {
 	useDocumentScrollLock,
 	useVisualViewportKeyboard,
@@ -49,6 +50,9 @@ export function ChatView({ locale }: ChatViewProps) {
 	const handleDraftInitialLoadChange = useCallback((loading: boolean) => {
 		setDraftPanelInitiallyLoading(loading)
 	}, [])
+	const closeDraftPanel = useCallback(() => {
+		setDraftPanelOpen(false)
+	}, [])
 
 	const realMessages = useMemo(
 		() =>
@@ -72,6 +76,11 @@ export function ChatView({ locale }: ChatViewProps) {
 	}, [keyboard.height, keyboard.isOpen, keyboard.offsetTop])
 
 	useDocumentScrollLock(true)
+	useBackButtonDismissLayer({
+		enabled: draftPanelOpen,
+		onDismiss: closeDraftPanel,
+		priority: 100,
+	})
 
 	useEffect(() => {
 		function handleOpenDraft() {
@@ -169,10 +178,10 @@ export function ChatView({ locale }: ChatViewProps) {
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
 						transition={{ duration: 0.16 }}
-						onClick={() => setDraftPanelOpen(false)}
+						onClick={closeDraftPanel}
 					>
 						<motion.aside
-							className="absolute end-0 top-0 flex h-full w-[min(100vw,420px)] max-w-full border-s border-[var(--p-border)] bg-[var(--p-bg)] shadow-2xl"
+							className="absolute end-0 top-0 flex h-full w-[min(100vw,420px)] max-w-full touch-pan-y overscroll-contain border-s border-[var(--p-border)] bg-[var(--p-bg)] shadow-2xl"
 							initial={{ x: '100%' }}
 							animate={{ x: 0 }}
 							exit={{ x: '100%' }}
@@ -184,12 +193,12 @@ export function ChatView({ locale }: ChatViewProps) {
 								onActiveDraftChange={handleActiveDraftChange}
 								onDraftPrompt={(prompt) => {
 									chat.sendMessage(prompt)
-									setDraftPanelOpen(false)
+									closeDraftPanel()
 								}}
 								headerAction={
 									<button
 										type="button"
-										onClick={() => setDraftPanelOpen(false)}
+										onClick={closeDraftPanel}
 										className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
 										aria-label={t('chat.closeDrafts')}
 									>
