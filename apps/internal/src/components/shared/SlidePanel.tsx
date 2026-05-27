@@ -1,3 +1,7 @@
+import {
+	useDocumentScrollLock,
+	useVisualViewportKeyboard,
+} from '@hyperquote/ui/viewport/keyboard'
 import { ChevronLeft } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
@@ -151,6 +155,7 @@ interface SlidePanelProps {
 	mobileTitle?: ReactNode
 	mobileSubtitle?: ReactNode
 	mobileAction?: ReactNode
+	keyboardAware?: boolean
 	tone?: 'default' | 'dark'
 	children: ReactNode
 }
@@ -166,6 +171,7 @@ export function SlidePanel({
 	mobileTitle,
 	mobileSubtitle,
 	mobileAction,
+	keyboardAware = false,
 	tone = 'default',
 	children,
 }: SlidePanelProps) {
@@ -183,8 +189,19 @@ export function SlidePanel({
 	const shadowClass =
 		side === 'start' ? 'slide-drawer-start' : 'slide-drawer-end'
 	const isDark = tone === 'dark'
+	const keyboard = useVisualViewportKeyboard({
+		enabled: keyboardAware && isOpen,
+	})
+	useDocumentScrollLock(keyboardAware && isOpen)
 	const panelStyle: SlidePanelStyle = {
 		'--slide-panel-max-width': `${maxWidth}px`,
+		...(keyboard.isOpen
+			? {
+					bottom: 'auto',
+					height: `${keyboard.height}px`,
+					top: `${keyboard.offsetTop}px`,
+				}
+			: {}),
 		...(isDark
 			? {
 					'--color-surface': '#070707',

@@ -6,15 +6,21 @@
  * Keeps spring/tween animations from Phase 7.
  */
 
+import {
+	useDocumentScrollLock,
+	useVisualViewportKeyboard,
+} from '@hyperquote/ui/viewport/keyboard'
 import { useLocation, useMatches } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import { ArrowUp, Sparkles, Square, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
+	type CSSProperties,
 	type KeyboardEvent,
 	type ReactNode,
 	useCallback,
 	useEffect,
+	useMemo,
 	useRef,
 	useState,
 } from 'react'
@@ -85,14 +91,25 @@ export function FloatingAIButton() {
 	const toggleFloatingAI = usePortalStore((s) => s.toggleFloatingAI)
 	const setFloatingAIOpen = usePortalStore((s) => s.setFloatingAIOpen)
 	const chat = usePortalChat()
+	const isWindowOpen = matches.some((m) =>
+		WINDOW_ROUTES.some((p) => m.pathname.startsWith(p)),
+	)
+	const keyboard = useVisualViewportKeyboard({
+		enabled: isWindowOpen && isFloatingAIOpen,
+	})
+	useDocumentScrollLock(isWindowOpen && isFloatingAIOpen)
 
 	const [inputValue, setInputValue] = useState('')
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const inputRef = useRef<HTMLInputElement>(null)
 
-	const isWindowOpen = matches.some((m) =>
-		WINDOW_ROUTES.some((p) => m.pathname.startsWith(p)),
-	)
+	const panelKeyboardStyle = useMemo<CSSProperties | undefined>(() => {
+		if (!keyboard.isOpen) return undefined
+		return {
+			bottom: `${keyboard.bottomInset + 16}px`,
+			maxHeight: `calc(${keyboard.height}px - 2rem)`,
+		}
+	}, [keyboard.bottomInset, keyboard.height, keyboard.isOpen])
 
 	// Ctrl+J toggles floating AI panel globally
 	useShortcut('Mod+J', toggleFloatingAI)
@@ -176,6 +193,7 @@ export function FloatingAIButton() {
 						exit={{ scale: 0, opacity: 0 }}
 						transition={{ duration: 0.15, ease: 'easeOut' }}
 						className="fixed bottom-4 end-4 z-50 w-[380px] max-h-[60vh] flex flex-col backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[rgba(0,0,0,0.90)] rounded-2xl shadow-2xl border border-[var(--color-border)]/50"
+						style={panelKeyboardStyle}
 					>
 						<FloatingDialog
 							aria-label={t('floatingAI.ariaLabel')}

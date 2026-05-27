@@ -1,6 +1,10 @@
+import {
+	useDocumentScrollLock,
+	useVisualViewportKeyboard,
+} from '@hyperquote/ui/viewport/keyboard'
 import { ArrowLeft, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useState } from 'react'
 import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
 import type { ChatMessage } from '../../hooks/chatSession'
@@ -126,6 +130,16 @@ function DesktopPanel(props: ChatPanelProps) {
 
 function FullScreenPanel(props: ChatPanelProps) {
 	const { isOpen, close } = useChatWidget()
+	const keyboard = useVisualViewportKeyboard({ enabled: isOpen })
+	const keyboardFrameStyle = useMemo<CSSProperties | undefined>(() => {
+		if (!keyboard.isOpen) return undefined
+		return {
+			height: `${keyboard.height}px`,
+			marginTop: keyboard.offsetTop > 0 ? `${keyboard.offsetTop}px` : undefined,
+		}
+	}, [keyboard.height, keyboard.isOpen, keyboard.offsetTop])
+
+	useDocumentScrollLock(isOpen)
 
 	return (
 		<ModalOverlay
@@ -139,6 +153,7 @@ function FullScreenPanel(props: ChatPanelProps) {
 			<Modal
 				dir="ltr"
 				className="flex h-[100dvh] w-full flex-col bg-[var(--color-base)] pt-[env(safe-area-inset-top)] outline-none"
+				style={keyboardFrameStyle}
 			>
 				<PanelShell {...props} isFullScreen />
 			</Modal>

@@ -1,6 +1,16 @@
+import {
+	useDocumentScrollLock,
+	useVisualViewportKeyboard,
+} from '@hyperquote/ui/viewport/keyboard'
 import { ArrowLeft, X } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+	type CSSProperties,
+	useCallback,
+	useEffect,
+	useMemo,
+	useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { usePortalChat } from '../../hooks/usePortalChat'
 import {
@@ -24,6 +34,7 @@ export function ChatView({ locale }: ChatViewProps) {
 		null,
 	)
 	const chat = usePortalChat({ activeDraft })
+	const keyboard = useVisualViewportKeyboard()
 	const [draftPanelInitiallyLoading, setDraftPanelInitiallyLoading] =
 		useState(true)
 	const [draftPanelOpen, setDraftPanelOpen] = useState(false)
@@ -51,6 +62,16 @@ export function ChatView({ locale }: ChatViewProps) {
 	const isArabic = locale === 'ar'
 	const newPageLabel = t('chat.newPage', 'New page')
 	const introReady = chat.isReady && !draftPanelInitiallyLoading
+	const keyboardFrameStyle = useMemo<CSSProperties | undefined>(() => {
+		if (!keyboard.isOpen) return undefined
+		return {
+			flex: '0 0 auto',
+			height: `${keyboard.height}px`,
+			marginTop: keyboard.offsetTop > 0 ? `${keyboard.offsetTop}px` : undefined,
+		}
+	}, [keyboard.height, keyboard.isOpen, keyboard.offsetTop])
+
+	useDocumentScrollLock(true)
 
 	useEffect(() => {
 		function handleOpenDraft() {
@@ -77,7 +98,10 @@ export function ChatView({ locale }: ChatViewProps) {
 	}, [introMinimumElapsed, introReady])
 
 	return (
-		<div className="office-paper relative grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
+		<div
+			className="office-paper relative grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]"
+			style={keyboardFrameStyle}
+		>
 			<div className="relative flex min-h-0 flex-col">
 				<header className="relative z-[2] shrink-0 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-8 sm:pt-5 lg:px-12">
 					<PortalTitleRow

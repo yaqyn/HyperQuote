@@ -1,4 +1,6 @@
+import { useVisualViewportKeyboard } from '@hyperquote/ui/viewport/keyboard'
 import { ArrowLeft, MessageCircle, Radio, Send } from 'lucide-react'
+import { type CSSProperties, useMemo } from 'react'
 import { Button } from 'react-aria-components/Button'
 import { Input } from 'react-aria-components/Input'
 import { Label } from 'react-aria-components/Label'
@@ -43,15 +45,24 @@ export function TeamChatPanel({
 	showHeader?: boolean
 }) {
 	const { t } = useTranslation('driver')
+	const keyboard = useVisualViewportKeyboard()
 	const mentionableDrivers = drivers.filter(
 		(driver) => driver.id !== currentDriverId,
 	)
+	const keyboardFrameStyle = useMemo<CSSProperties | undefined>(() => {
+		if (!keyboard.isOpen) return undefined
+		return {
+			height: `${keyboard.height}px`,
+			marginTop: keyboard.offsetTop > 0 ? `${keyboard.offsetTop}px` : undefined,
+		}
+	}, [keyboard.height, keyboard.isOpen, keyboard.offsetTop])
 
 	return (
 		<div
 			className={`driver-chat-panel flex min-h-0 flex-col ${
 				showHeader ? 'h-[calc(100dvh-8rem)]' : 'h-full'
 			}`}
+			style={keyboardFrameStyle}
 		>
 			{showHeader && (
 				<section className="driver-chat-header border-b border-[var(--color-border)] p-3 sm:p-4">

@@ -17,7 +17,8 @@
 		"./pwa/install": "./src/pwa/install.ts",
 		"./quote-cart/SavedDraftsPanelView": "./src/quote-cart/SavedDraftsPanelView.tsx",
 		"./selection/SelectionCopyToolbar": "./src/selection/SelectionCopyToolbar.tsx",
-		"./utils/cn": "./src/utils/cn.ts"
+		"./utils/cn": "./src/utils/cn.ts",
+		"./viewport/keyboard": "./src/viewport/keyboard.ts"
 	},
 	"dependencies": {
 		"@hyperquote/i18n": "workspace:*",
