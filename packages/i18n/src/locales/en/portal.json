@@ -488,10 +488,10 @@
 		"chatHistory": "Chat history"
 	},
 	"chip": {
-		"buildProject": "Build a Project",
-		"buildProjectDesc": "Describe your project and get a full materials list",
-		"orderMaterials": "Order Materials",
-		"orderMaterialsDesc": "Tell me exactly what you need and I'll draft the order",
+		"buildProject": "See What Lyon Can Do",
+		"buildProjectDesc": "Ask about products, choices, drafts, and account context",
+		"orderMaterials": "Draft From Natural Text",
+		"orderMaterialsDesc": "Use product names, rough wording, or typos and Lyon will clarify",
 		"reorder": "Reorder",
 		"reorderDesc": "Repeat a previous order with one tap",
 		"getQuote": "Get a quote",

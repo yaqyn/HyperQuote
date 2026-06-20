@@ -13,23 +13,18 @@ const CHIPS: Chip[] = [
 	{
 		labelKey: 'chip.buildProject',
 		descKey: 'chip.buildProjectDesc',
-		promptEn: 'I have a construction project and need materials',
+		promptEn:
+			'Show me how you can help with materials, drafts, and product choices',
 		promptAr:
-			'\u0639\u0646\u062F\u064A \u0645\u0634\u0631\u0648\u0639 \u0628\u0646\u0627\u0621 \u0648\u0645\u062D\u062A\u0627\u062C \u0645\u0648\u0627\u062F',
+			'\u0648\u0631\u0651\u064A\u0646\u064A \u062A\u0642\u062F\u0631 \u062A\u0633\u0627\u0639\u062F\u0646\u064A \u0625\u0632\u0627\u064A \u0641\u064A \u0627\u0644\u0645\u0648\u0627\u062F \u0648\u0627\u0644\u0645\u0633\u0648\u062F\u0627\u062A \u0648\u0627\u062E\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0646\u062A\u062C\u0627\u062A',
 	},
 	{
 		labelKey: 'chip.orderMaterials',
 		descKey: 'chip.orderMaterialsDesc',
-		promptEn: 'I need to order specific building materials',
+		promptEn:
+			'I need 200 cement, 50 timber, and some steel. Help me choose and draft it.',
 		promptAr:
-			'\u0639\u0627\u064A\u0632 \u0623\u0637\u0644\u0628 \u0645\u0648\u0627\u062F \u0628\u0646\u0627\u0621 \u0645\u062D\u062F\u062F\u0629',
-	},
-	{
-		labelKey: 'chip.reorder',
-		descKey: 'chip.reorderDesc',
-		promptEn: 'I want to reorder from a previous order',
-		promptAr:
-			'\u0639\u0627\u064A\u0632 \u0623\u0639\u064A\u062F \u0637\u0644\u0628 \u0633\u0627\u0628\u0642',
+			'\u0645\u062D\u062A\u0627\u062C \u0662\u0660\u0660 \u0623\u0633\u0645\u0646\u062A\u060C \u0665\u0660 \u062E\u0634\u0628\u060C \u0648\u0634\u0648\u064A\u0629 \u062D\u062F\u064A\u062F. \u0633\u0627\u0639\u062F\u0646\u064A \u0623\u062E\u062A\u0627\u0631 \u0648\u0627\u0639\u0645\u0644 \u0645\u0633\u0648\u062F\u0629.',
 	},
 ]
 
@@ -44,7 +39,7 @@ export function SuggestionChips({ onSelect, locale }: SuggestionChipsProps) {
 	return (
 		<>
 			{CHIPS.map((chip, idx) => {
-				const numeral = ['I', 'II', 'III'][idx] ?? ''
+				const numeral = ['I', 'II'][idx] ?? ''
 				return (
 					<motion.button
 						key={chip.labelKey}
