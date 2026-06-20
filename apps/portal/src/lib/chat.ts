@@ -4399,6 +4399,16 @@ async function buildDraftItemsFromRequestedLines(
 						: `I could not find an available catalog product for ${line.query}. I did not create a draft.`,
 			}
 		}
+		const uniqueCatalogMeaningMatch = uniqueCatalogMeaningMatchForDraftLine(
+			matches,
+			line.query,
+		)
+		if (uniqueCatalogMeaningMatch) {
+			items.push(
+				draftMaterialItemFromProduct(uniqueCatalogMeaningMatch, line.quantity),
+			)
+			continue
+		}
 		if (matches.length > 1) {
 			const resolution = await resolveDraftLineProductWithModel(
 				line,
@@ -4490,6 +4500,43 @@ function exactProductMatchForDraftLine(
 	return matches[0] ?? null
 }
 
+function uniqueCatalogMeaningMatchForDraftLine(
+	products: PortalAiProduct[],
+	query: string,
+): PortalAiProduct | null {
+	const normalizedQuery = normalizeForMatch(query)
+	const queryTerms = normalizedQuery
+		.split(' ')
+		.filter((term) => term.length > 2)
+	if (queryTerms.length === 0) return null
+
+	const phraseMatches = products.filter((product) =>
+		catalogMeaningText(product).includes(normalizedQuery),
+	)
+	if (phraseMatches.length === 1) return phraseMatches[0] ?? null
+
+	const termMatches = products.filter((product) => {
+		const productTerms = new Set(catalogMeaningText(product).split(' '))
+		return queryTerms.every((term) => productTerms.has(term))
+	})
+	if (termMatches.length !== 1) return null
+	return termMatches[0] ?? null
+}
+
+function catalogMeaningText(product: PortalAiProduct): string {
+	return normalizeForMatch(
+		[
+			product.name,
+			product.name_ar ?? '',
+			product.category,
+			product.subcategory ?? '',
+			product.subcategory_ar ?? '',
+			product.description ?? '',
+			product.description_ar ?? '',
+		].join(' '),
+	)
+}
+
 function draftMaterialItemFromProduct(
 	product: PortalAiProduct,
 	quantity: number,
@@ -4537,6 +4584,7 @@ async function resolveDraftLineProductWithModel(
 
 Choose the best real catalog product for the customer's requested line.
 Use human meaning, synonyms, category, unit, and product names. Do not invent products.
+The requested line already includes the requested quantity when quantity is present. Never ask for a quantity that is already present.
 If one option clearly fits, return exactly {"product_id":"..."}.
 Only if it is genuinely impossible to choose, return exactly {"question":"short natural clarification"}.
 
