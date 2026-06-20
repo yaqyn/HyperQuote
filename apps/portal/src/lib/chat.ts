@@ -2843,6 +2843,9 @@ async function findOrderableProductsForDraft(
 	const { data, error } = await builder
 	if (error) throw new Error(error.message)
 	const products = (data ?? []) as PortalAiProduct[]
+	if (!openEndedSelection && query && products.length === 0) {
+		return loadOrderableDraftProductPool(supabase)
+	}
 	return openEndedSelection
 		? deterministicProductSample(
 				products,
@@ -2850,6 +2853,23 @@ async function findOrderableProductsForDraft(
 				OPEN_ENDED_DRAFT_ITEM_COUNT,
 			)
 		: products
+}
+
+async function loadOrderableDraftProductPool(
+	supabase: AuthedSupabase,
+): Promise<PortalAiProduct[]> {
+	const { data, error } = await supabase
+		.from('products')
+		.select(
+			'id, sku, slug, name, name_ar, category, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar',
+		)
+		.eq('is_active', true)
+		.neq('availability_status', 'hidden')
+		.neq('availability_status', 'out_of_stock')
+		.order('name', { ascending: true })
+		.limit(OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE)
+	if (error) throw new Error(error.message)
+	return (data ?? []) as PortalAiProduct[]
 }
 
 async function createDraftFromPlan(
@@ -4485,6 +4505,11 @@ async function buildDraftItemsFromRequestedLines(
 			items.push(draftMaterialItemFromProduct(exactMatch, line.quantity))
 			continue
 		}
+		const fuzzyMatch = fuzzyCatalogMatchForDraftLine(products, line.query)
+		if (fuzzyMatch) {
+			items.push(draftMaterialItemFromProduct(fuzzyMatch, line.quantity))
+			continue
+		}
 		const matches = rankProductsForDraftLine(products, line.query, 4)
 		if (matches.length === 0) {
 			return {
@@ -4534,6 +4559,11 @@ function buildDraftItemsFromPlan(
 			const exactMatch = exactProductMatchForDraftLine(products, line.query)
 			if (exactMatch) {
 				items.push(draftMaterialItemFromProduct(exactMatch, line.quantity))
+				continue
+			}
+			const fuzzyMatch = fuzzyCatalogMatchForDraftLine(products, line.query)
+			if (fuzzyMatch) {
+				items.push(draftMaterialItemFromProduct(fuzzyMatch, line.quantity))
 				continue
 			}
 			const rankedProducts = rankProductsForPlanning(
@@ -4598,6 +4628,87 @@ function exactProductMatchForDraftLine(
 	})
 	if (matches.length !== 1) return null
 	return matches[0] ?? null
+}
+
+function fuzzyCatalogMatchForDraftLine(
+	products: PortalAiProduct[],
+	query: string,
+): PortalAiProduct | null {
+	const queryTokens = normalizeForMatch(query)
+		.split(' ')
+		.filter((token) => token.length > 2)
+	if (queryTokens.length === 0) return null
+
+	const ranked = products
+		.map((product) => ({
+			product,
+			score: fuzzyCatalogScore(product, queryTokens),
+		}))
+		.filter((candidate) => candidate.score >= queryTokens.length * 0.76)
+		.sort((left, right) => {
+			if (right.score !== left.score) return right.score - left.score
+			return left.product.name.localeCompare(right.product.name)
+		})
+
+	const best = ranked[0]
+	const next = ranked[1]
+	if (!best) return null
+	if (next && best.score - next.score < 0.25) return null
+	return best.product
+}
+
+function fuzzyCatalogScore(
+	product: PortalAiProduct,
+	queryTokens: string[],
+): number {
+	const productTokens = catalogNameTokens(product)
+	if (productTokens.length === 0) return 0
+	return queryTokens.reduce((score, queryToken) => {
+		const best = productTokens.reduce(
+			(max, productToken) =>
+				Math.max(max, tokenSimilarity(queryToken, productToken)),
+			0,
+		)
+		return score + best
+	}, 0)
+}
+
+function catalogNameTokens(product: PortalAiProduct): string[] {
+	return [
+		product.name,
+		product.name_ar ?? '',
+		product.category,
+		product.subcategory ?? '',
+		product.subcategory_ar ?? '',
+	]
+		.flatMap((value) => normalizeForMatch(value).split(' '))
+		.filter((token) => token.length > 2)
+}
+
+function tokenSimilarity(left: string, right: string): number {
+	if (left === right) return 1
+	const maxLength = Math.max(left.length, right.length)
+	if (maxLength === 0) return 1
+	const distance = levenshteinDistance(left, right)
+	return Math.max(0, 1 - distance / maxLength)
+}
+
+function levenshteinDistance(left: string, right: string): number {
+	const previous = Array.from({ length: right.length + 1 }, (_, index) => index)
+	const current = Array.from({ length: right.length + 1 }, () => 0)
+	for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+		current[0] = leftIndex
+		for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+			const cost = left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1
+			current[rightIndex] = Math.min(
+				current[rightIndex - 1] + 1,
+				previous[rightIndex] + 1,
+				previous[rightIndex - 1] + cost,
+			)
+		}
+		previous.splice(0, previous.length, ...current)
+	}
+	return previous[right.length] ?? 0
 }
 
 function uniqueCatalogMeaningMatchForDraftLine(
