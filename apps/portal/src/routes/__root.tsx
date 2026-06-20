@@ -118,17 +118,16 @@ export const Route = createRootRoute({
 				...baseHead.links,
 				{
 					rel: 'icon',
-					type: 'image/png',
-					sizes: '96x96',
-					href: '/favicon-96x96.png',
+					type: 'image/svg+xml',
+					href: '/brand/LyonBlack.svg',
+					media: '(prefers-color-scheme: light)',
 				},
 				{
 					rel: 'icon',
 					type: 'image/svg+xml',
-					sizes: 'any',
-					href: '/favicon.svg',
+					href: '/brand/LyonWhite.svg',
+					media: '(prefers-color-scheme: dark)',
 				},
-				{ rel: 'icon', href: '/favicon.ico' },
 				{
 					rel: 'apple-touch-icon',
 					sizes: '152x152',

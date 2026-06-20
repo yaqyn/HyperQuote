@@ -302,8 +302,7 @@ function validateHead(app) {
 		`${label}: must include the matching Windows tile color`,
 	)
 	assert(
-		head.includes('/favicon-96x96.png') &&
-			head.includes('/apple-touch-icon-180x180.png') &&
+		head.includes('/apple-touch-icon-180x180.png') &&
 			head.includes('/mstile-150x150.png'),
 		`${label}: must link platform icon assets`,
 	)
