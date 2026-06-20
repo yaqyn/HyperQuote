@@ -575,190 +575,216 @@ function VoiceOrb({
 	onDismiss: () => void
 	onSend: () => void
 }) {
-	// Soft amplitude — so the orb breathes naturally even when silent.
 	const a = Math.max(0, Math.min(1, amplitude))
+	const status = isAr ? 'ليون يسمعك' : 'Lyon is listening'
+	const subtitle = isAr
+		? 'تكلّم بطبيعتك. سأحوّلها إلى رسالة واضحة.'
+		: 'Speak naturally. I will turn it into a clean message.'
+	const cancelLabel = isAr ? 'إلغاء' : 'Cancel'
+	const sendLabel = isAr ? 'إرسال إلى ليون' : 'Send to Lyon'
+	const waitingText = isAr ? 'ابدأ بالكلام...' : 'Start speaking...'
+	const bars = Array.from({ length: 28 }, (_, index) => {
+		const phase = Math.sin(index * 0.72)
+		return {
+			height: 18 + Math.abs(phase) * 28 + a * (34 + (index % 5) * 5),
+			id: `voice-bar-${index}`,
+			index,
+		}
+	})
+
 	return (
 		<motion.div
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
 			exit={{ opacity: 0 }}
-			transition={{ duration: 0.5 }}
-			className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden"
-			style={{ background: 'rgba(0,0,0,0.96)' }}
+			transition={{ duration: 0.28 }}
+			className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden px-4 py-6 sm:px-8"
+			style={{
+				background:
+					'linear-gradient(135deg, color-mix(in srgb, var(--p-bg) 92%, transparent), color-mix(in srgb, var(--p-surface) 88%, transparent))',
+				backdropFilter: 'blur(24px) saturate(1.25)',
+			}}
 			onClick={onDismiss}
 		>
 			<div
 				aria-hidden
-				className="absolute h-[min(112vw,520px)] w-[min(112vw,520px)] rounded-full"
+				className="pointer-events-none absolute inset-0"
 				style={{
-					background: `radial-gradient(circle, rgba(255,255,255,${0.08 + a * 0.08}) 0%, rgba(255,255,255,${0.025 + a * 0.04}) 34%, transparent 70%)`,
-					filter: 'blur(34px)',
+					background: `radial-gradient(circle at 50% 36%, color-mix(in srgb, var(--p-accent) ${18 + a * 18}%, transparent) 0%, transparent 34%), radial-gradient(circle at 16% 82%, color-mix(in srgb, var(--p-text) 9%, transparent) 0%, transparent 28%), radial-gradient(circle at 84% 18%, color-mix(in srgb, var(--p-accent) 12%, transparent) 0%, transparent 24%)`,
 				}}
 			/>
-
 			<motion.div
-				aria-hidden
-				className="absolute rounded-full"
-				animate={{
-					scale: 1 + a * 0.16,
-					opacity: 0.28 + a * 0.22,
-				}}
-				transition={{ type: 'spring', stiffness: 180, damping: 22 }}
-				style={{
-					width: 'clamp(132px, 38vw, 220px)',
-					height: 'clamp(132px, 38vw, 220px)',
-					background:
-						'radial-gradient(circle, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0.04) 52%, transparent 82%)',
-					filter: 'blur(18px)',
-				}}
-			/>
-
-			<motion.div
-				aria-hidden
-				className="absolute rounded-full"
-				animate={{
-					scale: 1 + a * 0.22,
-					opacity: 0.5 + a * 0.25,
-				}}
-				transition={{ type: 'spring', stiffness: 220, damping: 20 }}
-				style={{
-					width: 'clamp(88px, 24vw, 130px)',
-					height: 'clamp(88px, 24vw, 130px)',
-					background:
-						'radial-gradient(circle, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.07) 55%, transparent 85%)',
-					filter: 'blur(10px)',
-				}}
-			/>
-
-			<motion.div
-				className="relative rounded-full"
-				animate={{
-					scale: 1 + a * 0.12,
-				}}
-				transition={{ type: 'spring', stiffness: 280, damping: 18 }}
-				style={{
-					width: 'clamp(64px, 17vw, 92px)',
-					height: 'clamp(64px, 17vw, 92px)',
-					background: `radial-gradient(circle at 36% 30%, rgba(255,255,255,${0.55 + a * 0.25}) 0%, rgba(255,255,255,${0.22 + a * 0.18}) 28%, rgba(255,255,255,0.08) 60%, rgba(255,255,255,0.02) 85%, transparent 100%)`,
-					boxShadow: `0 0 ${54 + a * 72}px ${12 + a * 24}px rgba(255,255,255,${0.07 + a * 0.1}), inset 0 0 ${24 + a * 22}px rgba(255,255,255,${0.1 + a * 0.14}), 0 0 ${10 + a * 14}px ${2 + a * 5}px rgba(255,255,255,${0.16 + a * 0.16})`,
-					border: `1px solid rgba(255,255,255,${0.18 + a * 0.18})`,
-					overflow: 'hidden',
-				}}
+				initial={{ opacity: 0, y: 18, scale: 0.98 }}
+				animate={{ opacity: 1, y: 0, scale: 1 }}
+				exit={{ opacity: 0, y: 10, scale: 0.98 }}
+				transition={{ duration: 0.35, ease: SMOOTH_EASE }}
+				onClick={(event) => event.stopPropagation()}
+				dir={isAr ? 'rtl' : 'ltr'}
+				className="relative flex w-full max-w-[760px] flex-col overflow-hidden rounded-[2rem] border border-[var(--p-border-strong)] bg-[color-mix(in_srgb,var(--p-card)_86%,transparent)] p-4 shadow-[var(--p-panel-shadow)] backdrop-blur-2xl sm:p-6"
 			>
 				<div
-					className="pointer-events-none absolute rounded-full"
+					aria-hidden
+					className="pointer-events-none absolute inset-x-6 top-0 h-px"
 					style={{
-						width: '46%',
-						height: '28%',
-						top: '12%',
-						left: '18%',
 						background:
-							'radial-gradient(ellipse, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.12) 40%, transparent 75%)',
-						filter: 'blur(4px)',
+							'linear-gradient(90deg, transparent, var(--p-border-hint), transparent)',
+						opacity: 0.45 + a * 0.35,
 					}}
 				/>
-			</motion.div>
 
-			<div className="absolute inset-x-0 bottom-20 flex justify-center px-5 sm:bottom-28 sm:px-8">
-				<AnimatePresence mode="wait">
-					{transcript ? (
-						<motion.div
-							key="transcript"
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							exit={{ opacity: 0, y: -4, filter: 'blur(4px)' }}
-							transition={{ duration: 0.3 }}
-							dir={isAr ? 'rtl' : 'ltr'}
-							className={`voice-mono max-w-[560px] text-center text-[15px] leading-[1.85] text-[var(--p-text)] ${
-								isAr ? 'voice-serif-ar text-[17px]' : ''
-							}`}
-							style={{
-								maskImage:
-									'linear-gradient(180deg, transparent 0%, white 25%, white 100%)',
-								WebkitMaskImage:
-									'linear-gradient(180deg, transparent 0%, white 25%, white 100%)',
-								maxHeight: '140px',
-								overflow: 'hidden',
-								display: 'flex',
-								flexWrap: 'wrap',
-								justifyContent: 'center',
-								alignContent: 'flex-end',
-								textShadow: `0 0 ${8 + amplitude * 20}px rgba(255,255,255,${0.1 + amplitude * 0.2})`,
-							}}
-						>
-							{(() => {
-								const words = transcript.split(' ')
-								let offset = 0
-								return words.map((word, i, arr) => {
-									const fromEnd = arr.length - 1 - i
-									const isRecent = fromEnd < 3
-									const keyPos = offset
-									offset += word.length + 1
-									return (
-										<motion.span
-											key={`${keyPos}-${word}`}
-											initial={{
-												opacity: 0,
-												y: 10,
-												filter: 'blur(8px)',
-											}}
-											animate={{
-												opacity: isRecent ? 0.75 + amplitude * 0.3 : 0.55,
-												y: 0,
-												filter: 'blur(0px)',
-												textShadow: isRecent
-													? `0 0 ${12 + amplitude * 16}px rgba(255,255,255,${0.25 + amplitude * 0.3})`
-													: '0 0 0px transparent',
-											}}
-											transition={{
-												opacity: { duration: 0.5 },
-												y: { duration: 0.4, ease: SMOOTH_EASE },
-												filter: { duration: 0.5 },
-												textShadow: { duration: 0.6 },
-											}}
-											className="inline-block"
-											style={{ marginInlineEnd: '0.3em' }}
-										>
-											{word}
-										</motion.span>
-									)
-								})
-							})()}
-						</motion.div>
-					) : (
-						<motion.p
-							key="hint"
-							initial={{ opacity: 0, y: 4 }}
-							animate={{ opacity: 0.4, y: 0 }}
-							exit={{ opacity: 0 }}
-							transition={{ delay: 1, duration: 0.5 }}
-							className="office-meta text-center text-[11px] text-[var(--p-text-muted)]"
-						>
+				<header className="flex items-start justify-between gap-4">
+					<div className="min-w-0">
+						<p className="voice-mono text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--p-text-muted)]">
 							{hint}
-						</motion.p>
-					)}
-				</AnimatePresence>
-			</div>
-
-			{/* Send — quiet command when transcript is present */}
-			<AnimatePresence>
-				{transcript && (
-					<motion.button
+						</p>
+						<h2 className="mt-2 text-[24px] font-semibold tracking-[-0.04em] text-[var(--p-text)] sm:text-[38px]">
+							{status}
+						</h2>
+						<p className="mt-2 max-w-[460px] text-[13px] leading-5 text-[var(--p-text-muted)] sm:text-[14px]">
+							{subtitle}
+						</p>
+					</div>
+					<button
 						type="button"
-						initial={{ opacity: 0, y: 4 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.25 }}
+						onClick={onDismiss}
+						className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--p-border)] bg-[var(--p-bg)] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+					>
+						<span className="sr-only">{cancelLabel}</span>
+						<span aria-hidden className="text-[18px] leading-none">
+							×
+						</span>
+					</button>
+				</header>
+
+				<div className="mt-8 grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-center">
+					<div className="relative mx-auto flex h-[240px] w-[240px] items-center justify-center sm:h-[280px] sm:w-[280px]">
+						<motion.div
+							aria-hidden
+							className="absolute inset-0 rounded-full"
+							animate={{
+								opacity: 0.22 + a * 0.26,
+								scale: 0.96 + a * 0.18,
+							}}
+							transition={{ type: 'spring', stiffness: 180, damping: 22 }}
+							style={{
+								background:
+									'radial-gradient(circle, color-mix(in srgb, var(--p-accent) 36%, transparent) 0%, transparent 66%)',
+								filter: 'blur(18px)',
+							}}
+						/>
+						<motion.div
+							aria-hidden
+							className="absolute h-[78%] w-[78%] rounded-full border border-[var(--p-border)]"
+							animate={{
+								rotate: 360,
+								scale: 1 + a * 0.08,
+							}}
+							transition={{
+								rotate: { duration: 18, ease: 'linear', repeat: Infinity },
+								scale: { type: 'spring', stiffness: 180, damping: 20 },
+							}}
+							style={{
+								background:
+									'conic-gradient(from 120deg, transparent, color-mix(in srgb, var(--p-accent) 48%, transparent), transparent 42%)',
+								maskImage:
+									'radial-gradient(circle, transparent 57%, black 58%, black 64%, transparent 65%)',
+								WebkitMaskImage:
+									'radial-gradient(circle, transparent 57%, black 58%, black 64%, transparent 65%)',
+								opacity: 0.48 + a * 0.3,
+							}}
+						/>
+						<motion.div
+							className="relative flex h-[122px] w-[122px] items-center justify-center rounded-full border border-[var(--p-border-strong)] bg-[var(--p-bg)] shadow-[0_24px_80px_color-mix(in_srgb,var(--p-accent)_18%,transparent)] sm:h-[150px] sm:w-[150px]"
+							animate={{ scale: 1 + a * 0.08 }}
+							transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+						>
+							<div
+								aria-hidden
+								className="absolute inset-3 rounded-full"
+								style={{
+									background:
+										'radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--p-accent) 42%, white 18%) 0%, color-mix(in srgb, var(--p-accent) 18%, transparent) 38%, transparent 72%)',
+									opacity: 0.72 + a * 0.22,
+								}}
+							/>
+							<Mic
+								size={32}
+								strokeWidth={1.5}
+								className="relative text-[var(--p-text)]"
+							/>
+						</motion.div>
+					</div>
+
+					<div className="min-w-0">
+						<div className="flex h-20 items-end gap-1.5 rounded-2xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-4">
+							{bars.map((bar) => (
+								<motion.span
+									key={bar.id}
+									aria-hidden
+									className="flex-1 rounded-full bg-[var(--p-text)]"
+									animate={{
+										height: bar.height,
+										opacity: 0.18 + a * 0.58 + (bar.index % 3) * 0.04,
+									}}
+									transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+								/>
+							))}
+						</div>
+
+						<div className="mt-4 min-h-[148px] rounded-2xl border border-[var(--p-border)] bg-[var(--p-input)] p-4 sm:p-5">
+							<AnimatePresence mode="wait">
+								{transcript ? (
+									<motion.p
+										key="transcript"
+										initial={{ opacity: 0, y: 8, filter: 'blur(6px)' }}
+										animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+										exit={{ opacity: 0, y: -6, filter: 'blur(6px)' }}
+										transition={{ duration: 0.24 }}
+										className={`max-h-[160px] overflow-hidden text-[18px] leading-8 text-[var(--p-text)] sm:text-[22px] sm:leading-9 ${
+											isAr ? 'voice-serif-ar' : 'voice-serif'
+										}`}
+									>
+										{transcript}
+									</motion.p>
+								) : (
+									<motion.div
+										key="waiting"
+										initial={{ opacity: 0 }}
+										animate={{ opacity: 1 }}
+										exit={{ opacity: 0 }}
+										className="flex h-[112px] items-center justify-center text-center"
+									>
+										<p className="voice-mono text-[11px] uppercase tracking-[0.22em] text-[var(--p-text-faint)]">
+											{waitingText}
+										</p>
+									</motion.div>
+								)}
+							</AnimatePresence>
+						</div>
+					</div>
+				</div>
+
+				<footer className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+					<button
+						type="button"
+						onClick={onDismiss}
+						className="min-h-11 rounded-xl border border-[var(--p-border)] px-4 text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+					>
+						{cancelLabel}
+					</button>
+					<button
+						type="button"
 						onClick={(e) => {
 							e.stopPropagation()
 							onSend()
 						}}
-						className="office-command absolute bottom-12"
+						disabled={!transcript}
+						className="min-h-11 rounded-xl bg-[var(--p-accent)] px-5 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-40"
 					>
-						{isAr ? 'إرسال' : 'Send'}
-					</motion.button>
-				)}
-			</AnimatePresence>
+						{sendLabel}
+					</button>
+				</footer>
+			</motion.div>
 		</motion.div>
 	)
 }
