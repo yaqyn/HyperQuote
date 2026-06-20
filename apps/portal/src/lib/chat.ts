@@ -4400,9 +4400,16 @@ async function buildDraftItemsFromRequestedLines(
 			}
 		}
 		if (matches.length > 1) {
-			return {
-				message: draftLineChoiceMessage(line.query, matches, locale),
-			}
+			const resolution = await resolveDraftLineProductWithModel(
+				line,
+				matches,
+				locale,
+			)
+			if ('message' in resolution) return { message: resolution.message }
+			items.push(
+				draftMaterialItemFromProduct(resolution.product, line.quantity),
+			)
+			continue
 		}
 		const product = matches[0]
 		if (!product) continue
@@ -4516,7 +4523,89 @@ function rankProductsForDraftLine(
 	)
 }
 
-function draftLineChoiceMessage(
+async function resolveDraftLineProductWithModel(
+	line: ReturnType<typeof parsePortalDraftMaterialRequestLines>[number],
+	products: PortalAiProduct[],
+	locale: 'ar' | 'en',
+): Promise<{ product: PortalAiProduct } | { message: string }> {
+	if (!(await isAIEnabled())) {
+		return {
+			message: draftLineChoiceFallbackMessage(line.query, products, locale),
+		}
+	}
+	const prompt = `${LYON_PORTAL}
+
+Choose the best real catalog product for the customer's requested line.
+Use human meaning, synonyms, category, unit, and product names. Do not invent products.
+If one option clearly fits, return exactly {"product_id":"..."}.
+Only if it is genuinely impossible to choose, return exactly {"question":"short natural clarification"}.
+
+Requested line:
+${safeJson(line)}
+
+Real candidate products:
+${safeJson(
+	products.map((product) => ({
+		category: product.category,
+		description: product.description,
+		id: product.id,
+		name: product.name,
+		name_ar: product.name_ar,
+		price_range: formatPriceRange(product, locale),
+		sku: product.sku,
+		subcategory: product.subcategory,
+		unit: product.unit_of_measure,
+	})),
+)}`
+
+	try {
+		const raw = await completeChat(
+			[{ role: 'user', content: line.query }],
+			prompt,
+			{
+				temperature: 0,
+			},
+		)
+		const parsed = parseDraftLineProductResolution(raw)
+		const product = parsed.productId
+			? products.find((candidate) => candidate.id === parsed.productId)
+			: null
+		if (product) return { product }
+		if (parsed.question) return { message: parsed.question }
+	} catch {
+		return {
+			message: draftLineChoiceFallbackMessage(line.query, products, locale),
+		}
+	}
+	return {
+		message: draftLineChoiceFallbackMessage(line.query, products, locale),
+	}
+}
+
+function parseDraftLineProductResolution(raw: string): {
+	productId?: string
+	question?: string
+} {
+	const jsonText = raw.match(/\{[\s\S]*\}/)?.[0]
+	if (!jsonText) return {}
+	try {
+		const parsed: unknown = JSON.parse(jsonText)
+		if (!parsed || typeof parsed !== 'object') return {}
+		const record = parsed as Record<string, unknown>
+		return {
+			productId:
+				typeof record.product_id === 'string' ? record.product_id : undefined,
+			question:
+				typeof record.question === 'string'
+					? record.question.trim().slice(0, 400)
+					: undefined,
+		}
+	} catch {
+		return {}
+	}
+}
+
+function draftLineChoiceFallbackMessage(
 	query: string,
 	products: PortalAiProduct[],
 	locale: 'ar' | 'en',
