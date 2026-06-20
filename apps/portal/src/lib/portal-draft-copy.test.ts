@@ -39,6 +39,13 @@ describe('portal draft copy helpers', () => {
 				'en',
 			),
 		).toBe('400 piece Wood.')
+		expect(
+			normalizePortalDraftNotes(
+				'I can adjust the draft to:\n\n| Item | Qty |\n| --- | --- |\n| Wood | 400 piece |\n\nShall I apply these changes to the draft?',
+				[wood],
+				'en',
+			),
+		).toBe('400 piece Wood.')
 	})
 
 	it('summarizes the current material list when the model omits notes', () => {

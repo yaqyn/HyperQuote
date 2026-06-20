@@ -47,6 +47,7 @@ export interface PortalCustomerToolRequest {
 	cleanupMode?: 'delete_all' | 'merge' | 'remove_empty'
 	commandName?: PortalChatCommandName
 	confirmedAction?: boolean
+	draftLines?: PortalDraftMaterialRequestLine[]
 	deliveryDate?: string
 	draftItemAction?:
 		| 'set_quantity'
@@ -115,7 +116,7 @@ Choose one internal tool only when it helps. Use chat for normal conversation or
 When writing final_response, sound like a capable teammate: short, direct, and inviting. Prefer one strong sentence or two tight bullets. Ask only the missing question.
 
 Schema:
-{"tool":"chat"|"public_docs"|"customer_profile"|"customer_orders"|"order_detail"|"delivery_tracking"|"delivery_list"|"product_search"|"compare_products"|"recommend_materials"|"address_list"|"project_list"|"account_health"|"draft_detail"|"draft_add_items"|"draft_replace_item"|"draft_set_delivery"|"draft_validate"|"create_draft_from_plan"|"update_draft_items"|"duplicate_order_to_draft"|"update_draft_metadata"|"cleanup_drafts"|"delete_draft"|"order_activity"|"support_request"|"refuse","search_query":"string","target_reference":"string","order_scope":"all"|"drafts"|"submitted"|"active"|"completed","draft_name":"string","draft_notes":"string","draft_item_action":"set_quantity"|"remove_item"|"clear_items"|"set_item_notes","item_query":"string","replacement_query":"string","quantity":123,"previous_quantity":123,"item_notes":"string","address_query":"string","delivery_date":"YYYY-MM-DD","cleanup_mode":"delete_all"|"merge"|"remove_empty","support_subject":"string","support_message":"string","reason":"string","final_response":"string"}
+{"tool":"chat"|"public_docs"|"customer_profile"|"customer_orders"|"order_detail"|"delivery_tracking"|"delivery_list"|"product_search"|"compare_products"|"recommend_materials"|"address_list"|"project_list"|"account_health"|"draft_detail"|"draft_add_items"|"draft_replace_item"|"draft_set_delivery"|"draft_validate"|"create_draft_from_plan"|"update_draft_items"|"duplicate_order_to_draft"|"update_draft_metadata"|"cleanup_drafts"|"delete_draft"|"order_activity"|"support_request"|"refuse","search_query":"string","draft_lines":[{"query":"customer product name","quantity":123,"unit_hint":"optional unit words"}],"target_reference":"string","order_scope":"all"|"drafts"|"submitted"|"active"|"completed","draft_name":"string","draft_notes":"string","draft_item_action":"set_quantity"|"remove_item"|"clear_items"|"set_item_notes","item_query":"string","replacement_query":"string","quantity":123,"previous_quantity":123,"item_notes":"string","address_query":"string","delivery_date":"YYYY-MM-DD","cleanup_mode":"delete_all"|"merge"|"remove_empty","support_subject":"string","support_message":"string","reason":"string","final_response":"string"}
 
 Tools:
 - chat: friendly talk, clarification, or final_response.
@@ -127,7 +128,7 @@ Tools:
 - product_search, compare_products, recommend_materials: catalog search, comparison, or material planning. Ask before writing plans to drafts.
 - address_list, project_list, account_health: customer-owned account context.
 - draft_detail, draft_validate, order_activity: inspect customer-owned records.
-- create_draft_from_plan: customer buy intent or draft-create/catalog-selection. "I need 200 product name", "give me 300 product name", and "I want 100 product name" are draft-create intents. Server writes real Available product IDs. Include a natural draft_name and draft_notes.
+- create_draft_from_plan: customer buy intent or draft-create/catalog-selection. Include draft_lines for every requested product line. Keep each product's own quantity. Server writes real Available product IDs. Include a natural draft_name and draft_notes.
 - update_draft_items: edit an editable draft line, quantity, note, or clear lines. Include refreshed draft_notes; include draft_name when the title should change.
 - draft_add_items, draft_replace_item, draft_set_delivery, duplicate_order_to_draft, update_draft_metadata, cleanup_drafts, delete_draft: customer-scoped draft-only edits.
 - support_request: when the user asks to create, send, submit, or file a support ticket/feedback, or says they need to contact support about a concrete issue or complaint. Do not ask them for a separate subject/title/description; infer the subject and use their natural message as the description. If they only ask for support contact details, docs, FAQ, or help finding something, use public_docs or chat instead.
@@ -141,7 +142,7 @@ Current draft desk:
 ${activeDraft?.id ? JSON.stringify(activeDraft, null, 2) : 'No saved draft is currently open in the chat draft desk.'}
 If a saved current draft is shown and the user says this draft, it, them, the open draft, or asks for an edit without naming a different draft, use that draft id as target_reference. If the user names another draft or describes one by title/material/old quantity, keep that description in search_query so the server can resolve the right editable draft.
 
-Do not invent products. Customers may use only product names. Never ask for SKU, product code, size, or specifications. If one requested product name has multiple real catalog variations, present the available choices as numbered options and let the customer choose by number, letter, "the second one", "cheapest", "biggest", or natural wording.
+Do not invent products. Customers may use only product names. Never ask for SKU, product code, size, or specifications. For a buy request, extract what the customer said into draft_lines and let the server match the live catalog. If one requested product name has multiple real catalog variations, present the available choices as numbered options and let the customer choose by number, letter, "the second one", "cheapest", "biggest", or natural wording.
 
 For draft_name, write a short natural title, never a "Draft:" prefix. For draft_notes, write one simple description of what the order is about or what the current materials are. No review/submit instructions, edit links, "Lyon selected", or catalog/process boilerplate.
 
@@ -620,6 +621,8 @@ export function parsePortalCustomerToolRequest(
 		if (typeof parsed.draft_notes === 'string' && parsed.draft_notes.trim()) {
 			request.draftNotes = parsed.draft_notes.trim().slice(0, 600)
 		}
+		const draftLines = readDraftLines(parsed.draft_lines)
+		if (draftLines.length > 0) request.draftLines = draftLines
 		if (isDraftItemAction(parsed.draft_item_action)) {
 			request.draftItemAction = parsed.draft_item_action
 		}
@@ -729,41 +732,14 @@ export function enforcePortalCustomerToolRequest(
 	) {
 		return naturalSupportRequest
 	}
-	if (request.action === 'chat' && isExplicitDraftCreateRequest(userMessage)) {
+	if (request.action === 'chat' && request.draftLines?.length) {
 		return {
+			...request,
 			action: 'create_draft_from_plan',
-			searchQuery: userMessage.trim(),
 		}
 	}
 
 	return request
-}
-
-function isExplicitDraftCreateRequest(userMessage: string): boolean {
-	const normalized = userMessage.toLowerCase()
-	if (parsePortalDraftMaterialRequestLines(userMessage).length > 0) return true
-	const wantsDraft =
-		/^\s*draft\b/.test(normalized) ||
-		(/\b(create|make|prepare|start|build)\b/.test(normalized) &&
-			/\b(draft|quote|rfq|order)\b/.test(normalized))
-	if (!wantsDraft) return false
-
-	const hasSpecificMaterial =
-		/\b(cement|concrete|steel|rebar|sand|brick|tile|wood|timber|lumber|flow ai)\b/.test(
-			normalized,
-		) || /اسمنت|أسمنت|خرسانة|حديد|رمل|طوب|سيراميك|خشب/.test(userMessage)
-	const hasQuantityOrProjectContext =
-		/\b\d+(?:[.,]\d+)?\b/.test(normalized) ||
-		/\b(bag|bags|ton|tons|piece|pieces|project|materials?)\b/.test(normalized)
-	const openEndedCatalogDraft =
-		/\b(random|any|available|catalog|catalogue|sample|materials?)\b/.test(
-			normalized,
-		) || /عشوائي|اي حاجه|اي حاجة|متاح|كتالوج/.test(userMessage)
-
-	return (
-		(hasSpecificMaterial && hasQuantityOrProjectContext) ||
-		openEndedCatalogDraft
-	)
 }
 
 export function parsePortalDraftMaterialRequestLines(
@@ -771,28 +747,40 @@ export function parsePortalDraftMaterialRequestLines(
 ): PortalDraftMaterialRequestLine[] {
 	const normalized = normalizeForAgentMatch(userMessage)
 	const hasBuyIntent =
-		/\b(i\s+need|need|i\s+want|want|give\s+me|get\s+me|add|draft|quote|order|can\s+i\s+get|please)\b/.test(
+		/\b(i\s+need|need|i\s+want|want|give\s+me|gimme|get\s+me|add|draft|quote|order|can\s+i\s+get|please)\b/.test(
 			normalized,
 		) || /عايز|عاوز|محتاج|هات|ضيف|اطلب|مسودة|عرض/.test(userMessage)
 	if (!hasBuyIntent) return []
 
-	const lines: PortalDraftMaterialRequestLine[] = []
-	const pattern =
-		/(?:^|[,;]|\+|\band\b|\bfor\b|&)\s*(?:(?:i|we)\s+)?(?:need|want|wanna|would\s+like|give\s+me|get\s+me|add|draft|quote|order|please|عايز|عاوز|محتاج|هات|ضيف|اطلب)?\s*(\d+(?:[.,]\d+)?)\s*(?:(bags?|tons?|tonnes?|pieces?|pcs?|units?|bars?|sheets?|kg|m2|m3)\s+)?([^,;+\n&]+?)(?=\s*(?:[,;]|\+|&|\band\b)\s*(?:(?:i|we)\s+)?(?:need|want|wanna|would\s+like|give\s+me|get\s+me|add|draft|quote|order|please|عايز|عاوز|محتاج|هات|ضيف|اطلب)?\s*\d|$)/giu
-	for (const match of userMessage.matchAll(pattern)) {
-		const quantity = readPositiveNumber((match[1] ?? '').replace(',', '.'))
-		if (quantity === null) continue
-		const rawQuery = cleanMaterialLineQuery(match[3] ?? '')
-		if (!rawQuery || !looksLikeMaterialRequest(rawQuery)) continue
-		lines.push({
-			query: rawQuery,
-			quantity,
-			rawText: match[0].trim(),
-			unitHint: normalizeUnitHint(match[2]),
-		})
-	}
+	const lines = draftRequestSegments(userMessage).flatMap(
+		(segment): PortalDraftMaterialRequestLine[] => {
+			const match = segment.match(
+				/(?:^|\bfor\s+)(?:.*?\s)?(?:some\s+)?(\d+(?:[.,]\d+)?)\s*(?:(bags?|tons?|tonnes?|pieces?|pcs?|units?|bars?|sheets?|kg|m2|m3)\s+)?(.+)$/iu,
+			)
+			if (!match) return []
+			const quantity = readPositiveNumber((match[1] ?? '').replace(',', '.'))
+			if (quantity === null) return []
+			const rawQuery = cleanMaterialLineQuery(match[3] ?? '')
+			if (!rawQuery || !looksLikeMaterialRequest(rawQuery)) return []
+			return [
+				{
+					query: rawQuery,
+					quantity,
+					rawText: segment,
+					unitHint: normalizeUnitHint(match[2]),
+				},
+			]
+		},
+	)
 
 	return mergeAdjacentDuplicateMaterialLines(lines)
+}
+
+function draftRequestSegments(userMessage: string): string[] {
+	return userMessage
+		.split(/\s*(?:[,;]+|\+|&|\band\b)\s*/iu)
+		.map((segment) => segment.trim())
+		.filter(Boolean)
 }
 
 function cleanMaterialLineQuery(value: string): string {
@@ -1129,6 +1117,34 @@ function isCleanupMode(
 	value: unknown,
 ): value is PortalCustomerToolRequest['cleanupMode'] {
 	return value === 'delete_all' || value === 'merge' || value === 'remove_empty'
+}
+
+function readDraftLines(value: unknown): PortalDraftMaterialRequestLine[] {
+	if (!Array.isArray(value)) return []
+	return value.flatMap((line): PortalDraftMaterialRequestLine[] => {
+		if (!isRecord(line)) return []
+		const query = readDraftLineQuery(line.query)
+		const quantity = readPositiveNumber(line.quantity)
+		if (!query || quantity === null) return []
+		const unitHint =
+			typeof line.unit_hint === 'string'
+				? normalizeUnitHint(line.unit_hint)
+				: undefined
+		return [
+			{
+				query,
+				quantity,
+				rawText: query,
+				unitHint,
+			},
+		]
+	})
+}
+
+function readDraftLineQuery(value: unknown): string | null {
+	if (typeof value !== 'string') return null
+	const cleaned = cleanMaterialLineQuery(value)
+	return cleaned && looksLikeMaterialRequest(cleaned) ? cleaned : null
 }
 
 function isDraftItemAction(

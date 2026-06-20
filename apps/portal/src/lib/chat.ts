@@ -457,7 +457,6 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 		const activeDraft = input.activeDraft ?? null
 		const baseRoute =
 			routePortalChatCommand(userText) ??
-			naturalDraftCreateRoute(userText) ??
 			(await requestPortalCustomerTool(
 				modelMessages,
 				userText,
@@ -492,16 +491,6 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 		// biome-ignore lint/complexity/noBannedTypes: TanStack server-fn serialization accepts this historical chunk boundary type.
 		return chunks as unknown as Array<{ [k: string]: {} }>
 	})
-
-function naturalDraftCreateRoute(
-	userText: string,
-): PortalCustomerToolRequest | null {
-	if (parsePortalDraftMaterialRequestLines(userText).length === 0) return null
-	return {
-		action: 'create_draft_from_plan',
-		searchQuery: userText.trim(),
-	}
-}
 
 async function requestPortalCustomerTool(
 	messages: ChatMessageInput[],
@@ -2793,7 +2782,10 @@ async function createDraftFromPlan(
 		routeQuery && routeQuery !== userText.trim()
 			? `${userText} ${route.searchQuery}`
 			: userText
-	const requestedLines = parsePortalDraftMaterialRequestLines(draftPlanText)
+	const requestedLines =
+		route.draftLines && route.draftLines.length > 0
+			? route.draftLines
+			: parsePortalDraftMaterialRequestLines(draftPlanText)
 	const items =
 		requestedLines.length > 0
 			? await buildDraftItemsFromRequestedLines(
@@ -4393,6 +4385,11 @@ async function buildDraftItemsFromRequestedLines(
 			line.query,
 			line.query,
 		)
+		const exactMatch = exactProductMatchForDraftLine(products, line.query)
+		if (exactMatch) {
+			items.push(draftMaterialItemFromProduct(exactMatch, line.quantity))
+			continue
+		}
 		const matches = rankProductsForDraftLine(products, line.query, 4)
 		if (matches.length === 0) {
 			return {
@@ -4409,14 +4406,7 @@ async function buildDraftItemsFromRequestedLines(
 		}
 		const product = matches[0]
 		if (!product) continue
-		items.push({
-			name: product.name,
-			nameAr: product.name_ar ?? product.name,
-			productId: product.id,
-			qty: line.quantity,
-			unit: product.unit_of_measure,
-			unitAr: product.unit_of_measure_ar,
-		})
+		items.push(draftMaterialItemFromProduct(product, line.quantity))
 	}
 	return items
 }
@@ -4438,14 +4428,7 @@ function buildDraftItemsFromPlan(
 				productMatchesDraftLine(candidate, line.query),
 			)
 			if (!product) continue
-			items.push({
-				name: product.name,
-				nameAr: product.name_ar ?? product.name,
-				productId: product.id,
-				qty: line.quantity,
-				unit: product.unit_of_measure,
-				unitAr: product.unit_of_measure_ar,
-			})
+			items.push(draftMaterialItemFromProduct(product, line.quantity))
 		}
 		return items
 	}
@@ -4484,6 +4467,34 @@ function buildDraftItemsFromPlan(
 		unit: product.unit_of_measure,
 		unitAr: product.unit_of_measure_ar,
 	}))
+}
+
+function exactProductMatchForDraftLine(
+	products: PortalAiProduct[],
+	query: string,
+): PortalAiProduct | null {
+	const normalizedQuery = normalizeForMatch(query)
+	const matches = products.filter((product) => {
+		return [product.name, product.name_ar ?? '', product.sku]
+			.map(normalizeForMatch)
+			.some((value) => value === normalizedQuery)
+	})
+	if (matches.length !== 1) return null
+	return matches[0] ?? null
+}
+
+function draftMaterialItemFromProduct(
+	product: PortalAiProduct,
+	quantity: number,
+): DraftMaterialItem {
+	return {
+		name: product.name,
+		nameAr: product.name_ar ?? product.name,
+		productId: product.id,
+		qty: quantity,
+		unit: product.unit_of_measure,
+		unitAr: product.unit_of_measure_ar,
+	}
 }
 
 function rankProductsForDraftLine(

@@ -42,27 +42,46 @@ describe('portal customer AI agent', () => {
 		}
 	})
 
-	it('routes natural material requests to draft creation', () => {
-		for (const message of [
-			'I need 200 wood',
-			'Give me 200 gypsum board',
-			'I want 200 insulation roll',
-			'create a draft quote for 20 tons cement',
-		]) {
-			expect(
-				parsePortalCustomerToolRequest(
-					JSON.stringify({ final_response: 'What SKU?', tool: 'chat' }),
-					message,
-				),
-				message,
-			).toMatchObject({
-				action: 'create_draft_from_plan',
-				searchQuery: message,
-			})
-		}
+	it('accepts model-extracted natural draft lines', () => {
+		expect(
+			parsePortalCustomerToolRequest(
+				JSON.stringify({
+					draft_lines: [
+						{ query: 'cement', quantity: 200 },
+						{ query: 'wood', quantity: 8900 },
+						{ query: 'rebar', quantity: 20 },
+					],
+					draft_name: 'Cement, wood, and rebar',
+					search_query:
+						'gimme 200 cement, 8900 wood and some 20 rebar,, thanks',
+					tool: 'create_draft_from_plan',
+				}),
+				'gimme 200 cement, 8900 wood and some 20 rebar,, thanks',
+			),
+		).toMatchObject({
+			action: 'create_draft_from_plan',
+			draftLines: [
+				{ query: 'cement', quantity: 200 },
+				{ query: 'wood', quantity: 8900 },
+				{ query: 'rebar', quantity: 20 },
+			],
+			draftName: 'Cement, wood, and rebar',
+		})
+		expect(
+			parsePortalCustomerToolRequest(
+				JSON.stringify({
+					draft_lines: [{ query: 'gypsum board', quantity: 200 }],
+					tool: 'chat',
+				}),
+				'Give me 200 gypsum board',
+			),
+		).toMatchObject({
+			action: 'create_draft_from_plan',
+			draftLines: [{ query: 'gypsum board', quantity: 200 }],
+		})
 	})
 
-	it('parses separate quantities for arbitrary requested product phrases', () => {
+	it('keeps a fallback parser for AI-disabled natural draft extraction', () => {
 		expect(
 			parsePortalDraftMaterialRequestLines(
 				'I need 300 wood, 200 rebar, 100 steel',
@@ -77,13 +96,13 @@ describe('portal customer AI agent', () => {
 			{
 				query: 'rebar',
 				quantity: 200,
-				rawText: ', 200 rebar',
+				rawText: '200 rebar',
 				unitHint: undefined,
 			},
 			{
 				query: 'steel',
 				quantity: 100,
-				rawText: ', 100 steel',
+				rawText: '100 steel',
 				unitHint: undefined,
 			},
 		])
@@ -101,7 +120,7 @@ describe('portal customer AI agent', () => {
 			{
 				query: 'insulation roll',
 				quantity: 50,
-				rawText: 'and 50 insulation roll',
+				rawText: '50 insulation roll',
 				unitHint: undefined,
 			},
 		])
@@ -113,7 +132,7 @@ describe('portal customer AI agent', () => {
 			{
 				query: 'cement',
 				quantity: 20,
-				rawText: 'for 20 tons cement',
+				rawText: 'create a draft quote for 20 tons cement',
 				unitHint: 'tons',
 			},
 		])
@@ -124,6 +143,30 @@ describe('portal customer AI agent', () => {
 				query: 'lunar stone',
 				quantity: 2,
 				rawText: 'I need 2 lunar stone',
+				unitHint: undefined,
+			},
+		])
+		expect(
+			parsePortalDraftMaterialRequestLines(
+				'gimme 200 cement, 8900 wood and some 20 rebar,, thanks',
+			),
+		).toEqual([
+			{
+				query: 'cement',
+				quantity: 200,
+				rawText: 'gimme 200 cement',
+				unitHint: undefined,
+			},
+			{
+				query: 'wood',
+				quantity: 8900,
+				rawText: '8900 wood',
+				unitHint: undefined,
+			},
+			{
+				query: 'rebar',
+				quantity: 20,
+				rawText: 'some 20 rebar',
 				unitHint: undefined,
 			},
 		])
@@ -557,6 +600,7 @@ describe('portal customer AI agent', () => {
 		expect(
 			parsePortalCustomerToolRequest(
 				JSON.stringify({
+					draft_lines: [{ query: 'Flow AI Cement', quantity: 12 }],
 					final_response: 'Please confirm the delivery details first.',
 					search_query: '',
 					tool: 'chat',
@@ -565,6 +609,7 @@ describe('portal customer AI agent', () => {
 			),
 		).toMatchObject({
 			action: 'create_draft_from_plan',
+			draftLines: [{ query: 'Flow AI Cement', quantity: 12 }],
 			searchQuery: 'Draft 12 bags of Flow AI Cement for my project',
 		})
 		expect(
