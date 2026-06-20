@@ -55,7 +55,7 @@ export function SuggestionChips({ onSelect, locale }: SuggestionChipsProps) {
 							delay: 0.2 + idx * 0.08,
 						}}
 						dir={locale === 'ar' ? 'rtl' : 'ltr'}
-						className="group grid min-h-14 grid-cols-[22px_1fr] items-center gap-2 border-y border-[var(--p-border)] bg-transparent px-1 py-2 text-start transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] sm:min-h-20 sm:grid-cols-[28px_1fr] sm:gap-3 sm:px-2 sm:py-4"
+						className="group grid min-h-14 grid-cols-[22px_1fr] items-center gap-2 border-y border-[var(--p-border)] bg-transparent px-1 py-2 text-center transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] sm:min-h-20 sm:grid-cols-[28px_1fr] sm:gap-3 sm:px-2 sm:py-4"
 					>
 						<span
 							aria-hidden
@@ -63,7 +63,7 @@ export function SuggestionChips({ onSelect, locale }: SuggestionChipsProps) {
 						>
 							{numeral}
 						</span>
-						<span className="min-w-0">
+						<span className="min-w-0 text-center">
 							<span className="voice-prompt block text-[10px] font-semibold uppercase leading-tight text-[var(--p-text)] sm:text-[11px]">
 								{t(chip.labelKey)}
 							</span>

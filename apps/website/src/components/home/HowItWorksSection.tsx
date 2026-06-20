@@ -53,7 +53,7 @@ export function HowItWorksSection() {
 					<img
 						src={HERO_IMAGE}
 						alt=""
-						className="absolute inset-0 h-full w-full object-cover object-left"
+						className="absolute inset-0 h-full w-full object-cover object-center"
 					/>
 				</div>
 
@@ -98,7 +98,7 @@ export function HowItWorksSection() {
 						alt={t('hero.imageAlt')}
 						width={800}
 						height={450}
-						className="h-full w-full object-cover"
+						className="h-full w-full object-cover object-center"
 					/>
 				</div>
 			</motion.div>
