@@ -20,8 +20,8 @@ export function productSearchTerm(userText: string): string {
 		['tile', 'tile'],
 		['سيراميك', 'tile'],
 		['wood', 'wood'],
-		['timber', 'wood'],
-		['lumber', 'wood'],
+		['timber', 'timber'],
+		['lumber', 'lumber'],
 		['خشب', 'wood'],
 	] as const
 	for (const [needle, replacement] of knownTerms) {

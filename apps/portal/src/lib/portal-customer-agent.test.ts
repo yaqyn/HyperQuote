@@ -70,6 +70,28 @@ describe('portal customer AI agent', () => {
 		expect(
 			parsePortalCustomerToolRequest(
 				JSON.stringify({
+					draft_lines: [
+						{ query: 'steel mesh', quantity: 200 },
+						{ query: 'wood', quantity: 400 },
+						{ query: 'cement', quantity: 100 },
+						{ query: 'timber', quantity: 9888 },
+					],
+					tool: 'create_draft_from_plan',
+				}),
+				'gimme 200 steel mesh, 400 wood, 100 cement, and maybe some 9888 timber',
+			),
+		).toMatchObject({
+			action: 'create_draft_from_plan',
+			draftLines: [
+				{ query: 'steel mesh', quantity: 200 },
+				{ query: 'wood', quantity: 400 },
+				{ query: 'cement', quantity: 100 },
+				{ query: 'timber', quantity: 9888 },
+			],
+		})
+		expect(
+			parsePortalCustomerToolRequest(
+				JSON.stringify({
 					draft_lines: [{ query: 'gypsum board', quantity: 200 }],
 					tool: 'chat',
 				}),
@@ -764,6 +786,7 @@ describe('portal customer AI agent', () => {
 		expect(prompt).toContain('"status": "Available"')
 		expect(prompt).toContain('"status": "Unavailable"')
 		expect(prompt).toContain('Never ask for SKU')
+		expect(prompt).toContain('do not replace it with a broader synonym')
 		expect(prompt).toContain('real catalog variations')
 		expect(prompt).not.toMatch(/low_stock|Low Stock/i)
 	})

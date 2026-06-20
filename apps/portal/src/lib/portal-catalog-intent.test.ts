@@ -30,6 +30,8 @@ describe('portal catalog intent helpers', () => {
 		expect(draftProductIntentTerms('مسودة خشب')).toEqual(
 			expect.arrayContaining(['wood', 'خشب']),
 		)
+		expect(productSearchTerm('timber')).toBe('timber')
+		expect(productSearchTerm('lumber')).toBe('lumber')
 	})
 
 	it('treats random catalog selection as open-ended but specific materials as targeted', () => {

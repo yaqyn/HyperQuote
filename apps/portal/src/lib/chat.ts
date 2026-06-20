@@ -1563,6 +1563,9 @@ async function renderPortalCustomerResponse(
 	if (result.context.type === 'products') {
 		return textOnlyChunks(fallbackText, customEvents)
 	}
+	if (result.context.type === 'draft_write') {
+		return textOnlyChunks(fallbackText, customEvents)
+	}
 	if (
 		result.context.type === 'delivery_tracking' ||
 		result.context.type === 'delivery_list'
@@ -4583,7 +4586,7 @@ async function resolveDraftLineProductWithModel(
 	const prompt = `${LYON_PORTAL}
 
 Choose the best real catalog product for the customer's requested line.
-Use human meaning, synonyms, category, unit, and product names. Do not invent products.
+Prefer the candidate whose real catalog text best matches the requested product phrase. Use human meaning, synonyms, category, unit, and product names when the phrase is not exact. Do not invent products.
 The requested line already includes the requested quantity when quantity is present. Never ask for a quantity that is already present.
 If one option clearly fits, return exactly {"product_id":"..."}.
 Only if it is genuinely impossible to choose, return exactly {"question":"short natural clarification"}.
