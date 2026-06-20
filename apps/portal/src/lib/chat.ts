@@ -455,7 +455,7 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 		}
 
 		const activeDraft = input.activeDraft ?? null
-		const baseRoute =
+		const initialRoute =
 			routePortalChatCommand(userText) ??
 			(await requestPortalCustomerTool(
 				modelMessages,
@@ -466,6 +466,12 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 				),
 				activeDraft,
 			))
+		const baseRoute = await repairActiveDraftChatRoute(
+			initialRoute,
+			modelMessages,
+			userText,
+			activeDraft,
+		)
 		const route = applyActiveDraftContextToRoute(
 			baseRoute,
 			userText,
@@ -536,6 +542,58 @@ function toAgentCatalogSnapshot(
 			unit: product.unit_of_measure,
 		})),
 		totalVisibleProducts: catalog.totalVisibleProducts,
+	}
+}
+
+async function repairActiveDraftChatRoute(
+	route: PortalCustomerToolRequest,
+	messages: ChatMessageInput[],
+	userText: string,
+	activeDraft: ActiveChatDraftContext | null,
+): Promise<PortalCustomerToolRequest> {
+	if (!activeDraft?.id || route.commandName || route.action !== 'chat') {
+		return route
+	}
+	if (!(await isAIEnabled())) return route
+	const prompt = `${LYON_PORTAL}
+
+The customer has an active draft open in the draft desk.
+Decide whether the latest user message is asking to inspect or modify that active draft.
+Use any human language naturally. Return JSON only.
+
+Allowed JSON:
+{"tool":"chat","search_query":"string","final_response":"string"}
+{"tool":"draft_detail","search_query":"string","target_reference":"active"}
+{"tool":"draft_validate","search_query":"string","target_reference":"active"}
+{"tool":"update_draft_items","draft_item_action":"clear_items"|"remove_item"|"set_quantity"|"set_item_notes","item_query":"string","quantity":123,"previous_quantity":123,"item_notes":"string","search_query":"string","target_reference":"active"}
+{"tool":"update_draft_metadata","draft_name":"string","draft_notes":"string","search_query":"string","target_reference":"active"}
+
+Rules:
+- If the user asks to change the active draft, choose a draft tool. Do not claim the change happened from chat.
+- If a destructive edit is requested, choose the tool; the app will handle confirmation.
+- If the message is normal conversation, choose chat.
+
+Active draft:
+${safeJson(activeDraft)}
+
+Latest user message:
+${userText}`
+	try {
+		const rawRoute = await completeChat(recentRouteMessages(messages), prompt, {
+			temperature: 0,
+		})
+		const repaired = enforcePortalCustomerToolRequest(
+			parsePortalCustomerToolRequest(rawRoute, userText),
+			userText,
+		)
+		if (repaired.action === 'chat') return route
+		if (!draftRouteCanUseActiveContext(repaired.action)) return route
+		return {
+			...repaired,
+			targetReference: repaired.targetReference ?? activeDraft.id,
+		}
+	} catch {
+		return route
 	}
 }
 
