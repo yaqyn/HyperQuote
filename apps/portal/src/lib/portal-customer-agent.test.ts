@@ -788,6 +788,8 @@ describe('portal customer AI agent', () => {
 		expect(prompt).toContain('Never ask for SKU')
 		expect(prompt).toContain('asks in any language')
 		expect(prompt).toContain('server tools must do writes')
+		expect(prompt).toContain('ask which one is better')
+		expect(prompt).toContain('keep the earlier requested quantities')
 		expect(prompt).toContain('do not replace it with a broader synonym')
 		expect(prompt).toContain('real catalog variations')
 		expect(prompt).not.toMatch(/low_stock|Low Stock/i)

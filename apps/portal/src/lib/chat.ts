@@ -473,7 +473,7 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 			activeDraft,
 		)
 		const route = applyActiveDraftContextToRoute(
-			baseRoute,
+			correctProductLineDraftRoute(baseRoute, userText),
 			userText,
 			activeDraft,
 		)
@@ -542,6 +542,27 @@ function toAgentCatalogSnapshot(
 			unit: product.unit_of_measure,
 		})),
 		totalVisibleProducts: catalog.totalVisibleProducts,
+	}
+}
+
+function correctProductLineDraftRoute(
+	route: PortalCustomerToolRequest,
+	userText: string,
+): PortalCustomerToolRequest {
+	if (route.action !== 'update_draft_items') return route
+	const draftLines = route.draftLines?.length
+		? route.draftLines
+		: parsePortalDraftMaterialRequestLines(userText)
+	if (draftLines.length === 0) return route
+	return {
+		...route,
+		action: 'create_draft_from_plan',
+		draftItemAction: undefined,
+		draftLines,
+		itemQuery: undefined,
+		previousQuantity: undefined,
+		quantity: undefined,
+		targetReference: undefined,
 	}
 }
 
@@ -3218,7 +3239,20 @@ async function replaceDraftItem(
 		replacementText,
 		replacementText,
 	)
-	const [replacement] = buildDraftItemsFromPlan(replacementText, products)
+	const exactReplacement = exactProductMatchForDraftLine(
+		products,
+		replacementText,
+	)
+	const [plannedReplacement] = buildDraftItemsFromPlan(
+		replacementText,
+		products,
+	)
+	const replacement = exactReplacement
+		? draftMaterialItemFromProduct(
+				exactReplacement,
+				plannedReplacement?.qty ?? 1,
+			)
+		: plannedReplacement
 	if (!replacement?.productId) {
 		return {
 			draftId: draft.id,
@@ -4497,6 +4531,11 @@ function buildDraftItemsFromPlan(
 	if (requestedLines.length > 0) {
 		const items: DraftMaterialItem[] = []
 		for (const line of requestedLines) {
+			const exactMatch = exactProductMatchForDraftLine(products, line.query)
+			if (exactMatch) {
+				items.push(draftMaterialItemFromProduct(exactMatch, line.quantity))
+				continue
+			}
 			const rankedProducts = rankProductsForPlanning(
 				products,
 				draftProductIntentTerms(line.query),
