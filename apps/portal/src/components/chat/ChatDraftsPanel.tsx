@@ -500,14 +500,21 @@ export function ChatDraftsPanel({
 			const draftId = (event as CustomEvent<{ draftId?: string }>).detail
 				?.draftId
 			if (!draftId) return
-			setRequestedDraftId(draftId)
+			void queryClient
+				.refetchQueries({
+					queryKey: ['customer-orders-all'],
+					type: 'active',
+				})
+				.finally(() => {
+					setRequestedDraftId(draftId)
+				})
 		}
 
 		window.addEventListener(PORTAL_CHAT_OPEN_DRAFT_EVENT, handleOpenDraft)
 		return () => {
 			window.removeEventListener(PORTAL_CHAT_OPEN_DRAFT_EVENT, handleOpenDraft)
 		}
-	}, [])
+	}, [queryClient])
 
 	useEffect(() => {
 		if (!requestedDraftId) return
