@@ -362,7 +362,13 @@ export function usePortalChat({
 					pendingRichContentRef.current = richContent
 				}
 				if (shouldInvalidateCustomerOrders(chunks)) {
-					queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
+					await queryClient.invalidateQueries({
+						queryKey: ['customer-orders-all'],
+					})
+					await queryClient.refetchQueries({
+						queryKey: ['customer-orders-all'],
+						type: 'active',
+					})
 				}
 				const draftId = draftPanelOpenDraftId(chunks)
 				if (draftId) {
