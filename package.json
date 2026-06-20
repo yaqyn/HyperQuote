@@ -8,7 +8,7 @@
 		"packages/*"
 	],
 	"scripts": {
-		"dev": "node scripts/dev-local.mjs",
+		"dev": "node scripts/dev-smart.mjs",
 		"build": "turbo build",
 		"build:workers": "bunx turbo run build:worker --force",
 		"configure:supabase:production": "node scripts/configure-supabase-production.mjs",
@@ -28,6 +28,7 @@
 		"sync": "syncpack lint",
 		"sync:fix": "syncpack fix",
 		"dev:local": "node scripts/dev-local.mjs",
+		"dev:raw": "node scripts/dev-local.mjs",
 		"db:start": "node scripts/supabase-local.mjs start",
 		"db:stop": "node scripts/supabase-local.mjs stop",
 		"db:reset": "node scripts/supabase-local.mjs db reset && node scripts/harden-local-supabase-api-boundary.mjs && node scripts/seed-local-auth.mjs --quiet",
