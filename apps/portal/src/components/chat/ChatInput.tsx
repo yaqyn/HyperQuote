@@ -22,12 +22,30 @@ const SMOOTH_EASE = cubicBezier(0.22, 1, 0.36, 1)
 
 const MAX_LINES = 5
 const LINE_HEIGHT = 20
+const SPEECH_LANGUAGES = ['en-US', 'ar-EG'] as const
+const SPEECH_LANGUAGE_PROBE_MS = 2600
+
+type SpeechLanguage = (typeof SPEECH_LANGUAGES)[number]
 
 function autoResizeChatTextarea(ta: HTMLTextAreaElement) {
 	ta.style.height = 'auto'
 	const maxHeight = LINE_HEIGHT * MAX_LINES + 8
 	ta.style.height = `${Math.min(ta.scrollHeight, maxHeight)}px`
 	ta.style.overflowY = ta.scrollHeight > maxHeight ? 'auto' : 'hidden'
+}
+
+function preferredSpeechLanguage(isAr: boolean): SpeechLanguage {
+	return isAr ? 'ar-EG' : 'en-US'
+}
+
+function alternateSpeechLanguage(language: SpeechLanguage): SpeechLanguage {
+	return language === 'ar-EG' ? 'en-US' : 'ar-EG'
+}
+
+function speechLanguageForTranscript(text: string): SpeechLanguage | null {
+	if (/\p{Script=Arabic}/u.test(text)) return 'ar-EG'
+	if (/[A-Za-z]/.test(text)) return 'en-US'
+	return null
 }
 
 // Minimal Web Speech API shape — the spec isn't in lib.dom across all TS
@@ -72,6 +90,11 @@ export function ChatInput({ chat }: ChatInputProps) {
 	const audioCtxRef = useRef<AudioContext | null>(null)
 	const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
 	const rafRef = useRef<number>(0)
+	const listeningRef = useRef(false)
+	const speechLanguageRef = useRef<SpeechLanguage>(
+		preferredSpeechLanguage(isAr),
+	)
+	const speechSwitchTimerRef = useRef<number | null>(null)
 	const [amplitude, setAmplitude] = useState(0)
 	const [transcript, setTranscript] = useState('')
 	const transcriptRef = useRef('')
@@ -259,47 +282,75 @@ export function ChatInput({ chat }: ChatInputProps) {
 		const SR =
 			windowWithSR.SpeechRecognition || windowWithSR.webkitSpeechRecognition
 		if (!SR) return
+		const SpeechRecognitionCtor = SR
 
 		try {
-			const recognition = new SR()
-			recognition.continuous = true
-			recognition.interimResults = true
-			recognition.lang = isAr ? 'ar-EG' : 'en-US'
-
 			let lastFinalIndex = 0
-			recognition.onresult = (event: SpeechRecognitionEventLike) => {
-				let interim = ''
-				for (let i = lastFinalIndex; i < event.results.length; i++) {
-					const result = event.results[i]
-					if (result.isFinal) {
-						accumulatedRef.current =
-							`${accumulatedRef.current} ${result[0].transcript}`.trim()
-						lastFinalIndex = i + 1
-					} else {
-						interim += result[0].transcript
-					}
-				}
-				const text = (
-					accumulatedRef.current + (interim ? ` ${interim}` : '')
-				).trim()
-				setTranscript(text)
-				transcriptRef.current = text
+			function clearSpeechProbe() {
+				if (speechSwitchTimerRef.current === null) return
+				window.clearTimeout(speechSwitchTimerRef.current)
+				speechSwitchTimerRef.current = null
 			}
+			function startRecognition(language: SpeechLanguage) {
+				const recognition = new SpeechRecognitionCtor()
+				recognition.continuous = true
+				recognition.interimResults = true
+				recognition.lang = language
+				speechLanguageRef.current = language
 
-			recognition.onend = () => {
-				if (recognitionRef.current) {
+				recognition.onresult = (event: SpeechRecognitionEventLike) => {
+					let interim = ''
+					for (let i = lastFinalIndex; i < event.results.length; i++) {
+						const result = event.results[i]
+						if (result.isFinal) {
+							accumulatedRef.current =
+								`${accumulatedRef.current} ${result[0].transcript}`.trim()
+							lastFinalIndex = i + 1
+						} else {
+							interim += result[0].transcript
+						}
+					}
+					const text = (
+						accumulatedRef.current + (interim ? ` ${interim}` : '')
+					).trim()
+					setTranscript(text)
+					transcriptRef.current = text
+					const detectedLanguage = speechLanguageForTranscript(text)
+					if (detectedLanguage) speechLanguageRef.current = detectedLanguage
+				}
+
+				recognition.onend = () => {
+					if (!listeningRef.current || recognitionRef.current !== recognition) {
+						return
+					}
 					try {
 						recognition.start()
 					} catch {
 						/* already running */
 					}
 				}
+				recognition.onerror = () => {
+					/* keep the overlay alive; browser engines retry through onend */
+				}
+				recognitionRef.current = recognition
+				recognition.start()
 			}
-			recognition.onerror = () => {
-				/* continue */
+			function switchSpeechLanguage(language: SpeechLanguage) {
+				const current = recognitionRef.current
+				recognitionRef.current = null
+				current?.stop()
+				startRecognition(language)
 			}
-			recognition.start()
-			recognitionRef.current = recognition
+			function scheduleLanguageProbe() {
+				clearSpeechProbe()
+				speechSwitchTimerRef.current = window.setTimeout(() => {
+					if (!listeningRef.current || transcriptRef.current.trim()) return
+					switchSpeechLanguage(
+						alternateSpeechLanguage(speechLanguageRef.current),
+					)
+					scheduleLanguageProbe()
+				}, SPEECH_LANGUAGE_PROBE_MS)
+			}
 
 			const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
 			streamRef.current = stream
@@ -322,9 +373,13 @@ export function ChatInput({ chat }: ChatInputProps) {
 			}
 			rafRef.current = requestAnimationFrame(tick)
 
+			listeningRef.current = true
 			setListening(true)
 			setTranscript('')
 			accumulatedRef.current = ''
+			transcriptRef.current = ''
+			startRecognition(preferredSpeechLanguage(isAr))
+			scheduleLanguageProbe()
 		} catch {
 			/* permission denied / unsupported */
 		}
@@ -332,6 +387,11 @@ export function ChatInput({ chat }: ChatInputProps) {
 
 	function stopListening(skipCommit = false) {
 		cancelAnimationFrame(rafRef.current)
+		listeningRef.current = false
+		if (speechSwitchTimerRef.current !== null) {
+			window.clearTimeout(speechSwitchTimerRef.current)
+			speechSwitchTimerRef.current = null
+		}
 		if (recognitionRef.current) {
 			recognitionRef.current.stop()
 			recognitionRef.current = null
@@ -358,6 +418,10 @@ export function ChatInput({ chat }: ChatInputProps) {
 	useEffect(() => {
 		return () => {
 			cancelAnimationFrame(rafRef.current)
+			listeningRef.current = false
+			if (speechSwitchTimerRef.current !== null) {
+				window.clearTimeout(speechSwitchTimerRef.current)
+			}
 			recognitionRef.current?.stop()
 			streamRef.current?.getTracks().forEach((t) => {
 				t.stop()
@@ -598,7 +662,7 @@ function VoiceOrb({
 			animate={{ opacity: 1 }}
 			exit={{ opacity: 0 }}
 			transition={{ duration: 0.28 }}
-			className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden px-4 py-6 sm:px-8"
+			className="fixed inset-0 z-50 flex items-stretch justify-stretch overflow-hidden sm:items-center sm:justify-center sm:px-8 sm:py-6"
 			style={{
 				background:
 					'linear-gradient(135deg, color-mix(in srgb, var(--p-bg) 92%, transparent), color-mix(in srgb, var(--p-surface) 88%, transparent))',
@@ -620,7 +684,7 @@ function VoiceOrb({
 				transition={{ duration: 0.35, ease: SMOOTH_EASE }}
 				onClick={(event) => event.stopPropagation()}
 				dir={isAr ? 'rtl' : 'ltr'}
-				className="relative flex w-full max-w-[760px] flex-col overflow-hidden rounded-[2rem] border border-[var(--p-border-strong)] bg-[color-mix(in_srgb,var(--p-card)_86%,transparent)] p-4 shadow-[var(--p-panel-shadow)] backdrop-blur-2xl sm:p-6"
+				className="relative flex min-h-full w-full flex-col overflow-hidden border-[var(--p-border-strong)] bg-[color-mix(in_srgb,var(--p-card)_86%,transparent)] p-5 shadow-[var(--p-panel-shadow)] backdrop-blur-2xl sm:min-h-0 sm:max-w-[760px] sm:rounded-[2rem] sm:border sm:p-6"
 			>
 				<div
 					aria-hidden
@@ -632,15 +696,15 @@ function VoiceOrb({
 					}}
 				/>
 
-				<header className="flex items-start justify-between gap-4">
+				<header className="flex shrink-0 items-start justify-between gap-4 pt-[calc(env(safe-area-inset-top)+0.25rem)] sm:pt-0">
 					<div className="min-w-0">
 						<p className="voice-mono text-[10px] font-semibold uppercase tracking-[0.24em] text-[var(--p-text-muted)]">
 							{hint}
 						</p>
-						<h2 className="mt-2 text-[24px] font-semibold tracking-[-0.04em] text-[var(--p-text)] sm:text-[38px]">
+						<h2 className="mt-2 text-[26px] font-semibold tracking-[-0.04em] text-[var(--p-text)] sm:text-[38px]">
 							{status}
 						</h2>
-						<p className="mt-2 max-w-[460px] text-[13px] leading-5 text-[var(--p-text-muted)] sm:text-[14px]">
+						<p className="mt-2 max-w-[300px] text-[13px] leading-5 text-[var(--p-text-muted)] sm:max-w-[460px] sm:text-[14px]">
 							{subtitle}
 						</p>
 					</div>
@@ -656,8 +720,8 @@ function VoiceOrb({
 					</button>
 				</header>
 
-				<div className="mt-8 grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-center">
-					<div className="relative mx-auto flex h-[240px] w-[240px] items-center justify-center sm:h-[280px] sm:w-[280px]">
+				<div className="flex min-h-0 flex-1 flex-col justify-center gap-6 py-8 sm:mt-8 sm:grid sm:flex-none sm:grid-cols-1 sm:py-0 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-center">
+					<div className="relative mx-auto flex h-[210px] w-[210px] items-center justify-center sm:h-[280px] sm:w-[280px]">
 						<motion.div
 							aria-hidden
 							className="absolute inset-0 rounded-full"
@@ -716,7 +780,7 @@ function VoiceOrb({
 					</div>
 
 					<div className="min-w-0">
-						<div className="flex h-20 items-end gap-1.5 rounded-2xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-4">
+						<div className="hidden h-20 items-end gap-1.5 rounded-2xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-4 sm:flex">
 							{bars.map((bar) => (
 								<motion.span
 									key={bar.id}
@@ -731,7 +795,7 @@ function VoiceOrb({
 							))}
 						</div>
 
-						<div className="mt-4 min-h-[148px] rounded-2xl border border-[var(--p-border)] bg-[var(--p-input)] p-4 sm:p-5">
+						<div className="min-h-[154px] rounded-2xl border border-[var(--p-border)] bg-[var(--p-input)] p-4 sm:mt-4 sm:min-h-[148px] sm:p-5">
 							<AnimatePresence mode="wait">
 								{transcript ? (
 									<motion.p
@@ -764,7 +828,7 @@ function VoiceOrb({
 					</div>
 				</div>
 
-				<footer className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+				<footer className="flex shrink-0 flex-col-reverse gap-2 pb-[calc(env(safe-area-inset-bottom)+0.25rem)] sm:mt-6 sm:flex-row sm:justify-end sm:pb-0">
 					<button
 						type="button"
 						onClick={onDismiss}
