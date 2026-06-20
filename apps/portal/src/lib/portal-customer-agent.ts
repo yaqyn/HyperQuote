@@ -69,6 +69,13 @@ export interface PortalCustomerToolRequest {
 	targetReference?: string
 }
 
+export interface PortalDraftMaterialRequestLine {
+	query: string
+	quantity: number
+	rawText: string
+	unitHint?: string
+}
+
 interface PortalCustomerCatalogSnapshotItem {
 	category: string
 	name: string
@@ -120,7 +127,7 @@ Tools:
 - product_search, compare_products, recommend_materials: catalog search, comparison, or material planning. Ask before writing plans to drafts.
 - address_list, project_list, account_health: customer-owned account context.
 - draft_detail, draft_validate, order_activity: inspect customer-owned records.
-- create_draft_from_plan: explicit draft-create/catalog-selection only; server writes real Available product IDs. Include a natural draft_name and draft_notes.
+- create_draft_from_plan: customer buy intent or draft-create/catalog-selection. "I need 200 product name", "give me 300 product name", and "I want 100 product name" are draft-create intents. Server writes real Available product IDs. Include a natural draft_name and draft_notes.
 - update_draft_items: edit an editable draft line, quantity, note, or clear lines. Include refreshed draft_notes; include draft_name when the title should change.
 - draft_add_items, draft_replace_item, draft_set_delivery, duplicate_order_to_draft, update_draft_metadata, cleanup_drafts, delete_draft: customer-scoped draft-only edits.
 - support_request: when the user asks to create, send, submit, or file a support ticket/feedback, or says they need to contact support about a concrete issue or complaint. Do not ask them for a separate subject/title/description; infer the subject and use their natural message as the description. If they only ask for support contact details, docs, FAQ, or help finding something, use public_docs or chat instead.
@@ -134,7 +141,7 @@ Current draft desk:
 ${activeDraft?.id ? JSON.stringify(activeDraft, null, 2) : 'No saved draft is currently open in the chat draft desk.'}
 If a saved current draft is shown and the user says this draft, it, them, the open draft, or asks for an edit without naming a different draft, use that draft id as target_reference. If the user names another draft or describes one by title/material/old quantity, keep that description in search_query so the server can resolve the right editable draft.
 
-Do not invent products. If matching is uncertain, ask briefly.
+Do not invent products. Customers may use only product names. Never ask for SKU, product code, size, or specifications. If one requested product name has multiple real catalog variations, present the available choices as numbered options and let the customer choose by number, letter, "the second one", "cheapest", "biggest", or natural wording.
 
 For draft_name, write a short natural title, never a "Draft:" prefix. For draft_notes, write one simple description of what the order is about or what the current materials are. No review/submit instructions, edit links, "Lyon selected", or catalog/process boilerplate.
 
@@ -734,6 +741,7 @@ export function enforcePortalCustomerToolRequest(
 
 function isExplicitDraftCreateRequest(userMessage: string): boolean {
 	const normalized = userMessage.toLowerCase()
+	if (parsePortalDraftMaterialRequestLines(userMessage).length > 0) return true
 	const wantsDraft =
 		/^\s*draft\b/.test(normalized) ||
 		(/\b(create|make|prepare|start|build)\b/.test(normalized) &&
@@ -756,6 +764,108 @@ function isExplicitDraftCreateRequest(userMessage: string): boolean {
 		(hasSpecificMaterial && hasQuantityOrProjectContext) ||
 		openEndedCatalogDraft
 	)
+}
+
+export function parsePortalDraftMaterialRequestLines(
+	userMessage: string,
+): PortalDraftMaterialRequestLine[] {
+	const normalized = normalizeForAgentMatch(userMessage)
+	const hasBuyIntent =
+		/\b(i\s+need|need|i\s+want|want|give\s+me|get\s+me|add|draft|quote|order|can\s+i\s+get|please)\b/.test(
+			normalized,
+		) || /عايز|عاوز|محتاج|هات|ضيف|اطلب|مسودة|عرض/.test(userMessage)
+	if (!hasBuyIntent) return []
+
+	const lines: PortalDraftMaterialRequestLine[] = []
+	const pattern =
+		/(?:^|[,;]|\+|\band\b|\bfor\b|&)\s*(?:(?:i|we)\s+)?(?:need|want|wanna|would\s+like|give\s+me|get\s+me|add|draft|quote|order|please|عايز|عاوز|محتاج|هات|ضيف|اطلب)?\s*(\d+(?:[.,]\d+)?)\s*(?:(bags?|tons?|tonnes?|pieces?|pcs?|units?|bars?|sheets?|kg|m2|m3)\s+)?([^,;+\n&]+?)(?=\s*(?:[,;]|\+|&|\band\b)\s*(?:(?:i|we)\s+)?(?:need|want|wanna|would\s+like|give\s+me|get\s+me|add|draft|quote|order|please|عايز|عاوز|محتاج|هات|ضيف|اطلب)?\s*\d|$)/giu
+	for (const match of userMessage.matchAll(pattern)) {
+		const quantity = readPositiveNumber((match[1] ?? '').replace(',', '.'))
+		if (quantity === null) continue
+		const rawQuery = cleanMaterialLineQuery(match[3] ?? '')
+		if (!rawQuery || !looksLikeMaterialRequest(rawQuery)) continue
+		lines.push({
+			query: rawQuery,
+			quantity,
+			rawText: match[0].trim(),
+			unitHint: normalizeUnitHint(match[2]),
+		})
+	}
+
+	return mergeAdjacentDuplicateMaterialLines(lines)
+}
+
+function cleanMaterialLineQuery(value: string): string {
+	return value
+		.replace(
+			/\b(?:for|to|into)\s+(?:a|an|the|my|our)?\s*(?:draft|quote|rfq|order|project|site)\b.*$/i,
+			'',
+		)
+		.replace(/\b(?:please|pls|thanks|thank you)\b/gi, ' ')
+		.replace(/\b(?:draft|quote|rfq|order|request)\b/gi, ' ')
+		.replace(/[.?!]+$/g, '')
+		.replace(/\s+/g, ' ')
+		.trim()
+		.slice(0, 120)
+}
+
+function looksLikeMaterialRequest(query: string): boolean {
+	const normalized = normalizeForAgentMatch(query)
+	if (!normalized) return false
+	if (/^\d+(?:\.\d+)?$/.test(normalized)) return false
+	const blocked = new Set([
+		'account',
+		'address',
+		'addresses',
+		'draft',
+		'drafts',
+		'help',
+		'invoice',
+		'invoices',
+		'order',
+		'orders',
+		'quote',
+		'quotes',
+		'support',
+		'ticket',
+		'tickets',
+	])
+	const tokens = normalized.split(' ').filter(Boolean)
+	return tokens.some((token) => token.length > 1 && !blocked.has(token))
+}
+
+function normalizeUnitHint(value: string | undefined): string | undefined {
+	if (!value) return undefined
+	const normalized = normalizeForAgentMatch(value)
+	if (!normalized) return undefined
+	if (
+		/^(bag|bags|ton|tons|tonne|tonnes|piece|pieces|pcs|unit|units|bar|bars|sheet|sheets|kg|m2|m3)$/.test(
+			normalized,
+		)
+	) {
+		return normalized
+	}
+	return undefined
+}
+
+function mergeAdjacentDuplicateMaterialLines(
+	lines: PortalDraftMaterialRequestLine[],
+): PortalDraftMaterialRequestLine[] {
+	const merged: PortalDraftMaterialRequestLine[] = []
+	for (const line of lines) {
+		const previous = merged.at(-1)
+		if (
+			previous &&
+			normalizeForAgentMatch(previous.query) ===
+				normalizeForAgentMatch(line.query)
+		) {
+			previous.quantity += line.quantity
+			previous.rawText = `${previous.rawText}, ${line.rawText}`
+			continue
+		}
+		merged.push({ ...line })
+	}
+	return merged
 }
 
 export function isDraftWriteAction(action: PortalCustomerAgentAction): boolean {

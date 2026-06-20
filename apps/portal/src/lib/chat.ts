@@ -55,6 +55,7 @@ import {
 	type PortalCustomerCatalogSnapshot,
 	type PortalCustomerToolRequest,
 	parsePortalCustomerToolRequest,
+	parsePortalDraftMaterialRequestLines,
 	portalCustomerActionNeedsConfirmation,
 	portalCustomerPolicyRefusal,
 	routePortalChatCommand,
@@ -456,6 +457,7 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 		const activeDraft = input.activeDraft ?? null
 		const baseRoute =
 			routePortalChatCommand(userText) ??
+			naturalDraftCreateRoute(userText) ??
 			(await requestPortalCustomerTool(
 				modelMessages,
 				userText,
@@ -490,6 +492,16 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 		// biome-ignore lint/complexity/noBannedTypes: TanStack server-fn serialization accepts this historical chunk boundary type.
 		return chunks as unknown as Array<{ [k: string]: {} }>
 	})
+
+function naturalDraftCreateRoute(
+	userText: string,
+): PortalCustomerToolRequest | null {
+	if (parsePortalDraftMaterialRequestLines(userText).length === 0) return null
+	return {
+		action: 'create_draft_from_plan',
+		searchQuery: userText.trim(),
+	}
+}
 
 async function requestPortalCustomerTool(
 	messages: ChatMessageInput[],
@@ -2708,7 +2720,7 @@ async function findOrderableProductsForDraft(
 	const openEndedSelection = isOpenEndedCatalogSelectionRequest(userText)
 	const intentTerms = draftProductIntentTerms(userText)
 	if (intentTerms.length > 0 || openEndedSelection) {
-		const builder = supabase
+		let builder = supabase
 			.from('products')
 			.select(
 				'id, sku, slug, name, name_ar, category, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar',
@@ -2718,6 +2730,9 @@ async function findOrderableProductsForDraft(
 			.neq('availability_status', 'out_of_stock')
 			.order('name', { ascending: true })
 			.limit(OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE)
+		const query = openEndedSelection ? null : productSearchTerm(userText)
+		const filter = query ? publicProductSearchFilter(query) : ''
+		if (filter) builder = builder.or(filter)
 		const { data, error } = await builder
 		if (error) throw new Error(error.message)
 		const products = (data ?? []) as PortalAiProduct[]
@@ -2773,15 +2788,28 @@ async function createDraftFromPlan(
 	userText: string,
 ): Promise<DraftWriteContext> {
 	const locale = detectPortalAiLocale(userText)
-	const draftPlanText = route.searchQuery
-		? `${userText} ${route.searchQuery}`
-		: userText
-	const products = await findOrderableProductsForDraft(
-		supabase,
-		draftPlanText,
-		route.searchQuery,
-	)
-	const items = buildDraftItemsFromPlan(draftPlanText, products)
+	const routeQuery = route.searchQuery.trim()
+	const draftPlanText =
+		routeQuery && routeQuery !== userText.trim()
+			? `${userText} ${route.searchQuery}`
+			: userText
+	const requestedLines = parsePortalDraftMaterialRequestLines(draftPlanText)
+	const items =
+		requestedLines.length > 0
+			? await buildDraftItemsFromRequestedLines(
+					supabase,
+					requestedLines,
+					locale,
+				)
+			: buildDraftItemsFromPlan(
+					draftPlanText,
+					await findOrderableProductsForDraft(
+						supabase,
+						draftPlanText,
+						route.searchQuery,
+					),
+				)
+	if ('message' in items) return { message: items.message }
 	if (items.length === 0) {
 		const visibleMatches = await findPublishedProducts(
 			supabase,
@@ -4353,10 +4381,74 @@ function isOrderableQuoteRequestProduct(
 	)
 }
 
+async function buildDraftItemsFromRequestedLines(
+	supabase: AuthedSupabase,
+	requestedLines: ReturnType<typeof parsePortalDraftMaterialRequestLines>,
+	locale: 'ar' | 'en',
+): Promise<DraftMaterialItem[] | { message: string }> {
+	const items: DraftMaterialItem[] = []
+	for (const line of requestedLines) {
+		const products = await findOrderableProductsForDraft(
+			supabase,
+			line.query,
+			line.query,
+		)
+		const matches = rankProductsForDraftLine(products, line.query, 4)
+		if (matches.length === 0) {
+			return {
+				message:
+					locale === 'ar'
+						? `مش لاقي منتج متاح باسم ${line.query}. ماعملتش مسودة.`
+						: `I could not find an available catalog product for ${line.query}. I did not create a draft.`,
+			}
+		}
+		if (matches.length > 1) {
+			return {
+				message: draftLineChoiceMessage(line.query, matches, locale),
+			}
+		}
+		const product = matches[0]
+		if (!product) continue
+		items.push({
+			name: product.name,
+			nameAr: product.name_ar ?? product.name,
+			productId: product.id,
+			qty: line.quantity,
+			unit: product.unit_of_measure,
+			unitAr: product.unit_of_measure_ar,
+		})
+	}
+	return items
+}
+
 function buildDraftItemsFromPlan(
 	userText: string,
 	products: PortalAiProduct[],
 ): DraftMaterialItem[] {
+	const requestedLines = parsePortalDraftMaterialRequestLines(userText)
+	if (requestedLines.length > 0) {
+		const items: DraftMaterialItem[] = []
+		for (const line of requestedLines) {
+			const rankedProducts = rankProductsForPlanning(
+				products,
+				draftProductIntentTerms(line.query),
+				4,
+			)
+			const [product] = rankedProducts.filter((candidate) =>
+				productMatchesDraftLine(candidate, line.query),
+			)
+			if (!product) continue
+			items.push({
+				name: product.name,
+				nameAr: product.name_ar ?? product.name,
+				productId: product.id,
+				qty: line.quantity,
+				unit: product.unit_of_measure,
+				unitAr: product.unit_of_measure_ar,
+			})
+		}
+		return items
+	}
 	const quantity = parseRequestedQuantity(userText) ?? 1
 	if (products.length === 0) return []
 	if (isOpenEndedCatalogSelectionRequest(userText)) {
@@ -4392,6 +4484,74 @@ function buildDraftItemsFromPlan(
 		unit: product.unit_of_measure,
 		unitAr: product.unit_of_measure_ar,
 	}))
+}
+
+function rankProductsForDraftLine(
+	products: PortalAiProduct[],
+	query: string,
+	limit: number,
+): PortalAiProduct[] {
+	const directMatches = products.filter((product) =>
+		productMatchesDraftLine(product, query, true),
+	)
+	const candidates =
+		directMatches.length > 0
+			? directMatches
+			: products.filter((product) => productMatchesDraftLine(product, query))
+	return rankProductsForPlanning(
+		candidates,
+		draftProductIntentTerms(query),
+		limit,
+	)
+}
+
+function draftLineChoiceMessage(
+	query: string,
+	products: PortalAiProduct[],
+	locale: 'ar' | 'en',
+): string {
+	const choices = products
+		.map((product, index) => {
+			const price = formatPriceRange(product, locale)
+			const detail = [
+				product.name,
+				product.subcategory,
+				product.unit_of_measure,
+				price,
+			]
+				.filter(Boolean)
+				.join(' - ')
+			return `${index + 1}. ${detail}`
+		})
+		.join('\n')
+	return locale === 'ar'
+		? `لقيت أكتر من اختيار لـ ${query}. اختار رقم واحد:\n${choices}`
+		: `I found multiple ${query} options. Pick one by number:\n${choices}`
+}
+
+function productMatchesDraftLine(
+	product: PortalAiProduct,
+	query: string,
+	directOnly = false,
+): boolean {
+	const directTerms = normalizeForMatch(query)
+		.split(' ')
+		.filter((term) => term.length > 2)
+	const terms = directOnly ? directTerms : draftProductIntentTerms(query)
+	if (terms.length === 0) return false
+	const searchable = normalizeForMatch(
+		[
+			product.name,
+			product.name_ar ?? '',
+			product.sku,
+			product.category,
+			product.subcategory ?? '',
+			product.subcategory_ar ?? '',
+			product.description ?? '',
+			product.description_ar ?? '',
+		].join(' '),
+	)
+	return terms.some((term) => term.length > 1 && searchable.includes(term))
 }
 
 function findOrderByReference(

@@ -10,6 +10,7 @@ import {
 	fallbackPortalCustomerToolRequest,
 	inferDraftItemEdit,
 	parsePortalCustomerToolRequest,
+	parsePortalDraftMaterialRequestLines,
 	portalCustomerActionNeedsConfirmation,
 	portalCustomerPolicyRefusal,
 	routePortalChatCommand,
@@ -33,13 +34,99 @@ describe('portal customer AI agent', () => {
 			'show my company profile',
 			'list my draft orders',
 			'find 42.5 cement products',
-			'create a draft quote for 20 tons cement',
 			'rename my 200 wood draft to "woody"',
 		]) {
 			expect(fallbackPortalCustomerToolRequest(message).action, message).toBe(
 				'chat',
 			)
 		}
+	})
+
+	it('routes natural material requests to draft creation', () => {
+		for (const message of [
+			'I need 200 wood',
+			'Give me 200 gypsum board',
+			'I want 200 insulation roll',
+			'create a draft quote for 20 tons cement',
+		]) {
+			expect(
+				parsePortalCustomerToolRequest(
+					JSON.stringify({ final_response: 'What SKU?', tool: 'chat' }),
+					message,
+				),
+				message,
+			).toMatchObject({
+				action: 'create_draft_from_plan',
+				searchQuery: message,
+			})
+		}
+	})
+
+	it('parses separate quantities for arbitrary requested product phrases', () => {
+		expect(
+			parsePortalDraftMaterialRequestLines(
+				'I need 300 wood, 200 rebar, 100 steel',
+			),
+		).toEqual([
+			{
+				query: 'wood',
+				quantity: 300,
+				rawText: 'I need 300 wood',
+				unitHint: undefined,
+			},
+			{
+				query: 'rebar',
+				quantity: 200,
+				rawText: ', 200 rebar',
+				unitHint: undefined,
+			},
+			{
+				query: 'steel',
+				quantity: 100,
+				rawText: ', 100 steel',
+				unitHint: undefined,
+			},
+		])
+		expect(
+			parsePortalDraftMaterialRequestLines(
+				'Give me 200 gypsum board and 50 insulation roll',
+			),
+		).toEqual([
+			{
+				query: 'gypsum board',
+				quantity: 200,
+				rawText: 'Give me 200 gypsum board',
+				unitHint: undefined,
+			},
+			{
+				query: 'insulation roll',
+				quantity: 50,
+				rawText: 'and 50 insulation roll',
+				unitHint: undefined,
+			},
+		])
+		expect(
+			parsePortalDraftMaterialRequestLines(
+				'create a draft quote for 20 tons cement',
+			),
+		).toEqual([
+			{
+				query: 'cement',
+				quantity: 20,
+				rawText: 'for 20 tons cement',
+				unitHint: 'tons',
+			},
+		])
+		expect(
+			parsePortalDraftMaterialRequestLines('I need 2 lunar stone'),
+		).toEqual([
+			{
+				query: 'lunar stone',
+				quantity: 2,
+				rawText: 'I need 2 lunar stone',
+				unitHint: undefined,
+			},
+		])
 	})
 
 	it('routes fixed slash commands without model classification', () => {
@@ -631,6 +718,8 @@ describe('portal customer AI agent', () => {
 
 		expect(prompt).toContain('"status": "Available"')
 		expect(prompt).toContain('"status": "Unavailable"')
+		expect(prompt).toContain('Never ask for SKU')
+		expect(prompt).toContain('real catalog variations')
 		expect(prompt).not.toMatch(/low_stock|Low Stock/i)
 	})
 
