@@ -83,7 +83,7 @@ async function renderInbox(conversations: Conversation[]) {
 }
 
 describe('SupportInbox email queue', () => {
-	it('puts email first, marks other tabs soon, and groups closed tickets below active mail', async () => {
+	it('shows only the email queue and groups closed tickets below active mail', async () => {
 		const container = await renderInbox([
 			makeConversation({
 				id: 'read-email',
@@ -113,16 +113,13 @@ describe('SupportInbox email queue', () => {
 
 		const tabs = Array.from(
 			container.querySelectorAll<HTMLButtonElement>('[data-channel-tab]'),
-		).slice(0, 3)
+		)
 		expect(tabs.map((tab) => tab.dataset.channelTab)).toEqual([
 			'email',
-			'whatsapp',
-			'live',
+			'email',
 		])
-		expect(tabs[1]).toHaveTextContent('Coming soon')
-		expect(tabs[1]).toBeDisabled()
-		expect(tabs[2]).toHaveTextContent('Coming soon')
-		expect(tabs[2]).toBeDisabled()
+		expect(tabs[0]).toHaveTextContent('Email')
+		expect(tabs[0]).toHaveTextContent('3 tickets')
 
 		const text = container.textContent ?? ''
 		const unreadIndex = text.indexOf('Unread email ticket')

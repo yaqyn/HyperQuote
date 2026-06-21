@@ -50,6 +50,10 @@ interface DispatchDialogProps {
 	children: ReactNode
 	/** Accessible label override (defaults to title) */
 	ariaLabel?: string
+	/** Let high-density workflows use the entire phone viewport. */
+	fullScreenOnMobile?: boolean
+	/** Preserve the accessible title while hiding visual chrome on phone. */
+	hideHeaderOnMobile?: boolean
 }
 
 export function DispatchDialog({
@@ -62,6 +66,8 @@ export function DispatchDialog({
 	dismissDisabled,
 	children,
 	ariaLabel,
+	fullScreenOnMobile = false,
+	hideHeaderOnMobile = false,
 }: DispatchDialogProps) {
 	if (!isOpen) return null
 
@@ -73,22 +79,42 @@ export function DispatchDialog({
 			}}
 			isDismissable={!dismissDisabled}
 			isKeyboardDismissDisabled={dismissDisabled}
-			className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5
+			className={`fixed inset-0 z-50 flex items-center justify-center sm:p-5
         bg-black/35 dark:bg-black/55 backdrop-blur-[2px]
         entering:animate-in entering:fade-in entering:duration-150
-        exiting:animate-out exiting:fade-out exiting:duration-100"
+        exiting:animate-out exiting:fade-out exiting:duration-100 ${
+					fullScreenOnMobile ? 'p-0 sm:p-5' : 'p-3'
+				}`}
 		>
 			<Modal
-				className={`${SIZE_MAX[size]} w-full max-w-[calc(100vw-1.5rem)] outline-none animate-dispatch-stamp`}
+				className={`${SIZE_MAX[size]} w-full outline-none animate-dispatch-stamp ${
+					fullScreenOnMobile
+						? 'h-dvh max-w-none sm:h-auto sm:max-w-[calc(100vw-1.5rem)]'
+						: 'max-w-[calc(100vw-1.5rem)]'
+				}`}
 			>
 				<Dialog
 					aria-label={ariaLabel ?? title}
-					className="relative flex max-h-[calc(100dvh-1.5rem)] min-h-0 flex-col overflow-hidden rounded-lg border border-black/[0.08] bg-[var(--color-surface)] text-[var(--color-text)]
-            shadow-[0_24px_80px_-32px_rgba(0,0,0,0.72)] outline-none dark:border-white/[0.1]"
+					className={`relative flex min-h-0 flex-col overflow-hidden border border-black/[0.08] bg-[var(--color-surface)] text-[var(--color-text)]
+            shadow-[0_24px_80px_-32px_rgba(0,0,0,0.72)] outline-none dark:border-white/[0.1] ${
+							fullScreenOnMobile
+								? 'h-dvh max-h-dvh rounded-none sm:h-auto sm:max-h-[calc(100dvh-1.5rem)] sm:rounded-lg'
+								: 'max-h-[calc(100dvh-1.5rem)] rounded-lg'
+						}`}
 				>
-					<header className="relative shrink-0 border-b border-black/[0.08] px-4 py-3 sm:px-5 sm:py-4 dark:border-white/[0.1]">
+					<header
+						className={`relative shrink-0 border-b border-black/[0.08] px-4 py-3 sm:px-5 sm:py-4 dark:border-white/[0.1] ${
+							hideHeaderOnMobile
+								? 'absolute right-2 top-2 z-20 border-b-0 p-0 sm:relative sm:right-auto sm:top-auto sm:border-b sm:px-5 sm:py-4'
+								: ''
+						}`}
+					>
 						<div className="flex items-start justify-between gap-4">
-							<div className="flex-1 min-w-0">
+							<div
+								className={`flex-1 min-w-0 ${
+									hideHeaderOnMobile ? 'sr-only sm:not-sr-only' : ''
+								}`}
+							>
 								{eyebrow && (
 									<p className="mb-1.5 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
 										{eyebrow}

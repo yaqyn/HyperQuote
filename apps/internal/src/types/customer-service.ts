@@ -41,10 +41,20 @@ export interface LinkedOrder {
 	id: string
 	displayId: string
 	rfqId: string | null
+	orderId: string | null
+	orderNumber: string | null
 	status: string
+	orderStatus: string | null
+	level: number
+	levelId: string
+	levelLabel: string
+	summary: string
+	itemCount: number
+	paymentCount: number
 	totalAmount: number
 	currency: string
 	createdAt: string
+	lastActivityAt: string
 }
 
 export interface LinkedQuote {

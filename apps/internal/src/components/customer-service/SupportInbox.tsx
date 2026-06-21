@@ -1,11 +1,4 @@
-import {
-	CheckCircle2,
-	Inbox,
-	Mail,
-	MessageCircle,
-	Plus,
-	Search,
-} from 'lucide-react'
+import { CheckCircle2, Inbox, Mail, Plus, Search } from 'lucide-react'
 import { type ReactNode, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSupportStore } from '../../stores/customer-service'
@@ -15,8 +8,6 @@ import {
 	EmployeeStatusPill,
 } from '../shared/EmployeeControls'
 import { ConversationItem } from './ConversationItem'
-
-type ChannelTab = 'email' | 'whatsapp' | 'live'
 
 interface SupportInboxProps {
 	conversations: Conversation[]
@@ -73,8 +64,6 @@ export function SupportInbox({
 	const counts = useMemo(() => {
 		const next = {
 			email: 0,
-			live: 0,
-			whatsapp: 0,
 			urgent: 0,
 		}
 
@@ -82,10 +71,7 @@ export function SupportInbox({
 			if (conv.channel === 'email') {
 				next.email++
 				if (!isResolved(conv) && hasAttention(conv)) next.urgent++
-				continue
 			}
-			if (conv.channel === 'whatsapp') next.whatsapp++
-			if (conv.channel === 'live') next.live++
 		}
 
 		return next
@@ -130,9 +116,7 @@ export function SupportInbox({
 		<>
 			<div className="shrink-0 border-b border-black/[0.06] px-3 py-3 dark:border-white/[0.08] sm:px-4 lg:px-6 lg:py-4">
 				<div className="flex flex-col gap-3 lg:hidden">
-					<div className="grid grid-cols-3 gap-2">
-						<QueueButtonGrid counts={counts} iconSize={16} />
-					</div>
+					<EmailQueueButton count={counts.email} iconSize={16} />
 
 					<EmployeeSearchField
 						value={searchQuery}
@@ -186,9 +170,7 @@ export function SupportInbox({
 						</div>
 					</div>
 
-					<div className="grid grid-cols-3 gap-2">
-						<QueueButtonGrid counts={counts} iconSize={15} />
-					</div>
+					<EmailQueueButton count={counts.email} iconSize={15} />
 
 					<EmployeeSearchField
 						value={searchQuery}
@@ -211,7 +193,7 @@ export function SupportInbox({
 							{t('inbox.noResults')}
 						</EmployeeStatusPill>
 						<p className="max-w-[28ch] font-[family-name:var(--font-archivo)] text-[13px] leading-relaxed text-[var(--color-text-muted)]">
-							Try another channel, status, or customer name.
+							Try another customer name, subject, or status.
 						</p>
 					</div>
 				) : (
@@ -262,62 +244,37 @@ export function SupportInbox({
 	)
 }
 
-function QueueButtonGrid({
-	counts,
+function EmailQueueButton({
+	count,
 	iconSize,
 }: {
-	counts: { email: number; live: number; whatsapp: number }
+	count: number
 	iconSize: number
 }) {
 	return (
-		<>
-			<MobileQueueButton id="email" active label="Email" count={counts.email}>
-				<Mail size={iconSize} strokeWidth={2.2} />
-			</MobileQueueButton>
-			<MobileQueueButton
-				id="whatsapp"
-				active={false}
-				label="WhatsApp"
-				count={counts.whatsapp}
-				comingSoon
-			>
-				<MessageCircle size={iconSize} strokeWidth={2.2} />
-			</MobileQueueButton>
-			<MobileQueueButton
-				id="live"
-				active={false}
-				label="Live"
-				count={counts.live}
-				comingSoon
-			>
-				<CheckCircle2 size={iconSize} strokeWidth={2.2} />
-			</MobileQueueButton>
-		</>
+		<MobileQueueButton active label="Email" count={count}>
+			<Mail size={iconSize} strokeWidth={2.2} />
+		</MobileQueueButton>
 	)
 }
 
 function MobileQueueButton({
-	id,
 	active,
 	label,
 	count,
-	comingSoon = false,
 	children,
 }: {
-	id: ChannelTab
 	active: boolean
 	label: string
 	count: number
-	comingSoon?: boolean
 	children: ReactNode
 }) {
 	return (
 		<button
 			type="button"
 			aria-pressed={active}
-			aria-label={`${label}: ${comingSoon ? 'coming soon' : count}`}
-			data-channel-tab={id}
-			disabled={comingSoon}
+			aria-label={`${label}: ${count} tickets`}
+			data-channel-tab="email"
 			className={`inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-md border px-2 font-[family-name:var(--font-archivo)] text-[12px] font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 disabled:cursor-not-allowed disabled:opacity-60 ${
 				active
 					? 'border-transparent bg-[var(--color-primary)] text-white'
@@ -332,7 +289,7 @@ function MobileQueueButton({
 					{label}
 				</span>
 				<span className="mt-1 max-w-full truncate font-[family-name:var(--font-geist-mono)] text-[9.5px]">
-					{comingSoon ? 'Coming soon' : count.toString().padStart(2, '0')}
+					{count} tickets
 				</span>
 			</span>
 		</button>

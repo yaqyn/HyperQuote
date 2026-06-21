@@ -93,8 +93,10 @@ export function OrderStatusWindow() {
 			title="Order status"
 			eyebrow="Internal workflow"
 			caption="All active and stopped orders grouped by operational level."
+			fullScreenOnMobile
+			hideHeaderOnMobile
 		>
-			<div className="relative flex min-h-[min(720px,calc(100dvh-9rem))] flex-1 overflow-hidden">
+			<div className="relative flex min-h-0 flex-1 overflow-hidden sm:min-h-[min(720px,calc(100dvh-9rem))]">
 				<AnimatePresence mode="wait" initial={false}>
 					{selectedRfqId ? (
 						<motion.div
@@ -137,7 +139,7 @@ export function OrderStatusWindow() {
 							transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
 							className="flex min-h-0 w-full flex-col"
 						>
-							<div className="shrink-0 border-b border-black/[0.08] px-4 py-3 dark:border-white/[0.1] sm:px-5">
+							<div className="shrink-0 border-b border-black/[0.08] px-3 py-3 pr-12 dark:border-white/[0.1] sm:px-5 sm:pr-5">
 								<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 									<label className="relative block min-w-0 flex-1">
 										<Search
@@ -159,7 +161,7 @@ export function OrderStatusWindow() {
 									</p>
 								</div>
 							</div>
-							<DispatchBody className="space-y-5">
+							<DispatchBody className="space-y-5 px-3 py-3 sm:px-5 sm:py-5">
 								{indexQuery.isLoading ? (
 									<CenteredState label="Loading orders" />
 								) : groups.length === 0 ? (
@@ -237,7 +239,7 @@ function LevelGroup({
 }) {
 	return (
 		<section>
-			<div className="sticky top-0 z-10 mb-2 flex items-center justify-between border-b border-black/[0.08] bg-[var(--color-surface)] py-2 dark:border-white/[0.1]">
+			<div className="mb-2 flex items-center justify-between border-b border-black/[0.08] bg-[var(--color-surface)] py-2 dark:border-white/[0.1] sm:sticky sm:top-0 sm:z-10">
 				<div className="flex min-w-0 items-center gap-2">
 					<span
 						className={`inline-flex h-7 min-w-7 items-center justify-center rounded-md border px-2 font-[family-name:var(--font-plex-mono)] text-[11px] font-semibold ${LEVEL_TONE[group.levelId] ?? LEVEL_TONE.sales}`}
@@ -311,7 +313,7 @@ function ReportToolbar({
 	shareStatus: string | null
 }) {
 	return (
-		<div className="shrink-0 border-b border-black/[0.08] px-4 py-3 dark:border-white/[0.1] sm:px-5">
+		<div className="shrink-0 border-b border-black/[0.08] px-3 py-3 pr-12 dark:border-white/[0.1] sm:px-5 sm:pr-5">
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div className="flex min-w-0 items-center gap-3">
 					<Button

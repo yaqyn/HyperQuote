@@ -1,13 +1,17 @@
+import { useMutation } from '@tanstack/react-query'
 import {
 	ExternalLink,
-	FileText,
+	KeyRound,
+	Loader2,
 	Mail,
 	MessageCircle,
 	Phone,
 	X,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { sendCustomerPasswordReset } from '../../lib/server/customer-service'
 import { useOrderStatusStore } from '../../stores/order-status'
 import type {
 	Conversation,
@@ -47,6 +51,15 @@ function formatRelativeDate(iso: string): string {
 	return `${years}y ago`
 }
 
+function formatDateTime(iso: string): string {
+	return new Intl.DateTimeFormat('en-EG', {
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit',
+		month: 'short',
+	}).format(new Date(iso))
+}
+
 function statusTone(status: string) {
 	if (status === 'delivered' || status === 'accepted') return 'success' as const
 	if (status === 'in_transit' || status === 'pending' || status === 'draft') {
@@ -67,6 +80,16 @@ export function CustomerProfilePanel({
 }: CustomerProfilePanelProps) {
 	const { t, i18n } = useTranslation('customer-service')
 	const openOrderStatus = useOrderStatusStore((state) => state.open)
+	const linkedOrders = conversation?.linkedOrders ?? []
+	const customerOrders = useMemo(
+		() =>
+			[...linkedOrders].sort(
+				(a, b) =>
+					new Date(b.lastActivityAt).getTime() -
+					new Date(a.lastActivityAt).getTime(),
+			),
+		[linkedOrders],
+	)
 
 	if (!conversation) return null
 
@@ -145,14 +168,14 @@ export function CustomerProfilePanel({
 						</div>
 					</section>
 
-					{conversation.linkedOrders.length > 0 && (
-						<section className="mt-7">
-							<SectionHeader
-								label="Linked orders"
-								trailing={`${conversation.linkedOrders.length}`}
-							/>
+					<section className="mt-7">
+						<SectionHeader
+							label="Customer orders"
+							trailing={`${customerOrders.length}`}
+						/>
+						{customerOrders.length > 0 ? (
 							<ul className="space-y-3">
-								{conversation.linkedOrders.map((order) => (
+								{customerOrders.map((order) => (
 									<LinkedOrderRow
 										key={order.id}
 										order={order}
@@ -160,8 +183,14 @@ export function CustomerProfilePanel({
 									/>
 								))}
 							</ul>
-						</section>
-					)}
+						) : (
+							<div className="rounded-md border border-dashed border-black/[0.12] bg-black/[0.015] p-3 dark:border-white/[0.14] dark:bg-white/[0.025]">
+								<p className="font-[family-name:var(--font-archivo)] text-[13px] leading-relaxed text-[var(--color-text-muted)]">
+									No orders found for this customer.
+								</p>
+							</div>
+						)}
+					</section>
 
 					{conversation.linkedQuotes.length > 0 && (
 						<section className="mt-7">
@@ -183,8 +212,35 @@ export function CustomerProfilePanel({
 }
 
 function CustomerActions({ customer }: { customer: Customer }) {
+	const [resetMessage, setResetMessage] = useState<string | null>(null)
+	const resetMutation = useMutation({
+		mutationFn: (channel: 'email' | 'sms') =>
+			sendCustomerPasswordReset({
+				data: {
+					channel,
+					customerId: customer.id,
+				},
+			}),
+		onError: (error) => {
+			setResetMessage(
+				error instanceof Error
+					? resetErrorMessage(error.message)
+					: 'Password reset could not be sent.',
+			)
+		},
+		onMutate: () => setResetMessage(null),
+		onSuccess: (result) => {
+			setResetMessage(
+				result.channel === 'email'
+					? `Password reset email sent to ${result.destination}.`
+					: `Password reset SMS sent to ${result.destination}.`,
+			)
+		},
+	})
+	const resetDisabled =
+		customer.recordType !== 'customer' || resetMutation.isPending
 	return (
-		<section>
+		<section className="space-y-4">
 			<div className="hidden lg:block">
 				<SectionHeader label="Contact" />
 			</div>
@@ -239,7 +295,102 @@ function CustomerActions({ customer }: { customer: Customer }) {
 					/>
 				)}
 			</div>
+			<div className="rounded-md border border-black/[0.08] bg-black/[0.015] p-3 dark:border-white/[0.1] dark:bg-white/[0.03]">
+				<div className="flex items-center justify-between gap-3">
+					<div className="min-w-0">
+						<p className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text)]">
+							Password reset
+						</p>
+						<p className="mt-1 font-[family-name:var(--font-archivo)] text-[12px] leading-snug text-[var(--color-text-muted)]">
+							Send a secure portal reset link to the customer.
+						</p>
+					</div>
+					<KeyRound
+						aria-hidden="true"
+						size={17}
+						strokeWidth={2.1}
+						className="shrink-0 text-[var(--color-text-subtle)]"
+					/>
+				</div>
+				<div className="mt-3 grid gap-2 sm:grid-cols-2">
+					<ResetButton
+						disabled={resetDisabled || !customer.email}
+						loading={
+							resetMutation.isPending && resetMutation.variables === 'email'
+						}
+						onClick={() => resetMutation.mutate('email')}
+					>
+						Email reset link
+					</ResetButton>
+					<ResetButton
+						disabled={resetDisabled || !customer.phone || !customer.email}
+						loading={
+							resetMutation.isPending && resetMutation.variables === 'sms'
+						}
+						onClick={() => resetMutation.mutate('sms')}
+					>
+						SMS reset link
+					</ResetButton>
+				</div>
+				{resetMessage && (
+					<p className="mt-2 font-[family-name:var(--font-archivo)] text-[12px] leading-snug text-[var(--color-text-muted)]">
+						{resetMessage}
+					</p>
+				)}
+				{customer.recordType !== 'customer' && (
+					<p className="mt-2 font-[family-name:var(--font-archivo)] text-[12px] leading-snug text-[var(--color-text-subtle)]">
+						Link this contact to a customer account before sending a reset.
+					</p>
+				)}
+			</div>
 		</section>
+	)
+}
+
+function resetErrorMessage(message: string): string {
+	switch (message) {
+		case 'customer_email_required_for_password_reset':
+			return 'This customer needs an email before a reset link can be created.'
+		case 'customer_phone_required_for_sms_reset':
+			return 'This customer needs a phone number before SMS reset can be sent.'
+		case 'twilio_sms_not_configured':
+		case 'twilio_sms_sender_not_configured':
+			return 'SMS reset is not configured yet. Use email reset for this customer.'
+		default:
+			return 'Password reset could not be sent.'
+	}
+}
+
+function ResetButton({
+	children,
+	disabled,
+	loading,
+	onClick,
+}: {
+	children: ReactNode
+	disabled: boolean
+	loading: boolean
+	onClick: () => void
+}) {
+	return (
+		<button
+			type="button"
+			disabled={disabled}
+			onClick={onClick}
+			className="inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-md border border-black/[0.1] bg-[var(--color-surface)] px-3 font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text)] outline-none transition-colors hover:border-[var(--color-primary)]/35 hover:text-[var(--color-primary)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 disabled:cursor-not-allowed disabled:opacity-45 dark:border-white/[0.12]"
+		>
+			{loading ? (
+				<Loader2
+					aria-hidden="true"
+					size={14}
+					strokeWidth={2.2}
+					className="animate-spin"
+				/>
+			) : (
+				<KeyRound aria-hidden="true" size={14} strokeWidth={2.2} />
+			)}
+			<span>{children}</span>
+		</button>
 	)
 }
 
@@ -306,42 +457,52 @@ function LinkedOrderRow({
 	order: LinkedOrder
 	onOpenReport: (rfqId: string) => void
 }) {
+	const openReport = () => {
+		if (order.rfqId) onOpenReport(order.rfqId)
+	}
 	return (
-		<li className="rounded-md border border-black/[0.08] bg-[var(--color-surface)] p-3 dark:border-white/[0.1]">
-			<div className="flex min-w-0 flex-col gap-3">
-				<div className="min-w-0">
-					<div className="flex flex-wrap items-center gap-2">
-						<span className="break-words font-[family-name:var(--font-archivo)] text-[14px] font-semibold text-[var(--color-text)]">
+		<li>
+			<button
+				type="button"
+				disabled={!order.rfqId}
+				onClick={openReport}
+				className="grid w-full min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-md border border-black/[0.08] bg-[var(--color-surface)] p-3 text-start outline-none transition-colors hover:border-[var(--color-primary)]/35 hover:bg-[var(--color-primary)]/[0.045] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/[0.1]"
+			>
+				<span className="inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-[var(--color-primary)]/25 bg-[var(--color-primary)]/[0.055] px-2 font-[family-name:var(--font-geist-mono)] text-[12px] font-semibold text-[var(--color-primary)]">
+					L{order.level}
+				</span>
+				<span className="min-w-0">
+					<span className="flex min-w-0 flex-wrap items-center gap-2">
+						<span className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[14px] font-semibold text-[var(--color-text)]">
 							{order.displayId}
 						</span>
 						<EmployeeStatusPill
-							tone={statusTone(order.status)}
+							tone={statusTone(order.orderStatus ?? order.status)}
 							className="px-2 py-1 text-[10.5px]"
 						>
-							{order.status.replace('_', ' ')}
+							{(order.orderStatus ?? order.status).replace('_', ' ')}
 						</EmployeeStatusPill>
-					</div>
-					<p className="mt-2 font-[family-name:var(--font-geist-mono)] text-[12px] tabular-nums text-[var(--color-text-muted)]">
-						{formatCurrency(order.totalAmount, order.currency)}
-					</p>
-					<p className="mt-1 font-[family-name:var(--font-archivo)] text-[12px] text-[var(--color-text-subtle)]">
-						Created {formatRelativeDate(order.createdAt)}
-					</p>
-				</div>
-				{order.rfqId && (
-					<EmployeeActionButton
-						onClick={() => {
-							if (order.rfqId) onOpenReport(order.rfqId)
-						}}
-						tone="neutral"
-						size="sm"
-						leading={<FileText size={14} strokeWidth={2.2} />}
-						fullWidthOnMobile
-					>
-						Open report
-					</EmployeeActionButton>
-				)}
-			</div>
+					</span>
+					<span className="mt-1 block truncate font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-text-muted)]">
+						{order.levelLabel}
+					</span>
+					<span className="mt-1 block truncate font-[family-name:var(--font-archivo)] text-[12px] italic text-[var(--color-text-muted)]">
+						{order.summary}
+					</span>
+					<span className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
+						<span>
+							{order.totalAmount > 0
+								? formatCurrency(order.totalAmount, order.currency)
+								: 'No total recorded'}
+						</span>
+						<span>{order.itemCount} lines</span>
+						{order.paymentCount > 0 && (
+							<span>{order.paymentCount} payments</span>
+						)}
+						<span>{formatDateTime(order.lastActivityAt)}</span>
+					</span>
+				</span>
+			</button>
 		</li>
 	)
 }
