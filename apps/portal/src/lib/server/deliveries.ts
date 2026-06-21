@@ -361,6 +361,13 @@ export function getEffectiveOrderStatus(
 	fallbackStatus: OrderStatus,
 	delivery?: Pick<DeliveryInfo, 'currentStage'>,
 ): OrderStatus {
+	if (
+		fallbackStatus === 'cancelled' ||
+		fallbackStatus === 'rejected' ||
+		fallbackStatus === 'expired'
+	) {
+		return fallbackStatus
+	}
 	if (!delivery) return fallbackStatus
 	if (delivery.currentStage === 'delivered') return 'delivered'
 	if (delivery.currentStage === 'out_for_delivery') return 'out_for_delivery'

@@ -49,7 +49,9 @@ import {
 	describeDriverLocationForCustomer,
 } from '../../lib/delivery-location-copy'
 import {
+	getOrderHistoryGroupKey,
 	getOrderHistoryOrders,
+	type OrderHistoryGroupKey,
 	sortOrdersByDateDesc,
 } from '../../lib/order-history'
 import { portalHead } from '../../lib/page-meta'
@@ -427,6 +429,33 @@ function OrderHistorySection({
 	sectionRef: RefObject<HTMLElement | null>
 }) {
 	const { t } = useTranslation('portal')
+	const groups = useMemo(() => {
+		const byGroup: Record<OrderHistoryGroupKey, Order[]> = {
+			active: [],
+			delivered: [],
+			rejected: [],
+		}
+		for (const order of orders) {
+			byGroup[getOrderHistoryGroupKey(order)].push(order)
+		}
+		return [
+			{
+				key: 'rejected' as const,
+				label: t('orders.historyGroups.rejected'),
+				orders: byGroup.rejected,
+			},
+			{
+				key: 'delivered' as const,
+				label: t('orders.historyGroups.delivered'),
+				orders: byGroup.delivered,
+			},
+			{
+				key: 'active' as const,
+				label: t('orders.historyGroups.active'),
+				orders: byGroup.active,
+			},
+		].filter((group) => group.orders.length > 0)
+	}, [orders, t])
 
 	if (orders.length === 0) return null
 
@@ -460,9 +489,29 @@ function OrderHistorySection({
 					</span>
 				</div>
 			</header>
-			<div className="overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-card)]">
-				{orders.map((order) => (
-					<OrderHistoryRow key={order.id} order={order} isAr={isAr} />
+			<div className="space-y-3">
+				{groups.map((group) => (
+					<div
+						key={group.key}
+						className="overflow-hidden rounded-xl border border-[var(--p-border)] bg-[var(--p-card)]"
+					>
+						<div className="flex min-h-10 items-center justify-between gap-3 border-b border-[var(--p-border)] bg-[var(--p-input)] px-3.5 py-2 sm:px-4">
+							<h3 className="text-[13px] font-semibold text-[var(--p-text)]">
+								{group.label}
+							</h3>
+							<span
+								className="text-[11px] font-medium text-[var(--p-text-muted)]"
+								style={{ fontVariantNumeric: 'tabular-nums' }}
+							>
+								{isAr
+									? group.orders.length.toLocaleString('ar-EG')
+									: group.orders.length.toLocaleString('en-EG')}
+							</span>
+						</div>
+						{group.orders.map((order) => (
+							<OrderHistoryRow key={order.id} order={order} isAr={isAr} />
+						))}
+					</div>
 				))}
 			</div>
 		</section>

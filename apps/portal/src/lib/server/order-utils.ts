@@ -47,7 +47,8 @@ export async function loadCategoryImageMap(
 }
 
 export function mapOrderStatus(status: string): OrderStatus {
-	switch (status) {
+	const normalizedStatus = status.toLowerCase().replace(/\s+/g, '_')
+	switch (normalizedStatus) {
 		case 'draft':
 		case 'submitted':
 		case 'quote_ready':
@@ -60,7 +61,10 @@ export function mapOrderStatus(status: string): OrderStatus {
 		case 'expired':
 		case 'cancelled':
 		case 'rejected':
-			return status
+			return normalizedStatus
+		case 'canceled':
+		case 'declined':
+			return 'cancelled'
 		case 'confirmed_for_inventory':
 			return 'order_confirmed'
 		case 'inventory_reserved':
