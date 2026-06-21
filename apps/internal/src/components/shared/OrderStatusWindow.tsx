@@ -427,31 +427,17 @@ async function shareReport(
 }
 
 function reportHtml(report: ResolvedReport) {
-	const sections = report.steps
-		.map(
-			(step, index) => `
-				<section>
-					<h2>${index + 1}. ${escapeHtml(step.title)}</h2>
-					<p>${escapeHtml(step.summary)}</p>
-					<table>
-						<tbody>
-							${step.facts
-								.map(
-									(fact) =>
-										`<tr><th>${escapeHtml(fact.label)}</th><td>${escapeHtml(fact.value)}</td></tr>`,
-								)
-								.join('')}
-						</tbody>
-					</table>
-				</section>`,
-		)
-		.join('')
-	return `<!doctype html>
-<html lang="en">
-<head>
-	<meta charset="utf-8" />
-	<title>${escapeHtml(report.customerName)} order report</title>
-	<style>
+	const reportDocument = document.implementation.createHTMLDocument(
+		`${report.customerName} order report`,
+	)
+	reportDocument.documentElement.lang = 'en'
+
+	const meta = reportDocument.createElement('meta')
+	meta.setAttribute('charset', 'utf-8')
+	reportDocument.head.append(meta)
+
+	const style = reportDocument.createElement('style')
+	style.textContent = `
 		body { font-family: Arial, sans-serif; margin: 32px; color: #111; }
 		header, section { border-bottom: 1px solid #ddd; padding: 18px 0; }
 		h1 { margin: 0 0 8px; font-size: 26px; }
@@ -460,24 +446,42 @@ function reportHtml(report: ResolvedReport) {
 		table { border-collapse: collapse; width: 100%; margin-top: 12px; }
 		th, td { border-top: 1px solid #eee; padding: 7px 0; text-align: left; vertical-align: top; }
 		th { width: 180px; color: #666; font-size: 12px; text-transform: uppercase; }
-	</style>
-</head>
-<body>
-	<header>
-		<h1>${escapeHtml(report.customerName)}</h1>
-		<p>${escapeHtml(report.summary.headline)}</p>
-		<p>Generated ${escapeHtml(new Date(report.generatedAt).toLocaleString('en-EG'))}</p>
-	</header>
-	${sections}
-</body>
-</html>`
-}
+	`
+	reportDocument.head.append(style)
 
-function escapeHtml(value: string) {
-	return value
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;')
-		.replaceAll("'", '&#039;')
+	const header = reportDocument.createElement('header')
+	const heading = reportDocument.createElement('h1')
+	heading.textContent = report.customerName
+	const summary = reportDocument.createElement('p')
+	summary.textContent = report.summary.headline
+	const generated = reportDocument.createElement('p')
+	generated.textContent = `Generated ${new Date(report.generatedAt).toLocaleString('en-EG')}`
+	header.append(heading, summary, generated)
+	reportDocument.body.append(header)
+
+	for (const [index, step] of report.steps.entries()) {
+		const section = reportDocument.createElement('section')
+		const title = reportDocument.createElement('h2')
+		title.textContent = `${index + 1}. ${step.title}`
+		const stepSummary = reportDocument.createElement('p')
+		stepSummary.textContent = step.summary
+		const table = reportDocument.createElement('table')
+		const body = reportDocument.createElement('tbody')
+
+		for (const fact of step.facts) {
+			const row = reportDocument.createElement('tr')
+			const label = reportDocument.createElement('th')
+			label.textContent = fact.label
+			const value = reportDocument.createElement('td')
+			value.textContent = fact.value
+			row.append(label, value)
+			body.append(row)
+		}
+
+		table.append(body)
+		section.append(title, stepSummary, table)
+		reportDocument.body.append(section)
+	}
+
+	return `<!doctype html>\n${reportDocument.documentElement.outerHTML}`
 }

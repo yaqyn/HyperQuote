@@ -21,7 +21,7 @@ export interface ResolvedReport extends LifecycleOrderReport {
 	customerTier: string
 }
 
-export type OrderStatusLevelId =
+type OrderStatusLevelId =
 	| 'stopped'
 	| 'sales'
 	| 'finance'

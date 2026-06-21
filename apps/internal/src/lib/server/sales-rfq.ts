@@ -349,27 +349,6 @@ export const cancelRFQ = createServerFn({ method: 'POST' })
 		}
 	})
 
-export const claimSalesOrder = createServerFn({ method: 'POST' })
-	.inputValidator(z.object({ rfqId: z.string() }))
-	.handler(async ({ data }) => {
-		if (!isUuid(data.rfqId)) {
-			throw new Error('Supabase quote request id is required')
-		}
-		const auth = await getInternalSupabaseClient()
-		const { data: claimed, error } = await auth.client.rpc(
-			'sales_claim_order',
-			{
-				p_order_id: data.rfqId,
-			},
-		)
-		if (error) throw new Error(error.message)
-		return {
-			success: true,
-			rfqId: claimed?.id ?? data.rfqId,
-			status: 'assigned' as const,
-		}
-	})
-
 export const claimNextSalesOrder = createServerFn({ method: 'POST' }).handler(
 	async () => {
 		const auth = await getInternalSupabaseClient()

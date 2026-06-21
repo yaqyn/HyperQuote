@@ -66,18 +66,6 @@ export interface CustomerRow {
 
 export type PaymentStatus = 'unpaid' | 'partial' | 'paid'
 
-export type OrderReportStage =
-	| 'submitted'
-	| 'evaluated'
-	| 'finance_partial'
-	| 'inventory_orders'
-	| 'finance_full'
-	| 'warehouse'
-	| 'dispatch'
-	| 'delivered'
-	| 'canceled'
-	| 'returned'
-
 type TruckStatus = 'available' | 'loading' | 'dispatched' | 'maintenance'
 type TruckBodyType = 'flatbed' | 'curtain-side' | 'box' | 'tipper'
 
