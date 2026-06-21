@@ -1097,7 +1097,7 @@ async function getCustomerPayments(
 		.from('customer_payments')
 		.select('id, amount, payment_fraction, proof_path, status, created_at')
 		.eq('order_id', orderId)
-		.order('created_at', { ascending: false })
+		.order('created_at', { ascending: true })
 	if (error) throw new Error(error.message)
 	return (data ?? []) as unknown as CustomerPaymentRow[]
 }

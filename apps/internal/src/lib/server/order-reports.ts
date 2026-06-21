@@ -274,6 +274,19 @@ function labelStatus(value: string): string {
 	return value.replaceAll('_', ' ')
 }
 
+function sourceLabel(value: string): string {
+	switch (value) {
+		case 'manual_phone_order':
+			return 'Sales new order button'
+		case 'website':
+			return 'Website'
+		case 'portal':
+			return 'Portal'
+		default:
+			return labelStatus(value)
+	}
+}
+
 function fact(label: string, value: string | number | null | undefined) {
 	if (value === null || value === undefined || value === '') return null
 	return { label, value: String(value) }
@@ -387,6 +400,66 @@ function matchingActivity(
 			)
 			.sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null
 	)
+}
+
+function activityRowsForActions(
+	rows: SupabaseReportActivityRow[],
+	actions: readonly string[],
+) {
+	const actionSet = new Set(actions)
+	return rows.filter((row) => actionSet.has(row.action))
+}
+
+function relatedDelivery(
+	row: SupabaseReportActivityRow,
+	deliveries: SupabaseReportDeliveryRow[],
+) {
+	if (row.entity_type === 'delivery' && row.entity_id) {
+		return deliveries.find((delivery) => delivery.id === row.entity_id) ?? null
+	}
+	const deliveryId = idFromDetails(row.details, 'delivery_id')
+	return deliveries.find((delivery) => delivery.id === deliveryId) ?? null
+}
+
+function warehouseActivityTitle(action: string): string {
+	switch (action) {
+		case 'warehouse_loading_driver_assigned':
+			return 'Warehouse assigned driver'
+		case 'warehouse_loading_driver_removed':
+			return 'Warehouse removed driver'
+		case 'warehouse_loading_marked_ready':
+			return 'Warehouse marked ready'
+		case 'warehouse_loading_reset':
+			return 'Warehouse reset loading'
+		case 'warehouse_loading_rejected':
+			return 'Warehouse rejected load'
+		case 'warehouse_loading_approved':
+			return 'Warehouse approved loading'
+		default:
+			return labelStatus(action)
+	}
+}
+
+function dispatchActivityTitle(action: string): string {
+	switch (action) {
+		case 'driver_delivery_accepted':
+			return 'Driver accepted delivery'
+		case 'driver_delivery_started':
+			return 'Driver started delivery'
+		case 'driver_delivery_arrived':
+			return 'Driver arrived'
+		case 'driver_delivery_confirmed':
+		case 'dispatch_delivery_completed':
+			return 'Delivery completed'
+		case 'dispatch_delivery_rejected':
+		case 'driver_delivery_rejected':
+			return 'Dispatch rejected delivery'
+		case 'delivery_returned_to_warehouse_loading':
+		case 'driver_delivery_returned_to_warehouse_loading':
+			return 'Delivery returned to warehouse'
+		default:
+			return labelStatus(action)
+	}
 }
 
 function currentStageForOrder(
@@ -677,8 +750,10 @@ async function getSupabaseOrderReport(
 	const submittedActivity =
 		matchingActivity(activityRows, 'order_submitted', request.id) ??
 		matchingActivity(activityRows, 'quote_request_submitted', request.id) ??
-		matchingActivity(activityRows, 'draft_submitted', request.id)
+		matchingActivity(activityRows, 'draft_submitted', request.id) ??
+		matchingActivity(activityRows, 'manual_order_created', request.id)
 	const source = stringOrNull(submittedActivity?.details?.source) ?? 'portal'
+	const sourceName = sourceLabel(source)
 
 	const steps: OrderReportStep[] = [
 		{
@@ -686,7 +761,7 @@ async function getSupabaseOrderReport(
 			actor: { id: null, kind: 'customer', name: customerName },
 			advisor: null,
 			facts: facts([
-				fact('Source', source),
+				fact('Source', sourceName),
 				fact('Reference', request.request_number),
 				fact('Contact', customer?.contact_name),
 				fact('Phone', customer?.phone),
@@ -703,7 +778,7 @@ async function getSupabaseOrderReport(
 			specialCase: null,
 			stage: 'submitted',
 			status: 'completed',
-			summary: `Order was placed through ${source}.`,
+			summary: `Order was placed through ${sourceName}.`,
 			timestamp: submittedAt,
 			title: 'Order placed',
 		},
@@ -872,6 +947,60 @@ async function getSupabaseOrderReport(
 		})
 	}
 
+	for (const row of activityRowsForActions(activityRows, [
+		'warehouse_loading_driver_assigned',
+		'warehouse_loading_driver_removed',
+		'warehouse_loading_marked_ready',
+		'warehouse_loading_reset',
+		'warehouse_loading_rejected',
+		'warehouse_loading_approved',
+	])) {
+		const actor = actorFromActivity(
+			row,
+			employeeNames,
+			customerName,
+			driverNames,
+		)
+		const driverId = idFromDetails(row.details, 'driver_id')
+		const truckId = idFromDetails(row.details, 'truck_id')
+		const driver =
+			loadingDrivers
+				.map((assignment) => firstRelation(assignment.drivers))
+				.find((candidate) => candidate?.id === driverId) ?? null
+		const truck =
+			loadingDrivers
+				.map((assignment) => firstRelation(assignment.trucks))
+				.find((candidate) => candidate?.id === truckId) ?? null
+		const rejected = row.action === 'warehouse_loading_rejected'
+		steps.push({
+			id: `warehouse-activity-${row.id}`,
+			actor,
+			advisor: actorFromEmployee(
+				idFromDetails(row.details, 'advisor_employee_id') ??
+					loadingTask?.advisor_employee_id,
+				employeeNames,
+			),
+			facts: facts([
+				fact('Action', labelStatus(row.action)),
+				fact('Driver', driver?.full_name),
+				fact('Truck', truck?.plate_number),
+				fact('Reason', stringOrNull(row.details?.reason)),
+			]),
+			lines: [],
+			specialCase: rejected
+				? {
+						kind: 'warehouse_rejection',
+						label: 'Warehouse correction required',
+					}
+				: null,
+			stage: 'warehouse',
+			status: rejected ? 'special' : 'completed',
+			summary: `${warehouseActivityTitle(row.action)} by ${actor?.name ?? 'Warehouse'}.`,
+			timestamp: row.created_at,
+			title: warehouseActivityTitle(row.action),
+		})
+	}
+
 	for (const delivery of deliveries) {
 		const driver = firstRelation(delivery.drivers)
 		const truck = firstRelation(delivery.trucks)
@@ -931,6 +1060,57 @@ async function getSupabaseOrderReport(
 				: completed
 					? 'Delivered'
 					: 'Dispatch assigned',
+		})
+	}
+
+	for (const row of activityRowsForActions(activityRows, [
+		'driver_delivery_accepted',
+		'driver_delivery_started',
+		'driver_delivery_arrived',
+		'driver_delivery_confirmed',
+		'driver_delivery_rejected',
+		'dispatch_delivery_completed',
+		'dispatch_delivery_rejected',
+		'delivery_returned_to_warehouse_loading',
+		'driver_delivery_returned_to_warehouse_loading',
+	])) {
+		const delivery = relatedDelivery(row, deliveries)
+		const driver = firstRelation(delivery?.drivers ?? null)
+		const truck = firstRelation(delivery?.trucks ?? null)
+		const returned =
+			row.action === 'delivery_returned_to_warehouse_loading' ||
+			row.action === 'driver_delivery_returned_to_warehouse_loading' ||
+			row.action === 'dispatch_delivery_rejected' ||
+			row.action === 'driver_delivery_rejected'
+		const completed =
+			row.action === 'driver_delivery_confirmed' ||
+			row.action === 'dispatch_delivery_completed'
+		const actor = actorFromActivity(
+			row,
+			employeeNames,
+			customerName,
+			driverNames,
+		)
+		steps.push({
+			id: `dispatch-activity-${row.id}`,
+			actor,
+			advisor: null,
+			facts: facts([
+				fact('Action', labelStatus(row.action)),
+				fact('Delivery', delivery?.delivery_number),
+				fact('Driver', driver?.full_name),
+				fact('Truck', truck?.plate_number),
+				fact('Reason', stringOrNull(row.details?.reason)),
+			]),
+			lines: [],
+			specialCase: returned
+				? { kind: 'dispatch_return', label: 'Returned to warehouse' }
+				: null,
+			stage: completed ? 'delivery' : 'dispatch',
+			status: returned ? 'special' : 'completed',
+			summary: `${dispatchActivityTitle(row.action)} by ${actor?.name ?? driver?.full_name ?? 'Dispatch'}.`,
+			timestamp: row.created_at,
+			title: dispatchActivityTitle(row.action),
 		})
 	}
 
