@@ -8,6 +8,7 @@ import {
 	useReducedMotion,
 } from 'motion/react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { OrderStatusWindow } from '../components/shared/OrderStatusWindow'
 import { InternalShortcuts } from '../components/shell/InternalShortcuts'
 import { ModuleWindow } from '../components/shell/ModuleWindow'
 import { NotificationsWindow } from '../components/shell/NotificationsWindow'
@@ -238,6 +239,7 @@ function InternalLayout() {
 
 				{/* Notifications window */}
 				<NotificationsWindow isOpen={isWindowOpen} onClose={closeWindow} />
+				<OrderStatusWindow />
 
 				{/* Module window system — always mounted so GlassWindow can run its
           open/close fade. `isOpen` drives visibility; `moduleId` falls back

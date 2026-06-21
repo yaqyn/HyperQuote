@@ -7,8 +7,8 @@ import {
 	X,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useOrderStatusStore } from '../../stores/order-status'
 import type {
 	Conversation,
 	Customer,
@@ -19,7 +19,6 @@ import {
 	EmployeeActionButton,
 	EmployeeStatusPill,
 } from '../shared/EmployeeControls'
-import { ReportViewerModal } from '../shared/ReportViewer'
 import { SlidePanel } from '../shared/SlidePanel'
 
 interface CustomerProfilePanelProps {
@@ -67,7 +66,7 @@ export function CustomerProfilePanel({
 	onClose,
 }: CustomerProfilePanelProps) {
 	const { t, i18n } = useTranslation('customer-service')
-	const [reportRfqId, setReportRfqId] = useState<string | null>(null)
+	const openOrderStatus = useOrderStatusStore((state) => state.open)
 
 	if (!conversation) return null
 
@@ -76,117 +75,110 @@ export function CustomerProfilePanel({
 	const company = i18n.language === 'ar' ? customer.companyAr : customer.company
 
 	return (
-		<>
-			<SlidePanel
-				isOpen={isOpen}
-				onClose={onClose}
-				maxWidth={440}
-				panelKey="customer-profile"
-				ariaLabel={`${name} — ${t('profile.title')}`}
-				scope="customer-service"
-				mobileTitle={name}
-				mobileSubtitle={company}
-			>
-				<div className="flex h-full min-h-0 flex-col">
-					<header className="hidden shrink-0 border-b border-black/[0.06] px-4 py-4 dark:border-white/[0.08] sm:px-6 lg:block lg:px-7">
-						<div className="flex items-start justify-between gap-3">
-							<div className="min-w-0">
-								<p className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-									Customer file
+		<SlidePanel
+			isOpen={isOpen}
+			onClose={onClose}
+			maxWidth={440}
+			panelKey="customer-profile"
+			ariaLabel={`${name} — ${t('profile.title')}`}
+			scope="customer-service"
+			mobileTitle={name}
+			mobileSubtitle={company}
+		>
+			<div className="flex h-full min-h-0 flex-col">
+				<header className="hidden shrink-0 border-b border-black/[0.06] px-4 py-4 dark:border-white/[0.08] sm:px-6 lg:block lg:px-7">
+					<div className="flex items-start justify-between gap-3">
+						<div className="min-w-0">
+							<p className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+								Customer file
+							</p>
+							<h3 className="mt-2 break-words font-[family-name:var(--font-bricolage)] text-[28px] font-semibold leading-[1.05] text-[var(--color-text)]">
+								{name}
+							</h3>
+							{company && (
+								<p className="mt-1 break-words font-[family-name:var(--font-archivo)] text-[14px] text-[var(--color-text-muted)]">
+									{company}
 								</p>
-								<h3 className="mt-2 break-words font-[family-name:var(--font-bricolage)] text-[28px] font-semibold leading-[1.05] text-[var(--color-text)]">
-									{name}
-								</h3>
-								{company && (
-									<p className="mt-1 break-words font-[family-name:var(--font-archivo)] text-[14px] text-[var(--color-text-muted)]">
-										{company}
-									</p>
-								)}
-							</div>
-							<EmployeeActionButton
-								onClick={onClose}
-								aria-label={t('profile.close')}
-								tone="neutral"
-								size="sm"
-								leading={<X size={14} strokeWidth={2.2} />}
-							>
-								Close
-							</EmployeeActionButton>
-						</div>
-
-						<div className="mt-4 flex flex-wrap gap-2">
-							<EmployeeStatusPill tone="neutral">
-								Customer since {formatRelativeDate(customer.firstContactAt)}
-							</EmployeeStatusPill>
-							<EmployeeStatusPill tone="neutral">
-								{customer.totalConversations} conversations
-							</EmployeeStatusPill>
-							{conversation.ticketId && (
-								<EmployeeStatusPill tone="warning">
-									{conversation.ticketId}
-								</EmployeeStatusPill>
 							)}
 						</div>
-					</header>
+						<EmployeeActionButton
+							onClick={onClose}
+							aria-label={t('profile.close')}
+							tone="neutral"
+							size="sm"
+							leading={<X size={14} strokeWidth={2.2} />}
+						>
+							Close
+						</EmployeeActionButton>
+					</div>
 
-					<div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4 lg:px-7 lg:py-5">
-						<CustomerActions customer={customer} />
-
-						<section className="mt-6">
-							<SectionHeader
-								label="Current issue"
-								trailing={conversation.status.replace('_', ' ')}
-							/>
-							<div className="rounded-md border border-black/[0.08] bg-black/[0.015] p-3 dark:border-white/[0.1] dark:bg-white/[0.03]">
-								<p className="break-words font-[family-name:var(--font-archivo)] text-[14px] font-semibold leading-snug text-[var(--color-text)]">
-									{conversation.subject}
-								</p>
-								<p className="mt-2 break-words font-[family-name:var(--font-archivo)] text-[13px] leading-relaxed text-[var(--color-text-muted)]">
-									{conversation.lastMessagePreview}
-								</p>
-							</div>
-						</section>
-
-						{conversation.linkedOrders.length > 0 && (
-							<section className="mt-7">
-								<SectionHeader
-									label="Linked orders"
-									trailing={`${conversation.linkedOrders.length}`}
-								/>
-								<ul className="space-y-3">
-									{conversation.linkedOrders.map((order) => (
-										<LinkedOrderRow
-											key={order.id}
-											order={order}
-											onOpenReport={(rfqId) => setReportRfqId(rfqId)}
-										/>
-									))}
-								</ul>
-							</section>
-						)}
-
-						{conversation.linkedQuotes.length > 0 && (
-							<section className="mt-7">
-								<SectionHeader
-									label="Linked quotes"
-									trailing={`${conversation.linkedQuotes.length}`}
-								/>
-								<ul className="space-y-3">
-									{conversation.linkedQuotes.map((quote) => (
-										<LinkedQuoteRow key={quote.id} quote={quote} />
-									))}
-								</ul>
-							</section>
+					<div className="mt-4 flex flex-wrap gap-2">
+						<EmployeeStatusPill tone="neutral">
+							Customer since {formatRelativeDate(customer.firstContactAt)}
+						</EmployeeStatusPill>
+						<EmployeeStatusPill tone="neutral">
+							{customer.totalConversations} conversations
+						</EmployeeStatusPill>
+						{conversation.ticketId && (
+							<EmployeeStatusPill tone="warning">
+								{conversation.ticketId}
+							</EmployeeStatusPill>
 						)}
 					</div>
-				</div>
-			</SlidePanel>
+				</header>
 
-			<ReportViewerModal
-				rfqId={reportRfqId}
-				onClose={() => setReportRfqId(null)}
-			/>
-		</>
+				<div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-4 lg:px-7 lg:py-5">
+					<CustomerActions customer={customer} />
+
+					<section className="mt-6">
+						<SectionHeader
+							label="Current issue"
+							trailing={conversation.status.replace('_', ' ')}
+						/>
+						<div className="rounded-md border border-black/[0.08] bg-black/[0.015] p-3 dark:border-white/[0.1] dark:bg-white/[0.03]">
+							<p className="break-words font-[family-name:var(--font-archivo)] text-[14px] font-semibold leading-snug text-[var(--color-text)]">
+								{conversation.subject}
+							</p>
+							<p className="mt-2 break-words font-[family-name:var(--font-archivo)] text-[13px] leading-relaxed text-[var(--color-text-muted)]">
+								{conversation.lastMessagePreview}
+							</p>
+						</div>
+					</section>
+
+					{conversation.linkedOrders.length > 0 && (
+						<section className="mt-7">
+							<SectionHeader
+								label="Linked orders"
+								trailing={`${conversation.linkedOrders.length}`}
+							/>
+							<ul className="space-y-3">
+								{conversation.linkedOrders.map((order) => (
+									<LinkedOrderRow
+										key={order.id}
+										order={order}
+										onOpenReport={(rfqId) => openOrderStatus(rfqId)}
+									/>
+								))}
+							</ul>
+						</section>
+					)}
+
+					{conversation.linkedQuotes.length > 0 && (
+						<section className="mt-7">
+							<SectionHeader
+								label="Linked quotes"
+								trailing={`${conversation.linkedQuotes.length}`}
+							/>
+							<ul className="space-y-3">
+								{conversation.linkedQuotes.map((quote) => (
+									<LinkedQuoteRow key={quote.id} quote={quote} />
+								))}
+							</ul>
+						</section>
+					)}
+				</div>
+			</div>
+		</SlidePanel>
 	)
 }
 

@@ -14,14 +14,12 @@ interface SalesStore {
 	editingRfqId: string | null
 	newQuoteCustomer: SalesNewQuoteCustomer | null
 	newQuoteRequestId: number
-	statusDialogRequestId: number
 	quotePriceRefreshHandler: (() => void) | null
 	quotePriceRefreshAvailable: boolean
 	quotePriceRefreshing: boolean
 	setEditingRfqId: (id: string | null) => void
 	setNewQuoteCustomer: (c: SalesNewQuoteCustomer | null) => void
 	requestNewQuote: () => void
-	requestStatusDialog: () => void
 	setQuotePriceRefreshHandler: (fn: (() => void) | null) => void
 	setQuotePriceRefreshStatus: (status: {
 		available: boolean
@@ -44,7 +42,6 @@ export const useSalesStore = create<SalesStore>()(
 		editingRfqId: null,
 		newQuoteCustomer: null,
 		newQuoteRequestId: 0,
-		statusDialogRequestId: 0,
 		quotePriceRefreshHandler: null,
 		quotePriceRefreshAvailable: false,
 		quotePriceRefreshing: false,
@@ -52,8 +49,6 @@ export const useSalesStore = create<SalesStore>()(
 		setNewQuoteCustomer: (c) => set({ newQuoteCustomer: c }),
 		requestNewQuote: () =>
 			set((s) => ({ newQuoteRequestId: s.newQuoteRequestId + 1 })),
-		requestStatusDialog: () =>
-			set((s) => ({ statusDialogRequestId: s.statusDialogRequestId + 1 })),
 		setQuotePriceRefreshHandler: (fn) => set({ quotePriceRefreshHandler: fn }),
 		setQuotePriceRefreshStatus: ({ available, refreshing }) =>
 			set({

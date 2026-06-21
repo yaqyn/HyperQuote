@@ -1,15 +1,7 @@
 import type { OrderReportStageId, OrderReportStep } from '@hyperquote/types'
-import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
-import {
-	INTERNAL_LIVE_REFETCH_MS,
-	INTERNAL_LIVE_STALE_MS,
-} from '../../lib/internal-live-query'
-import {
-	getOrderReport,
-	type ResolvedReport,
-} from '../../lib/server/order-reports'
-import { DispatchBody, DispatchDialog, DispatchSection } from './DispatchDialog'
+import type { ResolvedReport } from '../../lib/server/order-reports'
+import { DispatchBody, DispatchSection } from './DispatchDialog'
 
 const STAGE_LABEL: Record<OrderReportStageId, string> = {
 	delivery: 'Delivery',
@@ -28,55 +20,6 @@ const STATUS_TONE: Record<ResolvedReport['summary']['status'], string> = {
 	stopped: 'text-[#B3261E] dark:text-[#E46B63]',
 }
 
-interface ReportViewerModalProps {
-	rfqId: string | null
-	onClose: () => void
-}
-
-export function ReportViewerModal({ rfqId, onClose }: ReportViewerModalProps) {
-	const { data, isLoading } = useQuery({
-		queryKey: ['order-report', rfqId],
-		queryFn: () => getOrderReport({ data: { rfqId: rfqId ?? '' } }),
-		enabled: !!rfqId,
-		refetchInterval: INTERNAL_LIVE_REFETCH_MS,
-		refetchIntervalInBackground: true,
-		refetchOnWindowFocus: 'always',
-		staleTime: INTERNAL_LIVE_STALE_MS,
-	})
-
-	const show = !!rfqId && !!data && !isLoading
-	if (!show || !data) return null
-
-	const title = data.customerName || 'Order Report'
-	const eyebrow = (
-		<span className="inline-flex items-center gap-2">
-			<span>{data.rfqId.toUpperCase()}</span>
-			<span aria-hidden>·</span>
-			<span className={STATUS_TONE[data.summary.status]}>
-				{STAGE_LABEL[data.summary.currentStage]}
-			</span>
-			{data.customerTier && (
-				<>
-					<span aria-hidden>·</span>
-					<span>Tier {data.customerTier}</span>
-				</>
-			)}
-		</span>
-	)
-
-	return (
-		<DispatchDialog
-			isOpen={show}
-			onClose={onClose}
-			size="lg"
-			title={title}
-			eyebrow={eyebrow}
-		>
-			<ReportContent report={data} />
-		</DispatchDialog>
-	)
-}
-
 function formatRelative(iso: string | null): string {
 	if (!iso) return '—'
 	const ms = Date.now() - new Date(iso).getTime()
@@ -86,7 +29,7 @@ function formatRelative(iso: string | null): string {
 	return `${Math.floor(h / 24)}d ago`
 }
 
-function ReportContent({ report }: { report: ResolvedReport }) {
+export function ReportContent({ report }: { report: ResolvedReport }) {
 	return (
 		<DispatchBody>
 			<ReportSummary report={report} />

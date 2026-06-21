@@ -4,6 +4,7 @@ import { Tooltip, TooltipTrigger } from 'react-aria-components/Tooltip'
 import { useTranslation } from 'react-i18next'
 import { MODULES } from '../../lib/modules'
 import { useAIChatStore } from '../../stores/ai-chat'
+import { useOrderStatusStore } from '../../stores/order-status'
 import { useSalesStore } from '../../stores/sales'
 
 interface WindowHeaderProps {
@@ -32,8 +33,8 @@ export function WindowHeader({
 	const { t } = useTranslation('internal')
 	const toggleAIChat = useAIChatStore((s) => s.toggle)
 	const isAIOpen = useAIChatStore((s) => s.isOpen)
+	const openOrderStatus = useOrderStatusStore((s) => s.open)
 	const requestNewQuote = useSalesStore((s) => s.requestNewQuote)
-	const requestStatusDialog = useSalesStore((s) => s.requestStatusDialog)
 	const quotePriceRefreshHandler = useSalesStore(
 		(s) => s.quotePriceRefreshHandler,
 	)
@@ -114,15 +115,15 @@ export function WindowHeader({
 					>
 						{t(mod.labelKey)}
 					</span>
+					<Button
+						onPress={() => openOrderStatus()}
+						aria-label="Open order status"
+						className="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-md border border-black/[0.08] px-2.5 font-[family-name:var(--font-archivo)] text-[11px] font-semibold text-[var(--color-text-muted)] outline-none transition-colors hover:border-[var(--color-primary)]/35 hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 dark:border-white/[0.1]"
+					>
+						Status
+					</Button>
 					{moduleId === 'sales' && (
 						<>
-							<Button
-								onPress={requestStatusDialog}
-								aria-label="Open sales status"
-								className="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-md border border-black/[0.08] px-2.5 font-[family-name:var(--font-archivo)] text-[11px] font-semibold text-[var(--color-text-muted)] outline-none transition-colors hover:border-[var(--color-primary)]/35 hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 dark:border-white/[0.1]"
-							>
-								Status
-							</Button>
 							{quotePriceRefreshHandler && (
 								<TooltipTrigger delay={600}>
 									<Button

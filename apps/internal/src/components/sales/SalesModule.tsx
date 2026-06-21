@@ -10,12 +10,10 @@ import { setEmployeePresence } from '../../lib/server/employee-presence'
 import { getCustomerList } from '../../lib/server/sales-customers'
 import {
 	claimNextSalesOrder,
-	claimSalesOrder,
 	getRFQQueue,
 	saveRFQForLater,
 } from '../../lib/server/sales-rfq'
 import { useSalesStore } from '../../stores/sales'
-import type { RFQ } from '../../types/sales'
 import {
 	DispatchAction,
 	DispatchBody,
@@ -23,7 +21,6 @@ import {
 	DispatchFooter,
 } from '../shared/DispatchDialog'
 import { EmployeeActionButton } from '../shared/EmployeeControls'
-import { ReportViewerModal } from '../shared/ReportViewer'
 import { NegotiationView } from './negotiation/NegotiationView'
 import { QuoteBuilderView } from './quote-builder/QuoteBuilderView'
 import { SearchMenu } from './quote-builder/SearchMenu'
@@ -50,18 +47,13 @@ export function SalesModule() {
 	const newQuoteCustomer = useSalesStore((s) => s.newQuoteCustomer)
 	const setNewQuoteCustomer = useSalesStore((s) => s.setNewQuoteCustomer)
 	const newQuoteRequestId = useSalesStore((s) => s.newQuoteRequestId)
-	const statusDialogRequestId = useSalesStore((s) => s.statusDialogRequestId)
 	const [negotiatingQuoteId, setNegotiatingQuoteId] = useState<string | null>(
 		null,
 	)
 	const [customerSelectOpen, setCustomerSelectOpen] = useState(false)
 	const [customerSearchTerm, setCustomerSearchTerm] = useState('')
-	const [statusDialogOpen, setStatusDialogOpen] = useState(false)
 	const [salesPresenceStatus, setSalesPresenceStatus] =
 		useState<SalesPresenceStatus>('offline')
-
-	// Floating windows
-	const [reportRfqId, setReportRfqId] = useState<string | null>(null)
 
 	// Save timer
 	const [saveTimerOpen, setSaveTimerOpen] = useState(false)
@@ -71,8 +63,6 @@ export function SalesModule() {
 	>(null)
 	const [autoClaiming, setAutoClaiming] = useState(false)
 	const autoClaimingRef = useRef(false)
-	const [claimingRfqId, setClaimingRfqId] = useState<string | null>(null)
-	const [claimError, setClaimError] = useState<string | null>(null)
 	const [completedRfqIds, setCompletedRfqIds] = useState<Set<string>>(
 		() => new Set(),
 	)
@@ -101,19 +91,9 @@ export function SalesModule() {
 		[completedRfqIds, rawPipeline],
 	)
 
-	const saved = useMemo(() => rfqs.filter((r) => r.status === 'saved'), [rfqs])
-	const activePipeline = pipeline
 	const hasClaimableSupabaseOrder = useMemo(
 		() => pipeline.some(isClaimableSalesRfq),
 		[pipeline],
-	)
-	const evaluated = useMemo(
-		() => rfqs.filter((r) => r.status === 'quoted'),
-		[rfqs],
-	)
-	const rejected = useMemo(
-		() => rfqs.filter((r) => r.status === 'declined' || r.status === 'expired'),
-		[rfqs],
 	)
 
 	useEffect(() => {
@@ -306,43 +286,6 @@ export function SalesModule() {
 		],
 	)
 
-	const handleOpenActiveOrder = useCallback(
-		async (rfq: RFQ) => {
-			setClaimError(null)
-			setWorkingSavedOrder(false)
-			if (isClaimableSalesRfq(rfq)) {
-				setClaimingRfqId(rfq.id)
-				try {
-					const result = await claimSalesOrder({ data: { rfqId: rfq.id } })
-					await qc.invalidateQueries({ queryKey: ['sales-rfq-list'] })
-					setStatusDialogOpen(false)
-					setEditingRfqId(result.rfqId)
-				} catch {
-					setClaimError(
-						'Could not receive this submitted order. Make sure you are online in Sales and try again.',
-					)
-					await qc.invalidateQueries({ queryKey: ['sales-rfq-list'] })
-				} finally {
-					setClaimingRfqId(null)
-				}
-				return
-			}
-			setStatusDialogOpen(false)
-			setEditingRfqId(rfq.id)
-		},
-		[qc, setEditingRfqId],
-	)
-
-	// Open saved order in builder
-	const handleOpenSavedOrder = useCallback(
-		(rfqId: string) => {
-			setStatusDialogOpen(false)
-			setWorkingSavedOrder(true)
-			setEditingRfqId(rfqId)
-		},
-		[setEditingRfqId],
-	)
-
 	// Return to main pipeline from saved order
 	const handleReturnToPipeline = useCallback(() => {
 		setWorkingSavedOrder(false)
@@ -381,10 +324,6 @@ export function SalesModule() {
 		if (newQuoteRequestId > 0) setCustomerSelectOpen(true)
 	}, [newQuoteRequestId])
 
-	useEffect(() => {
-		if (statusDialogRequestId > 0) setStatusDialogOpen(true)
-	}, [statusDialogRequestId])
-
 	// Negotiate events
 	useEffect(() => {
 		const handler = (e: Event) => {
@@ -412,14 +351,6 @@ export function SalesModule() {
 		)
 	}
 
-	const statusGroups = [
-		{ key: 'active', label: 'active', items: activePipeline },
-		{ key: 'saved', label: 'saved', items: saved },
-		{ key: 'evaluated', label: 'evaluated', items: evaluated },
-		{ key: 'rejected', label: 'rejected', items: rejected },
-	] as const
-	const statusTotal =
-		activePipeline.length + saved.length + evaluated.length + rejected.length
 	const isNew = !!newQuoteCustomer?.id.startsWith('new-')
 
 	return (
@@ -544,156 +475,13 @@ export function SalesModule() {
 									}}
 								>
 									every submitted quote is already in hand. try the saved or
-									evaluated columns above for what's pending your return.
+									status window for the full order history.
 								</p>
 							</div>
 						</div>
 					)}
 				</AnimatePresence>
 			</div>
-
-			<SearchMenu
-				isOpen={statusDialogOpen}
-				onClose={() => setStatusDialogOpen(false)}
-				placeholder="Search status..."
-				resultStatus={`${statusTotal} order${statusTotal === 1 ? '' : 's'}`}
-			>
-				{(search) => {
-					const query = search.toLowerCase().trim()
-					const filteredGroups = statusGroups
-						.map(({ key, label, items }) => ({
-							key,
-							label,
-							items: query
-								? items.filter((rfq) =>
-										`${rfq.customerName} ${rfq.requestNumber ?? ''} ${rfq.id}`
-											.toLowerCase()
-											.includes(query),
-									)
-								: items,
-						}))
-						.filter((group) => group.items.length > 0)
-					return (
-						<div className="divide-y divide-[var(--color-border)]">
-							{claimError && (
-								<div className="border-b border-[var(--color-border)] px-4 py-3">
-									<p className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold text-[var(--color-signal-red)]">
-										{claimError}
-									</p>
-								</div>
-							)}
-							{filteredGroups.length === 0 ? (
-								<div className="px-4 py-10 text-center">
-									<p className="font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--color-text)]">
-										No matching orders
-									</p>
-									<p className="mt-1 font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-text-subtle)]">
-										Try a customer name or quote reference.
-									</p>
-								</div>
-							) : null}
-							{filteredGroups.map(({ key, label, items: filtered }) => {
-								return (
-									<section key={key} aria-labelledby={`sales-status-${key}`}>
-										<div className="sticky top-0 z-10 flex items-baseline justify-between bg-[var(--color-surface)] px-4 py-2">
-											<h3
-												id={`sales-status-${key}`}
-												className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-subtle)]"
-											>
-												{label}
-											</h3>
-											<span className="font-[family-name:var(--font-plex-mono)] text-[10px] tabular-nums text-[var(--color-text-subtle)]">
-												{filtered.length}
-											</span>
-										</div>
-										<div>
-											{filtered.map((rfq) => {
-												const age = Math.floor(
-													(Date.now() - new Date(rfq.createdAt).getTime()) /
-														3_600_000,
-												)
-												const timeLabel =
-													age < 1
-														? 'now'
-														: age < 24
-															? `${age}h`
-															: `${Math.floor(age / 24)}d`
-												const action =
-													key === 'active'
-														? claimingRfqId === rfq.id
-															? 'receiving'
-															: rfq.status === 'submitted'
-																? 'receive'
-																: 'open'
-														: key === 'saved'
-															? 'resume'
-															: 'report'
-												return (
-													<button
-														key={rfq.id}
-														type="button"
-														data-searchmenu-row="true"
-														onClick={() => {
-															if (key === 'active') {
-																void handleOpenActiveOrder(rfq)
-															} else if (key === 'saved') {
-																handleOpenSavedOrder(rfq.id)
-															} else {
-																setStatusDialogOpen(false)
-																setReportRfqId(rfq.id)
-															}
-														}}
-														className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 text-start outline-none transition-colors hover:bg-[var(--color-primary)]/[0.04] focus-visible:bg-[var(--color-primary)]/[0.06] data-[active=true]:bg-[var(--color-primary)]/[0.06]"
-													>
-														<span className="min-w-0">
-															<span className="block truncate font-[family-name:var(--font-archivo)] text-[13px] font-semibold text-[var(--color-text)]">
-																{rfq.customerName}
-															</span>
-															<span className="mt-0.5 flex items-baseline gap-1.5 font-[family-name:var(--font-archivo)] text-[10px] italic text-[var(--color-text-subtle)]">
-																<span className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums">
-																	{rfq.requestNumber ?? rfq.id}
-																</span>
-																<span aria-hidden="true">·</span>
-																<span className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums">
-																	{rfq.lineItemCount}{' '}
-																	{rfq.lineItemCount === 1 ? 'item' : 'items'}
-																</span>
-																<span aria-hidden="true">·</span>
-																<span className="font-[family-name:var(--font-plex-mono)] not-italic tabular-nums">
-																	{timeLabel}
-																</span>
-																{rfq.hasOutdatedPrices && (
-																	<>
-																		<span aria-hidden="true">·</span>
-																		<span className="text-[var(--color-signal-amber)]">
-																			outdated
-																		</span>
-																	</>
-																)}
-																{rfq.status === 'submitted' && (
-																	<>
-																		<span aria-hidden="true">·</span>
-																		<span className="text-[var(--color-primary)]">
-																			new
-																		</span>
-																	</>
-																)}
-															</span>
-														</span>
-														<span className="shrink-0 font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-primary)]">
-															{action}
-														</span>
-													</button>
-												)
-											})}
-										</div>
-									</section>
-								)
-							})}
-						</div>
-					)
-				}}
-			</SearchMenu>
 
 			{/* ── Save timer dialog ────────────────────────────────── */}
 			<DispatchDialog
@@ -746,12 +534,6 @@ export function SalesModule() {
 					</DispatchAction>
 				</DispatchFooter>
 			</DispatchDialog>
-
-			{/* ── Report viewer for evaluated/rejected ─────────────── */}
-			<ReportViewerModal
-				rfqId={reportRfqId}
-				onClose={() => setReportRfqId(null)}
-			/>
 
 			{/* ── Customer select modal ────────────────────────────── */}
 			<SearchMenu

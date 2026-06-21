@@ -21,7 +21,39 @@ export interface ResolvedReport extends LifecycleOrderReport {
 	customerTier: string
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i
+export type OrderStatusLevelId =
+	| 'stopped'
+	| 'sales'
+	| 'finance'
+	| 'inventory'
+	| 'warehouse'
+	| 'dispatch'
+	| 'delivery'
+
+export interface OrderStatusIndexRow {
+	id: string
+	rfqId: string
+	requestNumber: string
+	orderId: string | null
+	orderNumber: string | null
+	customerName: string
+	contactName: string
+	level: number
+	levelId: OrderStatusLevelId
+	levelLabel: string
+	stage: OrderReportStageId
+	status: string
+	orderStatus: string | null
+	summary: string
+	itemCount: number
+	totalAmount: number | null
+	paymentCount: number
+	lastActivityAt: string
+	createdAt: string
+}
+
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 interface SupabaseReportCustomerRow {
 	company_name: string
@@ -128,6 +160,7 @@ interface SupabaseReportLoadingTaskRow {
 }
 
 interface SupabaseReportLoadingDriverRow {
+	loading_task_id: string
 	driver_id: string
 	truck_id: string | null
 	assigned_items: unknown
@@ -175,6 +208,56 @@ interface SupabaseReportActivityRow {
 	actor_driver_id: string | null
 	details: JsonRecord | null
 	created_at: string
+}
+
+interface SupabaseStatusRequestRow {
+	id: string
+	request_number: string
+	status: string
+	urgency: string
+	delivery_date: string | null
+	created_at: string
+	submitted_at: string | null
+	customers: SupabaseReportCustomerRow | SupabaseReportCustomerRow[] | null
+	quote_request_items: { id: string }[] | null
+}
+
+interface SupabaseStatusOrderRow {
+	id: string
+	order_number: string
+	quote_request_id: string | null
+	status: string
+	total_amount: number | null
+	created_at: string
+	delivered_at: string | null
+	updated_at: string | null
+}
+
+interface SupabaseStatusPaymentRow {
+	order_id: string
+	amount: number
+	payment_fraction: number
+	created_at: string
+}
+
+interface SupabaseStatusReservationRow {
+	order_id: string
+	status: string
+	updated_at: string
+}
+
+interface SupabaseStatusLoadingTaskRow {
+	order_id: string
+	status: string
+	updated_at: string
+}
+
+interface SupabaseStatusDeliveryRow {
+	order_id: string | null
+	status: string
+	created_at: string
+	updated_at: string
+	completed_at: string | null
 }
 
 interface SupabaseReportSavedLineItem {
@@ -511,6 +594,90 @@ function pendingStages(currentStage: OrderReportStageId, stopped: boolean) {
 	return currentIndex === -1 ? order : order.slice(currentIndex + 1)
 }
 
+function statusLevelForStage(
+	stage: OrderReportStageId,
+	order: SupabaseStatusOrderRow | null,
+	paymentTotal: number,
+	reservations: SupabaseStatusReservationRow[],
+): {
+	id: OrderStatusLevelId
+	label: string
+	level: number
+	summary: string
+} {
+	if (stage === 'stopped') {
+		return {
+			id: 'stopped',
+			label: 'Stopped',
+			level: 0,
+			summary: 'Rejected, canceled, or expired before completion.',
+		}
+	}
+	if (stage === 'delivery') {
+		return {
+			id: 'delivery',
+			label: 'Delivery',
+			level: 6,
+			summary: 'Delivery is complete or currently customer-facing.',
+		}
+	}
+	if (stage === 'dispatch') {
+		return {
+			id: 'dispatch',
+			label: 'Dispatch',
+			level: 5,
+			summary: 'Dispatch is assigning, tracking, or completing delivery.',
+		}
+	}
+	if (stage === 'warehouse') {
+		return {
+			id: 'warehouse',
+			label: 'Warehouse',
+			level: 4,
+			summary: 'Warehouse is preparing loading, drivers, and trucks.',
+		}
+	}
+	if (!order || stage === 'sales') {
+		return {
+			id: 'sales',
+			label: 'Sales',
+			level: 1,
+			summary: 'Sales is evaluating, quoting, or confirming the order.',
+		}
+	}
+	if (paymentTotal <= 0) {
+		return {
+			id: 'finance',
+			label: 'Finance payment collection',
+			level: 2,
+			summary: 'Finance is waiting for customer payment collection.',
+		}
+	}
+	if (reservations.length === 0 || stage === 'inventory') {
+		return {
+			id: 'inventory',
+			label: 'Inventory',
+			level: 3,
+			summary: 'Inventory is reserving confirmed supply for the order.',
+		}
+	}
+	return {
+		id: 'finance',
+		label: 'Finance payment collection',
+		level: 2,
+		summary: 'Finance has payment activity recorded for this order.',
+	}
+}
+
+function latestIso(values: Array<string | null | undefined>): string {
+	const latest = values
+		.filter((value): value is string => Boolean(value))
+		.map((value) => new Date(value).getTime())
+		.filter((value) => Number.isFinite(value))
+		.sort((a, b) => b - a)[0]
+	return latest ? new Date(latest).toISOString() : new Date(0).toISOString()
+}
+
 async function fetchActivityRows(
 	client: Awaited<
 		ReturnType<typeof import('./_supabase').getInternalSupabaseClient>
@@ -529,6 +696,236 @@ async function fetchActivityRows(
 		.order('created_at', { ascending: true })
 	if (error) throw new Error(error.message)
 	return (data ?? []) as unknown as SupabaseReportActivityRow[]
+}
+
+async function getSupabaseOrderStatusIndex(): Promise<OrderStatusIndexRow[]> {
+	const { getInternalSupabaseClient } = await import('./_supabase')
+	const auth = await getInternalSupabaseClient()
+	if (!auth) throw new Error('order_status_no_internal_auth')
+
+	const { data: requestData, error: requestError } = await auth.client
+		.from('quote_requests')
+		.select(`
+			id,
+			request_number,
+			status,
+			urgency,
+			delivery_date,
+			created_at,
+			submitted_at,
+			customers (
+				company_name,
+				contact_name,
+				phone,
+				tier
+			),
+			quote_request_items (
+				id
+			)
+		`)
+		.neq('status', 'draft')
+		.order('created_at', { ascending: false })
+		.limit(500)
+	if (requestError) throw new Error(requestError.message)
+
+	const requests =
+		(requestData as unknown as SupabaseStatusRequestRow[] | null) ?? []
+	const rfqIds = requests.map((request) => request.id)
+	if (rfqIds.length === 0) return []
+
+	const { data: orderData, error: orderError } = await auth.client
+		.from('orders')
+		.select(
+			'id, order_number, quote_request_id, status, total_amount, created_at, delivered_at, updated_at',
+		)
+		.in('quote_request_id', rfqIds)
+	if (orderError) throw new Error(orderError.message)
+	const orders = (orderData as unknown as SupabaseStatusOrderRow[] | null) ?? []
+	const orderIds = orders.map((order) => order.id)
+
+	const [
+		paymentsResult,
+		reservationsResult,
+		loadingTasksResult,
+		deliveriesResult,
+	] =
+		orderIds.length > 0
+			? await Promise.all([
+					auth.client
+						.from('customer_payments')
+						.select('order_id, amount, payment_fraction, created_at')
+						.in('order_id', orderIds),
+					auth.client
+						.from('inventory_reservations')
+						.select('order_id, status, updated_at')
+						.in('order_id', orderIds),
+					auth.client
+						.from('loading_tasks')
+						.select('order_id, status, updated_at')
+						.in('order_id', orderIds),
+					auth.client
+						.from('deliveries')
+						.select('order_id, status, created_at, updated_at, completed_at')
+						.in('order_id', orderIds),
+				])
+			: [
+					{ data: [], error: null },
+					{ data: [], error: null },
+					{ data: [], error: null },
+					{ data: [], error: null },
+				]
+	if (paymentsResult.error) throw new Error(paymentsResult.error.message)
+	if (reservationsResult.error)
+		throw new Error(reservationsResult.error.message)
+	if (loadingTasksResult.error)
+		throw new Error(loadingTasksResult.error.message)
+	if (deliveriesResult.error) throw new Error(deliveriesResult.error.message)
+
+	const payments =
+		(paymentsResult.data as unknown as SupabaseStatusPaymentRow[] | null) ?? []
+	const reservations =
+		(reservationsResult.data as unknown as
+			| SupabaseStatusReservationRow[]
+			| null) ?? []
+	const loadingTasks =
+		(loadingTasksResult.data as unknown as
+			| SupabaseStatusLoadingTaskRow[]
+			| null) ?? []
+	const deliveries =
+		(deliveriesResult.data as unknown as SupabaseStatusDeliveryRow[] | null) ??
+		[]
+
+	return requests
+		.map((request): OrderStatusIndexRow => {
+			const order =
+				orders.find((candidate) => candidate.quote_request_id === request.id) ??
+				null
+			const orderPayments = order
+				? payments.filter((payment) => payment.order_id === order.id)
+				: []
+			const orderReservations = order
+				? reservations.filter(
+						(reservation) => reservation.order_id === order.id,
+					)
+				: []
+			const orderLoadingTasks = order
+				? loadingTasks.filter((task) => task.order_id === order.id)
+				: []
+			const orderDeliveries = order
+				? deliveries.filter((delivery) => delivery.order_id === order.id)
+				: []
+			const deliveryRows = orderDeliveries.map(
+				(delivery): SupabaseReportDeliveryRow => ({
+					id: '',
+					delivery_number: '',
+					status: delivery.status,
+					driver_id: null,
+					truck_id: null,
+					loading_task_id: null,
+					started_at: null,
+					arrived_at: null,
+					completed_at: delivery.completed_at,
+					rejection_reason: null,
+					created_at: delivery.created_at,
+					updated_at: delivery.updated_at,
+					drivers: null,
+					trucks: null,
+				}),
+			)
+			const paymentRows = orderPayments.map(
+				(payment): SupabaseReportPaymentRow => ({
+					id: '',
+					amount: payment.amount,
+					payment_fraction: payment.payment_fraction,
+					proof_path: '',
+					status: 'recorded',
+					recorded_by_employee_id: null,
+					created_at: payment.created_at,
+				}),
+			)
+			const stage = currentStageForOrder(
+				{
+					id: request.id,
+					request_number: request.request_number,
+					status: request.status,
+					urgency: request.urgency,
+					delivery_date: request.delivery_date,
+					notes: null,
+					rejected_reason: null,
+					rejected_proof: null,
+					created_at: request.created_at,
+					submitted_at: request.submitted_at,
+					submitted_by: null,
+					assigned_employee_id: null,
+					customers: request.customers,
+					customer_addresses: null,
+					quote_request_items: null,
+				},
+				order
+					? {
+							id: order.id,
+							order_number: order.order_number,
+							status: order.status,
+							total_amount: order.total_amount ?? 0,
+							created_at: order.created_at,
+							delivered_at: order.delivered_at,
+							updated_at: order.updated_at,
+						}
+					: null,
+				deliveryRows,
+				paymentRows,
+			)
+			const paymentTotal = orderPayments.reduce(
+				(total, payment) => total + Number(payment.amount),
+				0,
+			)
+			const level = statusLevelForStage(
+				stage,
+				order,
+				paymentTotal,
+				orderReservations,
+			)
+			const customer = firstRelation(request.customers)
+			const lastActivityAt = latestIso([
+				request.submitted_at,
+				request.created_at,
+				order?.updated_at,
+				order?.created_at,
+				...orderPayments.map((payment) => payment.created_at),
+				...orderReservations.map((reservation) => reservation.updated_at),
+				...orderLoadingTasks.map((task) => task.updated_at),
+				...orderDeliveries.map((delivery) => delivery.updated_at),
+				...orderDeliveries.map((delivery) => delivery.completed_at),
+			])
+			return {
+				id: request.id,
+				rfqId: request.id,
+				requestNumber: request.request_number,
+				orderId: order?.id ?? null,
+				orderNumber: order?.order_number ?? null,
+				customerName: customer?.company_name ?? 'Customer',
+				contactName: customer?.contact_name ?? '',
+				level: level.level,
+				levelId: level.id,
+				levelLabel: level.label,
+				stage,
+				status: request.status,
+				orderStatus: order?.status ?? null,
+				summary: level.summary,
+				itemCount: request.quote_request_items?.length ?? 0,
+				totalAmount: order?.total_amount ?? null,
+				paymentCount: orderPayments.length,
+				lastActivityAt,
+				createdAt: request.created_at,
+			}
+		})
+		.sort((a, b) => {
+			if (a.level !== b.level) return a.level - b.level
+			return (
+				new Date(b.lastActivityAt).getTime() -
+				new Date(a.lastActivityAt).getTime()
+			)
+		})
 }
 
 async function getSupabaseOrderReport(
@@ -611,7 +1008,7 @@ async function getSupabaseOrderReport(
 	const [
 		paymentsResult,
 		reservationsResult,
-		loadingTaskResult,
+		loadingTasksResult,
 		deliveryResult,
 	] = order
 		? await Promise.all([
@@ -635,7 +1032,7 @@ async function getSupabaseOrderReport(
 						'id, order_id, advisor_employee_id, status, proof, rejection_reason, created_at, updated_at',
 					)
 					.eq('order_id', order.id)
-					.maybeSingle(),
+					.order('created_at', { ascending: true }),
 				auth.client
 					.from('deliveries')
 					.select(
@@ -653,7 +1050,8 @@ async function getSupabaseOrderReport(
 	if (paymentsResult.error) throw new Error(paymentsResult.error.message)
 	if (reservationsResult.error)
 		throw new Error(reservationsResult.error.message)
-	if (loadingTaskResult.error) throw new Error(loadingTaskResult.error.message)
+	if (loadingTasksResult.error)
+		throw new Error(loadingTasksResult.error.message)
 	if (deliveryResult.error) throw new Error(deliveryResult.error.message)
 
 	const payments =
@@ -662,21 +1060,27 @@ async function getSupabaseOrderReport(
 		(reservationsResult.data as unknown as
 			| SupabaseReportReservationRow[]
 			| null) ?? []
-	const loadingTask =
-		(loadingTaskResult.data as unknown as SupabaseReportLoadingTaskRow | null) ??
-		null
+	const loadingTasks =
+		(loadingTasksResult.data as unknown as
+			| SupabaseReportLoadingTaskRow[]
+			| null) ?? []
+	const loadingTask = loadingTasks[loadingTasks.length - 1] ?? null
 	const deliveries =
 		(deliveryResult.data as unknown as SupabaseReportDeliveryRow[] | null) ?? []
 
-	const loadingDriversResult = loadingTask
-		? await auth.client
-				.from('loading_task_drivers')
-				.select(
-					'driver_id, truck_id, assigned_items, created_at, drivers(id, full_name, phone), trucks(id, plate_number)',
-				)
-				.eq('loading_task_id', loadingTask.id)
-				.order('created_at', { ascending: true })
-		: { data: [], error: null }
+	const loadingDriversResult =
+		loadingTasks.length > 0
+			? await auth.client
+					.from('loading_task_drivers')
+					.select(
+						'loading_task_id, driver_id, truck_id, assigned_items, created_at, drivers(id, full_name, phone), trucks(id, plate_number)',
+					)
+					.in(
+						'loading_task_id',
+						loadingTasks.map((task) => task.id),
+					)
+					.order('created_at', { ascending: true })
+			: { data: [], error: null }
 	if (loadingDriversResult.error)
 		throw new Error(loadingDriversResult.error.message)
 	const loadingDrivers =
@@ -687,7 +1091,9 @@ async function getSupabaseOrderReport(
 	const activityGroups = await Promise.all([
 		fetchActivityRows(auth.client, 'quote_request', request.id),
 		fetchActivityRows(auth.client, 'order', order?.id),
-		fetchActivityRows(auth.client, 'loading_task', loadingTask?.id),
+		...loadingTasks.map((task) =>
+			fetchActivityRows(auth.client, 'loading_task', task.id),
+		),
 		...deliveries.map((delivery) =>
 			fetchActivityRows(auth.client, 'delivery', delivery.id),
 		),
@@ -702,7 +1108,7 @@ async function getSupabaseOrderReport(
 		...versionRows.map((row) => row.created_by_employee_id),
 		...payments.map((row) => row.recorded_by_employee_id),
 		...reservations.map((row) => row.created_by_employee_id),
-		loadingTask?.advisor_employee_id,
+		...loadingTasks.map((row) => row.advisor_employee_id),
 		...activityRows.map((row) => row.actor_employee_id),
 		...activityRows.flatMap((row) => [
 			idFromDetails(row.details, 'employee_id'),
@@ -886,20 +1292,20 @@ async function getSupabaseOrderReport(
 		})
 	}
 
-	if (loadingTask) {
-		const advisor = actorFromEmployee(
-			loadingTask.advisor_employee_id,
-			employeeNames,
+	for (const task of loadingTasks) {
+		const taskDrivers = loadingDrivers.filter(
+			(assignment) => assignment.loading_task_id === task.id,
 		)
+		const advisor = actorFromEmployee(task.advisor_employee_id, employeeNames)
 		const approvedActivity = matchingActivity(
 			activityRows,
 			'warehouse_loading_approved',
-			loadingTask.id,
+			task.id,
 		)
 		const rejectedActivity = matchingActivity(
 			activityRows,
 			'warehouse_loading_rejected',
-			loadingTask.id,
+			task.id,
 		)
 		const actor =
 			actorFromActivity(
@@ -909,39 +1315,39 @@ async function getSupabaseOrderReport(
 				driverNames,
 			) ?? advisor
 		steps.push({
-			id: `warehouse-${loadingTask.id}`,
+			id: `warehouse-${task.id}`,
 			actor,
 			advisor,
 			facts: facts([
-				fact('Warehouse status', loadingTask.status),
+				fact('Warehouse status', task.status),
 				fact('Advisor', advisor?.name),
-				fact('Truck count', loadingDrivers.length),
-				fact('Rejected reason', loadingTask.rejection_reason),
+				fact('Truck count', taskDrivers.length),
+				fact('Rejected reason', task.rejection_reason),
 			]),
-			lines: loadingDrivers.map((assignment) => {
+			lines: taskDrivers.map((assignment) => {
 				const driver = firstRelation(assignment.drivers)
 				const truck = firstRelation(assignment.trucks)
 				return `${truck?.plate_number ?? 'Truck'} with ${driver?.full_name ?? 'driver'}`
 			}),
 			specialCase:
-				loadingTask.status === 'rejected'
+				task.status === 'rejected'
 					? {
 							kind: 'warehouse_rejection',
 							label: 'Warehouse correction required',
 						}
 					: null,
 			stage: 'warehouse',
-			status: loadingTask.status === 'rejected' ? 'special' : 'completed',
+			status: task.status === 'rejected' ? 'special' : 'completed',
 			summary:
-				loadingTask.status === 'rejected'
+				task.status === 'rejected'
 					? `${actor?.name ?? 'Warehouse'} rejected the load for correction.`
 					: `${actor?.name ?? 'Warehouse'} prepared the order for dispatch.`,
 			timestamp:
 				approvedActivity?.created_at ??
 				rejectedActivity?.created_at ??
-				loadingTask.updated_at,
+				task.updated_at,
 			title:
-				loadingTask.status === 'rejected'
+				task.status === 'rejected'
 					? 'Warehouse rejected load'
 					: 'Warehouse prepared',
 		})
@@ -1216,3 +1622,7 @@ export const getOrderReport = createServerFn({ method: 'POST' })
 	.handler(async ({ data }) => {
 		return getSupabaseOrderReport(data.rfqId)
 	})
+
+export const getOrderStatusIndex = createServerFn({ method: 'GET' }).handler(
+	async (): Promise<OrderStatusIndexRow[]> => getSupabaseOrderStatusIndex(),
+)
