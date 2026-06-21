@@ -555,6 +555,8 @@ function formatReportFact(
 	moneyFmt: Intl.NumberFormat,
 ) {
 	const lower = fact.label.toLowerCase()
+	const zeroText = zeroReportFactText(lower, fact.value)
+	if (zeroText) return zeroText
 	if (
 		/(at|date|eta|updated|submitted|delivered|generated)/.test(lower) &&
 		/^\d{4}-\d{2}-\d{2}/.test(fact.value)
@@ -665,6 +667,8 @@ function downloadOrderReport(
 
 function formatExportFact(fact: OrderReportFact, moneyFmt: Intl.NumberFormat) {
 	const lower = fact.label.toLowerCase()
+	const zeroText = zeroReportFactText(lower, fact.value)
+	if (zeroText) return zeroText
 	const numericValue = Number(fact.value)
 	if (
 		Number.isFinite(numericValue) &&
@@ -673,6 +677,18 @@ function formatExportFact(fact: OrderReportFact, moneyFmt: Intl.NumberFormat) {
 		return `EGP ${moneyFmt.format(numericValue)}`
 	}
 	return fact.value.replaceAll('_', ' ')
+}
+
+function zeroReportFactText(label: string, value: string) {
+	if (Number(value) !== 0) return null
+	if (label.includes('attachment')) return 'No attachments were submitted'
+	if (label.includes('document')) return 'No documents are available'
+	if (label.includes('reserved lines')) return 'No inventory lines reserved yet'
+	if (label.includes('reserved units')) return 'No inventory units reserved yet'
+	if (label.includes('remaining')) return 'No remaining balance'
+	if (label.includes('discount')) return 'No discount applied'
+	if (label.includes('delivery fee')) return 'No delivery fee charged'
+	return null
 }
 
 function appendReportText<K extends keyof HTMLElementTagNameMap>(
