@@ -1,6 +1,12 @@
+import type {
+	LifecycleOrderReport,
+	OrderReportActor,
+	OrderReportFact,
+	OrderReportStageId,
+	OrderReportStep,
+} from '@hyperquote/types'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import type { JsonObject, OrderReportStage } from '../db/types'
 import { computeMarginFromSellPrice } from '../pricing-math'
 import {
 	formatSupabaseAddress,
@@ -8,61 +14,14 @@ import {
 	normalizeAddressText,
 } from './address-format'
 
-/**
- * Reads the living report for an RFQ/order. The response is a fully
- * resolved view: item slugs are joined to product names, so the viewer
- * component stays dumb.
- */
-
-interface ResolvedReportItem {
-	productSlug: string
-	productName: string
-	unit: string
-	quantity: number
-}
-
-export interface ResolvedReport {
+export interface ResolvedReport extends LifecycleOrderReport {
 	id: string
 	rfqId: string
-	currentStage: OrderReportStage
-	canceledReason: string | null
-	canceledNote: string | null
-	canceledAt: string | null
-	sections: {
-		submitted?: {
-			customerName: string
-			customerTier: string
-			contactName: string
-			phone: string
-			deliveryAddress: string
-			deliveryCity: string
-			deliveryUrgencyDays: number
-			items: ResolvedReportItem[]
-		}
-		evaluated?: {
-			quoteId: string
-			quoteNumber: string
-			marginPercent: number
-			subtotal: number
-			vatAmount: number
-			total: number
-			sentAt: string | null
-			sentVia: string | null
-			validUntil: string
-		}
-		finance_partial?: JsonObject
-		inventory_orders?: JsonObject
-		finance_full?: JsonObject
-		warehouse?: JsonObject
-		dispatch?: JsonObject
-		delivered?: JsonObject
-		canceled?: JsonObject
-		returned?: JsonObject
-	}
+	customerName: string
+	customerTier: string
 }
 
-const UUID_RE =
-	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i
 
 interface SupabaseReportCustomerRow {
 	company_name: string
@@ -81,6 +40,7 @@ interface SupabaseReportAddressRow {
 }
 
 interface SupabaseReportProductRow {
+	id?: string
 	slug: string
 	name: string
 	unit_of_measure: string
@@ -104,6 +64,8 @@ interface SupabaseReportRequestRow {
 	rejected_proof: unknown
 	created_at: string
 	submitted_at: string | null
+	submitted_by: string | null
+	assigned_employee_id: string | null
 	customers: SupabaseReportCustomerRow | SupabaseReportCustomerRow[] | null
 	customer_addresses:
 		| SupabaseReportAddressRow
@@ -120,6 +82,7 @@ interface SupabaseReportQuoteVersionRow {
 	tax_amount: number
 	total: number
 	notes: string | null
+	created_by_employee_id: string | null
 	created_at: string
 }
 
@@ -130,46 +93,88 @@ interface SupabaseReportOrderRow {
 	total_amount: number
 	created_at: string
 	delivered_at: string | null
+	updated_at: string | null
 }
 
 interface SupabaseReportPaymentRow {
+	id: string
 	amount: number
 	payment_fraction: number
 	proof_path: string
 	status: string
+	recorded_by_employee_id: string | null
 	created_at: string
 }
 
 interface SupabaseReportReservationRow {
+	id: string
 	quantity: number
 	status: string
+	created_by_employee_id: string | null
 	created_at: string
+	updated_at: string
 	products: { name: string } | { name: string }[] | null
 }
 
 interface SupabaseReportLoadingTaskRow {
+	id: string
+	order_id: string
+	advisor_employee_id: string | null
 	status: string
-	proof: JsonObject
+	proof: JsonRecord
 	rejection_reason: string | null
 	created_at: string
 	updated_at: string
 }
 
+interface SupabaseReportLoadingDriverRow {
+	driver_id: string
+	truck_id: string | null
+	assigned_items: unknown
+	created_at: string
+	drivers:
+		| { id: string; full_name: string; phone: string | null }
+		| { id: string; full_name: string; phone: string | null }[]
+		| null
+	trucks:
+		| { id: string; plate_number: string }
+		| { id: string; plate_number: string }[]
+		| null
+}
+
 interface SupabaseReportDeliveryRow {
+	id: string
 	delivery_number: string
 	status: string
 	driver_id: string | null
 	truck_id: string | null
+	loading_task_id: string | null
 	started_at: string | null
 	arrived_at: string | null
 	completed_at: string | null
 	rejection_reason: string | null
+	created_at: string
 	updated_at: string
 	drivers:
-		| { name: string; phone: string }
-		| { name: string; phone: string }[]
+		| { id: string; full_name: string; phone: string | null }
+		| { id: string; full_name: string; phone: string | null }[]
 		| null
-	trucks: { plate_number: string } | { plate_number: string }[] | null
+	trucks:
+		| { id: string; plate_number: string }
+		| { id: string; plate_number: string }[]
+		| null
+}
+
+interface SupabaseReportActivityRow {
+	id: string
+	entity_type: string
+	entity_id: string | null
+	action: string
+	actor_employee_id: string | null
+	actor_customer_id: string | null
+	actor_driver_id: string | null
+	details: JsonRecord | null
+	created_at: string
 }
 
 interface SupabaseReportSavedLineItem {
@@ -188,12 +193,14 @@ interface SupabaseReportSavedNotes {
 	items?: SupabaseReportSavedLineItem[]
 }
 
+type JsonRecord = Record<string, unknown>
+
 function firstRelation<T>(value: T | T[] | null): T | null {
 	if (Array.isArray(value)) return value[0] ?? null
 	return value
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+function isRecord(value: unknown): value is JsonRecord {
 	return typeof value === 'object' && value !== null
 }
 
@@ -205,7 +212,7 @@ function numberOrNull(value: unknown): number | null {
 	return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
-function parseJsonObject(value: string | null): Record<string, unknown> | null {
+function parseJsonObject(value: string | null): JsonRecord | null {
 	if (!value) return null
 	try {
 		const parsed: unknown = JSON.parse(value)
@@ -259,82 +266,43 @@ function deliveryUrgencyDays(deliveryDate: string | null): number {
 	return Math.max(0, Math.ceil(diff / 86_400_000))
 }
 
+function formatMoney(value: number): string {
+	return `EGP ${Math.round(value).toLocaleString('en-EG')}`
+}
+
+function labelStatus(value: string): string {
+	return value.replaceAll('_', ' ')
+}
+
+function fact(label: string, value: string | number | null | undefined) {
+	if (value === null || value === undefined || value === '') return null
+	return { label, value: String(value) }
+}
+
+function facts(values: Array<OrderReportFact | null>): OrderReportFact[] {
+	return values.filter((value): value is OrderReportFact => value !== null)
+}
+
 function reportItemsFromRequest(
 	items: SupabaseReportRequestItemRow[] | null,
-): ResolvedReportItem[] {
+): string[] {
 	return (items ?? []).map((item, index) => {
 		const product = firstRelation(item.products)
 		const snapshotName = item.customer_description.trim()
-		return {
-			productSlug: product?.slug ?? `request-line-${index + 1}`,
-			productName: snapshotName || product?.name || `request-line-${index + 1}`,
-			unit: product?.unit_of_measure ?? item.unit_of_measure,
-			quantity: Number(item.quantity),
-		}
+		const productName =
+			snapshotName || product?.name || `Request line ${index + 1}`
+		return `${productName}: ${Number(item.quantity).toLocaleString('en-EG')} ${item.unit_of_measure}`
 	})
 }
 
 function reportItemsFromSavedVersion(
 	items: SupabaseReportSavedLineItem[] | undefined,
-): ResolvedReportItem[] | null {
+): string[] | null {
 	if (!items?.length) return null
-	return items.map((item, index) => ({
-		productSlug: item.productSlug ?? `quote-line-${index + 1}`,
-		productName: item.productName,
-		unit: item.unit,
-		quantity: item.quantity,
-	}))
-}
-
-function extractRejectedProofNote(value: unknown): string | null {
-	if (!isRecord(value)) return null
-	const note = stringOrNull(value.note)
-	if (note?.trim()) return note
-	const proof = stringOrNull(value.proof)
-	return proof?.trim() ? proof : null
-}
-
-function compactJsonObject(
-	entries: Record<string, JsonObject[keyof JsonObject]>,
-): JsonObject {
-	const result: JsonObject = {}
-	for (const [key, value] of Object.entries(entries)) {
-		if (value === null || value === undefined || value === '') continue
-		result[key] = value
-	}
-	return result
-}
-
-function mapSupabaseStage(
-	request: SupabaseReportRequestRow,
-	version: SupabaseReportQuoteVersionRow | null,
-	order: SupabaseReportOrderRow | null,
-): OrderReportStage {
-	if (
-		request.status === 'rejected' ||
-		request.status === 'declined' ||
-		request.status === 'canceled' ||
-		request.status === 'expired'
-	) {
-		return 'canceled'
-	}
-
-	switch (order?.status) {
-		case 'delivered':
-			return 'delivered'
-		case 'rejected':
-			return 'returned'
-		case 'dispatch_assigned':
-		case 'out_for_delivery':
-		case 'dispatch_ready':
-			return 'dispatch'
-		case 'warehouse_loading':
-			return 'warehouse'
-		case 'inventory_reserved':
-			return 'inventory_orders'
-		default:
-			return version ? 'evaluated' : 'submitted'
-	}
+	return items.map(
+		(item) =>
+			`${item.productName}: ${item.quantity.toLocaleString('en-EG')} ${item.unit}`,
+	)
 }
 
 function averageMarginPercent(
@@ -351,6 +319,143 @@ function averageMarginPercent(
 			(margins.reduce((sum, value) => sum + value, 0) / margins.length) * 10,
 		) / 10
 	)
+}
+
+function extractRejectedProofNote(value: unknown): string | null {
+	if (!isRecord(value)) return null
+	const note = stringOrNull(value.note)
+	if (note?.trim()) return note
+	const proof = stringOrNull(value.proof)
+	return proof?.trim() ? proof : null
+}
+
+function idFromDetails(details: JsonRecord | null, key: string) {
+	const value = details?.[key]
+	return typeof value === 'string' && UUID_RE.test(value) ? value : null
+}
+
+function actorFromEmployee(
+	employeeId: string | null | undefined,
+	employees: Map<string, string>,
+): OrderReportActor | null {
+	if (!employeeId) return null
+	return {
+		id: employeeId,
+		kind: 'employee',
+		name: employees.get(employeeId) ?? 'Employee',
+	}
+}
+
+function actorFromActivity(
+	row: SupabaseReportActivityRow | null | undefined,
+	employees: Map<string, string>,
+	customerName: string,
+	driverNames: Map<string, string>,
+): OrderReportActor | null {
+	if (!row) return null
+	if (row.actor_employee_id)
+		return actorFromEmployee(row.actor_employee_id, employees)
+	if (row.actor_driver_id) {
+		return {
+			id: row.actor_driver_id,
+			kind: 'driver',
+			name: driverNames.get(row.actor_driver_id) ?? 'Driver',
+		}
+	}
+	if (row.actor_customer_id) {
+		return { id: row.actor_customer_id, kind: 'customer', name: customerName }
+	}
+	const employeeId = idFromDetails(row.details, 'employee_id')
+	return actorFromEmployee(employeeId, employees)
+}
+
+function stepSortValue(step: OrderReportStep): number {
+	if (!step.timestamp) return Number.MAX_SAFE_INTEGER
+	return new Date(step.timestamp).getTime()
+}
+
+function matchingActivity(
+	rows: SupabaseReportActivityRow[],
+	action: string,
+	entityId?: string | null,
+) {
+	return (
+		rows
+			.filter(
+				(row) =>
+					row.action === action && (!entityId || row.entity_id === entityId),
+			)
+			.sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null
+	)
+}
+
+function currentStageForOrder(
+	request: SupabaseReportRequestRow,
+	order: SupabaseReportOrderRow | null,
+	deliveries: SupabaseReportDeliveryRow[],
+	payments: SupabaseReportPaymentRow[],
+): OrderReportStageId {
+	if (
+		['rejected', 'declined', 'canceled', 'cancelled', 'expired'].includes(
+			request.status,
+		)
+	) {
+		return 'stopped'
+	}
+	if (
+		order?.status === 'delivered' ||
+		deliveries.some((delivery) => delivery.status === 'completed')
+	) {
+		return 'delivery'
+	}
+	if (order?.status === 'rejected' || order?.status === 'canceled')
+		return 'stopped'
+	if (
+		order?.status === 'dispatch_ready' ||
+		order?.status === 'dispatch_assigned' ||
+		order?.status === 'out_for_delivery'
+	) {
+		return 'dispatch'
+	}
+	if (order?.status === 'warehouse_loading') return 'warehouse'
+	if (order?.status === 'inventory_reserved') return 'warehouse'
+	if (payments.length > 0) return 'finance'
+	if (order) return 'inventory'
+	return 'sales'
+}
+
+function pendingStages(currentStage: OrderReportStageId, stopped: boolean) {
+	if (stopped || currentStage === 'delivery') return []
+	const order: OrderReportStageId[] = [
+		'sales',
+		'finance',
+		'inventory',
+		'warehouse',
+		'dispatch',
+		'delivery',
+	]
+	const currentIndex = order.indexOf(currentStage)
+	return currentIndex === -1 ? order : order.slice(currentIndex + 1)
+}
+
+async function fetchActivityRows(
+	client: Awaited<
+		ReturnType<typeof import('./_supabase').getInternalSupabaseClient>
+	>['client'],
+	entityType: string,
+	entityId: string | null | undefined,
+) {
+	if (!entityId) return []
+	const { data, error } = await client
+		.from('activity_events')
+		.select(
+			'id, entity_type, entity_id, action, actor_employee_id, actor_customer_id, actor_driver_id, details, created_at',
+		)
+		.eq('entity_type', entityType)
+		.eq('entity_id', entityId)
+		.order('created_at', { ascending: true })
+	if (error) throw new Error(error.message)
+	return (data ?? []) as unknown as SupabaseReportActivityRow[]
 }
 
 async function getSupabaseOrderReport(
@@ -374,6 +479,8 @@ async function getSupabaseOrderReport(
 			rejected_proof,
 			created_at,
 			submitted_at,
+			submitted_by,
+			assigned_employee_id,
 			customers (
 				company_name,
 				contact_name,
@@ -408,50 +515,61 @@ async function getSupabaseOrderReport(
 	const { data: versions, error: versionError } = await auth.client
 		.from('sales_quote_versions')
 		.select(
-			'id, version_number, status, subtotal, tax_amount, total, notes, created_at',
+			'id, version_number, status, subtotal, tax_amount, total, notes, created_by_employee_id, created_at',
 		)
 		.eq('quote_request_id', rfqId)
-		.order('version_number', { ascending: false })
-		.limit(1)
+		.order('version_number', { ascending: true })
 	if (versionError) throw new Error(versionError.message)
 
 	const { data: orderData, error: orderError } = await auth.client
 		.from('orders')
-		.select('id, order_number, status, total_amount, created_at, delivered_at')
+		.select(
+			'id, order_number, status, total_amount, created_at, delivered_at, updated_at',
+		)
 		.eq('quote_request_id', rfqId)
 		.maybeSingle()
 	if (orderError) throw new Error(orderError.message)
 
-	const version =
-		((versions ?? [])[0] as unknown as
-			| SupabaseReportQuoteVersionRow
-			| undefined) ?? null
+	const versionRows =
+		(versions as unknown as SupabaseReportQuoteVersionRow[] | null) ?? []
+	const latestVersion = versionRows[versionRows.length - 1] ?? null
 	const order = orderData as unknown as SupabaseReportOrderRow | null
-	const [payments, reservations, loadingTask, delivery] = order
+
+	const [
+		paymentsResult,
+		reservationsResult,
+		loadingTaskResult,
+		deliveryResult,
+	] = order
 		? await Promise.all([
 				auth.client
 					.from('customer_payments')
-					.select('amount, payment_fraction, proof_path, status, created_at')
+					.select(
+						'id, amount, payment_fraction, proof_path, status, recorded_by_employee_id, created_at',
+					)
 					.eq('order_id', order.id)
-					.order('created_at', { ascending: false }),
+					.order('created_at', { ascending: true }),
 				auth.client
 					.from('inventory_reservations')
-					.select('quantity, status, created_at, products(name)')
+					.select(
+						'id, quantity, status, created_by_employee_id, created_at, updated_at, products(name)',
+					)
 					.eq('order_id', order.id)
 					.order('created_at', { ascending: true }),
 				auth.client
 					.from('loading_tasks')
-					.select('status, proof, rejection_reason, created_at, updated_at')
+					.select(
+						'id, order_id, advisor_employee_id, status, proof, rejection_reason, created_at, updated_at',
+					)
 					.eq('order_id', order.id)
 					.maybeSingle(),
 				auth.client
 					.from('deliveries')
 					.select(
-						'delivery_number, status, driver_id, truck_id, started_at, arrived_at, completed_at, rejection_reason, updated_at, drivers(name, phone), trucks(plate_number)',
+						'id, delivery_number, status, driver_id, truck_id, loading_task_id, started_at, arrived_at, completed_at, rejection_reason, created_at, updated_at, drivers(id, full_name, phone), trucks(id, plate_number)',
 					)
 					.eq('order_id', order.id)
-					.order('updated_at', { ascending: false })
-					.limit(1),
+					.order('created_at', { ascending: true }),
 			])
 		: [
 				{ data: [], error: null },
@@ -459,141 +577,458 @@ async function getSupabaseOrderReport(
 				{ data: null, error: null },
 				{ data: [], error: null },
 			]
-	if (payments.error) throw new Error(payments.error.message)
-	if (reservations.error) throw new Error(reservations.error.message)
-	if (loadingTask.error) throw new Error(loadingTask.error.message)
-	if (delivery.error) throw new Error(delivery.error.message)
+	if (paymentsResult.error) throw new Error(paymentsResult.error.message)
+	if (reservationsResult.error)
+		throw new Error(reservationsResult.error.message)
+	if (loadingTaskResult.error) throw new Error(loadingTaskResult.error.message)
+	if (deliveryResult.error) throw new Error(deliveryResult.error.message)
 
-	const paymentRows =
-		(payments.data as unknown as SupabaseReportPaymentRow[] | null) ?? []
-	const reservationRows =
-		(reservations.data as unknown as SupabaseReportReservationRow[] | null) ??
-		[]
-	const loadingTaskRow =
-		(loadingTask.data as unknown as SupabaseReportLoadingTaskRow | null) ?? null
-	const deliveryRow =
-		((delivery.data ?? [])[0] as unknown as
-			| SupabaseReportDeliveryRow
-			| undefined) ?? null
+	const payments =
+		(paymentsResult.data as unknown as SupabaseReportPaymentRow[] | null) ?? []
+	const reservations =
+		(reservationsResult.data as unknown as
+			| SupabaseReportReservationRow[]
+			| null) ?? []
+	const loadingTask =
+		(loadingTaskResult.data as unknown as SupabaseReportLoadingTaskRow | null) ??
+		null
+	const deliveries =
+		(deliveryResult.data as unknown as SupabaseReportDeliveryRow[] | null) ?? []
+
+	const loadingDriversResult = loadingTask
+		? await auth.client
+				.from('loading_task_drivers')
+				.select(
+					'driver_id, truck_id, assigned_items, created_at, drivers(id, full_name, phone), trucks(id, plate_number)',
+				)
+				.eq('loading_task_id', loadingTask.id)
+				.order('created_at', { ascending: true })
+		: { data: [], error: null }
+	if (loadingDriversResult.error)
+		throw new Error(loadingDriversResult.error.message)
+	const loadingDrivers =
+		(loadingDriversResult.data as unknown as
+			| SupabaseReportLoadingDriverRow[]
+			| null) ?? []
+
+	const activityGroups = await Promise.all([
+		fetchActivityRows(auth.client, 'quote_request', request.id),
+		fetchActivityRows(auth.client, 'order', order?.id),
+		fetchActivityRows(auth.client, 'loading_task', loadingTask?.id),
+		...deliveries.map((delivery) =>
+			fetchActivityRows(auth.client, 'delivery', delivery.id),
+		),
+	])
+	const activityRows = activityGroups
+		.flat()
+		.sort((a, b) => a.created_at.localeCompare(b.created_at))
+
+	const employeeIds = new Set<string>()
+	for (const id of [
+		request.assigned_employee_id,
+		...versionRows.map((row) => row.created_by_employee_id),
+		...payments.map((row) => row.recorded_by_employee_id),
+		...reservations.map((row) => row.created_by_employee_id),
+		loadingTask?.advisor_employee_id,
+		...activityRows.map((row) => row.actor_employee_id),
+		...activityRows.flatMap((row) => [
+			idFromDetails(row.details, 'employee_id'),
+			idFromDetails(row.details, 'advisor_employee_id'),
+			idFromDetails(row.details, 'manager_employee_id'),
+		]),
+	]) {
+		if (id) employeeIds.add(id)
+	}
+
+	const employeeRowsResult =
+		employeeIds.size > 0
+			? await auth.client
+					.from('employees')
+					.select('id, full_name')
+					.in('id', [...employeeIds])
+			: { data: [], error: null }
+	if (employeeRowsResult.error)
+		throw new Error(employeeRowsResult.error.message)
+	const employeeNames = new Map(
+		(
+			(employeeRowsResult.data ?? []) as Array<{
+				id: string
+				full_name: string
+			}>
+		).map((row) => [row.id, row.full_name]),
+	)
+
+	const driverNames = new Map<string, string>()
+	for (const delivery of deliveries) {
+		const driver = firstRelation(delivery.drivers)
+		if (driver) driverNames.set(driver.id, driver.full_name)
+	}
+	for (const assignment of loadingDrivers) {
+		const driver = firstRelation(assignment.drivers)
+		if (driver) driverNames.set(driver.id, driver.full_name)
+	}
+
 	const customer = firstRelation(request.customers)
 	const address = firstRelation(request.customer_addresses)
 	const salesAddress = isSalesQuoteAddress(address) ? address : null
-	const savedNotes = parseSavedVersionNotes(version?.notes ?? null)
-	const currentStage = mapSupabaseStage(request, version, order)
-	const canceledNote =
-		extractRejectedProofNote(request.rejected_proof) ??
-		(request.status === 'expired' ? 'Expired before evaluation' : null)
+	const savedNotes = parseSavedVersionNotes(latestVersion?.notes ?? null)
+	const customerName = customer?.company_name ?? 'Customer'
+	const submittedAt = request.submitted_at ?? request.created_at
+	const submittedActivity =
+		matchingActivity(activityRows, 'order_submitted', request.id) ??
+		matchingActivity(activityRows, 'quote_request_submitted', request.id) ??
+		matchingActivity(activityRows, 'draft_submitted', request.id)
+	const source = stringOrNull(submittedActivity?.details?.source) ?? 'portal'
 
-	const report: ResolvedReport = {
+	const steps: OrderReportStep[] = [
+		{
+			id: `submitted-${request.id}`,
+			actor: { id: null, kind: 'customer', name: customerName },
+			advisor: null,
+			facts: facts([
+				fact('Source', source),
+				fact('Reference', request.request_number),
+				fact('Contact', customer?.contact_name),
+				fact('Phone', customer?.phone),
+				fact(
+					'Delivery address',
+					savedNotes.deliveryAddress ?? formatSupabaseAddress(salesAddress),
+				),
+				fact('Delivery city', savedNotes.deliveryCity ?? salesAddress?.city),
+				fact('Urgency', `${deliveryUrgencyDays(request.delivery_date)}d`),
+			]),
+			lines:
+				reportItemsFromSavedVersion(savedNotes.items) ??
+				reportItemsFromRequest(request.quote_request_items),
+			specialCase: null,
+			stage: 'submitted',
+			status: 'completed',
+			summary: `Order was placed through ${source}.`,
+			timestamp: submittedAt,
+			title: 'Order placed',
+		},
+	]
+
+	for (const version of versionRows.filter((row) => row.status !== 'draft')) {
+		const notes = parseSavedVersionNotes(version.notes)
+		const salesActivity =
+			matchingActivity(activityRows, 'sales_order_confirmed', request.id) ??
+			matchingActivity(activityRows, 'sales_quote_edited', request.id)
+		const actor =
+			actorFromEmployee(version.created_by_employee_id, employeeNames) ??
+			actorFromActivity(salesActivity, employeeNames, customerName, driverNames)
+		steps.push({
+			id: `sales-${version.id}`,
+			actor,
+			advisor: null,
+			facts: facts([
+				fact('Quote version', `V${version.version_number}`),
+				fact('Quote status', version.status),
+				fact('Subtotal', formatMoney(Number(version.subtotal))),
+				fact('VAT', formatMoney(Number(version.tax_amount))),
+				fact('Total', formatMoney(Number(version.total))),
+				fact('Margin', `${averageMarginPercent(notes.items).toFixed(1)}%`),
+			]),
+			lines: reportItemsFromSavedVersion(notes.items) ?? [],
+			specialCase: null,
+			stage: 'sales',
+			status: 'completed',
+			summary: `${actor?.name ?? 'Sales'} evaluated and confirmed the commercial record.`,
+			timestamp: version.created_at,
+			title: 'Sales evaluated',
+		})
+	}
+
+	for (const payment of payments) {
+		const actor = actorFromEmployee(
+			payment.recorded_by_employee_id,
+			employeeNames,
+		)
+		const isFinal =
+			payment.payment_fraction === 1 ||
+			payments
+				.filter((row) => row.created_at <= payment.created_at)
+				.reduce((sum, row) => sum + row.amount, 0) >=
+				(order?.total_amount ?? Number.POSITIVE_INFINITY)
+		steps.push({
+			id: `finance-${payment.id}`,
+			actor,
+			advisor: null,
+			facts: facts([
+				fact(
+					'Payment fraction',
+					payment.payment_fraction === 0.5 ? '50%' : '100%',
+				),
+				fact('Amount', formatMoney(Number(payment.amount))),
+				fact('Status', payment.status),
+				fact('Proof', payment.proof_path ? 'Attached' : null),
+			]),
+			lines: [],
+			specialCase:
+				isFinal && payments.length > 1
+					? { kind: 'final_payment', label: 'Final payment collection' }
+					: null,
+			stage: 'finance',
+			status: 'completed',
+			summary: `${actor?.name ?? 'Finance'} recorded ${payment.payment_fraction === 0.5 ? '50%' : '100%'} customer payment.`,
+			timestamp: payment.created_at,
+			title:
+				isFinal && payments.length > 1
+					? 'Final payment collected'
+					: 'Payment collected',
+		})
+	}
+
+	if (reservations.length > 0) {
+		const firstReservation = reservations[0]
+		const actor = actorFromEmployee(
+			firstReservation.created_by_employee_id,
+			employeeNames,
+		)
+		steps.push({
+			id: `inventory-${order?.id ?? request.id}`,
+			actor,
+			advisor: null,
+			facts: facts([
+				fact('Reserved lines', reservations.length),
+				fact(
+					'Reserved units',
+					reservations
+						.reduce((sum, row) => sum + Number(row.quantity), 0)
+						.toLocaleString('en-EG'),
+				),
+			]),
+			lines: reservations.map((row) => {
+				const product = firstRelation(row.products)
+				return `${product?.name ?? 'Product'}: ${Number(row.quantity).toLocaleString('en-EG')} ${labelStatus(row.status)}`
+			}),
+			specialCase: null,
+			stage: 'inventory',
+			status: 'completed',
+			summary: `${actor?.name ?? 'Inventory'} confirmed and reserved order supplies.`,
+			timestamp: firstReservation.created_at,
+			title: 'Inventory reserved',
+		})
+	}
+
+	if (loadingTask) {
+		const advisor = actorFromEmployee(
+			loadingTask.advisor_employee_id,
+			employeeNames,
+		)
+		const approvedActivity = matchingActivity(
+			activityRows,
+			'warehouse_loading_approved',
+			loadingTask.id,
+		)
+		const rejectedActivity = matchingActivity(
+			activityRows,
+			'warehouse_loading_rejected',
+			loadingTask.id,
+		)
+		const actor =
+			actorFromActivity(
+				approvedActivity ?? rejectedActivity,
+				employeeNames,
+				customerName,
+				driverNames,
+			) ?? advisor
+		steps.push({
+			id: `warehouse-${loadingTask.id}`,
+			actor,
+			advisor,
+			facts: facts([
+				fact('Warehouse status', loadingTask.status),
+				fact('Advisor', advisor?.name),
+				fact('Truck count', loadingDrivers.length),
+				fact('Rejected reason', loadingTask.rejection_reason),
+			]),
+			lines: loadingDrivers.map((assignment) => {
+				const driver = firstRelation(assignment.drivers)
+				const truck = firstRelation(assignment.trucks)
+				return `${truck?.plate_number ?? 'Truck'} with ${driver?.full_name ?? 'driver'}`
+			}),
+			specialCase:
+				loadingTask.status === 'rejected'
+					? {
+							kind: 'warehouse_rejection',
+							label: 'Warehouse correction required',
+						}
+					: null,
+			stage: 'warehouse',
+			status: loadingTask.status === 'rejected' ? 'special' : 'completed',
+			summary:
+				loadingTask.status === 'rejected'
+					? `${actor?.name ?? 'Warehouse'} rejected the load for correction.`
+					: `${actor?.name ?? 'Warehouse'} prepared the order for dispatch.`,
+			timestamp:
+				approvedActivity?.created_at ??
+				rejectedActivity?.created_at ??
+				loadingTask.updated_at,
+			title:
+				loadingTask.status === 'rejected'
+					? 'Warehouse rejected load'
+					: 'Warehouse prepared',
+		})
+	}
+
+	for (const delivery of deliveries) {
+		const driver = firstRelation(delivery.drivers)
+		const truck = firstRelation(delivery.trucks)
+		const completed = delivery.status === 'completed'
+		const rejected = delivery.status === 'rejected'
+		const activity =
+			matchingActivity(
+				activityRows,
+				completed
+					? 'dispatch_delivery_completed'
+					: 'dispatch_delivery_rejected',
+				delivery.id,
+			) ??
+			matchingActivity(
+				activityRows,
+				'driver_delivery_confirmed',
+				delivery.id,
+			) ??
+			matchingActivity(activityRows, 'driver_delivery_accepted', delivery.id)
+		const actor = actorFromActivity(
+			activity,
+			employeeNames,
+			customerName,
+			driverNames,
+		)
+		steps.push({
+			id: `dispatch-${delivery.id}`,
+			actor,
+			advisor: null,
+			facts: facts([
+				fact('Delivery number', delivery.delivery_number),
+				fact('Delivery status', delivery.status),
+				fact('Driver', driver?.full_name),
+				fact('Driver phone', driver?.phone),
+				fact('Truck', truck?.plate_number),
+				fact('Rejected reason', delivery.rejection_reason),
+			]),
+			lines: facts([
+				fact('Started', delivery.started_at),
+				fact('Arrived', delivery.arrived_at),
+				fact('Completed', delivery.completed_at),
+			]).map((item) => `${item.label}: ${item.value}`),
+			specialCase: rejected
+				? { kind: 'dispatch_return', label: 'Returned to warehouse' }
+				: null,
+			stage: completed ? 'delivery' : 'dispatch',
+			status: rejected ? 'special' : completed ? 'completed' : 'current',
+			summary: rejected
+				? `${actor?.name ?? 'Dispatch'} returned the order to warehouse.`
+				: completed
+					? `${actor?.name ?? driver?.full_name ?? 'Dispatch'} confirmed delivery completion.`
+					: `${driver?.full_name ?? 'Driver'} is assigned for dispatch.`,
+			timestamp:
+				delivery.completed_at ?? activity?.created_at ?? delivery.updated_at,
+			title: rejected
+				? 'Dispatch returned order'
+				: completed
+					? 'Delivered'
+					: 'Dispatch assigned',
+		})
+	}
+
+	const stopActivity =
+		matchingActivity(activityRows, 'sales_order_rejected', request.id) ??
+		matchingActivity(activityRows, 'sales_order_canceled', request.id) ??
+		(order
+			? matchingActivity(
+					activityRows,
+					'finance_customer_order_canceled',
+					order.id,
+				)
+			: null)
+	const stopped =
+		['rejected', 'declined', 'canceled', 'cancelled', 'expired'].includes(
+			request.status,
+		) ||
+		order?.status === 'rejected' ||
+		order?.status === 'canceled'
+	if (stopped) {
+		const reason =
+			request.rejected_reason ??
+			stringOrNull(stopActivity?.details?.reason) ??
+			order?.status ??
+			request.status
+		const actor = actorFromActivity(
+			stopActivity,
+			employeeNames,
+			customerName,
+			driverNames,
+		)
+		steps.push({
+			id: `stopped-${request.id}`,
+			actor,
+			advisor: null,
+			facts: facts([
+				fact('Reason', reason),
+				fact('Quote status', request.status),
+				fact('Order status', order?.status),
+				fact(
+					'Proof',
+					extractRejectedProofNote(request.rejected_proof) ? 'Attached' : null,
+				),
+			]),
+			lines: [extractRejectedProofNote(request.rejected_proof) ?? ''].filter(
+				Boolean,
+			),
+			specialCase: {
+				kind: request.status === 'rejected' ? 'rejection' : 'cancellation',
+				label: 'Workflow stopped',
+			},
+			stage: 'stopped',
+			status: 'stopped',
+			summary: `${actor?.name ?? 'Employee'} stopped the order at ${reason}.`,
+			timestamp:
+				stopActivity?.created_at ?? order?.updated_at ?? request.created_at,
+			title: 'Order stopped',
+		})
+	}
+
+	steps.sort((a, b) => stepSortValue(a) - stepSortValue(b))
+
+	const currentStage = currentStageForOrder(
+		request,
+		order,
+		deliveries,
+		payments,
+	)
+	const lastStep = steps[steps.length - 1] ?? null
+	const completed = currentStage === 'delivery' && !stopped
+	const summaryStatus = stopped ? 'stopped' : completed ? 'completed' : 'active'
+	const specialCaseCount = steps.filter((step) => step.specialCase).length
+	const headline =
+		lastStep?.stage === 'stopped'
+			? lastStep.summary
+			: lastStep?.actor
+				? `${lastStep.title} - ${lastStep.actor.name}`
+				: (lastStep?.title ?? 'Order report')
+
+	return {
 		id: `sb-report-${request.id}`,
 		rfqId: request.request_number || request.id,
-		currentStage,
-		canceledReason:
-			currentStage === 'canceled'
-				? (request.rejected_reason ?? request.status)
-				: null,
-		canceledNote: currentStage === 'canceled' ? canceledNote : null,
-		canceledAt: currentStage === 'canceled' ? request.created_at : null,
-		sections: {
-			submitted: {
-				customerName: customer?.company_name ?? '',
-				customerTier: customer?.tier ?? '',
-				contactName: customer?.contact_name ?? '',
-				phone: customer?.phone ?? '',
-				deliveryAddress:
-					savedNotes.deliveryAddress ?? formatSupabaseAddress(salesAddress),
-				deliveryCity: savedNotes.deliveryCity ?? salesAddress?.city ?? '',
-				deliveryUrgencyDays: deliveryUrgencyDays(request.delivery_date),
-				items:
-					reportItemsFromSavedVersion(savedNotes.items) ??
-					reportItemsFromRequest(request.quote_request_items),
-			},
+		customerName,
+		customerTier: customer?.tier ?? '',
+		exportFileName: `${request.request_number || request.id}-internal-order-report.html`,
+		generatedAt: new Date().toISOString(),
+		pending: pendingStages(currentStage, stopped),
+		steps,
+		summary: {
+			currentStage,
+			headline,
+			lastAction: lastStep?.title ?? null,
+			processedBy: lastStep?.actor?.name ?? null,
+			reachedStage: currentStage,
+			specialCaseCount,
+			status: summaryStatus,
 		},
 	}
-
-	if (version) {
-		report.sections.evaluated = {
-			quoteId: version.id,
-			quoteNumber: `${request.request_number}-V${version.version_number}`,
-			marginPercent: averageMarginPercent(savedNotes.items),
-			subtotal: Number(version.subtotal),
-			vatAmount: Number(version.tax_amount),
-			total: Number(version.total || order?.total_amount || 0),
-			sentAt: version.created_at,
-			sentVia: 'internal',
-			validUntil: new Date(
-				new Date(version.created_at).getTime() + 15 * 86_400_000,
-			).toISOString(),
-		}
-	}
-
-	if (order) {
-		const paidTotal = paymentRows.reduce((sum, row) => sum + row.amount, 0)
-		const partialPayment = paymentRows.find(
-			(row) => row.payment_fraction === 0.5,
-		)
-		const fullPayment = paymentRows.find((row) => row.payment_fraction === 1)
-		if (partialPayment || paidTotal > 0) {
-			report.sections.finance_partial = compactJsonObject({
-				amountPaid: paidTotal,
-				lastPaymentAt: paymentRows[0]?.created_at ?? null,
-				lastProof: paymentRows[0]?.proof_path ?? null,
-				paymentCount: paymentRows.length,
-				status: paidTotal >= order.total_amount ? 'paid' : 'partial',
-			})
-		}
-		if (reservationRows.length > 0) {
-			report.sections.inventory_orders = compactJsonObject({
-				reservedLines: reservationRows.length,
-				reservedUnits: reservationRows.reduce(
-					(sum, row) => sum + row.quantity,
-					0,
-				),
-				items: reservationRows.map((row) => {
-					const product = firstRelation(row.products)
-					return `${product?.name ?? 'Product'}: ${row.quantity} ${row.status}`
-				}),
-			})
-		}
-		if (fullPayment || paidTotal >= order.total_amount) {
-			report.sections.finance_full = compactJsonObject({
-				amountPaid: paidTotal,
-				orderTotal: order.total_amount,
-				paidAt: paymentRows[0]?.created_at ?? null,
-				status: 'paid',
-			})
-		}
-		if (loadingTaskRow) {
-			report.sections.warehouse = compactJsonObject({
-				status: loadingTaskRow.status,
-				rejectionReason: loadingTaskRow.rejection_reason,
-				updatedAt: loadingTaskRow.updated_at,
-			})
-		}
-		if (deliveryRow) {
-			const driver = firstRelation(deliveryRow.drivers)
-			const truck = firstRelation(deliveryRow.trucks)
-			report.sections.dispatch = compactJsonObject({
-				deliveryNumber: deliveryRow.delivery_number,
-				driver: driver?.name ?? deliveryRow.driver_id,
-				driverPhone: driver?.phone ?? null,
-				rejectionReason: deliveryRow.rejection_reason,
-				startedAt: deliveryRow.started_at,
-				status: deliveryRow.status,
-				truck: truck?.plate_number ?? deliveryRow.truck_id,
-				updatedAt: deliveryRow.updated_at,
-			})
-		}
-		if (order.delivered_at || deliveryRow?.completed_at) {
-			report.sections.delivered = compactJsonObject({
-				deliveredAt: order.delivered_at ?? deliveryRow?.completed_at ?? null,
-				deliveryNumber: deliveryRow?.delivery_number ?? null,
-				status: 'delivered',
-			})
-		}
-	}
-
-	return report
 }
 
 export const getOrderReport = createServerFn({ method: 'POST' })

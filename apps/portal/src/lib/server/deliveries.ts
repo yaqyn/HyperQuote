@@ -1,6 +1,12 @@
 /**
  * Delivery tracking server functions backed by Supabase.
  */
+import type {
+	LifecycleOrderReport,
+	OrderReportFact,
+	OrderReportStageId,
+	OrderReportStep,
+} from '@hyperquote/types'
 import { createServerFn } from '@tanstack/react-start'
 import QRCode from 'qrcode'
 import { z } from 'zod'
@@ -121,34 +127,6 @@ interface OrderClosureInfo {
 	reachedStage: DeliveryStage
 }
 
-interface OrderReportFact {
-	label: string
-	value: string
-}
-
-export interface OrderReportSection {
-	id:
-		| 'submitted'
-		| 'confirmed'
-		| 'processing'
-		| 'payment'
-		| 'dispatch'
-		| 'delivered'
-		| 'stopped'
-	label: string
-	status: 'completed' | 'current' | 'future' | 'stopped'
-	timestamp: string | null
-	summary: string
-	facts: OrderReportFact[]
-	lines: string[]
-}
-
-interface OrderReport {
-	exportFileName: string
-	generatedAt: string
-	sections: OrderReportSection[]
-}
-
 export interface OrderDetailResult {
 	order: {
 		id: string
@@ -179,7 +157,7 @@ export interface OrderDetailResult {
 	delivery?: DeliveryInfo
 	completion?: OrderCompletionInfo
 	closure?: OrderClosureInfo
-	report: OrderReport
+	report: LifecycleOrderReport
 }
 
 const getOrderDetailInput = z.object({ orderId: z.string().uuid() })
@@ -494,26 +472,22 @@ function reportFact(
 	return { label, value: String(value) }
 }
 
-function reportSection({
+function reportFacts(values: Array<OrderReportFact | null>): OrderReportFact[] {
+	return values.filter((fact): fact is OrderReportFact => fact !== null)
+}
+
+function reportStep({
 	facts,
-	id,
-	label,
 	lines = [],
-	status,
-	summary,
-	timestamp,
-}: Omit<OrderReportSection, 'facts' | 'lines'> & {
+	...step
+}: Omit<OrderReportStep, 'facts' | 'lines'> & {
 	facts: Array<OrderReportFact | null>
 	lines?: string[]
-}): OrderReportSection {
+}): OrderReportStep {
 	return {
-		facts: facts.filter((fact): fact is OrderReportFact => fact !== null),
-		id,
-		label,
+		...step,
+		facts: reportFacts(facts),
 		lines: lines.filter((line) => line.trim().length > 0),
-		status,
-		summary,
-		timestamp,
 	}
 }
 
@@ -535,15 +509,50 @@ function orderReportStopReason(
 	return null
 }
 
-function sectionStatus(
-	sectionIndex: number,
-	currentIndex: number,
+function stepSortValue(step: OrderReportStep): number {
+	if (!step.timestamp) return Number.MAX_SAFE_INTEGER
+	return new Date(step.timestamp).getTime()
+}
+
+function stageForPortalReport({
+	delivery,
+	hasDelivered,
+	hasProcessing,
+	linkedOrder,
+	payments,
+	stopped,
+}: {
+	delivery?: DeliveryInfo
+	hasDelivered: boolean
+	hasProcessing: boolean
+	linkedOrder: OrderRow | null | undefined
+	payments: CustomerPaymentRow[]
+	stopped: boolean
+}): OrderReportStageId {
+	if (stopped) return 'stopped'
+	if (hasDelivered) return 'delivery'
+	if (delivery) return 'dispatch'
+	if (hasProcessing) return 'warehouse'
+	if (payments.length > 0) return 'finance'
+	if (linkedOrder) return 'sales'
+	return 'submitted'
+}
+
+function pendingPortalStages(
+	currentStage: OrderReportStageId,
 	stopped: boolean,
-): OrderReportSection['status'] {
-	if (stopped && sectionIndex === currentIndex) return 'stopped'
-	if (sectionIndex < currentIndex) return 'completed'
-	if (sectionIndex === currentIndex) return 'current'
-	return 'future'
+): OrderReportStageId[] {
+	if (stopped || currentStage === 'delivery') return []
+	const order: OrderReportStageId[] = [
+		'sales',
+		'finance',
+		'inventory',
+		'warehouse',
+		'dispatch',
+		'delivery',
+	]
+	const currentIndex = order.indexOf(currentStage)
+	return currentIndex === -1 ? order : order.slice(currentIndex + 1)
 }
 
 function buildOrderReport({
@@ -566,53 +575,21 @@ function buildOrderReport({
 	quoteRequest: QuoteRequestDetailRow | null
 	reservations: InventoryReservationRow[]
 	versions: SalesQuoteVersionRow[]
-}): OrderReport {
+}): LifecycleOrderReport {
 	const linkedOrder = quoteRequest ? firstRelation(quoteRequest.orders) : null
 	const latestVersion = versions[0] ?? null
 	const address = quoteRequest
 		? formatPortalAddress(firstRelation(quoteRequest.customer_addresses))
 		: null
 	const project = quoteRequest ? firstRelation(quoteRequest.projects) : null
-	const paidTotal = payments.reduce((sum, payment) => sum + payment.amount, 0)
 	const stopReason = orderReportStopReason(quoteRequest, linkedOrder)
 	const stopped = stopReason !== null
 	const hasProcessing =
 		reservations.length > 0 || loadingTask !== null || Boolean(linkedOrder)
-	const hasDispatch = Boolean(delivery)
 	const hasDelivered =
 		order.status === 'delivered' ||
 		Boolean(linkedOrder?.delivered_at) ||
 		delivery?.currentStage === 'delivered'
-	const stageIndexes = {
-		submitted: 0,
-		confirmed: latestVersion || linkedOrder ? 1 : 0,
-		processing: hasProcessing ? 2 : latestVersion || linkedOrder ? 1 : 0,
-		payment: payments.length > 0 ? 3 : hasProcessing ? 2 : 1,
-		dispatch: hasDispatch ? 4 : payments.length > 0 ? 3 : hasProcessing ? 2 : 1,
-		delivered: hasDelivered ? 5 : hasDispatch ? 4 : payments.length > 0 ? 3 : 2,
-		stopped: hasDispatch
-			? 4
-			: payments.length > 0
-				? 3
-				: hasProcessing
-					? 2
-					: latestVersion
-						? 1
-						: 0,
-	}
-	const currentIndex = stopped
-		? stageIndexes.stopped
-		: hasDelivered
-			? stageIndexes.delivered
-			: hasDispatch
-				? stageIndexes.dispatch
-				: payments.length > 0
-					? stageIndexes.payment
-					: hasProcessing
-						? stageIndexes.processing
-						: latestVersion || linkedOrder
-							? stageIndexes.confirmed
-							: stageIndexes.submitted
 	const submissionLines = items.map(
 		(item) =>
 			`${item.productName}: ${item.quantity.toLocaleString('en-EG')} ${
@@ -630,14 +607,10 @@ function buildOrderReport({
 			? `Warehouse loading task is ${loadingTask.status.replaceAll('_', ' ')}`
 			: '',
 	]
-	const paymentLines = payments.map(
-		(payment) =>
-			`EGP ${payment.amount.toLocaleString('en-EG')} ${payment.status} on ${
-				payment.created_at
-			}`,
-	)
-	const sections: OrderReportSection[] = [
-		reportSection({
+	const steps: OrderReportStep[] = [
+		reportStep({
+			actor: null,
+			advisor: null,
 			facts: [
 				reportFact(
 					'Submitted at',
@@ -654,160 +627,243 @@ function buildOrderReport({
 				reportFact('Attachments', quoteRequest?.attachment_urls?.length ?? 0),
 				reportFact('Documents', documents.length),
 			],
-			id: 'submitted',
-			label: 'Submitted',
+			id: `submitted-${quoteRequest?.id ?? order.id}`,
 			lines: [
 				quoteRequest?.notes ? `Customer note: ${quoteRequest.notes}` : '',
 				...submissionLines,
 			],
-			status: sectionStatus(0, currentIndex, stopped),
+			specialCase: null,
+			stage: 'submitted',
+			status: 'completed',
 			summary: 'Original customer submission and requested materials.',
 			timestamp:
 				quoteRequest?.submitted_at ?? quoteRequest?.created_at ?? order.date,
-		}),
-		reportSection({
-			facts: [
-				reportFact(
-					'Order number',
-					linkedOrder?.order_number ?? order.reference,
-				),
-				reportFact('Order status', linkedOrder?.status ?? order.status),
-				reportFact('Quote version', latestVersion?.version_number),
-				reportFact('Quote status', latestVersion?.status),
-				reportFact('Subtotal', latestVersion?.subtotal),
-				reportFact('VAT', latestVersion?.tax_amount),
-				reportFact('Delivery fee', latestVersion?.delivery_fee),
-				reportFact('Discount', latestVersion?.discount_amount),
-				reportFact('Total', latestVersion?.total ?? order.amount),
-			],
-			id: 'confirmed',
-			label: 'Confirmed',
-			lines: latestVersion?.notes
-				? [`Evaluation note: ${latestVersion.notes}`]
-				: [],
-			status: sectionStatus(1, currentIndex, stopped),
-			summary:
-				latestVersion || linkedOrder
-					? 'Evaluation and confirmed commercial record.'
-					: 'Waiting for evaluation and confirmation.',
-			timestamp: latestVersion?.created_at ?? linkedOrder?.created_at ?? null,
-		}),
-		reportSection({
-			facts: [
-				reportFact('Reserved lines', reservations.length),
-				reportFact(
-					'Reserved units',
-					reservations.reduce((sum, row) => sum + row.quantity, 0),
-				),
-				reportFact(
-					'Warehouse status',
-					loadingTask?.status.replaceAll('_', ' '),
-				),
-				reportFact('Warehouse rejection', loadingTask?.rejection_reason),
-			],
-			id: 'processing',
-			label: 'Processing',
-			lines: processingLines,
-			status: sectionStatus(2, currentIndex, stopped),
-			summary: hasProcessing
-				? 'Inventory reservation and warehouse preparation state.'
-				: 'Waiting for stock reservation and preparation.',
-			timestamp: loadingTask?.updated_at ?? reservations[0]?.updated_at ?? null,
-		}),
-		reportSection({
-			facts: [
-				reportFact('Payments recorded', payments.length),
-				reportFact('Paid total', paidTotal),
-				reportFact('Order total', order.amount),
-				reportFact(
-					'Remaining',
-					order.amount !== null ? Math.max(0, order.amount - paidTotal) : null,
-				),
-				reportFact('Last proof', payments[0]?.proof_path),
-			],
-			id: 'payment',
-			label: 'Payment',
-			lines: paymentLines,
-			status: sectionStatus(3, currentIndex, stopped),
-			summary:
-				payments.length > 0
-					? 'Customer payment records attached to the order.'
-					: 'No customer payment record has been posted yet.',
-			timestamp: payments[0]?.created_at ?? null,
-		}),
-		reportSection({
-			facts: [
-				reportFact('Delivery number', delivery?.deliveryNumber),
-				reportFact('Delivery status', delivery?.deliveryStatus),
-				reportFact('Driver', delivery?.driverName),
-				reportFact('Driver phone', delivery?.driverPhone),
-				reportFact('Truck', delivery?.truckNumber),
-				reportFact('Vehicle', delivery?.vehiclePlate),
-				reportFact('Driver place', delivery?.driverPlace),
-				reportFact('ETA', delivery?.estimatedArrival),
-				reportFact('Destination', delivery?.route.destination),
-			],
-			id: 'dispatch',
-			label: 'Dispatch',
-			lines: delivery
-				? [
-						`Route: ${delivery.route.origin} to ${delivery.route.destination}`,
-						`Distance: ${delivery.route.distanceKm.toLocaleString('en-EG')} km`,
-					]
-				: [],
-			status: sectionStatus(4, currentIndex, stopped),
-			summary: delivery
-				? 'Live delivery assignment and route information.'
-				: 'Waiting for dispatch assignment.',
-			timestamp: delivery?.lastUpdated ?? null,
-		}),
-		reportSection({
-			facts: [
-				reportFact(
-					'Delivered at',
-					linkedOrder?.delivered_at ?? delivery?.lastUpdated,
-				),
-				reportFact(
-					'Delivery completed',
-					delivery?.currentStage === 'delivered' ? 'Yes' : null,
-				),
-			],
-			id: 'delivered',
-			label: 'Delivered',
-			lines: hasDelivered
-				? ['Order reached customer-visible delivery completion.']
-				: [],
-			status: sectionStatus(5, currentIndex, stopped),
-			summary: hasDelivered
-				? 'The order has been delivered.'
-				: 'Delivery completion has not been recorded yet.',
-			timestamp: linkedOrder?.delivered_at ?? delivery?.lastUpdated ?? null,
+			title: 'Order submitted',
 		}),
 	]
+	if (latestVersion || linkedOrder) {
+		steps.push(
+			reportStep({
+				actor: null,
+				advisor: null,
+				facts: [
+					reportFact(
+						'Order number',
+						linkedOrder?.order_number ?? order.reference,
+					),
+					reportFact('Order status', linkedOrder?.status ?? order.status),
+					reportFact('Quote version', latestVersion?.version_number),
+					reportFact('Quote status', latestVersion?.status),
+					reportFact('Subtotal', latestVersion?.subtotal),
+					reportFact('VAT', latestVersion?.tax_amount),
+					reportFact('Delivery fee', latestVersion?.delivery_fee),
+					reportFact('Discount', latestVersion?.discount_amount),
+					reportFact('Total', latestVersion?.total ?? order.amount),
+				],
+				id: `sales-${latestVersion?.id ?? linkedOrder?.id ?? order.id}`,
+				lines: [],
+				specialCase: null,
+				stage: 'sales',
+				status: 'completed',
+				summary: 'Evaluation and confirmed commercial record.',
+				timestamp: latestVersion?.created_at ?? linkedOrder?.created_at ?? null,
+				title: 'Order confirmed',
+			}),
+		)
+	}
+	for (const payment of payments) {
+		const paidThroughThisPayment = payments
+			.filter((row) => row.created_at <= payment.created_at)
+			.reduce((sum, row) => sum + row.amount, 0)
+		const finalPayment =
+			payments.length > 1 &&
+			order.amount !== null &&
+			paidThroughThisPayment >= order.amount
+		steps.push(
+			reportStep({
+				actor: null,
+				advisor: null,
+				facts: [
+					reportFact(
+						'Payment fraction',
+						payment.payment_fraction === 0.5 ? '50%' : '100%',
+					),
+					reportFact('Amount', payment.amount),
+					reportFact('Status', payment.status),
+					reportFact(
+						'Remaining',
+						order.amount !== null
+							? Math.max(0, order.amount - paidThroughThisPayment)
+							: null,
+					),
+				],
+				id: `payment-${payment.id}`,
+				lines: [],
+				specialCase: finalPayment
+					? { kind: 'final_payment', label: 'Final payment collection' }
+					: null,
+				stage: 'finance',
+				status: 'completed',
+				summary: finalPayment
+					? 'The remaining customer payment was recorded.'
+					: 'Customer payment was recorded.',
+				timestamp: payment.created_at,
+				title: finalPayment ? 'Final payment collected' : 'Payment collected',
+			}),
+		)
+	}
+	if (hasProcessing) {
+		steps.push(
+			reportStep({
+				actor: null,
+				advisor: null,
+				facts: [
+					reportFact('Reserved lines', reservations.length),
+					reportFact(
+						'Reserved units',
+						reservations.reduce((sum, row) => sum + row.quantity, 0),
+					),
+					reportFact(
+						'Warehouse status',
+						loadingTask?.status.replaceAll('_', ' '),
+					),
+				],
+				id: `processing-${linkedOrder?.id ?? order.id}`,
+				lines: processingLines,
+				specialCase:
+					loadingTask?.status === 'rejected'
+						? {
+								kind: 'warehouse_rejection',
+								label: 'Warehouse correction required',
+							}
+						: null,
+				stage: reservations.length > 0 ? 'inventory' : 'warehouse',
+				status: loadingTask?.status === 'rejected' ? 'special' : 'completed',
+				summary:
+					loadingTask?.status === 'rejected'
+						? 'The order returned to preparation for correction.'
+						: 'Inventory reservation and warehouse preparation state.',
+				timestamp:
+					loadingTask?.updated_at ?? reservations[0]?.updated_at ?? null,
+				title:
+					loadingTask?.status === 'rejected'
+						? 'Preparation correction'
+						: 'Order preparation',
+			}),
+		)
+	}
+	if (delivery) {
+		const deliverySpecial =
+			delivery.deliveryStatus === 'rejected'
+				? { kind: 'dispatch_return' as const, label: 'Returned to warehouse' }
+				: null
+		steps.push(
+			reportStep({
+				actor: null,
+				advisor: null,
+				facts: [
+					reportFact('Delivery number', delivery.deliveryNumber),
+					reportFact('Delivery status', delivery.deliveryStatus),
+					reportFact('Driver', delivery.driverName),
+					reportFact('Driver phone', delivery.driverPhone),
+					reportFact('Truck', delivery.truckNumber),
+					reportFact('Vehicle', delivery.vehiclePlate),
+					reportFact('Driver place', delivery.driverPlace),
+					reportFact('ETA', delivery.estimatedArrival),
+					reportFact('Destination', delivery.route.destination),
+				],
+				id: `dispatch-${delivery.id}`,
+				lines: [
+					`Route: ${delivery.route.origin} to ${delivery.route.destination}`,
+					`Distance: ${delivery.route.distanceKm.toLocaleString('en-EG')} km`,
+				],
+				specialCase: deliverySpecial,
+				stage: delivery.currentStage === 'delivered' ? 'delivery' : 'dispatch',
+				status: deliverySpecial
+					? 'special'
+					: delivery.currentStage === 'delivered'
+						? 'completed'
+						: 'current',
+				summary: deliverySpecial
+					? 'Delivery was returned for correction.'
+					: 'Live delivery assignment and route information.',
+				timestamp: delivery.lastUpdated,
+				title:
+					delivery.currentStage === 'delivered'
+						? 'Delivered'
+						: 'Dispatch assigned',
+			}),
+		)
+	}
+	if (hasDelivered && !delivery) {
+		steps.push(
+			reportStep({
+				actor: null,
+				advisor: null,
+				facts: [
+					reportFact('Delivered at', linkedOrder?.delivered_at),
+					reportFact('Delivery completed', 'Yes'),
+				],
+				id: `delivered-${linkedOrder?.id ?? order.id}`,
+				lines: ['Order reached customer-visible delivery completion.'],
+				specialCase: null,
+				stage: 'delivery',
+				status: 'completed',
+				summary: 'The order has been delivered.',
+				timestamp: linkedOrder?.delivered_at ?? null,
+				title: 'Delivered',
+			}),
+		)
+	}
 	if (stopped) {
-		sections.push(
-			reportSection({
+		steps.push(
+			reportStep({
+				actor: null,
+				advisor: null,
 				facts: [
 					reportFact('Reason', stopReason),
 					reportFact('Quote status', quoteRequest?.status),
 					reportFact('Order status', linkedOrder?.status),
 				],
-				id: 'stopped',
-				label: 'Stopped',
+				id: `stopped-${quoteRequest?.id ?? linkedOrder?.id ?? order.id}`,
 				lines: [
 					'The report stops here because the order was not allowed to continue.',
 				],
+				specialCase: { kind: 'cancellation', label: 'Workflow stopped' },
+				stage: 'stopped',
 				status: 'stopped',
 				summary: 'Canceled or rejected workflow stop.',
 				timestamp: linkedOrder?.updated_at ?? quoteRequest?.created_at ?? null,
+				title: 'Order stopped',
 			}),
 		)
 	}
+	steps.sort((a, b) => stepSortValue(a) - stepSortValue(b))
+	const currentStage = stageForPortalReport({
+		delivery,
+		hasDelivered,
+		hasProcessing,
+		linkedOrder,
+		payments,
+		stopped,
+	})
+	const lastStep = steps[steps.length - 1] ?? null
+	const specialCaseCount = steps.filter((step) => step.specialCase).length
 
 	return {
 		exportFileName: `${order.reference}-order-report.html`,
 		generatedAt: new Date().toISOString(),
-		sections,
+		pending: pendingPortalStages(currentStage, stopped),
+		steps,
+		summary: {
+			currentStage,
+			headline: lastStep?.title ?? 'Order report',
+			lastAction: lastStep?.title ?? null,
+			processedBy: null,
+			reachedStage: currentStage,
+			specialCaseCount,
+			status: stopped ? 'stopped' : hasDelivered ? 'completed' : 'active',
+		},
 	}
 }
 

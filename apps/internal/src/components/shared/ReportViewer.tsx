@@ -1,6 +1,6 @@
+import type { OrderReportStageId, OrderReportStep } from '@hyperquote/types'
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
-import type { OrderReportStage } from '../../lib/db/types'
 import {
 	INTERNAL_LIVE_REFETCH_MS,
 	INTERNAL_LIVE_STALE_MS,
@@ -11,35 +11,21 @@ import {
 } from '../../lib/server/order-reports'
 import { DispatchBody, DispatchDialog, DispatchSection } from './DispatchDialog'
 
-const STAGE_ORDER: OrderReportStage[] = [
-	'submitted',
-	'evaluated',
-	'finance_partial',
-	'inventory_orders',
-	'finance_full',
-	'warehouse',
-	'dispatch',
-	'delivered',
-]
-
-const DECLINE_REASON_LABEL: Record<string, string> = {
-	outside_service_area: 'Outside service area',
-	cannot_source: 'Cannot source',
-	customer_blacklisted: 'Blacklisted',
-	expired: 'Expired',
+const STAGE_LABEL: Record<OrderReportStageId, string> = {
+	delivery: 'Delivery',
+	dispatch: 'Dispatch',
+	finance: 'Finance',
+	inventory: 'Inventory',
+	sales: 'Sales',
+	stopped: 'Stopped',
+	submitted: 'Submitted',
+	warehouse: 'Warehouse',
 }
 
-const STAGE_LABEL: Record<OrderReportStage, string> = {
-	submitted: 'Submitted',
-	evaluated: 'Evaluated',
-	finance_partial: 'Partial payment',
-	inventory_orders: 'Sourced',
-	finance_full: 'Paid',
-	warehouse: 'Warehouse',
-	dispatch: 'Dispatched',
-	delivered: 'Delivered',
-	canceled: 'Canceled',
-	returned: 'Returned',
+const STATUS_TONE: Record<ResolvedReport['summary']['status'], string> = {
+	active: 'text-[var(--color-text)]',
+	completed: 'text-[#116B3A]',
+	stopped: 'text-[#B3261E] dark:text-[#E46B63]',
 }
 
 interface ReportViewerModalProps {
@@ -61,25 +47,18 @@ export function ReportViewerModal({ rfqId, onClose }: ReportViewerModalProps) {
 	const show = !!rfqId && !!data && !isLoading
 	if (!show || !data) return null
 
-	const sub = data.sections.submitted
-	const title = sub?.customerName ?? 'Order Report'
-	const isCanceled = data.currentStage === 'canceled'
-	const stageLabel = isCanceled
-		? ((data.canceledReason && DECLINE_REASON_LABEL[data.canceledReason]) ??
-			'Canceled')
-		: STAGE_LABEL[data.currentStage]
-
+	const title = data.customerName || 'Order Report'
 	const eyebrow = (
 		<span className="inline-flex items-center gap-2">
 			<span>{data.rfqId.toUpperCase()}</span>
 			<span aria-hidden>·</span>
-			<span className={isCanceled ? 'text-[#B3261E] dark:text-[#E46B63]' : ''}>
-				{stageLabel}
+			<span className={STATUS_TONE[data.summary.status]}>
+				{STAGE_LABEL[data.summary.currentStage]}
 			</span>
-			{sub?.customerTier && (
+			{data.customerTier && (
 				<>
 					<span aria-hidden>·</span>
-					<span>Tier {sub.customerTier}</span>
+					<span>Tier {data.customerTier}</span>
 				</>
 			)}
 		</span>
@@ -107,217 +86,31 @@ function formatRelative(iso: string | null): string {
 	return `${Math.floor(h / 24)}d ago`
 }
 
-function formatMoney(n: number): string {
-	return n.toLocaleString('en-EG')
-}
-
 function ReportContent({ report }: { report: ResolvedReport }) {
-	const isCanceled = report.currentStage === 'canceled'
-	const currentIdx = STAGE_ORDER.indexOf(
-		report.currentStage as OrderReportStage,
-	)
-	const sub = report.sections.submitted
-	const ev = report.sections.evaluated
-	const unfilled = STAGE_ORDER.filter(
-		(s) => !report.sections[s] && s !== 'canceled',
-	)
-
 	return (
 		<DispatchBody>
-			{/* Stage ruler — thin perforated dashes that fill left-to-right */}
-			<ol className="flex items-center gap-[3px] mb-7">
-				{STAGE_ORDER.map((stage, i) => {
-					const filled = !!report.sections[stage]
-					const isPast = i < currentIdx || (i === currentIdx && !isCanceled)
-					const on = filled || isPast
-					return (
-						<li
-							key={stage}
-							aria-label={STAGE_LABEL[stage]}
-							className={`h-[3px] flex-1 transition-colors ${
-								on
-									? isCanceled
-										? 'bg-[#B3261E]/70 dark:bg-[#E46B63]/80'
-										: 'bg-[var(--color-text)]'
-									: 'bg-black/[0.1] dark:bg-white/[0.12]'
-							}`}
+			<ReportSummary report={report} />
+			<section>
+				<DispatchSection label="Timeline" />
+				<ol className="space-y-4">
+					{report.steps.map((step, index) => (
+						<ReportStepCard
+							key={step.id}
+							step={step}
+							index={index}
+							isLast={index === report.steps.length - 1}
 						/>
-					)
-				})}
-			</ol>
-
-			{/* Stage labels strip — mono, uppercase, wrap naturally */}
-			<div className="flex flex-wrap gap-x-5 gap-y-1 mb-7 font-[family-name:var(--font-plex-mono)] text-[9.5px] uppercase tracking-[0.18em]">
-				{STAGE_ORDER.map((stage, i) => {
-					const on =
-						!!report.sections[stage] ||
-						i < currentIdx ||
-						(i === currentIdx && !isCanceled)
-					return (
-						<span
-							key={stage}
-							className={
-								on
-									? isCanceled
-										? 'text-[#B3261E] dark:text-[#E46B63]'
-										: 'text-[var(--color-text)]'
-									: 'text-[var(--color-text-subtle)]/60'
-							}
-						>
-							{STAGE_LABEL[stage]}
-						</span>
-					)
-				})}
-			</div>
-
-			{/* Rejected reason — first block if canceled */}
-			{isCanceled && (
-				<section>
-					<DispatchSection label="Rejected" />
-					<Grid>
-						<Detail label="Reason">
-							<Strong>
-								{(report.canceledReason &&
-									DECLINE_REASON_LABEL[report.canceledReason]) ??
-									report.canceledReason?.replace(/_/g, ' ') ??
-									'No reason provided'}
-							</Strong>
-						</Detail>
-						{report.canceledAt && (
-							<Detail label="Rejected at">
-								<Mono>{formatRelative(report.canceledAt)}</Mono>
-							</Detail>
-						)}
-					</Grid>
-					{report.canceledNote && (
-						<p className="mt-3 font-[family-name:var(--font-archivo)] italic text-[13px] text-[var(--color-text-muted)] leading-relaxed">
-							{report.canceledNote}
-						</p>
-					)}
-				</section>
-			)}
-
-			{/* Submitted — contact + delivery + items */}
-			{sub && (
-				<section>
-					<DispatchSection label="Submitted" />
-					<Grid>
-						<Detail label="Contact">
-							<Strong>{sub.contactName}</Strong>
-						</Detail>
-						<Detail label="Delivery">
-							<Strong>{sub.deliveryAddress}</Strong>
-						</Detail>
-						<Detail label="Phone">
-							<Mono>{sub.phone}</Mono>
-						</Detail>
-						<Detail label="City">{sub.deliveryCity}</Detail>
-						<Detail label="Urgency">
-							<Mono>{sub.deliveryUrgencyDays}d</Mono>
-						</Detail>
-					</Grid>
-
-					{sub.items.length > 0 && (
-						<div className="mt-6">
-							<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
-								Items requested
-							</span>
-							<ul className="mt-3 border border-black/[0.1] dark:border-white/[0.12]">
-								{sub.items.map((item, i) => (
-									<li
-										key={item.productSlug}
-										className={`flex items-baseline justify-between px-4 py-3 ${
-											i < sub.items.length - 1
-												? 'border-b border-black/[0.08] dark:border-white/[0.1]'
-												: ''
-										}`}
-									>
-										<span className="font-[family-name:var(--font-archivo)] text-[14px] text-[var(--color-text)]">
-											{item.productName}
-										</span>
-										<span className="font-[family-name:var(--font-plex-mono)] text-[14px] font-medium tabular-nums text-[var(--color-text)]">
-											{item.quantity.toLocaleString('en-EG')}
-											<span className="ms-1.5 text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
-												{item.unit}
-											</span>
-										</span>
-									</li>
-								))}
-							</ul>
-						</div>
-					)}
-				</section>
-			)}
-
-			{/* Evaluated — quote figures */}
-			{ev && (
-				<section>
-					<DispatchSection label="Evaluated" />
-					<div className="flex items-end justify-between gap-8">
-						<div className="space-y-4 flex-1 min-w-0">
-							<Detail label="Quote">
-								<Mono>{ev.quoteNumber}</Mono>
-							</Detail>
-							<div className="flex items-start gap-6">
-								<Detail label="Subtotal">
-									<Mono>{formatMoney(ev.subtotal)}</Mono>
-								</Detail>
-								{ev.vatAmount > 0 && (
-									<Detail label="VAT">
-										<Mono>{formatMoney(ev.vatAmount)}</Mono>
-									</Detail>
-								)}
-								<Detail label="Margin">
-									<Mono>{ev.marginPercent.toFixed(1)}%</Mono>
-								</Detail>
-							</div>
-							{ev.sentVia && (
-								<p className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
-									Sent via {ev.sentVia} · {formatRelative(ev.sentAt)}
-								</p>
-							)}
-						</div>
-						<div className="text-end shrink-0">
-							<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--color-text-muted)]">
-								Total
-							</span>
-							<div
-								className="mt-2 font-[family-name:var(--font-archivo-black)] text-[34px] leading-none tabular-nums uppercase"
-								style={{ letterSpacing: '-0.01em' }}
-							>
-								{formatMoney(ev.total)}
-							</div>
-							<span className="mt-1 block font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.24em] text-[var(--color-text-subtle)]">
-								EGP
-							</span>
-						</div>
-					</div>
-				</section>
-			)}
-
-			{STAGE_ORDER.filter(
-				(stage) => stage !== 'submitted' && stage !== 'evaluated',
-			).map((stage) => {
-				const section = report.sections[stage]
-				if (!section) return null
-				return (
-					<GenericReportStageSection
-						key={stage}
-						label={STAGE_LABEL[stage]}
-						section={section}
-					/>
-				)
-			})}
-
-			{/* Pending stages — still to come */}
-			{unfilled.length > 0 && (
+					))}
+				</ol>
+			</section>
+			{report.pending.length > 0 && (
 				<section className="mt-8 pt-5 border-t border-dashed border-black/[0.12] dark:border-white/[0.14]">
 					<p className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.22em] text-[var(--color-text-subtle)]">
 						Pending
 					</p>
 					<div className="mt-2 flex flex-wrap gap-x-4 gap-y-1.5 font-[family-name:var(--font-plex-mono)] text-[10.5px] uppercase tracking-[0.16em] text-[var(--color-text-subtle)]/80">
-						{unfilled.map((s) => (
-							<span key={s}>· {STAGE_LABEL[s]}</span>
+						{report.pending.map((stage) => (
+							<span key={stage}>· {STAGE_LABEL[stage]}</span>
 						))}
 					</div>
 				</section>
@@ -326,69 +119,122 @@ function ReportContent({ report }: { report: ResolvedReport }) {
 	)
 }
 
-function GenericReportStageSection({
-	label,
-	section,
-}: {
-	label: string
-	section: Record<string, unknown>
-}) {
-	const entries = Object.entries(section).filter(
-		([, value]) => value !== null && value !== undefined && value !== '',
-	)
-	if (entries.length === 0) return null
+function ReportSummary({ report }: { report: ResolvedReport }) {
 	return (
 		<section>
-			<DispatchSection label={label} />
-			<Grid>
-				{entries.map(([key, value]) => (
-					<Detail key={key} label={humanizeKey(key)}>
-						{Array.isArray(value) ? (
-							<ul className="mt-1 space-y-1">
-								{value.map((item) => (
-									<li
-										key={`${key}-${formatReportValue(item)}`}
-										className="font-[family-name:var(--font-archivo)] text-[13px] text-[var(--color-text)]"
-									>
-										{formatReportValue(item)}
-									</li>
-								))}
-							</ul>
-						) : (
-							<Mono>{formatReportValue(value)}</Mono>
-						)}
-					</Detail>
-				))}
-			</Grid>
+			<DispatchSection label="Summary" />
+			<div className="border border-black/[0.1] bg-black/[0.025] p-4 dark:border-white/[0.12] dark:bg-white/[0.035]">
+				<div className="flex flex-wrap items-start justify-between gap-4">
+					<div className="min-w-0">
+						<p
+							className={`font-[family-name:var(--font-archivo-black)] text-[24px] leading-tight ${STATUS_TONE[report.summary.status]}`}
+						>
+							{report.summary.headline}
+						</p>
+						<p className="mt-2 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
+							Reached {STAGE_LABEL[report.summary.currentStage]}
+							{report.summary.processedBy
+								? ` · Last processed by ${report.summary.processedBy}`
+								: ''}
+						</p>
+					</div>
+					{report.summary.specialCaseCount > 0 && (
+						<span className="shrink-0 border border-[#B3261E]/35 px-3 py-1 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.16em] text-[#B3261E] dark:text-[#E46B63]">
+							{report.summary.specialCaseCount} special
+						</span>
+					)}
+				</div>
+			</div>
 		</section>
 	)
 }
 
-function humanizeKey(value: string): string {
-	return value
-		.replace(/([a-z])([A-Z])/g, '$1 $2')
-		.replace(/_/g, ' ')
-		.replace(/\b\w/g, (letter) => letter.toUpperCase())
+function ReportStepCard({
+	index,
+	isLast,
+	step,
+}: {
+	index: number
+	isLast: boolean
+	step: OrderReportStep
+}) {
+	const tone =
+		step.status === 'stopped' || step.status === 'special'
+			? 'border-[#B3261E]/35 bg-[#B3261E]/[0.035]'
+			: isLast
+				? 'border-[var(--color-text)] bg-black/[0.025] dark:bg-white/[0.035]'
+				: 'border-black/[0.1] dark:border-white/[0.12]'
+	return (
+		<li className={`border p-4 ${tone}`}>
+			<div className="flex flex-wrap items-start justify-between gap-4">
+				<div className="min-w-0">
+					<div className="flex flex-wrap items-center gap-2">
+						<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
+							{String(index + 1).padStart(2, '0')} · {STAGE_LABEL[step.stage]}
+						</span>
+						{step.specialCase && (
+							<span className="border border-[#B3261E]/30 px-2 py-0.5 font-[family-name:var(--font-plex-mono)] text-[9px] uppercase tracking-[0.14em] text-[#B3261E] dark:text-[#E46B63]">
+								{step.specialCase.label}
+							</span>
+						)}
+					</div>
+					<h3 className="mt-2 font-[family-name:var(--font-archivo-black)] text-[19px] leading-tight text-[var(--color-text)]">
+						{step.title}
+					</h3>
+					<p className="mt-2 font-[family-name:var(--font-archivo)] text-[13px] leading-relaxed text-[var(--color-text-muted)]">
+						{step.summary}
+					</p>
+				</div>
+				<div className="shrink-0 text-end font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-subtle)]">
+					{formatRelative(step.timestamp)}
+				</div>
+			</div>
+			<Grid>
+				<Detail label="Processed by">
+					<Strong>{step.actor?.name ?? '—'}</Strong>
+				</Detail>
+				{step.advisor && (
+					<Detail label="Advisor">
+						<Strong>{step.advisor.name}</Strong>
+					</Detail>
+				)}
+				{step.facts.map((item) => (
+					<Detail key={`${step.id}-${item.label}`} label={item.label}>
+						<Mono>{formatReportValue(item.value)}</Mono>
+					</Detail>
+				))}
+			</Grid>
+			{step.lines.length > 0 && (
+				<ul className="mt-4 space-y-1 border-t border-black/[0.08] pt-3 dark:border-white/[0.1]">
+					{step.lines.map((line) => (
+						<li
+							key={`${step.id}-${line}`}
+							className="font-[family-name:var(--font-archivo)] text-[13px] text-[var(--color-text)]"
+						>
+							{line}
+						</li>
+					))}
+				</ul>
+			)}
+		</li>
+	)
 }
 
-function formatReportValue(value: unknown): string {
-	if (typeof value === 'number') return formatMoney(value)
-	if (typeof value === 'string') {
-		if (/^\d{4}-\d{2}-\d{2}/.test(value)) return formatRelative(value)
-		return value.replace(/_/g, ' ')
-	}
-	if (typeof value === 'boolean') return value ? 'Yes' : 'No'
-	return JSON.stringify(value)
+function formatReportValue(value: string): string {
+	if (/^\d{4}-\d{2}-\d{2}/.test(value)) return formatRelative(value)
+	return value.replace(/_/g, ' ')
 }
 
 function Grid({ children }: { children: ReactNode }) {
-	return <div className="grid grid-cols-2 gap-x-8 gap-y-4">{children}</div>
+	return (
+		<div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
+	)
 }
 
-function Detail({ label, children }: { label: string; children: ReactNode }) {
+function Detail({ children, label }: { children: ReactNode; label: string }) {
 	return (
-		<div>
-			<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
+		<div className="min-w-0">
+			<span className="font-[family-name:var(--font-plex-mono)] text-[9.5px] uppercase tracking-[0.18em] text-[var(--color-text-subtle)]">
 				{label}
 			</span>
 			<div className="mt-1">{children}</div>
@@ -398,7 +244,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
 
 function Strong({ children }: { children: ReactNode }) {
 	return (
-		<span className="font-[family-name:var(--font-archivo)] text-[15px] font-medium text-[var(--color-text)]">
+		<span className="font-[family-name:var(--font-archivo)] text-[14px] font-semibold text-[var(--color-text)]">
 			{children}
 		</span>
 	)
@@ -406,7 +252,7 @@ function Strong({ children }: { children: ReactNode }) {
 
 function Mono({ children }: { children: ReactNode }) {
 	return (
-		<span className="font-[family-name:var(--font-plex-mono)] text-[13.5px] tabular-nums text-[var(--color-text)]">
+		<span className="font-[family-name:var(--font-plex-mono)] text-[12px] text-[var(--color-text)]">
 			{children}
 		</span>
 	)

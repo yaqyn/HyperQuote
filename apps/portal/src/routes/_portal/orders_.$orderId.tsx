@@ -5,6 +5,12 @@
  * This page keeps the order record, status, items, timeline, and documents.
  */
 
+import type {
+	OrderReportFact,
+	OrderReportStageId,
+	OrderReportStep,
+	OrderReportStepStatus,
+} from '@hyperquote/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
@@ -29,7 +35,6 @@ import { portalHead } from '../../lib/page-meta'
 import {
 	getOrderDetail,
 	type OrderDetailResult,
-	type OrderReportSection,
 } from '../../lib/server/deliveries'
 import { saveOrderAsDraft } from '../../lib/server/orders'
 import { toast } from '../../lib/toast'
@@ -437,31 +442,28 @@ function OrderDetailPage({ orderId }: { orderId: string }) {
 	)
 }
 
-type LifecycleFact = {
-	label: string
-	value: string
-}
-
-const REPORT_SECTION_LABEL_KEYS: Record<
-	OrderReportSection['id'],
+const REPORT_STAGE_LABEL_KEYS: Record<
+	OrderReportStageId,
 	ParseKeys<'portal'>
 > = {
-	confirmed: 'tracking.reportConfirmed',
-	delivered: 'tracking.reportDelivered',
+	delivery: 'tracking.reportDelivered',
 	dispatch: 'tracking.reportDispatch',
-	payment: 'tracking.reportPayment',
-	processing: 'tracking.reportProcessing',
-	stopped: 'tracking.reportStopped',
+	finance: 'tracking.reportPayment',
+	inventory: 'tracking.reportProcessing',
+	sales: 'tracking.reportConfirmed',
 	submitted: 'tracking.reportSubmitted',
+	stopped: 'tracking.reportStopped',
+	warehouse: 'tracking.reportProcessing',
 }
 
 const REPORT_STATUS_LABEL_KEYS: Record<
-	OrderReportSection['status'],
+	OrderReportStepStatus,
 	ParseKeys<'portal'>
 > = {
 	completed: 'tracking.reportCompleted',
 	current: 'tracking.reportCurrent',
-	future: 'tracking.reportFuture',
+	pending: 'tracking.reportFuture',
+	special: 'tracking.reportCurrent',
 	stopped: 'tracking.reportStopped',
 }
 
@@ -475,7 +477,7 @@ function OrderReportPanel({
 	moneyFmt: Intl.NumberFormat
 }) {
 	const { t } = useTranslation('portal')
-	const sections = data.report.sections
+	const steps = data.report.steps
 	return (
 		<section className="mt-8 sm:mt-10">
 			<div className="overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)]">
@@ -493,22 +495,22 @@ function OrderReportPanel({
 					</div>
 				</header>
 				<div className="divide-y divide-[var(--p-border)]">
-					{sections.map((section) => (
+					{steps.map((step) => (
 						<LifecycleBlock
-							key={section.id}
-							icon={reportSectionIcon(section)}
-							title={t(REPORT_SECTION_LABEL_KEYS[section.id])}
-							eyebrow={t(REPORT_STATUS_LABEL_KEYS[section.status])}
-							body={section.summary}
-							facts={section.facts.map((fact) => ({
+							key={step.id}
+							icon={reportSectionIcon(step)}
+							title={step.title}
+							eyebrow={`${t(REPORT_STAGE_LABEL_KEYS[step.stage])} · ${t(
+								REPORT_STATUS_LABEL_KEYS[step.status],
+							)}`}
+							body={step.summary}
+							facts={step.facts.map((fact) => ({
 								label: fact.label,
 								value: formatReportFact(fact, dateFmt, moneyFmt),
 							}))}
-							lines={section.lines}
+							lines={step.lines}
 							linesLabel={
-								section.lines.length > 0
-									? t('tracking.reportDetails')
-									: undefined
+								step.lines.length > 0 ? t('tracking.reportDetails') : undefined
 							}
 						/>
 					))}
@@ -518,18 +520,19 @@ function OrderReportPanel({
 	)
 }
 
-function reportSectionIcon(section: OrderReportSection): ReactNode {
-	if (section.status === 'stopped')
+function reportSectionIcon(step: OrderReportStep): ReactNode {
+	if (step.status === 'stopped' || step.status === 'special')
 		return <FileText size={16} strokeWidth={1.8} />
-	switch (section.id) {
+	switch (step.stage) {
 		case 'submitted':
 			return <UserRound size={16} strokeWidth={1.8} />
-		case 'confirmed':
-		case 'payment':
+		case 'sales':
+		case 'finance':
 			return <FileText size={16} strokeWidth={1.8} />
 		case 'dispatch':
+		case 'warehouse':
 			return <Truck size={16} strokeWidth={1.8} />
-		case 'delivered':
+		case 'delivery':
 			return <Check size={16} strokeWidth={2.2} />
 		default:
 			return <Clock size={16} strokeWidth={1.8} />
@@ -547,7 +550,7 @@ function formatReportDate(
 }
 
 function formatReportFact(
-	fact: LifecycleFact,
+	fact: OrderReportFact,
 	dateFmt: Intl.DateTimeFormat,
 	moneyFmt: Intl.NumberFormat,
 ) {
@@ -608,20 +611,20 @@ function downloadOrderReport(
 	appendReportText(reportDocument, header, 'p', `Generated ${generated}`)
 	reportDocument.body.append(header)
 
-	for (const section of data.report.sections) {
+	for (const step of data.report.steps) {
 		const sectionElement = reportDocument.createElement('section')
 		const heading = appendReportText(
 			reportDocument,
 			sectionElement,
 			'h2',
-			section.label,
+			step.title,
 		)
-		appendReportText(reportDocument, heading, 'span', section.status)
-		appendReportText(reportDocument, sectionElement, 'p', section.summary)
+		appendReportText(reportDocument, heading, 'span', step.status)
+		appendReportText(reportDocument, sectionElement, 'p', step.summary)
 
 		const table = reportDocument.createElement('table')
 		const tableBody = reportDocument.createElement('tbody')
-		for (const fact of section.facts) {
+		for (const fact of step.facts) {
 			const row = reportDocument.createElement('tr')
 			appendReportText(reportDocument, row, 'th', fact.label)
 			appendReportText(
@@ -635,9 +638,9 @@ function downloadOrderReport(
 		table.append(tableBody)
 		sectionElement.append(table)
 
-		if (section.lines.length > 0) {
+		if (step.lines.length > 0) {
 			const list = reportDocument.createElement('ul')
-			for (const line of section.lines) {
+			for (const line of step.lines) {
 				appendReportText(reportDocument, list, 'li', line)
 			}
 			sectionElement.append(list)
@@ -660,7 +663,7 @@ function downloadOrderReport(
 	window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
-function formatExportFact(fact: LifecycleFact, moneyFmt: Intl.NumberFormat) {
+function formatExportFact(fact: OrderReportFact, moneyFmt: Intl.NumberFormat) {
 	const lower = fact.label.toLowerCase()
 	const numericValue = Number(fact.value)
 	if (
@@ -831,7 +834,7 @@ function LifecycleBlock({
 	title: string
 	eyebrow: string
 	body?: string
-	facts: LifecycleFact[]
+	facts: OrderReportFact[]
 	lines?: string[]
 	linesLabel?: string
 }) {
