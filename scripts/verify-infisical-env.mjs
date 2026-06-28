@@ -2,9 +2,11 @@
 import { spawnSync } from 'node:child_process'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import { loadCompanyRegistry } from './logis/registry.mjs'
 
 const VERIFY_SENTINEL = 'HYPERQUOTE_VERIFY_INFISICAL_ENV'
-const HYPERQUOTE_INFISICAL_PATH = '/Projects/HyperQuote'
+const company = loadCompanyRegistry()
+const companyCookieDomain = `.${company.domains.root}`
 
 const ENV_ALIASES = new Map([
 	['dev', { infisicalEnv: 'dev', label: 'local dev' }],
@@ -39,7 +41,7 @@ if (process.env[VERIFY_SENTINEL] !== target.infisicalEnv) {
 		[
 			'run',
 			`--env=${target.infisicalEnv}`,
-			`--path=${HYPERQUOTE_INFISICAL_PATH}`,
+			`--path=${company.infisical.path}`,
 			'--recursive',
 			'--',
 			process.execPath,
@@ -121,9 +123,9 @@ function requiredSecretGroups(infisicalEnv) {
 			isValid: (value) => value.length > 0,
 		},
 		{
-			label: 'Production cookie domain (COOKIE_DOMAIN=.hyperquote.net)',
+			label: `Production cookie domain (COOKIE_DOMAIN=${companyCookieDomain})`,
 			names: ['COOKIE_DOMAIN'],
-			isValid: (value) => value === '.hyperquote.net',
+			isValid: (value) => value === companyCookieDomain,
 		},
 		{
 			label: 'Support inbound email (SUPPORT_INBOUND_EMAIL)',

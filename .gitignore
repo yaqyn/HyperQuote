@@ -15,6 +15,7 @@ dist
 
 # Generated
 *.gen.ts
+.logis/
 
 # Runtime / local
 .dev.vars

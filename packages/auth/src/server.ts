@@ -2,6 +2,7 @@ import {
 	getInstalledRuntimeEnv,
 	type RuntimeEnvValue,
 	runtimeEnvRecord,
+	runtimeEnvValue,
 } from '@hyperquote/runtime/env'
 import {
 	type CookieOptions,
@@ -354,9 +355,13 @@ export async function supabaseHealthResponse({
 	fallbackEnv?: Record<string, RuntimeEnvValue>
 	timeoutMs?: number
 }): Promise<Response> {
+	const logis = await logisHealthMetadata(fallbackEnv)
 	const config = await resolveSupabaseRuntimeConfig(fallbackEnv)
 	if (!config) {
-		return healthJson({ app, ok: false, supabase: 'not_configured' }, 503)
+		return healthJson(
+			{ app, ...logis, ok: false, supabase: 'not_configured' },
+			503,
+		)
 	}
 
 	try {
@@ -371,6 +376,7 @@ export async function supabaseHealthResponse({
 			return healthJson(
 				{
 					app,
+					...logis,
 					ok: false,
 					status: response.status,
 					supabase: 'unreachable',
@@ -378,10 +384,54 @@ export async function supabaseHealthResponse({
 				502,
 			)
 		}
-		return healthJson({ app, ok: true, supabase: 'reachable' })
+		return healthJson({
+			app,
+			...logis,
+			ok: true,
+			supabase: 'reachable',
+		})
 	} catch {
-		return healthJson({ app, ok: false, supabase: 'unreachable' }, 502)
+		return healthJson(
+			{ app, ...logis, ok: false, supabase: 'unreachable' },
+			502,
+		)
 	}
+}
+
+async function logisHealthMetadata(
+	fallbackEnv: Record<string, RuntimeEnvValue>,
+) {
+	const env = (getInstalledRuntimeEnv() ?? {}) as Record<
+		string,
+		RuntimeEnvValue
+	>
+	return {
+		logisCompanySlug: stringRuntimeValue(
+			await runtimeEnvValue(
+				fallbackEnv.LOGIS_COMPANY_SLUG ?? env.LOGIS_COMPANY_SLUG,
+			),
+		),
+		logisDeploymentId: stringRuntimeValue(
+			await runtimeEnvValue(
+				fallbackEnv.LOGIS_DEPLOYMENT_ID ?? env.LOGIS_DEPLOYMENT_ID,
+			),
+		),
+		logisReleaseChannel:
+			stringRuntimeValue(
+				await runtimeEnvValue(
+					fallbackEnv.LOGIS_RELEASE_CHANNEL ?? env.LOGIS_RELEASE_CHANNEL,
+				),
+			) ?? 'stable',
+		logisVersion: stringRuntimeValue(
+			await runtimeEnvValue(fallbackEnv.LOGIS_VERSION ?? env.LOGIS_VERSION),
+		),
+	}
+}
+
+function stringRuntimeValue(value: string | undefined): string | null {
+	if (!value) return null
+	const trimmed = value.trim()
+	return trimmed || null
 }
 
 function healthJson(payload: Record<string, unknown>, status = 200): Response {

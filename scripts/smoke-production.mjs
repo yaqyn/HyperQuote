@@ -60,6 +60,7 @@ for (const check of checks) {
 			if (!payload || typeof payload !== 'object' || payload.ok !== true) {
 				throw new Error('health payload was not ok')
 			}
+			assertLogisHealth(check.label, payload)
 		}
 		console.log(`${check.label}: ok`)
 	} catch (error) {
@@ -79,6 +80,19 @@ for (const check of checks) {
 }
 
 process.exit(failed ? 1 : 0)
+
+function assertLogisHealth(label, payload) {
+	const expected = {
+		logisCompanySlug: process.env.LOGIS_COMPANY_SLUG,
+		logisReleaseChannel: process.env.LOGIS_RELEASE_CHANNEL,
+		logisVersion: process.env.LOGIS_VERSION,
+	}
+	for (const [key, value] of Object.entries(expected)) {
+		if (value?.trim() && payload[key] !== value.trim()) {
+			throw new Error(`${label} expected ${key}=${value}, got ${payload[key]}`)
+		}
+	}
+}
 
 function isFetchFailure(error) {
 	return error instanceof Error && error.message === 'fetch failed'

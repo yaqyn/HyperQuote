@@ -4,9 +4,11 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
+import { writeGeneratedWranglerConfig } from './logis/registry.mjs'
 import {
 	missingEnvNames,
 	optionalRuntimeSecretNamesForApp,
+	productionCompany,
 	requiredRuntimeSecretNamesForApp,
 	selectedProductionApps,
 } from './production-config.mjs'
@@ -31,6 +33,10 @@ for (const app of apps) {
 	const tempDir = mkdtempSync(join(tmpdir(), 'hyperquote-worker-secrets-'))
 	const secretFile = join(tempDir, `${app.id}.json`)
 	try {
+		const wranglerConfig =
+			process.env.LOGIS_GENERATED_WRANGLER === '1'
+				? writeGeneratedWranglerConfig(productionCompany, app)
+				: app.wranglerConfig
 		const payload = Object.fromEntries(
 			secretNames.map((name) => [name, process.env[name]]),
 		)
@@ -39,7 +45,7 @@ for (const app of apps) {
 		console.log(`Syncing ${secretNames.length} secrets for ${app.workerName}.`)
 		const result = spawnSync(
 			'wrangler',
-			['secret', 'bulk', secretFile, '--config', app.wranglerConfig],
+			['secret', 'bulk', secretFile, '--config', wranglerConfig],
 			{
 				cwd: app.absoluteDirectory,
 				stdio: 'inherit',
