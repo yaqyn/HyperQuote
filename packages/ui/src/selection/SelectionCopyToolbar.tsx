@@ -34,7 +34,6 @@ export function SelectionCopyToolbar({
 
 	const hide = useCallback(() => {
 		setVisible(false)
-		setCopied(false)
 	}, [])
 
 	const handleSelection = useCallback(() => {
@@ -168,7 +167,7 @@ export function SelectionCopyToolbar({
 		await navigator.clipboard.writeText(textRef.current)
 		setCopied(true)
 		if (timeoutRef.current) clearTimeout(timeoutRef.current)
-		timeoutRef.current = setTimeout(hide, 500)
+		timeoutRef.current = setTimeout(hide, 140)
 	}
 
 	function handleAsk() {
