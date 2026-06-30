@@ -1,5 +1,7 @@
 import {
-	completeChat,
+	type ChatToolCall,
+	type ChatToolDefinition,
+	completeChatWithTools,
 	isAIEnabled,
 	LYON_WEBSITE,
 	streamChat,
@@ -18,13 +20,11 @@ import {
 	buildWebsiteDocsPrompt,
 	classifyWebsitePublicChatIntent,
 	detectDocsQueryLocale,
-	parseWebsiteChatRoute,
 	publicDocsExtractiveResponse,
 	publicDocsNoAnswerResponse,
 	publicDocsPolicyRefusal,
 	publicDocsSourceLinks,
 	retrieveWebsiteDocs,
-	WEBSITE_CHAT_ROUTER_PROMPT,
 	type WebsitePublicChatRoute,
 } from './docs-retrieval'
 import { logWebsiteServerError } from './server-log'
@@ -89,6 +89,134 @@ const CHAT_RATE_LIMIT = 20
 const CHAT_RATE_LIMIT_WINDOW_SECONDS = 60
 
 type ChatMessageInput = { role: 'user' | 'assistant'; content: string }
+
+const WEBSITE_CHAT_ALLOWED_ACTIONS = {
+	about: {
+		href: '/about',
+		icon: 'building',
+		label: 'About',
+		labelAr: 'عن هايبركوت',
+	},
+	careers: {
+		href: '/careers',
+		icon: 'briefcase',
+		label: 'Careers',
+		labelAr: 'التوظيف',
+	},
+	contact: {
+		href: '/support#contact',
+		icon: 'support',
+		label: 'Contact',
+		labelAr: 'التواصل',
+	},
+	docs: {
+		href: '/docs',
+		icon: 'book',
+		label: 'Docs',
+		labelAr: 'الوثائق',
+	},
+	faq: {
+		href: '/support#faq',
+		icon: 'book',
+		label: 'FAQ',
+		labelAr: 'الأسئلة',
+	},
+	home: {
+		href: '/',
+		icon: 'building',
+		label: 'Home',
+		labelAr: 'الرئيسية',
+	},
+	market: {
+		href: '/market',
+		icon: 'market',
+		label: 'Market',
+		labelAr: 'السوق',
+	},
+	portal: {
+		href: '/login',
+		icon: 'login',
+		label: 'Portal',
+		labelAr: 'البوابة',
+	},
+	privacy: {
+		href: '/legal/privacy',
+		icon: 'file',
+		label: 'Privacy',
+		labelAr: 'الخصوصية',
+	},
+	support: {
+		href: '/support',
+		icon: 'support',
+		label: 'Support',
+		labelAr: 'الدعم',
+	},
+	team: {
+		href: '/about',
+		icon: 'building',
+		label: 'Team',
+		labelAr: 'الفريق',
+	},
+	terms: {
+		href: '/legal/terms',
+		icon: 'file',
+		label: 'Terms',
+		labelAr: 'الشروط',
+	},
+} satisfies Record<string, WebsiteActionButtonData>
+
+const WEBSITE_CHAT_ACTION_IDS = Object.keys(WEBSITE_CHAT_ALLOWED_ACTIONS)
+
+const WEBSITE_CHAT_TOOLS: ChatToolDefinition[] = [
+	{
+		type: 'function',
+		function: {
+			name: 'retrieve_public_docs',
+			description:
+				'Search public HyperQuote website/docs content. Use for factual questions about HyperQuote, Market/catalog/products, support, portal usage, quote/pricing concepts, payments, delivery, legal, or how-to guidance.',
+			parameters: {
+				type: 'object',
+				additionalProperties: false,
+				properties: {
+					query: {
+						type: 'string',
+						description:
+							'Concise public-docs search query. Keep Arabic queries Arabic when the user is Arabic.',
+					},
+				},
+				required: ['query'],
+			},
+		},
+	},
+	{
+		type: 'function',
+		function: {
+			name: 'show_website_actions',
+			description:
+				'Show safe public HyperQuote action buttons when the user wants to navigate or a button would clearly help.',
+			parameters: {
+				type: 'object',
+				additionalProperties: false,
+				properties: {
+					actions: {
+						type: 'array',
+						items: { enum: WEBSITE_CHAT_ACTION_IDS, type: 'string' },
+						maxItems: 4,
+					},
+				},
+				required: ['actions'],
+			},
+		},
+	},
+]
+
+const LYON_WEBSITE_TOOL_PROMPT = `${LYON_WEBSITE}
+
+You have bounded tools for this website:
+- retrieve_public_docs: use it when public HyperQuote facts or docs are needed.
+- show_website_actions: use it when the user wants links, navigation, or a button would clearly help.
+
+Use tools naturally. Do not mention tool names. Do not invent URLs or actions. If no tool is needed, answer directly within the website boundary.`
 
 const chatInput = z.object({
 	messages: z
@@ -176,99 +304,19 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 				websiteUnsupportedHelpButtons(userText),
 			)
 		} else {
-			const directNavigationButtons = websiteDirectNavigationButtons(userText)
-			if (
-				directNavigationButtons.length > 0 &&
-				isWebsiteNavigationRequest(userText)
-			) {
-				for await (const chunk of textOnlyStream(
-					websiteNavigationDirectAnswer(
-						userText,
-						directNavigationButtons,
-						shouldShowWebsiteChatActionButtons(userText),
-					),
-				)) {
-					chunks.push(chunk)
-				}
-				if (shouldShowWebsiteChatActionButtons(userText)) {
-					appendWebsiteActionButtons(chunks, directNavigationButtons)
-				}
-			} else {
-				const aiEnabled = await isAIEnabled()
-				const route = enforceDocsRoute(
-					aiEnabled
-						? await routeWebsitePublicChat(modelMessages, userText)
-						: fallbackWebsitePublicChatRoute(userText),
+			const aiEnabled = await isAIEnabled()
+			if (aiEnabled) {
+				readEntities = await streamWebsiteToolChat(
+					modelMessages,
 					userText,
+					chunks,
 				)
-
-				if (route.action === 'chat') {
-					if (aiEnabled) {
-						for await (const chunk of streamChat(modelMessages, LYON_WEBSITE)) {
-							chunks.push(chunk as WebsiteStreamChunk)
-						}
-					} else {
-						const simpleAnswer = simpleWebsiteChatAnswer(modelMessages)
-						for await (const chunk of textOnlyStream(
-							simpleAnswer ??
-								'Ask me about HyperQuote pages, the Market, docs, support, or portal access.',
-						)) {
-							chunks.push(chunk)
-						}
-					}
-					appendWebsiteActionButtons(
-						chunks,
-						websiteNavigationButtons(userText, route),
-					)
-				} else if (aiEnabled) {
-					readEntities = ['public_docs']
-					const docs = retrieveRoutedDocs(route, userText)
-					if (!docs.hasHighConfidence) {
-						for await (const chunk of textOnlyStream(
-							publicDocsNoAnswerResponse(docs.locale),
-						)) {
-							chunks.push(chunk)
-						}
-						appendWebsiteActionButtons(
-							chunks,
-							websiteNavigationButtons(userText, route, docs),
-						)
-					} else {
-						const groundedPrompt = buildWebsiteDocsPrompt(
-							LYON_WEBSITE,
-							buildPublicDocsContext(docs.chunks),
-						)
-						for await (const chunk of streamChat(
-							modelMessages,
-							groundedPrompt,
-						)) {
-							chunks.push(chunk as WebsiteStreamChunk)
-						}
-						appendDocsSourcesIfMissing(
-							chunks,
-							publicDocsSourceLinks(docs.chunks, docs.locale),
-							docs.locale,
-						)
-						appendWebsiteActionButtons(
-							chunks,
-							websiteNavigationButtons(userText, route, docs),
-						)
-					}
-				} else {
-					readEntities = ['public_docs']
-					const docs = retrieveRoutedDocs(route, userText)
-					for await (const chunk of textOnlyStream(
-						docs.hasHighConfidence
-							? publicDocsExtractiveResponse(docs.chunks, docs.locale)
-							: publicDocsNoAnswerResponse(docs.locale),
-					)) {
-						chunks.push(chunk)
-					}
-					appendWebsiteActionButtons(
-						chunks,
-						websiteNavigationButtons(userText, route, docs),
-					)
-				}
+			} else {
+				readEntities = await streamFallbackWebsiteChat(
+					userText,
+					modelMessages,
+					chunks,
+				)
 			}
 		}
 
@@ -279,27 +327,190 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 		return chunks
 	})
 
-async function routeWebsitePublicChat(
-	messages: ChatMessageInput[],
+async function streamWebsiteToolChat(
+	modelMessages: ChatMessageInput[],
 	userText: string,
-): Promise<WebsitePublicChatRoute> {
+	chunks: WebsiteStreamChunk[],
+): Promise<string[]> {
 	try {
-		const rawRoute = await completeChat(
-			recentRouteMessages(messages),
-			WEBSITE_CHAT_ROUTER_PROMPT,
-			{ temperature: 0 },
+		const toolChoice = await completeChatWithTools(
+			modelMessages,
+			LYON_WEBSITE_TOOL_PROMPT,
+			WEBSITE_CHAT_TOOLS,
+			{ temperature: 0.2 },
 		)
-		return parseWebsiteChatRoute(rawRoute, userText)
-	} catch {
-		return fallbackWebsitePublicChatRoute(userText)
+		const toolResult = executeWebsiteToolCalls(toolChoice.toolCalls, userText)
+		if (!toolResult.docs && toolResult.actions.length === 0) {
+			if (toolChoice.content.trim()) {
+				for await (const chunk of textOnlyStream(toolChoice.content.trim())) {
+					chunks.push(chunk)
+				}
+			} else {
+				for await (const chunk of streamChat(modelMessages, LYON_WEBSITE)) {
+					chunks.push(chunk as WebsiteStreamChunk)
+				}
+			}
+			return ['website_index']
+		}
+
+		if (toolResult.docs) {
+			if (!toolResult.docs.hasHighConfidence) {
+				for await (const chunk of textOnlyStream(
+					publicDocsNoAnswerResponse(toolResult.docs.locale),
+				)) {
+					chunks.push(chunk)
+				}
+			} else {
+				const groundedPrompt = buildWebsiteDocsPrompt(
+					buildWebsiteActionPrompt(LYON_WEBSITE, toolResult.actions),
+					buildPublicDocsContext(toolResult.docs.chunks),
+				)
+				for await (const chunk of streamChat(modelMessages, groundedPrompt)) {
+					chunks.push(chunk as WebsiteStreamChunk)
+				}
+				appendDocsSourcesIfMissing(
+					chunks,
+					publicDocsSourceLinks(toolResult.docs.chunks, toolResult.docs.locale),
+					toolResult.docs.locale,
+				)
+			}
+			appendWebsiteActionButtons(chunks, toolResult.actions)
+			return ['public_docs']
+		}
+
+		for await (const chunk of streamChat(
+			modelMessages,
+			buildWebsiteActionPrompt(LYON_WEBSITE, toolResult.actions),
+		)) {
+			chunks.push(chunk as WebsiteStreamChunk)
+		}
+		appendWebsiteActionButtons(chunks, toolResult.actions)
+		return ['website_index']
+	} catch (error) {
+		logWebsiteServerError('website.ai.tool_chat_failed', error)
+		return streamFallbackWebsiteChat(userText, modelMessages, chunks)
 	}
 }
 
-function recentRouteMessages(messages: ChatMessageInput[]) {
-	return messages.slice(-6).map((message) => ({
-		role: message.role,
-		content: message.content.slice(0, 1200),
-	}))
+async function streamFallbackWebsiteChat(
+	userText: string,
+	modelMessages: ChatMessageInput[],
+	chunks: WebsiteStreamChunk[],
+): Promise<string[]> {
+	const route = enforceDocsRoute(
+		fallbackWebsitePublicChatRoute(userText),
+		userText,
+	)
+	const buttons = websiteNavigationButtons(userText, route)
+	if (route.action === 'chat') {
+		const simpleAnswer = simpleWebsiteChatAnswer(modelMessages)
+		for await (const chunk of textOnlyStream(
+			simpleAnswer ??
+				'Ask me about HyperQuote pages, the Market, docs, support, or portal access.',
+		)) {
+			chunks.push(chunk)
+		}
+		appendWebsiteActionButtons(chunks, buttons)
+		return ['website_index']
+	}
+
+	const docs = retrieveRoutedDocs(route, userText)
+	for await (const chunk of textOnlyStream(
+		docs.hasHighConfidence
+			? publicDocsExtractiveResponse(docs.chunks, docs.locale)
+			: publicDocsNoAnswerResponse(docs.locale),
+	)) {
+		chunks.push(chunk)
+	}
+	appendWebsiteActionButtons(
+		chunks,
+		mergeWebsiteActionButtons(buttons, websiteDocsActionButtons(route, docs)),
+	)
+	return ['public_docs']
+}
+
+function executeWebsiteToolCalls(
+	toolCalls: ChatToolCall[],
+	userText: string,
+): {
+	actions: WebsiteActionButtonData[]
+	docs: ReturnType<typeof retrieveWebsiteDocs> | null
+} {
+	let actions: WebsiteActionButtonData[] = []
+	let docs: ReturnType<typeof retrieveWebsiteDocs> | null = null
+
+	for (const toolCall of toolCalls) {
+		if (toolCall.function.name === 'show_website_actions') {
+			actions = mergeWebsiteActionButtons(
+				actions,
+				websiteActionsFromToolCall(toolCall),
+			)
+			continue
+		}
+		if (toolCall.function.name === 'retrieve_public_docs') {
+			const query = websiteDocsQueryFromToolCall(toolCall) || userText
+			docs = retrieveWebsiteDocs(`${userText} ${query}`)
+		}
+	}
+
+	if (docs) {
+		actions = mergeWebsiteActionButtons(
+			actions,
+			websiteDocsActionButtons(
+				{ action: 'retrieve_public_docs', searchQuery: userText },
+				docs,
+			),
+		)
+	}
+
+	return { actions: actions.slice(0, 4), docs }
+}
+
+function websiteActionsFromToolCall(
+	toolCall: ChatToolCall,
+): WebsiteActionButtonData[] {
+	const args = parseToolArguments(toolCall)
+	const ids = Array.isArray(args?.actions) ? args.actions : []
+	return ids.flatMap((id) => {
+		if (typeof id !== 'string') return []
+		const action =
+			WEBSITE_CHAT_ALLOWED_ACTIONS[
+				id as keyof typeof WEBSITE_CHAT_ALLOWED_ACTIONS
+			]
+		return action ? [action] : []
+	})
+}
+
+function websiteDocsQueryFromToolCall(toolCall: ChatToolCall): string {
+	const args = parseToolArguments(toolCall)
+	return typeof args?.query === 'string' ? args.query.trim() : ''
+}
+
+function parseToolArguments(
+	toolCall: ChatToolCall,
+): Record<string, unknown> | null {
+	try {
+		const parsed: unknown = JSON.parse(toolCall.function.arguments)
+		return typeof parsed === 'object' && parsed !== null
+			? (parsed as Record<string, unknown>)
+			: null
+	} catch {
+		return null
+	}
+}
+
+function buildWebsiteActionPrompt(
+	basePrompt: string,
+	actions: WebsiteActionButtonData[],
+): string {
+	if (actions.length === 0) return basePrompt
+	const labels = actions
+		.map((action) => `${action.label} (${action.href})`)
+		.join(', ')
+	return `${basePrompt}
+
+The app will show these safe website action buttons after your answer: ${labels}.
+Mention them naturally only if useful. Do not write raw URLs unless the user explicitly asked for a URL.`
 }
 
 function modelChatMessages(messages: ChatMessageInput[]): ChatMessageInput[] {
@@ -477,58 +688,6 @@ function isWebsiteNavigationRequest(userText: string): boolean {
 			(WEBSITE_DIRECT_PAGE_TARGET_PATTERN.test(normalized) ||
 				AR_WEBSITE_DIRECT_PAGE_TARGET_PATTERN.test(normalized)))
 	)
-}
-
-function websiteNavigationDirectAnswer(
-	userText: string,
-	buttons: WebsiteActionButtonData[],
-	includeButtons: boolean,
-): string {
-	const isArabic = detectDocsQueryLocale(userText) === 'ar'
-	if (includeButtons) {
-		if (isArabic) return 'أكيد. دي روابط هايبركوت المناسبة:'
-
-		return buttons.length === 1
-			? 'Here is the right HyperQuote link:'
-			: 'Here are the right HyperQuote links:'
-	}
-
-	const primaryButton = buttons[0]
-	if (!primaryButton) {
-		return isArabic
-			? 'أقدر أرشدك في صفحات هايبركوت العامة.'
-			: 'I can guide you around the public HyperQuote website.'
-	}
-
-	if (isArabic) {
-		if (primaryButton.href.startsWith('/market')) {
-			return 'المكان المناسب هو السوق في موقع هايبركوت. تقدر تتصفح مواد البناء والمنتجات من هناك.'
-		}
-		if (primaryButton.href.startsWith('/support')) {
-			return 'المكان المناسب هو صفحة الدعم في موقع هايبركوت للتواصل أو المساعدة.'
-		}
-		if (primaryButton.href.startsWith('/login')) {
-			return 'لأي شيء خاص بحسابك، استخدم دخول البوابة. من هنا أقدر أرشدك فقط في الموقع العام.'
-		}
-		if (primaryButton.href.startsWith('/docs')) {
-			return 'المكان المناسب هو الوثائق العامة في موقع هايبركوت.'
-		}
-		return `المكان المناسب هو ${primaryButton.labelAr}.`
-	}
-
-	if (primaryButton.href.startsWith('/market')) {
-		return 'Use the Market page on HyperQuote to browse building materials and products.'
-	}
-	if (primaryButton.href.startsWith('/support')) {
-		return 'Use the Support page on HyperQuote for contact options or help.'
-	}
-	if (primaryButton.href.startsWith('/login')) {
-		return 'Use the Portal login for anything account-specific. From here, I can only guide you around the public website.'
-	}
-	if (primaryButton.href.startsWith('/docs')) {
-		return 'Use the public Docs page on HyperQuote for guides and answers.'
-	}
-	return `Use the ${primaryButton.label} page on HyperQuote.`
 }
 
 export function websiteDirectNavigationButtons(
@@ -787,6 +946,45 @@ function websiteNavigationButtons(
 	}
 
 	return buttons.slice(0, 4)
+}
+
+function websiteDocsActionButtons(
+	route: WebsitePublicChatRoute,
+	docs?:
+		| ReturnType<typeof retrieveRoutedDocs>
+		| ReturnType<typeof retrieveWebsiteDocs>,
+): WebsiteActionButtonData[] {
+	if (route.action !== 'retrieve_public_docs') return []
+	const buttons: WebsiteActionButtonData[] = [WEBSITE_CHAT_ALLOWED_ACTIONS.docs]
+	for (const chunk of docs?.chunks ?? []) {
+		buttons.push({
+			href: chunk.href,
+			icon: 'book',
+			label: chunk.title,
+			labelAr: 'المقال',
+		})
+		if (buttons.length >= 3) break
+	}
+	return buttons
+}
+
+function mergeWebsiteActionButtons(
+	...groups: WebsiteActionButtonData[][]
+): WebsiteActionButtonData[] {
+	const buttons: WebsiteActionButtonData[] = []
+	for (const button of groups.flat()) {
+		if (
+			buttons.some(
+				(existing) =>
+					existing.href === button.href && existing.label === button.label,
+			)
+		) {
+			continue
+		}
+		buttons.push(button)
+		if (buttons.length >= 4) break
+	}
+	return buttons
 }
 
 function appendWebsiteActionButtons(

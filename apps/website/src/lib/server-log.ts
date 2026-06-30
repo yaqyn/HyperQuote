@@ -22,6 +22,7 @@ type ServerLogEvent =
 	| 'website.auth.sign_out.supabase_error'
 	| 'website.ai.audit_rpc_failed'
 	| 'website.ai.audit_unexpected_error'
+	| 'website.ai.tool_chat_failed'
 	| 'website.catalog.categories.supabase_error'
 	| 'website.catalog.category_image.supabase_error'
 	| 'website.catalog.public_catalog.supabase_error'
