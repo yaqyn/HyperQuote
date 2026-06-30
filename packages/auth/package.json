@@ -8,6 +8,7 @@
 		"./server": "./src/server.ts",
 		"./client": "./src/client.ts",
 		"./customer": "./src/customer.ts",
+		"./customer-schemas": "./src/customer-schemas.ts",
 		"./guard": "./src/guard.ts",
 		"./session": "./src/session.ts",
 		"./permissions": "./src/permissions.ts",
@@ -17,7 +18,8 @@
 	"dependencies": {
 		"@hyperquote/runtime": "workspace:*",
 		"@supabase/ssr": "^0.9.0",
-		"@supabase/supabase-js": "^2.106.1"
+		"@supabase/supabase-js": "^2.106.1",
+		"zod": "^4.4.3"
 	},
 	"peerDependencies": {
 		"@tanstack/react-router": "^1.170.8",

@@ -11,6 +11,17 @@ import {
 	verifyCustomerOtp,
 } from '@hyperquote/auth/customer'
 import {
+	claimCustomerAccountInput,
+	createCustomerAccountInput,
+	customerEmailPasswordInput,
+	customerOtpCodeInput,
+	customerPasswordResetCompleteInput,
+	customerPasswordResetRequestInput,
+	customerPhoneInput,
+	sendCustomerOtpInput,
+	verifyCustomerOtpInput,
+} from '@hyperquote/auth/customer-schemas'
+import {
 	checkOTPVerifyLimit,
 	checkRateLimit,
 	clearRateLimit,
@@ -29,73 +40,13 @@ import { getRequest, getResponse } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { logPortalError } from './log'
 
-// ============================================================================
-// Input Schemas
-// ============================================================================
-
-const phoneSchema = z.string().regex(/^(10|11|12|15)\d{8}$/)
-
-const sendOTPInput = z.object({
-	phone: phoneSchema,
-	method: z.enum(['whatsapp', 'sms']),
-})
-
-const verifyOTPInput = z.object({
-	phone: phoneSchema,
-	code: z
-		.string()
-		.length(6)
-		.regex(/^\d{6}$/),
-})
-
-const createAccountInput = z
-	.object({
-		phone: phoneSchema,
-		companyName: z.string().min(1).max(200),
-		fullName: z.string().min(1).max(100),
-		method: z.enum(['phone_otp', 'email_password']).optional(),
-		email: z.string().trim().email().max(254).optional(),
-		password: z.string().min(6).max(128).optional(),
-	})
-	.superRefine((input, ctx) => {
-		const hasEmail = Boolean(input.email?.trim())
-		const hasPassword = Boolean(input.password)
-		if (hasEmail === hasPassword) return
-		ctx.addIssue({
-			code: 'custom',
-			message: 'Email and password must be provided together.',
-			path: hasEmail ? ['password'] : ['email'],
-		})
-	})
-
-const claimAccountInput = z.object({
-	phone: phoneSchema,
-})
-
 const phoneChangeRequestInput = z.object({
-	phone: phoneSchema,
+	phone: customerPhoneInput,
 })
 
 const phoneChangeVerifyInput = z.object({
-	phone: phoneSchema,
-	code: z
-		.string()
-		.length(6)
-		.regex(/^\d{6}$/),
-})
-
-const emailPasswordInput = z.object({
-	email: z.string().trim().email().max(254),
-	password: z.string().min(6).max(128),
-})
-
-const passwordResetRequestInput = z.object({
-	email: z.string().trim().email().max(254),
-})
-
-const passwordResetCompleteInput = z.object({
-	tokenHash: z.string().min(16).max(512),
-	password: z.string().min(6).max(128),
+	code: customerOtpCodeInput,
+	phone: customerPhoneInput,
 })
 
 type EmailAuthError =
@@ -222,7 +173,7 @@ export const signOutPortalAccount = createServerFn({ method: 'POST' }).handler(
 )
 
 export const signInWithEmailPassword = createServerFn({ method: 'POST' })
-	.inputValidator(emailPasswordInput)
+	.inputValidator(customerEmailPasswordInput)
 	.handler(
 		async ({
 			data: input,
@@ -265,7 +216,7 @@ export const signInWithEmailPassword = createServerFn({ method: 'POST' })
 	)
 
 export const requestPasswordReset = createServerFn({ method: 'POST' })
-	.inputValidator(passwordResetRequestInput)
+	.inputValidator(customerPasswordResetRequestInput)
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
 		try {
 			const config = await getSupabaseConfig()
@@ -294,7 +245,7 @@ export const requestPasswordReset = createServerFn({ method: 'POST' })
 	})
 
 export const completePasswordReset = createServerFn({ method: 'POST' })
-	.inputValidator(passwordResetCompleteInput)
+	.inputValidator(customerPasswordResetCompleteInput)
 	.handler(
 		async ({
 			data: input,
@@ -348,7 +299,7 @@ export const completePasswordReset = createServerFn({ method: 'POST' })
 // ============================================================================
 
 export const sendOTP = createServerFn({ method: 'POST' })
-	.inputValidator(sendOTPInput)
+	.inputValidator(sendCustomerOtpInput)
 	.handler(async ({ data: input }) => {
 		try {
 			const rateLimitStore = await getRateLimitStore()
@@ -404,7 +355,7 @@ export const sendOTP = createServerFn({ method: 'POST' })
 // ============================================================================
 
 export const verifyOTP = createServerFn({ method: 'POST' })
-	.inputValidator(verifyOTPInput)
+	.inputValidator(verifyCustomerOtpInput)
 	.handler(async ({ data: input }) => {
 		try {
 			const rateLimitStore = await getRateLimitStore()
@@ -463,7 +414,7 @@ export const verifyOTP = createServerFn({ method: 'POST' })
 // ============================================================================
 
 export const createAccount = createServerFn({ method: 'POST' })
-	.inputValidator(createAccountInput)
+	.inputValidator(createCustomerAccountInput)
 	.handler(async ({ data: input }) => {
 		try {
 			const formattedPhone = formattedEgyptPhone(input.phone)
@@ -508,7 +459,7 @@ export const createAccount = createServerFn({ method: 'POST' })
 // ============================================================================
 
 export const claimAccount = createServerFn({ method: 'POST' })
-	.inputValidator(claimAccountInput)
+	.inputValidator(claimCustomerAccountInput)
 	.handler(async ({ data: input }) => {
 		try {
 			const formattedPhone = formattedEgyptPhone(input.phone)
