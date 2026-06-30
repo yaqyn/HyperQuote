@@ -9,6 +9,7 @@ const WHITE = '#ffffff'
 const ICON_MARK_DOMINANT_MIN_RATIO = 0.36
 const ICON_MARK_DOMINANT_MAX_RATIO = 0.44
 const ICON_MARK_SECONDARY_MIN_RATIO = 0.14
+const SHARED_REGISTRATION_FILE = 'packages/ui/src/pwa/service-worker.ts'
 
 const APPS = [
 	{
@@ -22,7 +23,7 @@ const APPS = [
 		serviceWorkerFile: 'service-worker.js',
 		serviceWorkerUrl: '/service-worker.js',
 		headFiles: ['src/routes/__root.tsx'],
-		registrationFile: 'src/lib/pwa.ts',
+		registrationFile: 'src/routes/__root.tsx',
 	},
 	{
 		key: 'portal',
@@ -40,7 +41,7 @@ const APPS = [
 			'src/lib/theme.ts',
 		],
 		installSurfaceFile: 'src/components/sidebar/ChatSidebar.tsx',
-		registrationFile: 'src/lib/pwa.ts',
+		registrationFile: 'src/routes/__root.tsx',
 	},
 	{
 		key: 'internal',
@@ -54,7 +55,7 @@ const APPS = [
 		serviceWorkerUrl: '/service-worker.js',
 		headFiles: ['src/routes/__root.tsx', 'src/lib/page-meta.ts'],
 		installSurfaceFile: 'src/components/shell/AppActionsMenu.tsx',
-		registrationFile: 'src/lib/pwa.ts',
+		registrationFile: 'src/routes/__root.tsx',
 	},
 	{
 		key: 'driver',
@@ -68,7 +69,7 @@ const APPS = [
 		serviceWorkerUrl: '/service-worker.js',
 		headFiles: ['index.html'],
 		installSurfaceFile: 'src/components/DriverOptionsMenu.tsx',
-		registrationFile: 'src/lib/pwa.ts',
+		registrationFile: 'src/main.tsx',
 	},
 ]
 
@@ -95,6 +96,8 @@ const PNG_ASSETS = [
 ]
 
 const failures = []
+
+validateSharedRegistration()
 
 for (const app of APPS) {
 	const publicDir = join(ROOT, 'apps', app.key, 'public')
@@ -313,10 +316,29 @@ function validateRegistration(app) {
 		join(ROOT, 'apps', app.key, app.registrationFile),
 	)
 	const label = `${app.key}/${app.registrationFile}`
+	const call =
+		app.serviceWorkerUrl === '/service-worker.js'
+			? 'registerServiceWorker()'
+			: `registerServiceWorker('${app.serviceWorkerUrl}')`
 
 	assert(
-		registration.includes(`.register('${app.serviceWorkerUrl}'`),
-		`${label}: must register ${app.serviceWorkerUrl}`,
+		registration.includes('@hyperquote/ui/pwa/service-worker'),
+		`${label}: must import the shared service worker registrar`,
+	)
+	assert(registration.includes(call), `${label}: must call ${call}`)
+}
+
+function validateSharedRegistration() {
+	const registration = readText(join(ROOT, SHARED_REGISTRATION_FILE))
+	const label = SHARED_REGISTRATION_FILE
+
+	assert(
+		registration.includes("scriptPath = '/service-worker.js'"),
+		`${label}: must default to /service-worker.js`,
+	)
+	assert(
+		registration.includes('.register(scriptPath'),
+		`${label}: must register the requested service worker URL`,
 	)
 	assert(
 		registration.includes("scope: '/'"),

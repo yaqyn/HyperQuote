@@ -1,3 +1,4 @@
+import { registerServiceWorker } from '@hyperquote/ui/pwa/service-worker'
 import {
 	createRootRoute,
 	HeadContent,
@@ -13,7 +14,6 @@ import { OfflineBanner } from '../components/layout/OfflineBanner'
 import { SiteContextMenu } from '../components/layout/SiteContextMenu'
 import { SelectionCopy } from '../components/shared/SelectionCopy'
 import { i18n, setupI18n } from '../lib/i18n'
-import { registerWebsiteServiceWorker } from '../lib/pwa'
 import { initTheme } from '../lib/theme'
 import styles from '../styles.css?url'
 
@@ -110,7 +110,7 @@ function RootComponent() {
 
 	useEffect(() => {
 		initTheme()
-		if (import.meta.env.PROD) registerWebsiteServiceWorker()
+		if (import.meta.env.PROD) registerServiceWorker()
 	}, [])
 
 	return (

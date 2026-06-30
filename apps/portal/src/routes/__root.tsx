@@ -1,3 +1,4 @@
+import { registerServiceWorker } from '@hyperquote/ui/pwa/service-worker'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
 	createRootRoute,
@@ -12,7 +13,6 @@ import { I18nextProvider, useTranslation } from 'react-i18next'
 import { SelectionCopy } from '../components/shared/SelectionCopy'
 import { i18n, setupI18n } from '../lib/i18n'
 import { portalHead } from '../lib/page-meta'
-import { registerPortalServiceWorker } from '../lib/pwa'
 import {
 	applyPortalTheme,
 	detectPortalTheme,
@@ -174,7 +174,7 @@ function RootComponent() {
 
 	useEffect(() => {
 		applyPortalTheme(readStoredPortalTheme() ?? theme)
-		if (import.meta.env.PROD) registerPortalServiceWorker()
+		if (import.meta.env.PROD) registerServiceWorker('/sw.js')
 	}, [theme])
 
 	useEffect(() => {

@@ -1,9 +1,9 @@
-export function registerWebsiteServiceWorker() {
+export function registerServiceWorker(scriptPath = '/service-worker.js') {
 	if (!('serviceWorker' in navigator) || !window.isSecureContext) return
 
 	const register = () => {
 		void navigator.serviceWorker
-			.register('/service-worker.js', { scope: '/' })
+			.register(scriptPath, { scope: '/' })
 			.then((registration) => registration.update())
 			.catch(() => undefined)
 	}

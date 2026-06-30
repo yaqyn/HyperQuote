@@ -1,3 +1,4 @@
+import { registerServiceWorker } from '@hyperquote/ui/pwa/service-worker'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
 	createRootRoute,
@@ -11,7 +12,6 @@ import { I18nProvider } from 'react-aria-components/I18nProvider'
 import { SelectionCopy } from '../components/shared/SelectionCopy'
 import '../lib/i18n'
 import { internalHead } from '../lib/page-meta'
-import { registerInternalServiceWorker } from '../lib/pwa'
 import styles from '../styles.css?url'
 
 export const Route = createRootRoute({
@@ -144,7 +144,7 @@ function RootComponent() {
 	// pure landmark (biome's noStaticElementInteractions flags handlers on
 	// the body element otherwise).
 	useEffect(() => {
-		if (import.meta.env.PROD) registerInternalServiceWorker()
+		if (import.meta.env.PROD) registerServiceWorker()
 
 		function handleContextMenu(e: MouseEvent) {
 			e.preventDefault()

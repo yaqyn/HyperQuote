@@ -16,6 +16,7 @@
 		"./maps/road-route": "./src/maps/road-route.ts",
 		"./navigation/back-button": "./src/navigation/back-button.ts",
 		"./pwa/install": "./src/pwa/install.ts",
+		"./pwa/service-worker": "./src/pwa/service-worker.ts",
 		"./quote-cart/SavedDraftsPanelView": "./src/quote-cart/SavedDraftsPanelView.tsx",
 		"./selection/SelectionCopyToolbar": "./src/selection/SelectionCopyToolbar.tsx",
 		"./utils/cn": "./src/utils/cn.ts",

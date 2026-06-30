@@ -1,10 +1,10 @@
+import { registerServiceWorker } from '@hyperquote/ui/pwa/service-worker'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './lib/i18n'
 import './styles.css'
-import { registerDriverServiceWorker } from './lib/pwa'
 import { router } from './router'
 
 const queryClient = new QueryClient({
@@ -28,4 +28,4 @@ createRoot(root).render(
 	</StrictMode>,
 )
 
-if (import.meta.env.PROD) registerDriverServiceWorker()
+if (import.meta.env.PROD) registerServiceWorker()
