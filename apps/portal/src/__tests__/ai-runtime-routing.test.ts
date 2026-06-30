@@ -36,16 +36,14 @@ describe('AI runtime routing', () => {
 		expect(fallback).toBeGreaterThan(modelCall)
 	})
 
-	it('calls Groq for website and internal chat before simple fallback copy', () => {
+	it('uses bounded tools for website chat and tool calls for internal chat', () => {
 		const websiteSource = readRepoFile('apps/website/src/lib/chat.ts')
-		const websiteChatBranch = sliceFrom(
-			websiteSource,
-			"if (route.action === 'chat') {",
-			'} else if (aiEnabled) {',
-		)
-		expect(websiteChatBranch.indexOf('streamChat(modelMessages')).toBeLessThan(
-			websiteChatBranch.indexOf('simpleWebsiteChatAnswer(modelMessages)'),
-		)
+		expect(websiteSource).toContain('completeChatWithTools')
+		expect(websiteSource).toContain('retrieve_public_docs')
+		expect(websiteSource).toContain('show_website_actions')
+		expect(websiteSource).toContain('streamWebsiteToolChat')
+		expect(websiteSource).toContain('streamFallbackWebsiteChat')
+		expect(websiteSource).not.toContain("} from '@hyperquote/ai'")
 
 		const internalSource = readRepoFile('apps/internal/src/lib/ai-chat.ts')
 		expect(internalSource).toContain('if (await isAIEnabled()) {')
@@ -100,10 +98,10 @@ describe('AI runtime routing', () => {
 		expect(websiteChatSource).toContain('WEBSITE_DOCS_NAV_PATTERN')
 		expect(websiteChatSource).toContain('learn|learning')
 		expect(websiteChatSource).toContain('websiteDirectNavigationButtons')
-		expect(websiteChatSource).toContain('websiteNavigationDirectAnswer')
-		expect(
-			websiteChatSource.indexOf('websiteDirectNavigationButtons(userText)'),
-		).toBeLessThan(websiteChatSource.indexOf('routeWebsitePublicChat'))
+		expect(websiteChatSource).toContain('WEBSITE_CHAT_ALLOWED_ACTIONS')
+		expect(websiteChatSource).toContain('WEBSITE_CHAT_TOOLS')
+		expect(websiteChatSource).toContain('show_website_actions')
+		expect(websiteChatSource).not.toContain('websiteNavigationDirectAnswer')
 		expect(websiteChatSource).toContain("href: '/support#faq'")
 		expect(websiteChatSource).toContain("href: '/support#contact'")
 		expect(websiteChatSource).toContain("href: '/legal/terms'")
