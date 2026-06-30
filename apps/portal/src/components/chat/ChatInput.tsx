@@ -81,6 +81,7 @@ export function ChatInput({ chat }: ChatInputProps) {
 	const { t, i18n } = useTranslation('portal')
 	const isAr = i18n.language === 'ar'
 	const [value, setValue] = useState('')
+	const inputDir = value.trim() ? 'auto' : isAr ? 'rtl' : 'ltr'
 	const [listening, setListening] = useState(false)
 	const [commandMenuDismissed, setCommandMenuDismissed] = useState(false)
 	const [activeCommandIndex, setActiveCommandIndex] = useState(0)
@@ -476,7 +477,7 @@ export function ChatInput({ chat }: ChatInputProps) {
 							aria-label={t('a11y.sendMessage')}
 							aria-multiline="true"
 							spellCheck={false}
-							dir="auto"
+							dir={inputDir}
 							className="min-h-8 flex-1 resize-none bg-transparent py-1.5 font-sans text-[14px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)] sm:min-h-9 sm:text-[15px]"
 							style={{
 								height: `${LINE_HEIGHT + 4}px`,

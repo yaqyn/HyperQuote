@@ -12,7 +12,7 @@ export function LyonHeroChat({
 }: {
 	initialMessage?: string
 }) {
-	const { t } = useTranslation('website')
+	const { t, i18n } = useTranslation('website')
 	const messages = useChatSession((state) => state.messages)
 	const sendMessage = useChatSession((state) => state.sendMessage)
 	const isLoading = useChatSession((state) => state.isLoading)
@@ -20,6 +20,8 @@ export function LyonHeroChat({
 	const inputRef = useRef<HTMLTextAreaElement>(null)
 	const messagesRef = useRef<HTMLDivElement>(null)
 	const sentInitial = useRef(false)
+	const isArabic = i18n.language === 'ar'
+	const inputDir = input.trim() ? 'auto' : isArabic ? 'rtl' : 'ltr'
 
 	useEffect(() => {
 		inputRef.current?.focus()
@@ -112,7 +114,7 @@ export function LyonHeroChat({
 					<div className="flex items-end gap-3 bg-[var(--color-surface)] rounded-2xl px-4 py-3">
 						<textarea
 							ref={inputRef}
-							dir="auto"
+							dir={inputDir}
 							value={input}
 							onChange={(e) => {
 								setInput(e.target.value)

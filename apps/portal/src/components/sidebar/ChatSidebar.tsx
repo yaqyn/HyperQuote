@@ -71,7 +71,7 @@ export function ChatSidebar({
 	hasSupplierRole,
 	closeOnNavigate = false,
 }: ChatSidebarProps) {
-	const { t } = useTranslation('portal')
+	const { t, i18n } = useTranslation('portal')
 	const navigate = useNavigate()
 	const matches = useMatches()
 	const activeRole = usePortalStore((s) => s.activeRole)
@@ -104,6 +104,7 @@ export function ChatSidebar({
 	)
 	const displayName = profileName.split(/\s+/)[0] ?? ''
 	const currentPath = matches[matches.length - 1]?.pathname ?? '/'
+	const isArabic = i18n.language === 'ar'
 
 	useEffect(() => {
 		if (!brandMenuOpen) return
@@ -319,7 +320,7 @@ export function ChatSidebar({
 							userName={profileName}
 							closeOnNavigate={closeOnNavigate}
 						/>
-						<div className="min-w-0">
+						<div dir={isArabic ? 'rtl' : 'ltr'} className="min-w-0 text-start">
 							<p className="truncate text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--p-text-faint)]">
 								{t('sidebar.welcome')}
 							</p>

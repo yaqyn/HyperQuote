@@ -15,9 +15,11 @@ export function ChatInput({
 	isLoading,
 	isFullScreen = false,
 }: ChatInputProps) {
-	const { t } = useTranslation('website')
+	const { t, i18n } = useTranslation('website')
 	const [value, setValue] = useState('')
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
+	const isArabic = i18n.language === 'ar'
+	const inputDir = value.trim() ? 'auto' : isArabic ? 'rtl' : 'ltr'
 
 	const handleSubmit = useCallback(async () => {
 		const trimmed = value.trim()
@@ -63,7 +65,7 @@ export function ChatInput({
 			>
 				<textarea
 					ref={textareaRef}
-					dir="auto"
+					dir={inputDir}
 					value={value}
 					onChange={(e) => {
 						setValue(e.target.value)

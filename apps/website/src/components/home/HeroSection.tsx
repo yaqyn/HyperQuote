@@ -23,12 +23,13 @@ const LyonHeroChat = lazy(() =>
 )
 
 export function HeroSection() {
-	const { t } = useTranslation('website')
+	const { t, i18n } = useTranslation('website')
 	const navigateTo = useNavigate()
 	const [stage, setStage] = useState(0)
 	const [mode, setMode] = useState<HeroMode>('hero')
 	const [chatInitialMessage, setChatInitialMessage] = useState('')
 	const { accountState } = useWebsiteAccountState()
+	const isArabic = i18n.language === 'ar'
 
 	const closeBubble = useChatWidget((s) => s.close)
 	const requestChatRuntime = useChatWidget((s) => s.requestRuntime)
@@ -120,7 +121,9 @@ export function HeroSection() {
 								className="text-center"
 							>
 								<h1 className="text-[48px] sm:text-[56px] md:text-[64px] lg:text-[80px] leading-[1.08] font-extrabold tracking-normal">
-									<span className="block overflow-hidden">
+									<span
+										className={`block overflow-hidden ${isArabic ? 'pb-[0.12em]' : ''}`}
+									>
 										<span
 											className="block text-[var(--color-text)]"
 											style={{
@@ -133,7 +136,9 @@ export function HeroSection() {
 											{t('hero.headlinePart1')}
 										</span>
 									</span>
-									<span className="block overflow-hidden">
+									<span
+										className={`block overflow-hidden ${isArabic ? 'pb-[0.12em]' : ''}`}
+									>
 										<span
 											className="block bg-clip-text text-transparent"
 											style={{
