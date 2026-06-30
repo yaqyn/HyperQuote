@@ -77,6 +77,136 @@ export interface CustomerQuoteCartStore {
 	) => Promise<CustomerQuoteCartRow>
 }
 
+interface QueryResult<T>
+	extends PromiseLike<{ data: T | null; error: unknown }> {}
+
+interface CustomerQuoteCartProductsQuery
+	extends QueryResult<CustomerQuoteCartProductRow[]> {
+	eq: (column: string, value: unknown) => CustomerQuoteCartProductsQuery
+	in: (column: string, values: string[]) => CustomerQuoteCartProductsQuery
+	neq: (column: string, value: unknown) => CustomerQuoteCartProductsQuery
+}
+
+interface CustomerQuoteCartMaybeSingleQuery
+	extends QueryResult<CustomerQuoteCartRow | null> {
+	maybeSingle: () => QueryResult<CustomerQuoteCartRow | null>
+}
+
+interface CustomerQuoteCartSingleQuery
+	extends QueryResult<CustomerQuoteCartRow> {
+	single: () => QueryResult<CustomerQuoteCartRow>
+}
+
+interface CustomerQuoteCartSelectQuery {
+	eq: (column: string, value: unknown) => CustomerQuoteCartMaybeSingleQuery
+}
+
+interface CustomerQuoteCartUpdateQuery {
+	eq: (column: string, value: unknown) => CustomerQuoteCartUpdateQuery
+	select: (columns: string) => CustomerQuoteCartSingleQuery
+}
+
+interface CustomerQuoteCartUpsertQuery {
+	select: (columns: string) => CustomerQuoteCartSingleQuery
+}
+
+interface CustomerQuoteCartProductsTable {
+	select: (columns: string) => CustomerQuoteCartProductsQuery
+}
+
+interface CustomerQuoteCartsTable {
+	select: (columns: string) => CustomerQuoteCartSelectQuery
+	update: (values: {
+		global_note: string
+		items: QuoteCartItem[]
+		source: QuoteCartSource
+		version: number
+	}) => CustomerQuoteCartUpdateQuery
+	upsert: (
+		values: {
+			customer_id: string
+			global_note: string
+			items: QuoteCartItem[]
+			source: QuoteCartSource
+			version: number
+		},
+		options: { onConflict: string },
+	) => CustomerQuoteCartUpsertQuery
+}
+
+export interface CustomerQuoteCartDatabaseClient {
+	from: {
+		(table: 'products'): CustomerQuoteCartProductsTable
+		(table: 'customer_quote_carts'): CustomerQuoteCartsTable
+	}
+}
+
+export function createCustomerQuoteCartStore(
+	client: unknown,
+): CustomerQuoteCartStore {
+	// App Supabase clients carry app-specific generated table types; this adapter
+	// owns the narrower selected row projection used by the shared cart contract.
+	const db = client as CustomerQuoteCartDatabaseClient
+
+	return {
+		async listOrderableProducts(productIds) {
+			const { data, error } = await db
+				.from('products')
+				.select(
+					'id, slug, name, name_ar, category, unit_of_measure, unit_of_measure_ar, image_urls, is_active, availability_status',
+				)
+				.in('id', productIds)
+				.eq('is_active', true)
+				.neq('availability_status', 'hidden')
+				.neq('availability_status', 'out_of_stock')
+			if (error) throw error
+			return data ?? []
+		},
+		async loadCart(customerId) {
+			const { data, error } = await db
+				.from('customer_quote_carts')
+				.select('items, global_note, updated_at, version')
+				.eq('customer_id', customerId)
+				.maybeSingle()
+			if (error) throw error
+			return data
+		},
+		async updateCart(customerId, snapshot, source, version) {
+			const { data, error } = await db
+				.from('customer_quote_carts')
+				.update({
+					global_note: snapshot.globalNote,
+					items: snapshot.items,
+					source,
+					version,
+				})
+				.eq('customer_id', customerId)
+				.select('items, global_note, updated_at, version')
+				.single()
+			if (error || !data) throw error ?? new Error('Cart purge failed')
+			return data
+		},
+		async upsertCart(customerId, snapshot, source, version) {
+			const { data, error } = await db
+				.from('customer_quote_carts')
+				.upsert(
+					{
+						customer_id: customerId,
+						global_note: snapshot.globalNote,
+						items: snapshot.items,
+						source,
+						version,
+					},
+					{ onConflict: 'customer_id' },
+				)
+				.select('items, global_note, updated_at, version')
+				.single()
+			if (error || !data) throw error ?? new Error('Cart sync failed')
+			return data
+		},
+	}
+}
+
 export async function loadSyncedCustomerQuoteCart(options: {
 	customerId: string
 	source: QuoteCartSource
