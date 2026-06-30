@@ -17,25 +17,25 @@ const APPS = [
 		name: 'website',
 		cookieName: 'hyperquote_customer_auth',
 		cwd: 'apps/website',
-		url: 'http://127.0.0.1:3000',
+		url: 'http://localhost:3000',
 	},
 	{
 		name: 'portal',
 		cookieName: 'hyperquote_customer_auth',
 		cwd: 'apps/portal',
-		url: 'http://127.0.0.1:3001',
+		url: 'http://localhost:3001',
 	},
 	{
 		name: 'internal',
 		cookieName: 'hyperquote_internal_auth',
 		cwd: 'apps/internal',
-		url: 'http://127.0.0.1:3002',
+		url: 'http://localhost:3002',
 	},
 	{
 		name: 'driver',
 		cookieName: 'hyperquote_driver_auth',
 		cwd: 'apps/driver',
-		url: 'http://127.0.0.1:3003',
+		url: 'http://localhost:3003',
 	},
 ]
 
@@ -123,7 +123,7 @@ async function main() {
 		SUPABASE_ANON_KEY: localEnv.ANON_KEY,
 		SUPABASE_SERVICE_ROLE_KEY: localEnv.SERVICE_ROLE_KEY,
 		SUPABASE_URL: localEnv.API_URL,
-		VITE_INTERNAL_URL: 'http://127.0.0.1:3002',
+		VITE_INTERNAL_URL: 'http://localhost:3002',
 		VITE_SUPABASE_ANON_KEY: localEnv.ANON_KEY,
 		VITE_SUPABASE_URL: localEnv.API_URL,
 	}
@@ -199,7 +199,7 @@ function writeLocalAppEnv(runtimeEnv = {}, aiProxy = null) {
 			SUPABASE_ANON_KEY: 'placeholder',
 			SUPABASE_SERVICE_ROLE_KEY: 'placeholder',
 			SUPABASE_URL: 'https://placeholder.supabase.co',
-			VITE_INTERNAL_URL: 'http://127.0.0.1:3002',
+			VITE_INTERNAL_URL: 'http://localhost:3002',
 			VITE_SUPABASE_ANON_KEY: 'placeholder',
 			VITE_SUPABASE_URL: 'https://placeholder.supabase.co',
 			...runtimeEnv,
