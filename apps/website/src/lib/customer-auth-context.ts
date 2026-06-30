@@ -1,8 +1,7 @@
 import {
 	appendSetCookieHeaders,
-	createActorServiceRoleClient,
+	createExternalActorServiceRoleClient,
 	createSupabaseServerClient,
-	createSupabaseServiceRoleClient,
 	getSupabaseServerUser,
 	resolveSupabaseRuntimeConfig,
 } from '@hyperquote/auth/server'
@@ -32,13 +31,11 @@ export const getAuthenticatedWebsiteCustomer = createServerOnlyFn(async () => {
 
 	if (!user) return { error: 'not_authenticated' as const }
 
-	const service = await createSupabaseServiceRoleClient(process.env)
-	if (!service) return { error: 'not_configured' as const }
-	const dataClient = createActorServiceRoleClient({
-		actorPool: 'external',
-		actorUserId: user.id,
-		client: service,
-	})
+	const dataClient = await createExternalActorServiceRoleClient(
+		process.env,
+		user.id,
+	)
+	if (!dataClient) return { error: 'not_configured' as const }
 
 	const { data: customer, error } = await dataClient
 		.from('customers')
