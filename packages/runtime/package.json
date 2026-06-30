@@ -6,7 +6,6 @@
 	"exports": {
 		".": "./src/env.ts",
 		"./env": "./src/env.ts",
-		"./file": "./src/file.ts",
-		"./logis-update": "./src/logis-update.ts"
+		"./file": "./src/file.ts"
 	}
 }

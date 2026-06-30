@@ -11,10 +11,6 @@ import { z } from 'zod'
 interface DriverApiEnv {
 	ASSETS: { fetch(request: Request): Promise<Response> }
 	COOKIE_DOMAIN?: RuntimeEnvValue
-	LOGIS_COMPANY_SLUG?: RuntimeEnvValue
-	LOGIS_DEPLOYMENT_ID?: RuntimeEnvValue
-	LOGIS_RELEASE_CHANNEL?: RuntimeEnvValue
-	LOGIS_VERSION?: RuntimeEnvValue
 	SUPABASE_ANON_KEY?: RuntimeEnvValue
 	SUPABASE_COOKIE_NAME?: RuntimeEnvValue
 	SUPABASE_SERVICE_ROLE_KEY?: RuntimeEnvValue
@@ -97,10 +93,6 @@ async function driverApiEnvRecord(
 ): Promise<Record<string, string | undefined>> {
 	return {
 		COOKIE_DOMAIN: await runtimeEnvValue(env.COOKIE_DOMAIN),
-		LOGIS_COMPANY_SLUG: await runtimeEnvValue(env.LOGIS_COMPANY_SLUG),
-		LOGIS_DEPLOYMENT_ID: await runtimeEnvValue(env.LOGIS_DEPLOYMENT_ID),
-		LOGIS_RELEASE_CHANNEL: await runtimeEnvValue(env.LOGIS_RELEASE_CHANNEL),
-		LOGIS_VERSION: await runtimeEnvValue(env.LOGIS_VERSION),
 		SUPABASE_ANON_KEY: await runtimeEnvValue(env.SUPABASE_ANON_KEY),
 		SUPABASE_COOKIE_NAME: await runtimeEnvValue(env.SUPABASE_COOKIE_NAME),
 		SUPABASE_SERVICE_ROLE_KEY: await runtimeEnvValue(
