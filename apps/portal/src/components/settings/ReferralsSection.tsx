@@ -124,7 +124,7 @@ function CopyLink({ text, label }: { text: string; label?: string }) {
 	return (
 		<Button
 			onPress={handleCopy}
-			className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded shrink-0"
+			className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] rounded shrink-0"
 		>
 			{copied
 				? t('settings.referrals.copied', { defaultValue: 'Copied' })

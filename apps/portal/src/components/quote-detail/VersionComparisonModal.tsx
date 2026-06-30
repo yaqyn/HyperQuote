@@ -127,7 +127,7 @@ export function VersionComparisonModal({
 		>
 			<Modal className="max-w-[960px] w-[95vw] max-h-[80vh] overflow-auto mx-4">
 				<Dialog className="outline-none">
-					<div className="backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[rgba(0,0,0,0.90)] rounded-2xl p-6 shadow-2xl">
+					<div className="backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[var(--p-card)] rounded-2xl p-6 shadow-2xl">
 						{/* Header */}
 						<div className="flex items-center justify-between mb-4">
 							<Heading

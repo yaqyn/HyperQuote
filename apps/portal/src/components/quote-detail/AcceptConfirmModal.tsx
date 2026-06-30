@@ -38,7 +38,7 @@ export function AcceptConfirmModal({
 						initial={{ opacity: 0, scale: 0.95 }}
 						animate={{ opacity: 1, scale: 1 }}
 						transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-						className="backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[rgba(0,0,0,0.90)] rounded-2xl p-6 shadow-2xl"
+						className="backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[var(--p-card)] rounded-2xl p-6 shadow-2xl"
 					>
 						<Heading
 							slot="title"

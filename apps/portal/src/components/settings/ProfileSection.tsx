@@ -46,7 +46,7 @@ const labelClass =
 	'text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
 
 const underlineInputClass =
-	'w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB] placeholder:text-[var(--color-text-subtle)]'
+	'w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[var(--p-border-hint)] placeholder:text-[var(--color-text-subtle)]'
 
 export function ProfileSection({ profile }: ProfileSectionProps) {
 	const { t } = useTranslation('portal')
@@ -310,7 +310,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 					acceptedFileTypes={['image/jpeg', 'image/png']}
 					onSelect={handlePhotoSelect}
 				>
-					<Button className="relative w-12 h-12 rounded-full border border-[var(--color-border)] overflow-hidden cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2">
+					<Button className="relative w-12 h-12 rounded-full border border-[var(--color-border)] overflow-hidden cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] focus-visible:ring-offset-2">
 						{photoPreview ? (
 							<img
 								src={photoPreview}
@@ -387,7 +387,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 							<Button
 								type="submit"
 								isDisabled={updateMutation.isPending}
-								className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50"
+								className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] focus-visible:ring-offset-2 disabled:opacity-50"
 							>
 								{updateMutation.isPending
 									? t('settings.saving')
@@ -456,7 +456,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 											emailMutation.isPending ||
 											authEmailActionMutation.isPending
 										}
-										className="shrink-0 text-[12px] font-semibold normal-case tracking-normal text-[#2563EB] transition-colors hover:text-[var(--color-text)] disabled:pointer-events-none disabled:opacity-50"
+										className="shrink-0 text-[12px] font-semibold normal-case tracking-normal text-[var(--color-primary)] transition-colors hover:text-[var(--color-text)] disabled:pointer-events-none disabled:opacity-50"
 									>
 										{authEmailActionMutation.isPending
 											? t('profilePage.sendingAuthEmail')
@@ -525,7 +525,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 							type="button"
 							onPress={handleEmailChange}
 							isDisabled={emailMutation.isPending}
-							className="min-w-32 px-5 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50 sm:ml-auto"
+							className="min-w-32 px-5 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] focus-visible:ring-offset-2 disabled:opacity-50 sm:ml-auto"
 						>
 							{emailMutation.isPending
 								? t('settings.saving')
@@ -545,7 +545,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 							disabled={
 								emailMutation.isPending || authEmailActionMutation.isPending
 							}
-							className="font-semibold text-[#2563EB] transition-colors hover:text-[var(--color-text)] disabled:pointer-events-none disabled:opacity-50"
+							className="font-semibold text-[var(--color-primary)] transition-colors hover:text-[var(--color-text)] disabled:pointer-events-none disabled:opacity-50"
 						>
 							{authEmailActionMutation.isPending
 								? t('profilePage.sendingAuthEmail')
@@ -592,7 +592,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 					acceptedFileTypes={['application/pdf', 'image/jpeg']}
 					onSelect={handleLicenseSelect}
 				>
-					<Button className="w-full py-6 border border-dashed border-[var(--color-border)] text-[13px] text-[var(--color-text-subtle)] hover:border-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] transition-colors">
+					<Button className="w-full py-6 border border-dashed border-[var(--color-border)] text-[13px] text-[var(--color-text-subtle)] hover:border-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] transition-colors">
 						{t('settings.profile.uploadLicense')}
 					</Button>
 				</FileTrigger>

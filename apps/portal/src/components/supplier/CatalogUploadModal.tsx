@@ -89,7 +89,7 @@ export function CatalogUploadModal({ locale }: CatalogUploadModalProps) {
 	if (step === 1) {
 		return (
 			<div className="p-6">
-				<div className="backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[rgba(0,0,0,0.90)] rounded-2xl border border-[var(--color-border)]/50 p-8">
+				<div className="backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[var(--p-card)] rounded-2xl border border-[var(--color-border)]/50 p-8">
 					<DropZone
 						onDropEnter={() => setIsDragOver(true)}
 						onDropExit={() => setIsDragOver(false)}

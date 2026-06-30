@@ -301,7 +301,7 @@ function ConfirmedPOCard({
 			>
 				<Modal className="w-[90vw] max-w-md">
 					<Dialog
-						className="backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[rgba(0,0,0,0.90)] rounded-2xl p-6 shadow-2xl outline-none"
+						className="backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[var(--p-card)] rounded-2xl p-6 shadow-2xl outline-none"
 						role="alertdialog"
 					>
 						{({ close }) => (

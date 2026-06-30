@@ -166,7 +166,7 @@ export default function BulkUpdateDiff({
 			className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 dark:bg-black/50"
 		>
 			<Modal className="w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col">
-				<Dialog className="backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[rgba(0,0,0,0.90)] rounded-2xl border border-[var(--color-border)] flex flex-col max-h-[85vh] outline-none">
+				<Dialog className="backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[var(--p-card)] rounded-2xl border border-[var(--color-border)] flex flex-col max-h-[85vh] outline-none">
 					{() => (
 						<>
 							{/* Header */}
@@ -284,7 +284,7 @@ export default function BulkUpdateDiff({
 							{/* Confirmation modal */}
 							{showConfirm && (
 								<div className="fixed inset-0 z-60 flex items-center justify-center bg-black/30">
-									<div className="backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[rgba(0,0,0,0.90)] rounded-2xl border border-[var(--color-border)] p-6 max-w-sm">
+									<div className="backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[var(--p-card)] rounded-2xl border border-[var(--color-border)] p-6 max-w-sm">
 										<p className="text-sm text-[var(--color-text)] mb-4">
 											{t('supplier.bulkConfirm', { priceCount, qtyCount })}
 										</p>

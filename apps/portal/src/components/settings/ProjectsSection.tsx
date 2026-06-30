@@ -31,7 +31,7 @@ const labelClass =
 	'text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
 
 const underlineInputClass =
-	'w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB] placeholder:text-[var(--color-text-subtle)]'
+	'w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[var(--p-border-hint)] placeholder:text-[var(--color-text-subtle)]'
 
 export function ProjectsSection({ projects }: ProjectsSectionProps) {
 	const { t } = useTranslation('portal')
@@ -74,7 +74,7 @@ export function ProjectsSection({ projects }: ProjectsSectionProps) {
 			<div className="flex justify-end">
 				<Button
 					onPress={handleAdd}
-					className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
+					className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] focus-visible:ring-offset-2"
 				>
 					{t('settings.projects.create')}
 				</Button>
@@ -112,13 +112,13 @@ export function ProjectsSection({ projects }: ProjectsSectionProps) {
 						<div className="flex items-center gap-4">
 							<Button
 								onPress={() => handleEdit(project)}
-								className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
+								className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] rounded"
 							>
 								{t('settings.projects.edit')}
 							</Button>
 							<Button
 								onPress={() => setArchivingId(project.id)}
-								className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
+								className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] rounded"
 							>
 								{t('settings.projects.archive')}
 							</Button>
@@ -224,7 +224,7 @@ function ProjectFormInline({
 						<Label className={labelClass}>
 							{t('settings.projects.description')}
 						</Label>
-						<TextArea className="w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[#2563EB] resize-none h-20" />
+						<TextArea className="w-full bg-transparent border-0 border-b border-[var(--color-border)] py-2 text-sm text-[var(--color-text)] outline-none transition-colors focus:border-[var(--p-border-hint)] resize-none h-20" />
 					</TextField>
 				)}
 			/>
@@ -232,14 +232,14 @@ function ProjectFormInline({
 			<div className="flex justify-end gap-4">
 				<Button
 					onPress={onCancel}
-					className="text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
+					className="text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] rounded"
 				>
 					{t('settings.cancel')}
 				</Button>
 				<Button
 					type="submit"
 					isDisabled={isPending}
-					className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50"
+					className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] focus-visible:ring-offset-2 disabled:opacity-50"
 				>
 					{isPending ? t('settings.saving') : t('settings.saveChanges')}
 				</Button>
@@ -272,7 +272,7 @@ function ArchiveConfirmDialog({
 			}}
 			className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
 		>
-			<Modal className="w-full max-w-sm mx-4 bg-white/90 dark:bg-black/90 backdrop-blur-2xl border border-[var(--color-border)] shadow-xl">
+			<Modal className="w-full max-w-sm mx-4 bg-white/90 dark:bg-[var(--p-card)] backdrop-blur-2xl border border-[var(--color-border)] shadow-xl">
 				<Dialog className="p-6 outline-none">
 					<Heading
 						slot="title"
@@ -286,14 +286,14 @@ function ArchiveConfirmDialog({
 					<div className="flex justify-end gap-4">
 						<Button
 							onPress={onClose}
-							className="text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded"
+							className="text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] rounded"
 						>
 							{t('settings.cancel')}
 						</Button>
 						<Button
 							onPress={onConfirm}
 							isDisabled={isPending}
-							className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2 disabled:opacity-50"
+							className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] focus-visible:ring-offset-2 disabled:opacity-50"
 						>
 							{t('settings.projects.archiveAction')}
 						</Button>

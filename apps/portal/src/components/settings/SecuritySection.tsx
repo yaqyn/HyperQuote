@@ -64,7 +64,7 @@ export function SecuritySection({ sessions }: SecuritySectionProps) {
 							<Button
 								onPress={() => signOutMutation.mutate(session.id)}
 								isDisabled={signOutMutation.isPending}
-								className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded disabled:opacity-50"
+								className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] rounded disabled:opacity-50"
 							>
 								{t('settings.security.signOut')}
 							</Button>
@@ -79,7 +79,7 @@ export function SecuritySection({ sessions }: SecuritySectionProps) {
 				<p className="text-[13px] text-[var(--color-text-subtle)]">
 					{t('settings.security.mfaDescription')}
 				</p>
-				<Button className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2">
+				<Button className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] focus-visible:ring-offset-2">
 					{t('settings.security.enableMfa')}
 				</Button>
 			</div>

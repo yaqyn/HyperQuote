@@ -139,7 +139,7 @@ function TextToggle({
 	return (
 		<Button
 			onPress={onPress}
-			className={`text-sm cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] rounded pb-0.5 transition-colors ${
+			className={`text-sm cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] rounded pb-0.5 transition-colors ${
 				active
 					? 'text-[var(--color-text)] border-b border-[var(--color-text)]'
 					: 'text-[var(--color-text-subtle)] hover:text-[var(--color-text)]'

@@ -1,6 +1,6 @@
 /**
  * RevenueChart -- Monthly revenue bar chart using Recharts.
- * Blue (#2563EB) bars, readable tabular sans axis labels, 300px height.
+ * Token-colored bars, readable tabular sans axis labels, 300px height.
  * Only imported in analytics route for bundle isolation.
  */
 import {
@@ -60,7 +60,11 @@ export function RevenueChart({ data, locale }: RevenueChartProps) {
 							backgroundColor: 'var(--color-base)',
 						}}
 					/>
-					<Bar dataKey="revenue" fill="#2563EB" radius={[4, 4, 0, 0]} />
+					<Bar
+						dataKey="revenue"
+						fill="var(--color-primary)"
+						radius={[4, 4, 0, 0]}
+					/>
 				</BarChart>
 			</ResponsiveContainer>
 		</div>

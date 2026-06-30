@@ -117,7 +117,7 @@ export default function ProductEditDrawer({
 					'w-[480px] max-w-full',
 					'right-0',
 					'backdrop-blur-2xl',
-					'bg-[rgba(255,255,255,0.90)] dark:bg-[rgba(0,0,0,0.90)]',
+					'bg-[rgba(255,255,255,0.90)] dark:bg-[var(--p-card)]',
 					'border-l border-[var(--color-border)]',
 					'flex flex-col',
 					'z-10',
