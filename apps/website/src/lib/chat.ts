@@ -1,11 +1,3 @@
-import {
-	type ChatToolCall,
-	type ChatToolDefinition,
-	completeChatWithTools,
-	isAIEnabled,
-	LYON_WEBSITE,
-	streamChat,
-} from '@hyperquote/ai'
 import { checkRateLimit, getRateLimitStore } from '@hyperquote/auth/rate-limit'
 import {
 	createSupabaseServiceRoleClient,
@@ -89,6 +81,24 @@ const CHAT_RATE_LIMIT = 20
 const CHAT_RATE_LIMIT_WINDOW_SECONDS = 60
 
 type ChatMessageInput = { role: 'user' | 'assistant'; content: string }
+
+interface ChatToolDefinition {
+	function: {
+		description: string
+		name: string
+		parameters: Record<string, unknown>
+	}
+	type: 'function'
+}
+
+interface ChatToolCall {
+	function: {
+		arguments: string
+		name: string
+	}
+	id: string
+	type: 'function'
+}
 
 const WEBSITE_CHAT_ALLOWED_ACTIONS = {
 	about: {
@@ -210,13 +220,27 @@ const WEBSITE_CHAT_TOOLS: ChatToolDefinition[] = [
 	},
 ]
 
-const LYON_WEBSITE_TOOL_PROMPT = `${LYON_WEBSITE}
+function websiteToolPrompt(basePrompt: string): string {
+	return `${basePrompt}
 
 You have bounded tools for this website:
 - retrieve_public_docs: use it when public HyperQuote facts or docs are needed.
 - show_website_actions: use it when the user wants links, navigation, or a button would clearly help.
 
 Use tools naturally. Do not mention tool names. Do not invent URLs or actions. If no tool is needed, answer directly within the website boundary.`
+}
+
+async function isWebsiteAiEnabled(): Promise<boolean> {
+	const { isAIEnabled } = await import('@hyperquote/ai')
+	return isAIEnabled()
+}
+
+async function loadWebsiteAi() {
+	const { completeChatWithTools, LYON_WEBSITE, streamChat } = await import(
+		'@hyperquote/ai'
+	)
+	return { completeChatWithTools, lyonWebsite: LYON_WEBSITE, streamChat }
+}
 
 const chatInput = z.object({
 	messages: z
@@ -304,7 +328,7 @@ export const chatStreamFn = createServerFn({ method: 'POST' })
 				websiteUnsupportedHelpButtons(userText),
 			)
 		} else {
-			const aiEnabled = await isAIEnabled()
+			const aiEnabled = await isWebsiteAiEnabled()
 			if (aiEnabled) {
 				readEntities = await streamWebsiteToolChat(
 					modelMessages,
@@ -333,9 +357,11 @@ async function streamWebsiteToolChat(
 	chunks: WebsiteStreamChunk[],
 ): Promise<string[]> {
 	try {
+		const { completeChatWithTools, lyonWebsite, streamChat } =
+			await loadWebsiteAi()
 		const toolChoice = await completeChatWithTools(
 			modelMessages,
-			LYON_WEBSITE_TOOL_PROMPT,
+			websiteToolPrompt(lyonWebsite),
 			WEBSITE_CHAT_TOOLS,
 			{ temperature: 0.2 },
 		)
@@ -346,7 +372,7 @@ async function streamWebsiteToolChat(
 					chunks.push(chunk)
 				}
 			} else {
-				for await (const chunk of streamChat(modelMessages, LYON_WEBSITE)) {
+				for await (const chunk of streamChat(modelMessages, lyonWebsite)) {
 					chunks.push(chunk as WebsiteStreamChunk)
 				}
 			}
@@ -362,7 +388,7 @@ async function streamWebsiteToolChat(
 				}
 			} else {
 				const groundedPrompt = buildWebsiteDocsPrompt(
-					buildWebsiteActionPrompt(LYON_WEBSITE, toolResult.actions),
+					buildWebsiteActionPrompt(lyonWebsite, toolResult.actions),
 					buildPublicDocsContext(toolResult.docs.chunks),
 				)
 				for await (const chunk of streamChat(modelMessages, groundedPrompt)) {
@@ -380,7 +406,7 @@ async function streamWebsiteToolChat(
 
 		for await (const chunk of streamChat(
 			modelMessages,
-			buildWebsiteActionPrompt(LYON_WEBSITE, toolResult.actions),
+			buildWebsiteActionPrompt(lyonWebsite, toolResult.actions),
 		)) {
 			chunks.push(chunk as WebsiteStreamChunk)
 		}
