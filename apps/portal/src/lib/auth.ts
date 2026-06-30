@@ -126,6 +126,36 @@ async function createCustomerDataClient(userId: string) {
 	return createExternalActorServiceRoleClient(process.env, userId)
 }
 
+async function getAuthenticatedClient(
+	configuredError: 'claim_failed' | 'create_failed',
+) {
+	const config = await getSupabaseConfig()
+	if (!config) return { error: 'not_authenticated' as const }
+
+	const request = getRequest()
+	const { client, responseCookies, responseHeaders } =
+		createSupabaseServerClient({
+			request,
+			...config,
+		})
+
+	const {
+		data: { user },
+	} = await getSupabaseServerUser({
+		client,
+		cookieDomain: config.cookieDomain,
+		cookieName: config.cookieName,
+		request,
+		responseHeaders: getResponse().headers,
+	})
+	if (!user) return { error: 'not_authenticated' as const }
+
+	const dbClient = await createCustomerDataClient(user.id)
+	if (!dbClient) return { error: configuredError }
+
+	return { client, dbClient, responseCookies, responseHeaders, user }
+}
+
 // ============================================================================
 // checkPortalAuth — Used in _portal.tsx beforeLoad
 // ============================================================================
@@ -437,36 +467,12 @@ export const createAccount = createServerFn({ method: 'POST' })
 	.handler(async ({ data: input }) => {
 		try {
 			const formattedPhone = formattedEgyptPhone(input.phone)
-			const config = await getSupabaseConfig()
+			const authContext = await getAuthenticatedClient('create_failed')
+			if ('error' in authContext)
+				return { success: false, error: authContext.error }
 
-			if (!config) {
-				return { success: false, error: 'not_authenticated' as const }
-			}
-
-			const request = getRequest()
-			const { client, responseCookies, responseHeaders } =
-				createSupabaseServerClient({
-					request,
-					...config,
-				})
-
-			// Get current auth user
-			const {
-				data: { user },
-			} = await getSupabaseServerUser({
-				client,
-				cookieDomain: config.cookieDomain,
-				cookieName: config.cookieName,
-				request,
-				responseHeaders: getResponse().headers,
-			})
-			if (!user) {
-				return { success: false, error: 'not_authenticated' as const }
-			}
-			const dbClient = await createCustomerDataClient(user.id)
-			if (!dbClient) {
-				return { success: false, error: 'create_failed' as const }
-			}
+			const { client, dbClient, responseCookies, responseHeaders, user } =
+				authContext
 
 			return createAuthenticatedCustomerProfile({
 				client,
@@ -506,36 +512,12 @@ export const claimAccount = createServerFn({ method: 'POST' })
 	.handler(async ({ data: input }) => {
 		try {
 			const formattedPhone = formattedEgyptPhone(input.phone)
-			const config = await getSupabaseConfig()
+			const authContext = await getAuthenticatedClient('claim_failed')
+			if ('error' in authContext)
+				return { success: false, error: authContext.error }
 
-			if (!config) {
-				return { success: false, error: 'not_authenticated' as const }
-			}
-
-			const request = getRequest()
-			const { client, responseCookies, responseHeaders } =
-				createSupabaseServerClient({
-					request,
-					...config,
-				})
-
-			// Get current auth user
-			const {
-				data: { user },
-			} = await getSupabaseServerUser({
-				client,
-				cookieDomain: config.cookieDomain,
-				cookieName: config.cookieName,
-				request,
-				responseHeaders: getResponse().headers,
-			})
-			if (!user) {
-				return { success: false, error: 'not_authenticated' as const }
-			}
-			const dbClient = await createCustomerDataClient(user.id)
-			if (!dbClient) {
-				return { success: false, error: 'claim_failed' as const }
-			}
+			const { client, dbClient, responseCookies, responseHeaders, user } =
+				authContext
 
 			return claimAuthenticatedCustomerProfile({
 				client,
