@@ -18,9 +18,8 @@ import {
 } from '@hyperquote/auth/rate-limit'
 import {
 	appendSetCookieHeaders,
-	createActorServiceRoleClient,
+	createExternalActorServiceRoleClient,
 	createSupabaseServerClient,
-	createSupabaseServiceRoleClient,
 	getSupabaseServerUser,
 	resolveSupabaseRuntimeConfig,
 } from '@hyperquote/auth/server'
@@ -124,13 +123,7 @@ function loginRedirectUrl(request: Request) {
 }
 
 async function createCustomerDataClient(userId: string) {
-	const service = await createSupabaseServiceRoleClient(process.env)
-	if (!service) return null
-	return createActorServiceRoleClient({
-		actorPool: 'external',
-		actorUserId: userId,
-		client: service,
-	})
+	return createExternalActorServiceRoleClient(process.env, userId)
 }
 
 // ============================================================================

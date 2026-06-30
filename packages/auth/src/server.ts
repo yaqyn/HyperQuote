@@ -345,6 +345,19 @@ export async function createSupabaseServiceRoleClient(
 	})
 }
 
+export async function createExternalActorServiceRoleClient(
+	fallbackEnv: Record<string, RuntimeEnvValue>,
+	actorUserId: string,
+) {
+	const service = await createSupabaseServiceRoleClient(fallbackEnv)
+	if (!service) return null
+	return createActorServiceRoleClient({
+		actorPool: 'external',
+		actorUserId,
+		client: service,
+	})
+}
+
 export async function supabaseHealthResponse({
 	app,
 	fallbackEnv = {},
