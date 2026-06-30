@@ -22,7 +22,6 @@ import { PortalTitleRow } from '../shell/PortalTitleRow'
 import { ChatDraftsPanel } from './ChatDraftsPanel'
 import { ChatInput } from './ChatInput'
 import { ChatMessages } from './ChatMessages'
-import { SuggestionChips } from './SuggestionChips'
 
 interface ChatViewProps {
 	locale: 'ar' | 'en'
@@ -149,12 +148,7 @@ export function ChatView({ locale }: ChatViewProps) {
 				{hasMessages ? (
 					<ActiveLedger messages={realMessages} isLoading={chat.isLoading} />
 				) : (
-					<EmptyDesk
-						heading={t('chat.newProject')}
-						isArabic={isArabic}
-						onSuggest={(text) => chat.sendMessage(text)}
-						locale={locale}
-					/>
+					<EmptyDesk heading={t('chat.newProject')} isArabic={isArabic} />
 				)}
 
 				<div className="relative z-[2] shrink-0">
@@ -265,13 +259,9 @@ function ChatWorkspaceIntro({
 function EmptyDesk({
 	heading,
 	isArabic,
-	onSuggest,
-	locale,
 }: {
 	heading: string
 	isArabic: boolean
-	onSuggest: (text: string) => void
-	locale: 'ar' | 'en'
 }) {
 	return (
 		<div className="relative z-[2] flex flex-1 items-center justify-center overflow-hidden px-4 py-[calc(env(safe-area-inset-top)+3rem)] sm:px-6 lg:px-10 lg:py-0">
@@ -298,19 +288,6 @@ function EmptyDesk({
 					className="mt-5 h-px w-20 origin-center bg-[var(--p-rule-strong)] sm:w-24"
 					aria-hidden
 				/>
-
-				<motion.div
-					initial={{ opacity: 0, y: 4 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ duration: 0.5, delay: 0.45, ease: [0.2, 0.8, 0.2, 1] }}
-					className="mt-6 w-full max-w-[700px] sm:mt-8"
-				>
-					<div className="office-rule mb-2 opacity-70" />
-					<div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-4">
-						<SuggestionChips onSelect={onSuggest} locale={locale} />
-					</div>
-					<div className="office-rule mt-2 opacity-70" />
-				</motion.div>
 			</div>
 		</div>
 	)

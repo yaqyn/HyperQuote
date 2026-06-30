@@ -487,22 +487,6 @@
 		"stopGenerating": "Stop generating",
 		"chatHistory": "Chat history"
 	},
-	"chip": {
-		"buildProject": "See What Lyon Can Do",
-		"buildProjectDesc": "Ask about products, choices, drafts, and account context",
-		"orderMaterials": "Draft From Natural Text",
-		"orderMaterialsDesc": "Use product names, rough wording, or typos and Lyon will clarify",
-		"reorder": "Reorder",
-		"reorderDesc": "Repeat a previous order with one tap",
-		"getQuote": "Get a quote",
-		"trackOrder": "Track my order",
-		"checkPrices": "Check prices",
-		"uploadList": "Upload material list",
-		"addToQuote": "Add to quote",
-		"checkStock": "Check stock",
-		"alternatives": "See alternatives",
-		"compare": "Compare prices"
-	},
 	"slash": {
 		"quote": "/quote",
 		"quoteDesc": "Start a new quote request",
