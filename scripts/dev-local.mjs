@@ -9,6 +9,8 @@ const DEFAULT_GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const LOCAL_AI_PROXY_KEY = 'local-groq-proxy'
 const INFISICAL_DEV_SENTINEL = 'HYPERQUOTE_DEV_INFISICAL_LOADED'
 const HYPERQUOTE_INFISICAL_PATH = '/Projects/HyperQuote'
+const SUPABASE_READY_TIMEOUT_MS = 90_000
+const SUPABASE_READY_INTERVAL_MS = 1_000
 
 const APPS = [
 	{
@@ -102,7 +104,7 @@ async function main() {
 			console.error('Could not start local Supabase. Run `bun run db:start`.')
 			process.exit(started.status ?? 1)
 		}
-		localEnv = readLocalSupabaseEnv()
+		localEnv = await waitForLocalSupabaseEnv()
 	}
 
 	if (!localEnv) {
@@ -312,6 +314,16 @@ function quoteEnvValue(value) {
 	const text = String(value ?? '')
 	if (/^[A-Za-z0-9_./:@-]+$/.test(text)) return text
 	return JSON.stringify(text)
+}
+
+async function waitForLocalSupabaseEnv() {
+	const deadline = Date.now() + SUPABASE_READY_TIMEOUT_MS
+	while (Date.now() < deadline) {
+		const env = readLocalSupabaseEnv()
+		if (env) return env
+		await sleep(SUPABASE_READY_INTERVAL_MS)
+	}
+	return null
 }
 
 function readLocalSupabaseEnv() {

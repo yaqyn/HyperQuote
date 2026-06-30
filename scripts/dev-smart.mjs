@@ -4,6 +4,8 @@ import { connect } from 'node:net'
 import process from 'node:process'
 
 const HYPERQUOTE_INFISICAL_PATH = '/Projects/HyperQuote'
+const SUPABASE_READY_TIMEOUT_MS = 90_000
+const SUPABASE_READY_INTERVAL_MS = 1_000
 const APP_PORTS = [
 	{ name: 'website', port: 3000, url: 'http://localhost:3000' },
 	{ name: 'portal', port: 3001, url: 'http://localhost:3001' },
@@ -126,7 +128,7 @@ async function ensureSupabase() {
 		)
 	}
 
-	if (readLocalSupabaseEnv()) {
+	if (await waitForLocalSupabaseEnv()) {
 		log('Local Supabase is ready.')
 		return
 	}
@@ -136,6 +138,16 @@ async function ensureSupabase() {
 			'Run `supabase status -o env` and check for API_URL, ANON_KEY, and SERVICE_ROLE_KEY.',
 		].join('\n'),
 	)
+}
+
+async function waitForLocalSupabaseEnv() {
+	const deadline = Date.now() + SUPABASE_READY_TIMEOUT_MS
+	while (Date.now() < deadline) {
+		const env = readLocalSupabaseEnv()
+		if (env) return env
+		await sleep(SUPABASE_READY_INTERVAL_MS)
+	}
+	return null
 }
 
 function readLocalSupabaseEnv() {
@@ -162,6 +174,10 @@ function parseEnvOutput(output) {
 function stripEnvQuotes(value) {
 	if (value.startsWith('"') && value.endsWith('"')) return value.slice(1, -1)
 	return value
+}
+
+function sleep(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 async function busyAppPorts() {
