@@ -104,9 +104,9 @@ export default function ProductEditDrawer({
 
 			{/* Drawer panel */}
 			<motion.div
-				initial={{ x: locale === 'ar' ? -480 : 480 }}
+				initial={{ x: 480 }}
 				animate={{ x: 0 }}
-				exit={{ x: locale === 'ar' ? -480 : 480 }}
+				exit={{ x: 480 }}
 				transition={{
 					type: 'spring',
 					stiffness: 200,
@@ -115,10 +115,10 @@ export default function ProductEditDrawer({
 				className={[
 					'absolute top-0 bottom-0',
 					'w-[480px] max-w-full',
-					'inset-inline-end-0',
+					'right-0',
 					'backdrop-blur-2xl',
 					'bg-[rgba(255,255,255,0.90)] dark:bg-[rgba(0,0,0,0.90)]',
-					'border-s border-[var(--color-border)]',
+					'border-l border-[var(--color-border)]',
 					'flex flex-col',
 					'z-10',
 				].join(' ')}

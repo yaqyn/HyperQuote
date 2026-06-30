@@ -108,10 +108,14 @@ export function ChatView({ locale }: ChatViewProps) {
 
 	return (
 		<div
+			dir="ltr"
 			className="office-paper relative grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]"
 			style={keyboardFrameStyle}
 		>
-			<div className="relative flex min-h-0 flex-col">
+			<div
+				dir={isArabic ? 'rtl' : 'ltr'}
+				className="relative flex min-h-0 flex-col"
+			>
 				<header className="relative z-[2] shrink-0 px-5 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:px-8 sm:pt-5 lg:px-12">
 					<PortalTitleRow
 						title={t('chat.writingPlaceholder')}
@@ -161,7 +165,7 @@ export function ChatView({ locale }: ChatViewProps) {
 					</div>
 				</div>
 			</div>
-			<aside className="relative z-[2] hidden min-h-0 border-s border-[var(--p-border)] lg:flex">
+			<aside className="relative z-[2] hidden min-h-0 border-l border-[var(--p-border)] lg:flex">
 				<ChatDraftsPanel
 					className="w-full"
 					onActiveDraftChange={handleActiveDraftChange}
@@ -181,7 +185,7 @@ export function ChatView({ locale }: ChatViewProps) {
 						onClick={closeDraftPanel}
 					>
 						<motion.aside
-							className="absolute end-0 top-0 flex h-full w-[min(100vw,420px)] max-w-full touch-pan-y overscroll-contain border-s border-[var(--p-border)] bg-[var(--p-bg)] shadow-2xl"
+							className="absolute right-0 top-0 flex h-full w-[min(100vw,420px)] max-w-full touch-pan-y overscroll-contain border-l border-[var(--p-border)] bg-[var(--p-bg)] shadow-2xl"
 							initial={{ x: '100%' }}
 							animate={{ x: 0 }}
 							exit={{ x: '100%' }}

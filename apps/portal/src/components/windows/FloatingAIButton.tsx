@@ -171,7 +171,7 @@ export function FloatingAIButton() {
 							damping: 20,
 							delay: 0.2,
 						}}
-						className="fixed bottom-4 end-4 z-50"
+						className="fixed bottom-4 right-4 z-50"
 					>
 						<Button
 							onPress={toggleFloatingAI}
@@ -192,7 +192,7 @@ export function FloatingAIButton() {
 						animate={{ scale: 1, opacity: 1 }}
 						exit={{ scale: 0, opacity: 0 }}
 						transition={{ duration: 0.15, ease: 'easeOut' }}
-						className="fixed bottom-4 end-4 z-50 w-[380px] max-h-[60vh] flex flex-col backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[rgba(0,0,0,0.90)] rounded-2xl shadow-2xl border border-[var(--color-border)]/50"
+						className="fixed bottom-4 right-4 z-50 w-[380px] max-h-[60vh] flex flex-col backdrop-blur-2xl bg-[rgba(255,255,255,0.90)] dark:bg-[rgba(0,0,0,0.90)] rounded-2xl shadow-2xl border border-[var(--color-border)]/50"
 						style={panelKeyboardStyle}
 					>
 						<FloatingDialog

@@ -101,11 +101,13 @@ function PortalLayout() {
 	const companyName =
 		firstText(metadataValue(metadata, 'company_name')) || undefined
 	const hasSupplierRole = auth?.roles.includes('supplier') ?? false
-	const sidebarInitialX = i18n.dir() === 'rtl' ? 24 : -24
+	const sidebarInitialX = -24
+	const contentDir = i18n.dir()
 
 	return (
 		<div
 			id="main"
+			dir="ltr"
 			className="relative h-dvh w-full flex overflow-hidden bg-[var(--p-bg)]"
 		>
 			{/* Office atmosphere — fades the whole interface during sign-out */}
@@ -151,7 +153,7 @@ function PortalLayout() {
 							animate={{ x: 0, opacity: 1 }}
 							exit={{ x: sidebarInitialX, opacity: 0 }}
 							transition={{ duration: 0.28, ease: SMOOTH_EASE }}
-							className="fixed inset-y-0 start-0 z-40 h-dvh w-[calc(100vw-3.5rem)] max-w-80 overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] lg:hidden"
+							className="fixed inset-y-0 left-0 z-40 h-dvh w-[calc(100vw-3.5rem)] max-w-80 overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] lg:hidden"
 							aria-label={t('sidebar.label')}
 						>
 							<ChatSidebar
@@ -197,6 +199,7 @@ function PortalLayout() {
 					initial={false}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ duration: 0.75, delay: 0.2, ease: SMOOTH_EASE }}
+					dir={contentDir}
 					className="relative z-[2] flex min-w-0 flex-1 flex-col"
 					style={{ viewTransitionName: 'lang-content' }}
 				>

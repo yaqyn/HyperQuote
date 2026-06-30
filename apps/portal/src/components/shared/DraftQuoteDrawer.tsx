@@ -344,7 +344,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 						role="dialog"
 						aria-modal="true"
 						aria-labelledby="draft-quote-title"
-						className="fixed inset-y-0 right-0 z-[79] flex h-[100dvh] w-[min(100vw,480px)] flex-col overflow-hidden border-s border-[var(--p-border)] bg-[var(--p-bg)] shadow-[0_24px_80px_rgba(0,0,0,0.18)] will-change-transform md:top-4 md:right-4 md:bottom-4 md:h-auto md:w-[460px] md:rounded-2xl lg:w-[480px]"
+						className="fixed inset-y-0 right-0 z-[79] flex h-[100dvh] w-[min(100vw,480px)] flex-col overflow-hidden border-l border-[var(--p-border)] bg-[var(--p-bg)] shadow-[0_24px_80px_rgba(0,0,0,0.18)] will-change-transform md:top-4 md:right-4 md:bottom-4 md:h-auto md:w-[460px] md:rounded-2xl lg:w-[480px]"
 						initial={{
 							opacity: shouldReduceMotion ? 1 : 0,
 							x: shouldReduceMotion ? 0 : '100%',
@@ -601,7 +601,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 												<motion.button
 													type="button"
 													onClick={() => setNotesOpen((value) => !value)}
-													className={`absolute -top-5 end-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border bg-[var(--p-card)] shadow-sm transition-colors md:end-5 ${
+													className={`absolute -top-5 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border bg-[var(--p-card)] shadow-sm transition-colors md:right-5 ${
 														notesOpen
 															? 'border-[var(--p-accent)] text-[var(--p-accent)]'
 															: 'border-[var(--p-border)] text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
