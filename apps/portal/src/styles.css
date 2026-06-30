@@ -1096,9 +1096,10 @@ input::placeholder {
 .auth-top-controls {
 	position: fixed;
 	top: calc(env(safe-area-inset-top) + 16px);
-	inset-inline-end: 16px;
+	right: 16px;
 	z-index: 70;
 	display: inline-flex;
+	direction: ltr;
 	gap: 8px;
 	margin: 0;
 	padding: 0;
@@ -1376,7 +1377,7 @@ input::placeholder {
 
 	.auth-top-controls {
 		top: calc(env(safe-area-inset-top) + 10px);
-		inset-inline-end: 10px;
+		right: 10px;
 	}
 
 	.auth-icon-button {
