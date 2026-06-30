@@ -29,6 +29,8 @@ export function SelectionCopyToolbar({
 	const [visible, setVisible] = useState(false)
 	const textRef = useRef('')
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+	const selectionFrameRef = useRef<number | null>(null)
+	const selectionDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
 	const hide = useCallback(() => {
 		setVisible(false)
@@ -36,6 +38,11 @@ export function SelectionCopyToolbar({
 	}, [])
 
 	const handleSelection = useCallback(() => {
+		if (selectionFrameRef.current) {
+			window.cancelAnimationFrame(selectionFrameRef.current)
+			selectionFrameRef.current = null
+		}
+
 		if (isDisabled) {
 			hide()
 			textRef.current = ''
@@ -102,6 +109,24 @@ export function SelectionCopyToolbar({
 		setVisible(true)
 	}, [hide, isDisabled, minSelectionLength, onAsk])
 
+	const scheduleSelection = useCallback(() => {
+		if (selectionFrameRef.current) {
+			window.cancelAnimationFrame(selectionFrameRef.current)
+		}
+		selectionFrameRef.current = window.requestAnimationFrame(() => {
+			selectionFrameRef.current = null
+			handleSelection()
+		})
+	}, [handleSelection])
+
+	const scheduleFinalSelection = useCallback(() => {
+		if (selectionDelayRef.current) clearTimeout(selectionDelayRef.current)
+		selectionDelayRef.current = setTimeout(() => {
+			selectionDelayRef.current = null
+			scheduleSelection()
+		}, 160)
+	}, [scheduleSelection])
+
 	useEffect(() => {
 		if (isDisabled) {
 			hide()
@@ -109,10 +134,17 @@ export function SelectionCopyToolbar({
 			return
 		}
 
-		document.addEventListener('selectionchange', handleSelection)
-		return () =>
-			document.removeEventListener('selectionchange', handleSelection)
-	}, [handleSelection, hide, isDisabled])
+		document.addEventListener('selectionchange', scheduleSelection)
+		document.addEventListener('mouseup', scheduleFinalSelection)
+		document.addEventListener('keyup', scheduleFinalSelection)
+		document.addEventListener('touchend', scheduleFinalSelection)
+		return () => {
+			document.removeEventListener('selectionchange', scheduleSelection)
+			document.removeEventListener('mouseup', scheduleFinalSelection)
+			document.removeEventListener('keyup', scheduleFinalSelection)
+			document.removeEventListener('touchend', scheduleFinalSelection)
+		}
+	}, [hide, isDisabled, scheduleFinalSelection, scheduleSelection])
 
 	useEffect(() => {
 		if (!visible) return
@@ -123,6 +155,10 @@ export function SelectionCopyToolbar({
 	useEffect(
 		() => () => {
 			if (timeoutRef.current) clearTimeout(timeoutRef.current)
+			if (selectionFrameRef.current) {
+				window.cancelAnimationFrame(selectionFrameRef.current)
+			}
+			if (selectionDelayRef.current) clearTimeout(selectionDelayRef.current)
 		},
 		[],
 	)
@@ -150,8 +186,8 @@ export function SelectionCopyToolbar({
 					animate={{ opacity: 1, y: 0 }}
 					exit={{ opacity: 0, y: 4 }}
 					transition={{ duration: 0.15, ease: 'easeOut' }}
-					className={`fixed z-[9999] flex items-center overflow-hidden rounded-xl backdrop-blur-xl ${toolbarClassName}`}
-					style={{ left: pos.x, top: pos.y }}
+					className={`fixed flex items-center overflow-hidden rounded-xl ${toolbarClassName}`}
+					style={{ left: pos.x, top: pos.y, zIndex: 9999 }}
 				>
 					<button
 						type="button"
