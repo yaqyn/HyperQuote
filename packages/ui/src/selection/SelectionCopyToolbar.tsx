@@ -19,9 +19,9 @@ export function SelectionCopyToolbar({
 	copiedLabel = 'Copied',
 	askLabel = 'Ask Lyon',
 	onAsk,
-	toolbarClassName = 'bg-black',
-	buttonClassName = 'text-white hover:bg-white/[0.1]',
-	dividerClassName = 'bg-white/[0.12]',
+	toolbarClassName = 'border border-black/10 bg-white text-black shadow-[0_14px_40px_rgba(0,0,0,0.18)] dark:border-white/15 dark:bg-neutral-950 dark:text-white',
+	buttonClassName = 'hover:bg-black/[0.06] dark:hover:bg-white/[0.1]',
+	dividerClassName = 'bg-black/[0.12] dark:bg-white/[0.14]',
 	minSelectionLength = 2,
 }: SelectionCopyToolbarProps) {
 	const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
@@ -60,15 +60,47 @@ export function SelectionCopyToolbar({
 			return
 		}
 
-		const rect = range.getBoundingClientRect()
+		const rects = Array.from(range.getClientRects()).filter(
+			(rect) => rect.width > 0 && rect.height > 0,
+		)
+		const fallbackRect = range.getBoundingClientRect()
+		const top = rects.length
+			? Math.min(...rects.map((rect) => rect.top))
+			: fallbackRect.top
+		const bottom = rects.length
+			? Math.max(...rects.map((rect) => rect.bottom))
+			: fallbackRect.bottom
+		const left = rects.length
+			? Math.min(...rects.map((rect) => rect.left))
+			: fallbackRect.left
+		const right = rects.length
+			? Math.max(...rects.map((rect) => rect.right))
+			: fallbackRect.right
+		const toolbarGap = 14
+		const edgeGap = 16
+		const toolbarHeight = 56
+		const toolbarWidth = onAsk ? 152 : 84
+		const hasRoomAbove = top >= toolbarHeight + toolbarGap + edgeGap
+		const hasRoomBelow =
+			window.innerHeight - bottom >= toolbarHeight + toolbarGap + edgeGap
+		const useBelow = !hasRoomAbove && hasRoomBelow
+		const centeredX = left + (right - left) / 2 - toolbarWidth / 2
 		textRef.current = text
 		setCopied(false)
 		setPos({
-			x: rect.left + rect.width / 2,
-			y: rect.top - 8,
+			x: Math.min(
+				Math.max(centeredX, edgeGap),
+				window.innerWidth - toolbarWidth - edgeGap,
+			),
+			y: useBelow
+				? Math.min(
+						bottom + toolbarGap,
+						window.innerHeight - toolbarHeight - edgeGap,
+					)
+				: Math.max(top - toolbarGap - toolbarHeight, edgeGap),
 		})
 		setVisible(true)
-	}, [hide, isDisabled, minSelectionLength])
+	}, [hide, isDisabled, minSelectionLength, onAsk])
 
 	useEffect(() => {
 		if (isDisabled) {
@@ -118,13 +150,13 @@ export function SelectionCopyToolbar({
 					animate={{ opacity: 1, y: 0 }}
 					exit={{ opacity: 0, y: 4 }}
 					transition={{ duration: 0.15, ease: 'easeOut' }}
-					className={`fixed z-[9999] flex items-center rounded-lg shadow-lg -translate-x-1/2 -translate-y-full overflow-hidden ${toolbarClassName}`}
+					className={`fixed z-[9999] flex items-center overflow-hidden rounded-xl backdrop-blur-xl ${toolbarClassName}`}
 					style={{ left: pos.x, top: pos.y }}
 				>
 					<button
 						type="button"
 						onClick={handleCopy}
-						className={`px-2.5 py-1.5 text-[10px] font-medium transition-colors ${buttonClassName}`}
+						className={`px-3 py-2 text-[12px] font-semibold transition-colors ${buttonClassName}`}
 					>
 						{copied ? copiedLabel : copyLabel}
 					</button>
@@ -134,7 +166,7 @@ export function SelectionCopyToolbar({
 							<button
 								type="button"
 								onClick={handleAsk}
-								className={`px-2.5 py-1.5 text-[10px] font-medium transition-colors ${buttonClassName}`}
+								className={`px-3 py-2 text-[12px] font-semibold transition-colors ${buttonClassName}`}
 							>
 								{askLabel}
 							</button>
