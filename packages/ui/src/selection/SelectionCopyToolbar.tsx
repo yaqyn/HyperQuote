@@ -31,6 +31,7 @@ export function SelectionCopyToolbar({
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 	const selectionFrameRef = useRef<number | null>(null)
 	const selectionDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+	const suppressSelectionRef = useRef(false)
 
 	const hide = useCallback(() => {
 		setVisible(false)
@@ -50,6 +51,11 @@ export function SelectionCopyToolbar({
 
 		const selection = document.getSelection()
 		const text = selection?.toString().trim() ?? ''
+
+		if (suppressSelectionRef.current) {
+			if (!text) suppressSelectionRef.current = false
+			return
+		}
 
 		if (
 			!selection ||
@@ -165,9 +171,13 @@ export function SelectionCopyToolbar({
 	async function handleCopy() {
 		if (!textRef.current) return
 		await navigator.clipboard.writeText(textRef.current)
+		suppressSelectionRef.current = true
 		setCopied(true)
 		if (timeoutRef.current) clearTimeout(timeoutRef.current)
-		timeoutRef.current = setTimeout(hide, 140)
+		timeoutRef.current = setTimeout(() => {
+			hide()
+			document.getSelection()?.removeAllRanges()
+		}, 140)
 	}
 
 	function handleAsk() {
