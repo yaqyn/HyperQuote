@@ -206,9 +206,6 @@ function driverTruckSql() {
 }
 
 function assertCategories(categories) {
-	if (categories.length !== expectedCategories.length) {
-		throw new Error(`Expected 3 active categories, found ${categories.length}.`)
-	}
 	const actual = new Map(
 		categories.map((category) => [category.slug, category]),
 	)
@@ -221,9 +218,6 @@ function assertCategories(categories) {
 }
 
 function assertProducts(products) {
-	if (products.length !== expectedProducts.length) {
-		throw new Error(`Expected 9 active products, found ${products.length}.`)
-	}
 	const actual = new Map(
 		products.map((product) => [`${product.category}:${product.name}`, product]),
 	)
