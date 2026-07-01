@@ -108,7 +108,7 @@ jobs:
 
       - name: Install Infisical CLI
         run: |
-          bun add --global "@infisical/cli@${INFISICAL_CLI_VERSION}"
+          npm install --global "@infisical/cli@${INFISICAL_CLI_VERSION}"
           infisical --version
 
       - name: Install dependencies
@@ -140,7 +140,7 @@ jobs:
 
       - name: Install Infisical CLI
         run: |
-          bun add --global "@infisical/cli@${INFISICAL_CLI_VERSION}"
+          npm install --global "@infisical/cli@${INFISICAL_CLI_VERSION}"
           infisical --version
 
       - name: Install dependencies
@@ -183,7 +183,7 @@ jobs:
 
       - name: Install Infisical CLI
         run: |
-          bun add --global "@infisical/cli@${INFISICAL_CLI_VERSION}"
+          npm install --global "@infisical/cli@${INFISICAL_CLI_VERSION}"
           infisical --version
 
       - name: Install dependencies
