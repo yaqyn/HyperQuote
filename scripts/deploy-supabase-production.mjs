@@ -32,6 +32,7 @@ run(process.execPath, [
 	'scripts/seed-local-auth.mjs',
 	'--production',
 	'--primary-only',
+	'--skip-search-refresh',
 	'--quiet',
 ])
 

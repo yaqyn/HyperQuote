@@ -203,6 +203,7 @@ const quiet = process.argv.includes('--quiet')
 const production = process.argv.includes('--production')
 const primaryOnly = process.argv.includes('--primary-only')
 const cleanAuth = process.argv.includes('--clean-auth')
+const skipSearchRefresh = process.argv.includes('--skip-search-refresh')
 
 main().catch((error) => {
 	console.error(
@@ -336,8 +337,10 @@ async function main() {
 		await syncDriverProfile(supabase, flowDriverUser.id, flowDriver.id, account)
 	}
 
-	debugStep('search-index-refresh')
-	await refreshSearchDocuments(supabase, searchRefreshActorUserId)
+	if (!skipSearchRefresh) {
+		debugStep('search-index-refresh')
+		await refreshSearchDocuments(supabase, searchRefreshActorUserId)
+	}
 
 	if (!quiet) {
 		console.log(
