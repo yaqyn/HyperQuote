@@ -5,6 +5,7 @@
  * category chips, dense image cards, with portal draft-quote actions retained.
  */
 
+import { useQuantityPopoverDismiss } from '@hyperquote/ui/market/QuantityPopover'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
@@ -665,20 +666,7 @@ function AddPopover({
 		inputRef.current?.select()
 	}, [])
 
-	useEffect(() => {
-		function handleClick(e: MouseEvent) {
-			if (
-				popoverRef.current &&
-				!popoverRef.current.contains(e.target as Node) &&
-				anchorRef.current &&
-				!anchorRef.current.contains(e.target as Node)
-			) {
-				onClose()
-			}
-		}
-		document.addEventListener('mousedown', handleClick)
-		return () => document.removeEventListener('mousedown', handleClick)
-	}, [onClose, anchorRef])
+	useQuantityPopoverDismiss({ anchorRef, onClose, popoverRef })
 
 	const submit = () => {
 		if (!isOrderable && !existing) return

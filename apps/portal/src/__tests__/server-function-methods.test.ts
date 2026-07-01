@@ -14,6 +14,17 @@ const serverFunctionSourceRoots = [
 const payloadOverGetPattern =
 	/createServerFn\(\s*(?:\{\s*method:\s*['"]GET['"]\s*,?\s*\})?\s*\)\s*\n\s*\.inputValidator/g
 
+const customerAuthPostExports = [
+	'signOutPortalAccount',
+	'signInWithEmailPassword',
+	'requestPasswordReset',
+	'completePasswordReset',
+	'sendOTP',
+	'verifyOTP',
+	'createAccount',
+	'claimAccount',
+] as const
+
 function sourceFilesUnder(root: string): string[] {
 	return readdirSync(root).flatMap((entry) => {
 		const path = join(root, entry)
@@ -26,21 +37,7 @@ function sourceFilesUnder(root: string): string[] {
 }
 
 const mutatingServerFunctions = [
-	{
-		file: 'lib/auth.ts',
-		exports: [
-			'signOutPortalAccount',
-			'signInWithEmailPassword',
-			'requestPasswordReset',
-			'completePasswordReset',
-			'sendOTP',
-			'verifyOTP',
-			'createAccount',
-			'claimAccount',
-			'requestPhoneChange',
-			'verifyPhoneChange',
-		],
-	},
+	{ file: 'lib/auth.ts', exports: ['requestPhoneChange', 'verifyPhoneChange'] },
 	{
 		file: 'lib/server/approvals.ts',
 		exports: ['submitForApproval'],
@@ -121,6 +118,29 @@ const mutatingServerFunctions = [
 ] satisfies Array<{ exports: string[]; file: string }>
 
 describe('server function methods', () => {
+	it('keeps customer auth server functions on POST', () => {
+		const portalAuthSource = readFileSync(
+			join(portalRoot, 'src/lib/auth.ts'),
+			'utf8',
+		)
+		const customerServerSource = readFileSync(
+			join(repoRoot, 'packages/auth/src/customer-server.ts'),
+			'utf8',
+		)
+
+		expect(customerServerSource).not.toContain('createServerFn(')
+		for (const exportName of customerAuthPostExports) {
+			expect(
+				portalAuthSource,
+				`portal auth ${exportName} must stay POST-only`,
+			).toMatch(
+				new RegExp(
+					`export\\s+const\\s+${exportName}\\s*=\\s*createServerFn\\(\\{\\s*method:\\s*['"]POST['"]\\s*\\}\\)`,
+				),
+			)
+		}
+	})
+
 	it('keeps mutating portal server functions on POST', () => {
 		for (const entry of mutatingServerFunctions) {
 			const source = readFileSync(join(portalRoot, 'src', entry.file), 'utf8')

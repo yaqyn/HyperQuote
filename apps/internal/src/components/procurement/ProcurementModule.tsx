@@ -1,7 +1,7 @@
 import { AnimatePresence, cubicBezier, motion } from 'motion/react'
-import { useEffect } from 'react'
-import { setEmployeePresence } from '../../lib/server/employee-presence'
+import type { ReactNode } from 'react'
 import { useProcurementStore } from '../../stores/procurement'
+import { useEmployeePresence } from '../shared/useEmployeePresence'
 import { CompendiumIndex } from './CompendiumIndex'
 import { DamagedInventoryView } from './damaged/DamagedInventoryView'
 import { InventoryView } from './inventory/InventoryView'
@@ -18,56 +18,9 @@ import { StockView } from './stock/StockView'
  */
 export function ProcurementModule() {
 	const activeTab = useProcurementStore((s) => s.activeTab)
+	useEmployeePresence('inventory')
 
-	useEffect(() => {
-		let cancelled = false
-
-		const currentStatus = (): 'online' | 'away' => {
-			if (document.visibilityState !== 'visible') return 'away'
-			if (document.querySelector('[data-away-lock="true"]')) return 'away'
-			return 'online'
-		}
-
-		const syncPresence = async (status = currentStatus()) => {
-			try {
-				await setEmployeePresence({
-					data: {
-						activePanel: status === 'online' ? 'inventory' : undefined,
-						status,
-					},
-				})
-			} catch {
-				return
-			}
-		}
-
-		void syncPresence()
-		const interval = window.setInterval(() => {
-			if (!cancelled) void syncPresence()
-		}, 25_000)
-		const handlePresenceChange = () => {
-			void syncPresence()
-		}
-		document.addEventListener('visibilitychange', handlePresenceChange)
-		window.addEventListener('focus', handlePresenceChange)
-		window.addEventListener('internal-away-state-change', handlePresenceChange)
-
-		return () => {
-			cancelled = true
-			window.clearInterval(interval)
-			document.removeEventListener('visibilitychange', handlePresenceChange)
-			window.removeEventListener('focus', handlePresenceChange)
-			window.removeEventListener(
-				'internal-away-state-change',
-				handlePresenceChange,
-			)
-			void setEmployeePresence({
-				data: { status: 'offline' },
-			}).catch(() => undefined)
-		}
-	}, [])
-
-	const chapter: Record<string, React.ReactNode> = {
+	const chapter: Record<string, ReactNode> = {
 		stock: <StockView />,
 		procurement: <InventoryView />,
 		orders: <OrdersView />,

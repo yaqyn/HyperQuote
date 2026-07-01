@@ -12,6 +12,10 @@ import { SelectControl, StatusTag, TextControl } from '../AdminControls'
 import { Field, Section } from '../EntityEditor'
 import type { ColumnDef } from '../EntityIndex'
 import {
+	AdminMutationErrorNotice,
+	EditorPasswordField,
+	EditorTextField,
+	getAdminMutationError,
 	promptAdminDeleteReason,
 	useVolumeEditor,
 	VolumeWorkspace,
@@ -210,12 +214,10 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 	const passwordTooShort =
 		Boolean(draft?.password?.trim()) &&
 		(draft?.password?.trim().length ?? 0) < 6
-	const mutationError =
-		createMutation.error instanceof Error
-			? createMutation.error.message
-			: updateMutation.error instanceof Error
-				? updateMutation.error.message
-				: null
+	const mutationError = getAdminMutationError(
+		createMutation.error,
+		updateMutation.error,
+	)
 
 	return (
 		<VolumeWorkspace
@@ -245,60 +247,43 @@ export function DriversVolume({ onOpenVolumes }: DriversVolumeProps) {
 			{draft && (
 				<div className="space-y-6">
 					<Section title={t('editor.section.identity')} />
-					<Field label={t('editor.fields.driverName')} required>
-						<TextControl
-							value={draft.fullName}
-							onChange={(v) => setDraft({ ...draft, fullName: v })}
-							readOnly={readOnly}
-							ariaLabel={t('editor.fields.driverName')}
-						/>
-					</Field>
-					<Field label={t('editor.fields.driverEmail')} required>
-						<TextControl
-							value={draft.email ?? ''}
-							onChange={(v) => setDraft({ ...draft, email: v || null })}
-							readOnly={readOnly}
-							ariaLabel={t('editor.fields.driverEmail')}
-							type="email"
-						/>
-					</Field>
-					<Field label={t('editor.fields.driverPhone')} required>
-						<TextControl
-							value={draft.phone}
-							onChange={(v) => setDraft({ ...draft, phone: v })}
-							readOnly={readOnly}
-							ariaLabel={t('editor.fields.driverPhone')}
-							type="tel"
-						/>
-					</Field>
-					{!readOnly && (
-						<Field
-							label={t('editor.fields.driverPassword')}
-							required={mode === 'create'}
-						>
-							<TextControl
-								value={draft.password ?? ''}
-								onChange={(v) => setDraft({ ...draft, password: v })}
-								readOnly={false}
-								ariaLabel={t('editor.fields.driverPassword')}
-								type="password"
-							/>
-							{passwordTooShort && (
+					<EditorTextField
+						label={t('editor.fields.driverName')}
+						value={draft.fullName}
+						onChange={(v) => setDraft({ ...draft, fullName: v })}
+						readOnly={readOnly}
+						required
+					/>
+					<EditorTextField
+						label={t('editor.fields.driverEmail')}
+						value={draft.email ?? ''}
+						onChange={(v) => setDraft({ ...draft, email: v || null })}
+						readOnly={readOnly}
+						required
+						type="email"
+					/>
+					<EditorTextField
+						label={t('editor.fields.driverPhone')}
+						value={draft.phone}
+						onChange={(v) => setDraft({ ...draft, phone: v })}
+						readOnly={readOnly}
+						required
+						type="tel"
+					/>
+					<EditorPasswordField
+						label={t('editor.fields.driverPassword')}
+						value={draft.password ?? ''}
+						onChange={(v) => setDraft({ ...draft, password: v })}
+						mode={mode}
+						error={
+							passwordTooShort ? (
 								<p className="mt-1.5 text-xs text-[#B91C1C]" role="alert">
 									Driver passwords must be at least 6 characters.
 								</p>
-							)}
-						</Field>
-					)}
-
-					{mutationError && (
-						<p
-							className="rounded-md border border-[#B91C1C]/20 bg-[#B91C1C]/5 px-3 py-2 text-sm text-[#B91C1C]"
-							role="alert"
-						>
-							{mutationError}
-						</p>
-					)}
+							) : null
+						}
+					/>
+					<AdminMutationErrorNotice error={mutationError} />
 
 					<Section title={t('editor.section.operational')} />
 					<Field label={t('editor.fields.status')}>

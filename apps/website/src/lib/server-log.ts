@@ -34,6 +34,9 @@ type ServerLogEvent =
 	| 'website.support.ticket_create_failed'
 	| 'website.support.unexpected_error'
 
-export function logWebsiteServerError(event: ServerLogEvent, error: unknown) {
+export function logWebsiteServerError(
+	event: ServerLogEvent | string,
+	error: unknown,
+) {
 	logRedactedError({ source: 'website', event, error })
 }

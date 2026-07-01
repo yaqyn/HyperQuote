@@ -25,6 +25,6 @@ type PortalLogEvent =
 	| 'portal.chat.stream_error'
 	| 'portal.chat.error'
 
-export function logPortalError(event: PortalLogEvent, error: unknown) {
+export function logPortalError(event: PortalLogEvent | string, error: unknown) {
 	logRedactedError({ source: 'portal', event, error })
 }

@@ -1,59 +1,62 @@
 import {
-	appendSetCookieHeaders,
-	createExternalActorServiceRoleClient,
-	createSupabaseServerClient,
-	getSupabaseServerUser,
-	resolveSupabaseRuntimeConfig,
-} from '@hyperquote/auth/server'
+	appendContextAuthCookies,
+	getAuthenticatedCustomerRequestContext,
+} from '@hyperquote/auth/customer-server'
 import { createServerOnlyFn } from '@tanstack/react-start'
-import { getRequest, getResponse } from '@tanstack/react-start/server'
 
-export const getAuthenticatedWebsiteCustomer = createServerOnlyFn(async () => {
-	const config = await resolveSupabaseRuntimeConfig(process.env)
-	if (!config) return { error: 'not_configured' as const }
+type AuthenticatedCustomerRequestContext = Exclude<
+	Awaited<ReturnType<typeof getAuthenticatedCustomerRequestContext>>,
+	null | { error: unknown }
+>
 
-	const request = getRequest()
-	const { client, responseCookies, responseHeaders } =
-		createSupabaseServerClient({
-			request,
-			...config,
-		})
+type WebsiteCustomerAuthError =
+	| { error: 'customer_required' }
+	| { error: 'not_authenticated' }
+	| { error: 'not_configured' }
 
-	const {
-		data: { user },
-	} = await getSupabaseServerUser({
-		client,
-		cookieDomain: config.cookieDomain,
-		cookieName: config.cookieName,
-		request,
-		responseHeaders: getResponse().headers,
-	})
+type WebsiteCustomerAuthSuccess = {
+	client: AuthenticatedCustomerRequestContext['dbClient']
+	customerId: string
+	responseCookies: AuthenticatedCustomerRequestContext['responseCookies']
+	responseHeaders: AuthenticatedCustomerRequestContext['responseHeaders']
+	user: AuthenticatedCustomerRequestContext['user']
+}
 
-	if (!user) return { error: 'not_authenticated' as const }
+type WebsiteCustomerAuthResult =
+	| WebsiteCustomerAuthError
+	| WebsiteCustomerAuthSuccess
 
-	const dataClient = await createExternalActorServiceRoleClient(
-		process.env,
-		user.id,
-	)
-	if (!dataClient) return { error: 'not_configured' as const }
+export const getAuthenticatedWebsiteCustomer = createServerOnlyFn(
+	async (): Promise<WebsiteCustomerAuthResult> => {
+		const auth = await getAuthenticatedCustomerRequestContext()
+		if (!auth) return { error: 'not_configured' as const }
+		if ('error' in auth) {
+			return {
+				error:
+					auth.error === 'not_authenticated'
+						? 'not_authenticated'
+						: 'not_configured',
+			}
+		}
 
-	const { data: customer, error } = await dataClient
-		.from('customers')
-		.select('id')
-		.eq('user_id', user.id)
-		.maybeSingle()
+		const { data: customer, error } = await auth.dbClient
+			.from('customers')
+			.select('id')
+			.eq('user_id', auth.user.id)
+			.maybeSingle()
 
-	if (error) throw error
-	if (!customer) return { error: 'customer_required' as const }
+		if (error) throw error
+		if (!customer) return { error: 'customer_required' as const }
 
-	return {
-		client: dataClient,
-		customerId: customer.id,
-		responseCookies,
-		responseHeaders,
-		user,
-	}
-})
+		return {
+			client: auth.dbClient,
+			customerId: customer.id,
+			responseCookies: auth.responseCookies,
+			responseHeaders: auth.responseHeaders,
+			user: auth.user,
+		}
+	},
+)
 
 export type AuthenticatedWebsiteCustomer = Exclude<
 	Awaited<ReturnType<typeof getAuthenticatedWebsiteCustomer>>,
@@ -65,10 +68,6 @@ export type WebsiteCustomerSupabaseClient =
 
 export const appendWebsiteAuthCookies = createServerOnlyFn(
 	(auth: AuthenticatedWebsiteCustomer) => {
-		appendSetCookieHeaders(
-			getResponse().headers,
-			auth.responseCookies.values(),
-			auth.responseHeaders.entries(),
-		)
+		appendContextAuthCookies(auth)
 	},
 )

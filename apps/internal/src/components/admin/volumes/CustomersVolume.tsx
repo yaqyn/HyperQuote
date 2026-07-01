@@ -21,9 +21,14 @@ import { CustomerSubrecords } from '../CustomerSubrecords'
 import { Field, Section } from '../EntityEditor'
 import type { ColumnDef } from '../EntityIndex'
 import {
+	AdminMutationErrorNotice,
 	confirmAdminDelete,
+	EditorSectionTextField,
+	getAdminMutationError,
 	useVolumeEditor,
 	VolumeWorkspace,
+	volumeWorkspaceEditorState,
+	volumeWorkspaceIndexState,
 } from './volumeEditor'
 
 type CustomerDraft = Omit<CustomerRow, 'id' | 'joinedAt'> & {
@@ -294,54 +299,51 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 			)
 			.map((employee) => ({ value: employee.id, label: employee.name })),
 	]
-	const mutationError =
-		createMutation.error instanceof Error
-			? createMutation.error.message
-			: updateMutation.error instanceof Error
-				? updateMutation.error.message
-				: null
+	const mutationError = getAdminMutationError(
+		createMutation.error,
+		updateMutation.error,
+	)
 
 	function coordinateFromInput(value: string): number | null {
 		if (!value.trim()) return null
 		const parsed = Number(value)
 		return Number.isFinite(parsed) ? parsed : null
 	}
+	const workspaceIndex = volumeWorkspaceIndexState(
+		volume,
+		'customers',
+		customers,
+		columns,
+		(r) => r.id,
+		handleRowSelect,
+		handleNew,
+		filter,
+		{
+			isLoading: customersPending,
+			isError: customersError,
+			onOpenVolumes,
+		},
+	)
+	const workspaceEditor = volumeWorkspaceEditorState(
+		mode,
+		draft,
+		createMutation.isPending || updateMutation.isPending,
+		deleteMutation.isPending,
+		[handleClose, handleEdit, handleSave, handleCancel, handleDelete],
+	)
 
 	return (
-		<VolumeWorkspace
-			volume={volume}
-			volumeId="customers"
-			rows={customers}
-			columns={columns}
-			rowKey={(r) => r.id}
-			onRowSelect={handleRowSelect}
-			onNewEntry={handleNew}
-			filter={filter}
-			isLoading={customersPending}
-			isError={customersError}
-			onOpenVolumes={onOpenVolumes}
-			mode={mode}
-			hasDraft={Boolean(draft)}
-			idLabel={draft?.id ?? null}
-			isSaving={createMutation.isPending || updateMutation.isPending}
-			isDeleting={deleteMutation.isPending}
-			onClose={handleClose}
-			onEdit={handleEdit}
-			onSave={handleSave}
-			onCancel={handleCancel}
-			onDelete={handleDelete}
-		>
+		<VolumeWorkspace indexState={workspaceIndex} editorState={workspaceEditor}>
 			{draft && (
 				<div className="space-y-6">
-					<Section title={t('editor.section.identity')} />
-					<Field label={t('editor.fields.companyName')} required>
-						<TextControl
-							value={draft.companyName}
-							onChange={(v) => setDraft({ ...draft, companyName: v })}
-							readOnly={readOnly}
-							ariaLabel={t('editor.fields.companyName')}
-						/>
-					</Field>
+					<EditorSectionTextField
+						sectionTitle={t('editor.section.identity')}
+						label={t('editor.fields.companyName')}
+						value={draft.companyName}
+						onChange={(v) => setDraft({ ...draft, companyName: v })}
+						readOnly={readOnly}
+						required
+					/>
 					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
 						<Field label={t('editor.fields.tier')}>
 							<SelectControl
@@ -425,14 +427,7 @@ export function CustomersVolume({ onOpenVolumes }: CustomersVolumeProps) {
 							/>
 						</Field>
 					</div>
-					{mutationError && (
-						<p
-							className="rounded-md border border-[#B91C1C]/20 bg-[#B91C1C]/5 px-3 py-2 text-sm text-[#B91C1C]"
-							role="alert"
-						>
-							{mutationError}
-						</p>
-					)}
+					<AdminMutationErrorNotice error={mutationError} />
 
 					<Section title={t('editor.section.address')} />
 					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">

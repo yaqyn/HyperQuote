@@ -10,7 +10,9 @@
 		"./feedback/EmptyState": "./src/feedback/EmptyState.tsx",
 		"./feedback/StatusBadge": "./src/feedback/StatusBadge.tsx",
 		"./glass/GlassWindow": "./src/glass/GlassWindow.tsx",
+		"./head/pwa": "./src/head/pwa.ts",
 		"./logging/redacted-error": "./src/logging/redacted-error.ts",
+		"./market/QuantityPopover": "./src/market/QuantityPopover.ts",
 		"./maps/maplibre-style": "./src/maps/maplibre-style.ts",
 		"./maps/osm": "./src/maps/osm.ts",
 		"./maps/road-route": "./src/maps/road-route.ts",
@@ -19,6 +21,7 @@
 		"./pwa/service-worker": "./src/pwa/service-worker.ts",
 		"./quote-cart/SavedDraftsPanelView": "./src/quote-cart/SavedDraftsPanelView.tsx",
 		"./selection/SelectionCopyToolbar": "./src/selection/SelectionCopyToolbar.tsx",
+		"./text/markdown": "./src/text/markdown.ts",
 		"./utils/cn": "./src/utils/cn.ts",
 		"./viewport/keyboard": "./src/viewport/keyboard.ts"
 	},

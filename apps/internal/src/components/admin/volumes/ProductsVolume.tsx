@@ -15,21 +15,25 @@ import {
 	NumberControl,
 	SelectControl,
 	StatusTag,
-	TextAreaControl,
 	TextControl,
 } from '../AdminControls'
 import { Field, Section } from '../EntityEditor'
 import type { ColumnDef } from '../EntityIndex'
 import {
-	CatalogPictureField,
+	CatalogDescriptionFields,
+	CatalogIdentityFields,
 	CatalogThumbnail,
 	CatalogVisibilityField,
+	catalogLocalizedLabels,
 } from './CatalogImageControls'
 import { useAdminExport } from './useAdminExport'
 import {
-	promptAdminDeleteReason,
+	deleteAdminDraftWithReason,
+	saveAdminDraft,
 	useVolumeEditor,
 	VolumeWorkspace,
+	volumeWorkspaceEditorState,
+	volumeWorkspaceIndexState,
 } from './volumeEditor'
 
 type ProductDraft = AdminProductPayload & { id?: string }
@@ -198,23 +202,23 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 	const missingCategory = categoryOptions.length === 0
 
 	function handleSave() {
-		if (!draft || thresholdInvalid || missingCategory) return
-		const payload = draftToPayload(draft)
-		if (mode === 'create') {
-			createMutation.mutate(payload)
-		} else if (mode === 'edit' && draft.id) {
-			updateMutation.mutate({ id: draft.id, ...payload })
-		}
+		saveAdminDraft({
+			mode,
+			draftId: draft?.id,
+			payload: draft ? draftToPayload(draft) : null,
+			blocked: thresholdInvalid || missingCategory,
+			onCreate: (payload) => createMutation.mutate(payload),
+			onUpdate: (id, payload) => updateMutation.mutate({ id, ...payload }),
+		})
 	}
 
 	function handleDelete() {
-		if (!draft?.id) return
-		const reason = promptAdminDeleteReason({
+		deleteAdminDraftWithReason({
+			draftId: draft?.id,
 			confirmMessage: t('actions.confirmDelete'),
 			promptMessage: 'Reason for deactivating this product',
+			onDelete: (id, reason) => deleteMutation.mutate({ id, reason }),
 		})
-		if (!reason) return
-		deleteMutation.mutate({ id: draft.id, reason })
 	}
 
 	const columns: ColumnDef<AdminProduct>[] = [
@@ -287,62 +291,46 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 		r.unit_of_measure_ar.includes(q) ||
 		(r.brand?.toLowerCase().includes(q) ?? false) ||
 		r.manufacturer.toLowerCase().includes(q)
+	const catalogLabels = catalogLocalizedLabels(t)
+	const workspaceIndex = volumeWorkspaceIndexState(
+		volume,
+		'products',
+		products,
+		columns,
+		(r) => r.id,
+		handleRowSelect,
+		handleNew,
+		filter,
+		{
+			isLoading: productsPending,
+			isError: productsError,
+			onOpenVolumes,
+			onExport: requestExport,
+			isExporting,
+			exportStatus,
+		},
+	)
+	const workspaceEditor = volumeWorkspaceEditorState(
+		mode,
+		draft,
+		createMutation.isPending || updateMutation.isPending,
+		deleteMutation.isPending,
+		[handleClose, handleEdit, handleSave, handleCancel, handleDelete],
+		{ saveDisabled: thresholdInvalid || missingCategory },
+	)
 
 	return (
-		<VolumeWorkspace
-			volume={volume}
-			volumeId="products"
-			rows={products}
-			columns={columns}
-			rowKey={(r) => r.id}
-			onRowSelect={handleRowSelect}
-			onNewEntry={handleNew}
-			filter={filter}
-			isLoading={productsPending}
-			isError={productsError}
-			onOpenVolumes={onOpenVolumes}
-			onExport={requestExport}
-			isExporting={isExporting}
-			exportStatus={exportStatus}
-			mode={mode}
-			hasDraft={Boolean(draft)}
-			idLabel={draft?.id ?? null}
-			isSaving={createMutation.isPending || updateMutation.isPending}
-			isDeleting={deleteMutation.isPending}
-			saveDisabled={thresholdInvalid || missingCategory}
-			onClose={handleClose}
-			onEdit={handleEdit}
-			onSave={handleSave}
-			onCancel={handleCancel}
-			onDelete={handleDelete}
-		>
+		<VolumeWorkspace indexState={workspaceIndex} editorState={workspaceEditor}>
 			{draft && (
 				<div className="space-y-6">
-					<CatalogPictureField
-						value={draft.pictureUrl}
-						onChange={(v) => setDraft({ ...draft, pictureUrl: v })}
+					<CatalogIdentityFields
+						pictureUrl={draft.pictureUrl}
+						name={draft.name}
+						nameAr={draft.name_ar}
+						onPatch={(patch) => setDraft({ ...draft, ...patch })}
 						readOnly={readOnly}
-						altText={draft.name || t('editor.fields.name')}
-						label={t('editor.fields.pictureUrl')}
+						labels={catalogLabels}
 					/>
-
-					<Section title={t('editor.section.identity')} />
-					<Field label={t('editor.fields.name')} required>
-						<TextControl
-							value={draft.name}
-							onChange={(v) => setDraft({ ...draft, name: v })}
-							readOnly={readOnly}
-							ariaLabel={t('editor.fields.name')}
-						/>
-					</Field>
-					<Field label={t('editor.fields.nameAr')} required>
-						<TextControl
-							value={draft.name_ar}
-							onChange={(v) => setDraft({ ...draft, name_ar: v })}
-							readOnly={readOnly}
-							ariaLabel={t('editor.fields.nameAr')}
-						/>
-					</Field>
 
 					<Section title={t('editor.section.taxonomy')} />
 					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
@@ -460,24 +448,13 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 						</Field>
 					</div>
 
-					<Field label={t('editor.fields.description')} required>
-						<TextAreaControl
-							value={draft.description}
-							onChange={(v) => setDraft({ ...draft, description: v })}
-							readOnly={readOnly}
-							ariaLabel={t('editor.fields.description')}
-							rows={3}
-						/>
-					</Field>
-					<Field label={t('editor.fields.descriptionAr')} required>
-						<TextAreaControl
-							value={draft.description_ar}
-							onChange={(v) => setDraft({ ...draft, description_ar: v })}
-							readOnly={readOnly}
-							ariaLabel={t('editor.fields.descriptionAr')}
-							rows={3}
-						/>
-					</Field>
+					<CatalogDescriptionFields
+						description={draft.description}
+						descriptionAr={draft.description_ar}
+						onPatch={(patch) => setDraft({ ...draft, ...patch })}
+						readOnly={readOnly}
+						labels={catalogLabels}
+					/>
 				</div>
 			)}
 		</VolumeWorkspace>

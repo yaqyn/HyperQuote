@@ -23,9 +23,13 @@ import {
 } from '../SupplierItems'
 import { useAdminExport } from './useAdminExport'
 import {
+	EditorSectionTextField,
+	EditorTextField,
 	promptAdminDeleteReason,
 	useVolumeEditor,
 	VolumeWorkspace,
+	volumeWorkspaceEditorState,
+	volumeWorkspaceIndexState,
 } from './volumeEditor'
 
 type SupplierDraft = Omit<SupplierRow, 'id' | 'joinedAt'> & {
@@ -238,54 +242,52 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 		r.paymentTerms.toLowerCase().includes(q) ||
 		(r.notes?.toLowerCase().includes(q) ?? false) ||
 		(r.phone?.includes(q) ?? false)
-
+	const workspaceIndex = volumeWorkspaceIndexState(
+		volume,
+		'suppliers',
+		suppliers,
+		columns,
+		(r) => r.id,
+		handleRowSelect,
+		handleNew,
+		filter,
+		{
+			isLoading: suppliersPending,
+			isError: suppliersError,
+			onOpenVolumes,
+			onExport: requestExport,
+			isExporting,
+			exportStatus,
+		},
+	)
 	return (
 		<VolumeWorkspace
-			volume={volume}
-			volumeId="suppliers"
-			rows={suppliers}
-			columns={columns}
-			rowKey={(r) => r.id}
-			onRowSelect={handleRowSelect}
-			onNewEntry={handleNew}
-			filter={filter}
-			isLoading={suppliersPending}
-			isError={suppliersError}
-			onOpenVolumes={onOpenVolumes}
-			onExport={requestExport}
-			isExporting={isExporting}
-			exportStatus={exportStatus}
-			mode={mode}
-			hasDraft={Boolean(draft)}
-			idLabel={draft?.id ?? null}
-			isSaving={createMutation.isPending || updateMutation.isPending}
-			isDeleting={deleteMutation.isPending}
-			onClose={handleClose}
-			onEdit={handleEdit}
-			onSave={handleSave}
-			onCancel={handleCancel}
-			onDelete={handleDelete}
+			indexState={workspaceIndex}
+			editorState={volumeWorkspaceEditorState(
+				mode,
+				draft,
+				createMutation.isPending || updateMutation.isPending,
+				deleteMutation.isPending,
+				[handleClose, handleEdit, handleSave, handleCancel, handleDelete],
+			)}
 		>
 			{draft && (
 				<div className="space-y-6">
-					<Section title={t('editor.section.identity')} />
-					<Field label={t('editor.fields.supplierName')} required>
-						<TextControl
-							value={draft.name}
-							onChange={(v) => setDraft({ ...draft, name: v })}
-							readOnly={readOnly}
-							ariaLabel={t('editor.fields.supplierName')}
-						/>
-					</Field>
-					<Field label={t('editor.fields.email')}>
-						<TextControl
-							value={draft.email ?? ''}
-							onChange={(v) => setDraft({ ...draft, email: v || null })}
-							readOnly={readOnly}
-							ariaLabel={t('editor.fields.email')}
-							type="email"
-						/>
-					</Field>
+					<EditorSectionTextField
+						sectionTitle={t('editor.section.identity')}
+						label={t('editor.fields.supplierName')}
+						value={draft.name}
+						onChange={(v) => setDraft({ ...draft, name: v })}
+						readOnly={readOnly}
+						required
+					/>
+					<EditorTextField
+						label={t('editor.fields.email')}
+						value={draft.email ?? ''}
+						onChange={(v) => setDraft({ ...draft, email: v || null })}
+						readOnly={readOnly}
+						type="email"
+					/>
 					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
 						<Field label={t('editor.fields.tier')}>
 							<SelectControl
@@ -331,15 +333,13 @@ export function SuppliersVolume({ onOpenVolumes }: SuppliersVolumeProps) {
 					</Field>
 
 					<Section title={t('editor.section.contact')} />
-					<Field label={t('editor.fields.phone')}>
-						<TextControl
-							value={draft.phone ?? ''}
-							onChange={(v) => setDraft({ ...draft, phone: v || null })}
-							readOnly={readOnly}
-							ariaLabel={t('editor.fields.phone')}
-							type="tel"
-						/>
-					</Field>
+					<EditorTextField
+						label={t('editor.fields.phone')}
+						value={draft.phone ?? ''}
+						onChange={(v) => setDraft({ ...draft, phone: v || null })}
+						readOnly={readOnly}
+						type="tel"
+					/>
 					<Field label={t('editor.fields.notes')}>
 						<TextAreaControl
 							value={draft.notes ?? ''}

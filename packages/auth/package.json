@@ -8,6 +8,7 @@
 		"./server": "./src/server.ts",
 		"./client": "./src/client.ts",
 		"./customer": "./src/customer.ts",
+		"./customer-server": "./src/customer-server.ts",
 		"./customer-schemas": "./src/customer-schemas.ts",
 		"./guard": "./src/guard.ts",
 		"./session": "./src/session.ts",

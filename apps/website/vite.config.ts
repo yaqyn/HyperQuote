@@ -1,10 +1,5 @@
-import { cloudflare } from '@cloudflare/vite-plugin'
-import tailwindcss from '@tailwindcss/vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import viteReact from '@vitejs/plugin-react'
-import { nitro } from 'nitro/vite'
-import { defineConfig } from 'vite'
 import { hyperquoteManualChunks } from '../../tooling/vite/manual-chunks'
+import { defineReactStartAppConfig } from '../../tooling/vite/react-start-app'
 
 function websiteManualChunks(id: string) {
 	const normalized = id.replaceAll('\\', '/')
@@ -19,40 +14,16 @@ function websiteManualChunks(id: string) {
 	return hyperquoteManualChunks(id)
 }
 
-const isCloudflareTarget = process.env.HYPERQUOTE_DEPLOY_TARGET === 'cloudflare'
-
-export default defineConfig({
-	server: { port: 3000 },
+export default defineReactStartAppConfig({
 	assetsInclude: ['**/*.md'],
-	build: {
-		rollupOptions: {
-			output: {
-				manualChunks: websiteManualChunks,
-			},
+	manualChunks: websiteManualChunks,
+	port: 3000,
+	tanstackStartOptions: {
+		prerender: {
+			enabled: true,
+			autoStaticPathsDiscovery: false,
+			crawlLinks: false,
 		},
+		pages: [{ path: '/' }, { path: '/about' }],
 	},
-	resolve: {
-		dedupe: ['react', 'react-dom'],
-	},
-	ssr: {
-		optimizeDeps: {
-			exclude: ['@supabase/supabase-js'],
-		},
-	},
-	plugins: [
-		...(isCloudflareTarget
-			? [cloudflare({ viteEnvironment: { name: 'ssr' } })]
-			: []),
-		tailwindcss(),
-		tanstackStart({
-			prerender: {
-				enabled: true,
-				autoStaticPathsDiscovery: false,
-				crawlLinks: false,
-			},
-			pages: [{ path: '/' }, { path: '/about' }],
-		}),
-		viteReact(),
-		...(isCloudflareTarget ? [] : [nitro()]),
-	],
 })

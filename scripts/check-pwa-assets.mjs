@@ -1,6 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { inflateSync } from 'node:zlib'
+import {
+	SERVICE_WORKER_APPS,
+	serviceWorkerSourceForApp,
+} from './service-worker-source.mjs'
 
 const ROOT = process.cwd()
 const BRAND_BLUE = '#2563EB'
@@ -9,6 +13,7 @@ const WHITE = '#ffffff'
 const ICON_MARK_DOMINANT_MIN_RATIO = 0.36
 const ICON_MARK_DOMINANT_MAX_RATIO = 0.44
 const ICON_MARK_SECONDARY_MIN_RATIO = 0.14
+const SHARED_HEAD_FILE = 'packages/ui/src/head/pwa.ts'
 const SHARED_REGISTRATION_FILE = 'packages/ui/src/pwa/service-worker.ts'
 
 const APPS = [
@@ -184,6 +189,7 @@ function validateServiceWorker(app, publicDir) {
 	const serviceWorker = readText(join(publicDir, app.serviceWorkerFile))
 	const label = `${app.key}/${app.serviceWorkerFile}`
 	const cacheVersion = readCacheVersion(serviceWorker, app.key)
+	const generatedApp = SERVICE_WORKER_APPS.find((item) => item.key === app.key)
 
 	try {
 		new Function(serviceWorker)
@@ -196,6 +202,16 @@ function validateServiceWorker(app, publicDir) {
 			[...cacheVersion].every((digit) => digit >= '0' && digit <= '9'),
 		`${label}: cache name must be versioned`,
 	)
+	assert(
+		generatedApp?.file === app.serviceWorkerFile,
+		`${label}: generated worker config must target this file`,
+	)
+	if (generatedApp) {
+		assert(
+			serviceWorker === serviceWorkerSourceForApp(generatedApp),
+			`${label}: must match scripts/service-worker-source.mjs output`,
+		)
+	}
 	assert(serviceWorker.includes("'/',"), `${label}: must cache the app shell`)
 	assert(
 		serviceWorker.includes("'/browserconfig.xml'"),
@@ -254,9 +270,10 @@ function validateBrowserConfig(app, publicDir) {
 }
 
 function validateHead(app) {
-	const head = app.headFiles
-		.map((file) => readText(join(ROOT, 'apps', app.key, file)))
-		.join('\n')
+	const head = [
+		readText(join(ROOT, SHARED_HEAD_FILE)),
+		...app.headFiles.map((file) => readText(join(ROOT, 'apps', app.key, file))),
+	].join('\n')
 	const label = `${app.key}/head`
 
 	assert(

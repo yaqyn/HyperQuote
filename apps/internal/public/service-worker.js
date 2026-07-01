@@ -2,8 +2,8 @@ const CACHE_NAME = 'hyperquote-internal-v5'
 
 const APP_SHELL = [
 	'/',
-	'/site.webmanifest',
 	'/browserconfig.xml',
+	'/site.webmanifest',
 	'/favicon.ico',
 	'/favicon.svg',
 	'/favicon-96x96.png',
@@ -20,9 +20,7 @@ const APP_SHELL = [
 	'/pwa/maskable-512.png',
 ]
 
-const CACHEABLE_PUBLIC_PATHS = new Set(
-	APP_SHELL.filter((path) => path !== '/'),
-)
+const CACHEABLE_PUBLIC_PATHS = new Set(APP_SHELL.filter((path) => path !== '/'))
 
 self.addEventListener('install', (event) => {
 	event.waitUntil(

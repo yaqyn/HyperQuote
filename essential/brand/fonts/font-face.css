@@ -11,8 +11,7 @@
    Static WOFF2 files chosen over variable fonts for maximum
    browser compatibility and predictable rendering per weight.
 
-   Import this file in your app's global CSS to load all brand fonts:
-     @import 'docs/brand/fonts/font-face.css';
+   Import this file in your app's global CSS to load all brand fonts.
    ================================================================ */
 
 /* ========================================

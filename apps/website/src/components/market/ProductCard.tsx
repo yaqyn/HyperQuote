@@ -1,4 +1,5 @@
 import { formatWeightKg } from '@hyperquote/i18n'
+import { useQuantityPopoverDismiss } from '@hyperquote/ui/market/QuantityPopover'
 import { Link } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
 import { Package, Plus, Undo2 } from 'lucide-react'
@@ -48,20 +49,7 @@ function AddPopover({
 		inputRef.current?.select()
 	}, [])
 
-	useEffect(() => {
-		function handleClick(e: MouseEvent) {
-			if (
-				popoverRef.current &&
-				!popoverRef.current.contains(e.target as Node) &&
-				anchorRef.current &&
-				!anchorRef.current.contains(e.target as Node)
-			) {
-				onClose()
-			}
-		}
-		document.addEventListener('mousedown', handleClick)
-		return () => document.removeEventListener('mousedown', handleClick)
-	}, [onClose, anchorRef])
+	useQuantityPopoverDismiss({ anchorRef, onClose, popoverRef })
 
 	const handleSubmit = () => {
 		if (!isOrderable && !existingItem) return

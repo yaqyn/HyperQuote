@@ -1,3 +1,4 @@
+import { readFencedCodeBlock } from '@hyperquote/ui/text/markdown'
 import { type ReactNode, useMemo } from 'react'
 import { toArabicIndic } from '../../lib/localized-digits'
 
@@ -44,24 +45,18 @@ export function ChatMarkdown({
 function parseMarkdown(content: string): MarkdownBlock[] {
 	const lines = content.replace(/\r\n/g, '\n').split('\n')
 	const blocks: MarkdownBlock[] = []
-	let index = 0
 
-	while (index < lines.length) {
+	for (let index = 0; index < lines.length; ) {
 		const line = lines[index] ?? ''
 		if (!line.trim()) {
 			index += 1
 			continue
 		}
 
-		if (/^\s*```/.test(line)) {
-			const codeLines: string[] = []
-			index += 1
-			while (index < lines.length && !/^\s*```/.test(lines[index] ?? '')) {
-				codeLines.push(lines[index] ?? '')
-				index += 1
-			}
-			if (index < lines.length) index += 1
-			blocks.push({ text: codeLines.join('\n'), type: 'code' })
+		const codeBlock = readFencedCodeBlock(lines, index)
+		if (codeBlock) {
+			blocks.push({ text: codeBlock.text, type: 'code' })
+			index = codeBlock.nextIndex
 			continue
 		}
 

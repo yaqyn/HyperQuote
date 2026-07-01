@@ -207,7 +207,7 @@ function ProfilePage() {
 			}
 			setPhoneMessage({
 				kind: 'error',
-				text: phoneErrorLabel(result.error, t),
+				text: phoneErrorLabel(result.error ?? 'send_failed', t),
 			})
 		},
 		onError: () => {
@@ -234,7 +234,7 @@ function ProfilePage() {
 			}
 			setPhoneMessage({
 				kind: 'error',
-				text: phoneErrorLabel(result.error, t),
+				text: phoneErrorLabel(result.error ?? 'verify_failed', t),
 			})
 		},
 		onError: () => {

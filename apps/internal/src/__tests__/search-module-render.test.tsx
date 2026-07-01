@@ -57,6 +57,11 @@ vi.mock('../lib/server/proofs', () => ({
 let activeRoot: Root | null = null
 let activeContainer: HTMLDivElement | null = null
 
+function getActiveContainer(): HTMLDivElement {
+	if (!activeContainer) throw new Error('SearchModule test container missing')
+	return activeContainer
+}
+
 async function waitForSearchModuleUpdate(
 	matches: () => boolean,
 ): Promise<void> {
@@ -84,6 +89,23 @@ async function setSearchQuery(value: string): Promise<void> {
 	}
 
 	await waitForSearchModuleUpdate(() => input?.value === value)
+}
+
+async function renderSearchModule(): Promise<void> {
+	const queryClient = new QueryClient({
+		defaultOptions: { queries: { retry: false } },
+	})
+	activeContainer = document.createElement('div')
+	document.body.appendChild(activeContainer)
+	activeRoot = createRoot(activeContainer)
+
+	await act(async () => {
+		activeRoot?.render(
+			<QueryClientProvider client={queryClient}>
+				<SearchModule />
+			</QueryClientProvider>,
+		)
+	})
 }
 
 afterEach(() => {
@@ -128,30 +150,18 @@ describe('SearchModule first render', () => {
 	})
 
 	it('opens activity as an overlay over the centered empty search', async () => {
-		const queryClient = new QueryClient({
-			defaultOptions: { queries: { retry: false } },
-		})
-		activeContainer = document.createElement('div')
-		document.body.appendChild(activeContainer)
-		activeRoot = createRoot(activeContainer)
-
-		await act(async () => {
-			activeRoot?.render(
-				<QueryClientProvider client={queryClient}>
-					<SearchModule />
-				</QueryClientProvider>,
-			)
-		})
+		await renderSearchModule()
 
 		expect(
-			activeContainer.querySelector(
+			getActiveContainer().querySelector(
 				'input[aria-label="Search internal database"]',
 			),
 		).toBeInTheDocument()
 
-		const activityButton = activeContainer.querySelector<HTMLButtonElement>(
-			'button[aria-label="Open activity feed"]',
-		)
+		const activityButton =
+			getActiveContainer().querySelector<HTMLButtonElement>(
+				'button[aria-label="Open activity feed"]',
+			)
 		expect(activityButton).toBeInTheDocument()
 
 		await act(async () => {
@@ -160,10 +170,10 @@ describe('SearchModule first render', () => {
 		})
 
 		expect(
-			activeContainer.querySelector('[data-activity-overlay="true"]'),
+			getActiveContainer().querySelector('[data-activity-overlay="true"]'),
 		).toBeInTheDocument()
 		expect(
-			activeContainer.querySelector(
+			getActiveContainer().querySelector(
 				'input[aria-label="Search internal database"]',
 			),
 		).toBeInTheDocument()
@@ -174,11 +184,13 @@ describe('SearchModule first render', () => {
 			),
 		)
 
-		expect(activeContainer.textContent).toContain('All')
-		expect(activeContainer.textContent).toContain('No activity in this domain.')
+		expect(getActiveContainer().textContent).toContain('All')
+		expect(getActiveContainer().textContent).toContain(
+			'No activity in this domain.',
+		)
 
 		const backButton = Array.from(
-			activeContainer.querySelectorAll('button'),
+			getActiveContainer().querySelectorAll('button'),
 		).find((button) => button.textContent?.includes('Back'))
 		expect(backButton).toBeInTheDocument()
 
@@ -191,33 +203,21 @@ describe('SearchModule first render', () => {
 		)
 
 		expect(
-			activeContainer.querySelector('[data-activity-overlay="true"]'),
+			getActiveContainer().querySelector('[data-activity-overlay="true"]'),
 		).not.toBeInTheDocument()
 		expect(
-			activeContainer.querySelector(
+			getActiveContainer().querySelector(
 				'input[aria-label="Search internal database"]',
 			),
 		).toBeInTheDocument()
 		expect(
-			activeContainer.querySelector('[data-search-console="true"]')?.className,
+			getActiveContainer().querySelector('[data-search-console="true"]')
+				?.className,
 		).toContain('items-center justify-center')
 	})
 
 	it('restores the current search after activity closes', async () => {
-		const queryClient = new QueryClient({
-			defaultOptions: { queries: { retry: false } },
-		})
-		activeContainer = document.createElement('div')
-		document.body.appendChild(activeContainer)
-		activeRoot = createRoot(activeContainer)
-
-		await act(async () => {
-			activeRoot?.render(
-				<QueryClientProvider client={queryClient}>
-					<SearchModule />
-				</QueryClientProvider>,
-			)
-		})
+		await renderSearchModule()
 
 		await setSearchQuery('ahmed')
 		await waitForSearchModuleUpdate(
@@ -227,9 +227,10 @@ describe('SearchModule first render', () => {
 					?.className.includes('items-center justify-center'),
 		)
 
-		const activityButton = activeContainer.querySelector<HTMLButtonElement>(
-			'button[aria-label="Open activity feed"]',
-		)
+		const activityButton =
+			getActiveContainer().querySelector<HTMLButtonElement>(
+				'button[aria-label="Open activity feed"]',
+			)
 		expect(activityButton).toBeInTheDocument()
 
 		await act(async () => {
@@ -238,10 +239,10 @@ describe('SearchModule first render', () => {
 		})
 
 		expect(
-			activeContainer.querySelector('[data-activity-overlay="true"]'),
+			getActiveContainer().querySelector('[data-activity-overlay="true"]'),
 		).toBeInTheDocument()
 		expect(
-			activeContainer.querySelector<HTMLInputElement>(
+			getActiveContainer().querySelector<HTMLInputElement>(
 				'input[aria-label="Search internal database"]',
 			)?.value,
 		).toBe('ahmed')
@@ -253,7 +254,7 @@ describe('SearchModule first render', () => {
 		)
 
 		const backButton = Array.from(
-			activeContainer.querySelectorAll('button'),
+			getActiveContainer().querySelectorAll('button'),
 		).find((button) => button.textContent?.includes('Back'))
 		expect(backButton).toBeInTheDocument()
 
@@ -265,7 +266,7 @@ describe('SearchModule first render', () => {
 			() => !activeContainer?.querySelector('[data-activity-overlay="true"]'),
 		)
 
-		const restoredInput = activeContainer.querySelector<HTMLInputElement>(
+		const restoredInput = getActiveContainer().querySelector<HTMLInputElement>(
 			'input[aria-label="Search internal database"]',
 		)
 
@@ -274,22 +275,9 @@ describe('SearchModule first render', () => {
 	})
 
 	it('keeps summaries and activity in the same action row', async () => {
-		const queryClient = new QueryClient({
-			defaultOptions: { queries: { retry: false } },
-		})
-		activeContainer = document.createElement('div')
-		document.body.appendChild(activeContainer)
-		activeRoot = createRoot(activeContainer)
+		await renderSearchModule()
 
-		await act(async () => {
-			activeRoot?.render(
-				<QueryClientProvider client={queryClient}>
-					<SearchModule />
-				</QueryClientProvider>,
-			)
-		})
-
-		const actionRow = activeContainer.querySelector(
+		const actionRow = getActiveContainer().querySelector(
 			'[data-search-actions="true"]',
 		)
 		const actionButtons = actionRow?.querySelectorAll('button')
@@ -356,20 +344,7 @@ describe('SearchModule first render', () => {
 			],
 		})
 
-		const queryClient = new QueryClient({
-			defaultOptions: { queries: { retry: false } },
-		})
-		activeContainer = document.createElement('div')
-		document.body.appendChild(activeContainer)
-		activeRoot = createRoot(activeContainer)
-
-		await act(async () => {
-			activeRoot?.render(
-				<QueryClientProvider client={queryClient}>
-					<SearchModule />
-				</QueryClientProvider>,
-			)
-		})
+		await renderSearchModule()
 
 		await setSearchQuery('wood')
 		await waitForSearchModuleUpdate(() =>
@@ -377,7 +352,7 @@ describe('SearchModule first render', () => {
 		)
 
 		const resultButton = Array.from(
-			activeContainer.querySelectorAll('button'),
+			getActiveContainer().querySelectorAll('button'),
 		).find((button) => button.textContent?.includes(pricingRow.title))
 		expect(resultButton).toBeInTheDocument()
 
@@ -386,7 +361,7 @@ describe('SearchModule first render', () => {
 		})
 
 		const openInventoryButton = Array.from(
-			activeContainer.querySelectorAll('button'),
+			getActiveContainer().querySelectorAll('button'),
 		).find((button) => button.textContent?.includes('Open Inventory'))
 		expect(openInventoryButton).toBeInTheDocument()
 
@@ -435,20 +410,7 @@ describe('SearchModule first render', () => {
 			],
 		})
 
-		const queryClient = new QueryClient({
-			defaultOptions: { queries: { retry: false } },
-		})
-		activeContainer = document.createElement('div')
-		document.body.appendChild(activeContainer)
-		activeRoot = createRoot(activeContainer)
-
-		await act(async () => {
-			activeRoot?.render(
-				<QueryClientProvider client={queryClient}>
-					<SearchModule />
-				</QueryClientProvider>,
-			)
-		})
+		await renderSearchModule()
 
 		await setSearchQuery('journal')
 		await waitForSearchModuleUpdate(() =>
@@ -456,7 +418,7 @@ describe('SearchModule first render', () => {
 		)
 
 		const resultButton = Array.from(
-			activeContainer.querySelectorAll('button'),
+			getActiveContainer().querySelectorAll('button'),
 		).find((button) => button.textContent?.includes(accountingRow.title))
 		expect(resultButton).toBeInTheDocument()
 
@@ -465,7 +427,7 @@ describe('SearchModule first render', () => {
 		})
 
 		const openFinanceButton = Array.from(
-			activeContainer.querySelectorAll('button'),
+			getActiveContainer().querySelectorAll('button'),
 		).find((button) => button.textContent?.includes('Open Finance'))
 		expect(openFinanceButton).toBeInTheDocument()
 
@@ -523,20 +485,7 @@ describe('SearchModule first render', () => {
 			],
 		})
 
-		const queryClient = new QueryClient({
-			defaultOptions: { queries: { retry: false } },
-		})
-		activeContainer = document.createElement('div')
-		document.body.appendChild(activeContainer)
-		activeRoot = createRoot(activeContainer)
-
-		await act(async () => {
-			activeRoot?.render(
-				<QueryClientProvider client={queryClient}>
-					<SearchModule />
-				</QueryClientProvider>,
-			)
-		})
+		await renderSearchModule()
 
 		await setSearchQuery('nrv')
 		await waitForSearchModuleUpdate(() =>
@@ -544,7 +493,7 @@ describe('SearchModule first render', () => {
 		)
 
 		const resultButton = Array.from(
-			activeContainer.querySelectorAll('button'),
+			getActiveContainer().querySelectorAll('button'),
 		).find((button) => button.textContent?.includes(activityStory))
 		expect(resultButton).toBeInTheDocument()
 
@@ -559,7 +508,7 @@ describe('SearchModule first render', () => {
 		)
 
 		expect(
-			Array.from(activeContainer.querySelectorAll('strong')).map(
+			Array.from(getActiveContainer().querySelectorAll('strong')).map(
 				(element) => element.textContent,
 			),
 		).toContain(nrvValue)
@@ -670,20 +619,7 @@ describe('SearchModule first render', () => {
 			},
 		])
 
-		const queryClient = new QueryClient({
-			defaultOptions: { queries: { retry: false } },
-		})
-		activeContainer = document.createElement('div')
-		document.body.appendChild(activeContainer)
-		activeRoot = createRoot(activeContainer)
-
-		await act(async () => {
-			activeRoot?.render(
-				<QueryClientProvider client={queryClient}>
-					<SearchModule />
-				</QueryClientProvider>,
-			)
-		})
+		await renderSearchModule()
 
 		await setSearchQuery('proof')
 		await waitForSearchModuleUpdate(() =>
@@ -691,7 +627,7 @@ describe('SearchModule first render', () => {
 		)
 
 		const resultButton = Array.from(
-			activeContainer.querySelectorAll('button'),
+			getActiveContainer().querySelectorAll('button'),
 		).find((button) => button.textContent?.includes(activityRow.title))
 		expect(resultButton).toBeInTheDocument()
 
@@ -700,7 +636,7 @@ describe('SearchModule first render', () => {
 		})
 
 		const showDocsButton = Array.from(
-			activeContainer.querySelectorAll('button'),
+			getActiveContainer().querySelectorAll('button'),
 		).find((button) => button.textContent?.includes('Show Docs'))
 		expect(showDocsButton).toBeInTheDocument()
 

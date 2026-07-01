@@ -21,9 +21,7 @@ const APP_SHELL = [
 	'/pwa/maskable-512.png',
 ]
 
-const CACHEABLE_PUBLIC_PATHS = new Set(
-	APP_SHELL.filter((path) => path !== '/'),
-)
+const CACHEABLE_PUBLIC_PATHS = new Set(APP_SHELL.filter((path) => path !== '/'))
 
 self.addEventListener('install', (event) => {
 	event.waitUntil(

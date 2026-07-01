@@ -1,3 +1,7 @@
+import {
+	installableAppLinks,
+	installableAppMeta,
+} from '@hyperquote/ui/head/pwa'
 import { registerServiceWorker } from '@hyperquote/ui/pwa/service-worker'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
@@ -98,65 +102,32 @@ export const Route = createRootRoute({
 		return {
 			...baseHead,
 			meta: [
-				{ charSet: 'utf-8' },
-				{
-					name: 'viewport',
-					content: 'width=device-width, initial-scale=1, viewport-fit=cover',
-				},
+				...installableAppMeta({
+					appName: 'Lyon',
+					includeApplicationName: false,
+					tileColor: '#2563EB',
+				}),
 				...baseHead.meta,
-				{ name: 'mobile-web-app-capable', content: 'yes' },
-				{ name: 'apple-mobile-web-app-capable', content: 'yes' },
-				{ name: 'apple-mobile-web-app-status-bar-style', content: 'black' },
-				{ name: 'apple-mobile-web-app-title', content: 'Lyon' },
-				{ name: 'format-detection', content: 'telephone=no' },
-				{ name: 'color-scheme', content: 'light dark' },
-				{ name: 'msapplication-TileColor', content: '#2563EB' },
-				{ name: 'msapplication-TileImage', content: '/mstile-150x150.png' },
-				{ name: 'msapplication-config', content: '/browserconfig.xml' },
 			],
 			links: [
 				...baseHead.links,
-				{
-					rel: 'icon',
-					type: 'image/svg+xml',
-					href: '/brand/LyonBlack.svg',
-					media: '(prefers-color-scheme: light)',
-				},
-				{
-					rel: 'icon',
-					type: 'image/svg+xml',
-					href: '/brand/LyonWhite.svg',
-					media: '(prefers-color-scheme: dark)',
-				},
-				{
-					rel: 'apple-touch-icon',
-					sizes: '152x152',
-					href: '/apple-touch-icon-152x152.png',
-				},
-				{
-					rel: 'apple-touch-icon',
-					sizes: '167x167',
-					href: '/apple-touch-icon-167x167.png',
-				},
-				{
-					rel: 'apple-touch-icon',
-					sizes: '180x180',
-					href: '/apple-touch-icon-180x180.png',
-				},
-				{ rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
-				{ rel: 'mask-icon', href: '/favicon.svg', color: '#2563EB' },
-				{ rel: 'manifest', href: '/site.webmanifest' },
-				{ rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-				{
-					rel: 'preconnect',
-					href: 'https://fonts.gstatic.com',
-					crossOrigin: 'anonymous',
-				},
-				{
-					rel: 'stylesheet',
-					href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300..500;1,9..144,300..500&family=Sora:wght@400;500;600;700&display=swap',
-				},
-				{ rel: 'stylesheet', href: styles },
+				...installableAppLinks({
+					lightIconHref: '/brand/LyonBlack.svg',
+					darkIconHref: '/brand/LyonWhite.svg',
+					extraLinks: [
+						{ rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+						{
+							rel: 'preconnect',
+							href: 'https://fonts.gstatic.com',
+							crossOrigin: 'anonymous',
+						},
+						{
+							rel: 'stylesheet',
+							href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300..500;1,9..144,300..500&family=Sora:wght@400;500;600;700&display=swap',
+						},
+					],
+					stylesheetHref: styles,
+				}),
 			],
 		}
 	},

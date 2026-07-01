@@ -9,18 +9,16 @@ import {
 	adminUpdateTruck,
 } from '../../../lib/server/admin'
 import { getVolume } from '../../../types/admin'
-import {
-	NumberControl,
-	SelectControl,
-	StatusTag,
-	TextControl,
-} from '../AdminControls'
+import { NumberControl, SelectControl, StatusTag } from '../AdminControls'
 import { Field, Section } from '../EntityEditor'
 import type { ColumnDef } from '../EntityIndex'
 import {
 	confirmAdminDelete,
+	EditorSectionTextField,
 	useVolumeEditor,
 	VolumeWorkspace,
+	volumeWorkspaceEditorState,
+	volumeWorkspaceIndexState,
 } from './volumeEditor'
 
 type TruckDraft = Omit<TruckRow, 'id' | 'createdAt'> & {
@@ -228,42 +226,42 @@ export function TrucksVolume({ onOpenVolumes }: TrucksVolumeProps) {
 		r.plateNumber.toLowerCase().includes(q) ||
 		(r.driverName?.toLowerCase().includes(q) ?? false) ||
 		r.id.toLowerCase().includes(q)
-
+	const workspaceIndex = volumeWorkspaceIndexState(
+		volume,
+		'trucks',
+		trucks,
+		columns,
+		(r) => r.id,
+		handleRowSelect,
+		handleNew,
+		filter,
+		{
+			isLoading: trucksPending,
+			isError: trucksError,
+			onOpenVolumes,
+		},
+	)
 	return (
 		<VolumeWorkspace
-			volume={volume}
-			volumeId="trucks"
-			rows={trucks}
-			columns={columns}
-			rowKey={(r) => r.id}
-			onRowSelect={handleRowSelect}
-			onNewEntry={handleNew}
-			filter={filter}
-			isLoading={trucksPending}
-			isError={trucksError}
-			onOpenVolumes={onOpenVolumes}
-			mode={mode}
-			hasDraft={Boolean(draft)}
-			idLabel={draft?.id ?? null}
-			isSaving={createMutation.isPending || updateMutation.isPending}
-			isDeleting={deleteMutation.isPending}
-			onClose={handleClose}
-			onEdit={handleEdit}
-			onSave={handleSave}
-			onCancel={handleCancel}
-			onDelete={handleDelete}
+			indexState={workspaceIndex}
+			editorState={volumeWorkspaceEditorState(
+				mode,
+				draft,
+				createMutation.isPending || updateMutation.isPending,
+				deleteMutation.isPending,
+				[handleClose, handleEdit, handleSave, handleCancel, handleDelete],
+			)}
 		>
 			{draft && (
 				<div className="space-y-6">
-					<Section title={t('editor.section.vehicle')} />
-					<Field label={t('editor.fields.plateNumber')} required>
-						<TextControl
-							value={draft.plateNumber}
-							onChange={(v) => setDraft({ ...draft, plateNumber: v })}
-							readOnly={readOnly}
-							ariaLabel={t('editor.fields.plateNumber')}
-						/>
-					</Field>
+					<EditorSectionTextField
+						sectionTitle={t('editor.section.vehicle')}
+						label={t('editor.fields.plateNumber')}
+						value={draft.plateNumber}
+						onChange={(v) => setDraft({ ...draft, plateNumber: v })}
+						readOnly={readOnly}
+						required
+					/>
 					<div className="flex flex-col gap-6 lg:grid lg:grid-cols-2">
 						<Field label={t('editor.fields.bodyType')}>
 							<SelectControl

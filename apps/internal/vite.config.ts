@@ -1,14 +1,6 @@
 import { resolve } from 'node:path'
-import { cloudflare } from '@cloudflare/vite-plugin'
-import tailwindcss from '@tailwindcss/vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import viteReact from '@vitejs/plugin-react'
-import { nitro } from 'nitro/vite'
 import type { PluginOption } from 'vite'
-import { defineConfig } from 'vite'
-import { hyperquoteManualChunks } from '../../tooling/vite/manual-chunks'
-
-const isCloudflareTarget = process.env.HYPERQUOTE_DEPLOY_TARGET === 'cloudflare'
+import { defineReactStartAppConfig } from '../../tooling/vite/react-start-app'
 
 // Client-only shims for server modules that leak into the client module graph.
 // TanStack Start can expose server-only modules during dev. These shims provide
@@ -38,31 +30,7 @@ function clientOnlyShims(): PluginOption {
 	}
 }
 
-export default defineConfig({
-	server: { port: 3002 },
-	build: {
-		rollupOptions: {
-			output: {
-				manualChunks: hyperquoteManualChunks,
-			},
-		},
-	},
-	resolve: {
-		dedupe: ['react', 'react-dom'],
-	},
-	ssr: {
-		optimizeDeps: {
-			exclude: ['@supabase/supabase-js'],
-		},
-	},
-	plugins: [
-		...(isCloudflareTarget
-			? [cloudflare({ viteEnvironment: { name: 'ssr' } })]
-			: []),
-		tailwindcss(),
-		clientOnlyShims(),
-		tanstackStart(),
-		viteReact(),
-		...(isCloudflareTarget ? [] : [nitro()]),
-	],
+export default defineReactStartAppConfig({
+	extraPlugins: [clientOnlyShims()],
+	port: 3002,
 })

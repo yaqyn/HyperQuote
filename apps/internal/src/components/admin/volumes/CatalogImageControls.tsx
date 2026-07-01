@@ -1,10 +1,11 @@
 import { Package } from 'lucide-react'
 import { useState } from 'react'
 import { Toggle } from '../../ui/Toggle'
-import { StatusTag, TextControl } from '../AdminControls'
-import { Field } from '../EntityEditor'
+import { StatusTag, TextAreaControl, TextControl } from '../AdminControls'
+import { Field, Section } from '../EntityEditor'
+import { EditorTextField } from './volumeEditor'
 
-export function CatalogPictureField({
+function CatalogPictureField({
 	value,
 	onChange,
 	readOnly,
@@ -126,5 +127,127 @@ export function CatalogVisibilityField({
 				/>
 			)}
 		</Field>
+	)
+}
+
+interface CatalogLocalizedLabels {
+	pictureUrl: string
+	name: string
+	nameAr: string
+	description: string
+	descriptionAr: string
+	identitySection: string
+}
+
+type CatalogLocalizedPatch = Partial<{
+	description: string
+	description_ar: string
+	name: string
+	name_ar: string
+	pictureUrl: string | null
+}>
+
+type CatalogLocalizedLabelKey =
+	| 'editor.fields.description'
+	| 'editor.fields.descriptionAr'
+	| 'editor.fields.name'
+	| 'editor.fields.nameAr'
+	| 'editor.fields.pictureUrl'
+	| 'editor.section.identity'
+
+export function catalogLocalizedLabels(
+	t: (key: CatalogLocalizedLabelKey) => string,
+): CatalogLocalizedLabels {
+	return {
+		pictureUrl: t('editor.fields.pictureUrl'),
+		name: t('editor.fields.name'),
+		nameAr: t('editor.fields.nameAr'),
+		description: t('editor.fields.description'),
+		descriptionAr: t('editor.fields.descriptionAr'),
+		identitySection: t('editor.section.identity'),
+	}
+}
+
+export function CatalogIdentityFields({
+	pictureUrl,
+	name,
+	nameAr,
+	onPatch,
+	readOnly,
+	labels,
+}: {
+	pictureUrl: string | null
+	name: string
+	nameAr: string
+	onPatch: (patch: CatalogLocalizedPatch) => void
+	readOnly: boolean
+	labels: Pick<
+		CatalogLocalizedLabels,
+		'pictureUrl' | 'name' | 'nameAr' | 'identitySection'
+	>
+}) {
+	return (
+		<>
+			<CatalogPictureField
+				value={pictureUrl}
+				onChange={(value) => onPatch({ pictureUrl: value })}
+				readOnly={readOnly}
+				altText={name || labels.name}
+				label={labels.pictureUrl}
+			/>
+
+			<Section title={labels.identitySection} />
+			<EditorTextField
+				label={labels.name}
+				value={name}
+				onChange={(value) => onPatch({ name: value })}
+				readOnly={readOnly}
+				required
+			/>
+			<EditorTextField
+				label={labels.nameAr}
+				value={nameAr}
+				onChange={(value) => onPatch({ name_ar: value })}
+				readOnly={readOnly}
+				required
+			/>
+		</>
+	)
+}
+
+export function CatalogDescriptionFields({
+	description,
+	descriptionAr,
+	onPatch,
+	readOnly,
+	labels,
+}: {
+	description: string
+	descriptionAr: string
+	onPatch: (patch: CatalogLocalizedPatch) => void
+	readOnly: boolean
+	labels: Pick<CatalogLocalizedLabels, 'description' | 'descriptionAr'>
+}) {
+	return (
+		<>
+			<Field label={labels.description} required>
+				<TextAreaControl
+					value={description}
+					onChange={(value) => onPatch({ description: value })}
+					readOnly={readOnly}
+					ariaLabel={labels.description}
+					rows={3}
+				/>
+			</Field>
+			<Field label={labels.descriptionAr} required>
+				<TextAreaControl
+					value={descriptionAr}
+					onChange={(value) => onPatch({ description_ar: value })}
+					readOnly={readOnly}
+					ariaLabel={labels.descriptionAr}
+					rows={3}
+				/>
+			</Field>
+		</>
 	)
 }

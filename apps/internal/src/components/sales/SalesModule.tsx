@@ -6,7 +6,6 @@ import {
 	isClaimableSalesRfq,
 	isSalesPipelineRfq,
 } from '../../lib/sales-active-queue'
-import { setEmployeePresence } from '../../lib/server/employee-presence'
 import { getCustomerList } from '../../lib/server/sales-customers'
 import {
 	claimNextSalesOrder,
@@ -21,6 +20,10 @@ import {
 	DispatchFooter,
 } from '../shared/DispatchDialog'
 import { EmployeeActionButton } from '../shared/EmployeeControls'
+import {
+	type EmployeePresenceStatus,
+	useEmployeePresence,
+} from '../shared/useEmployeePresence'
 import { NegotiationView } from './negotiation/NegotiationView'
 import { QuoteBuilderView } from './quote-builder/QuoteBuilderView'
 import { SearchMenu } from './quote-builder/SearchMenu'
@@ -38,8 +41,6 @@ const SAVE_DURATIONS = [
 	{ label: 'Tomorrow', minutes: 960 },
 ]
 
-type SalesPresenceStatus = 'online' | 'away' | 'offline'
-
 export function SalesModule() {
 	const qc = useQueryClient()
 	const editingRfqId = useSalesStore((s) => s.editingRfqId)
@@ -52,8 +53,7 @@ export function SalesModule() {
 	)
 	const [customerSelectOpen, setCustomerSelectOpen] = useState(false)
 	const [customerSearchTerm, setCustomerSearchTerm] = useState('')
-	const [salesPresenceStatus, setSalesPresenceStatus] =
-		useState<SalesPresenceStatus>('offline')
+	const salesPresenceStatus = useEmployeePresence('sales')
 
 	// Save timer
 	const [saveTimerOpen, setSaveTimerOpen] = useState(false)
@@ -123,56 +123,6 @@ export function SalesModule() {
 		},
 		[],
 	)
-
-	useEffect(() => {
-		let cancelled = false
-
-		const currentPresenceStatus = (): SalesPresenceStatus => {
-			if (document.visibilityState !== 'visible') return 'away'
-			if (document.querySelector('[data-away-lock="true"]')) return 'away'
-			return 'online'
-		}
-
-		const syncPresence = async (status = currentPresenceStatus()) => {
-			if (status !== 'online' && !cancelled) setSalesPresenceStatus(status)
-			try {
-				await setEmployeePresence({
-					data: {
-						activePanel: status === 'online' ? 'sales' : undefined,
-						status,
-					},
-				})
-				if (!cancelled) setSalesPresenceStatus(status)
-			} catch {
-				if (!cancelled) setSalesPresenceStatus('offline')
-			}
-		}
-
-		void syncPresence()
-		const interval = window.setInterval(() => {
-			void syncPresence()
-		}, 25_000)
-		const handlePresenceChange = () => {
-			void syncPresence()
-		}
-		document.addEventListener('visibilitychange', handlePresenceChange)
-		window.addEventListener('focus', handlePresenceChange)
-		window.addEventListener('internal-away-state-change', handlePresenceChange)
-
-		return () => {
-			cancelled = true
-			window.clearInterval(interval)
-			document.removeEventListener('visibilitychange', handlePresenceChange)
-			window.removeEventListener('focus', handlePresenceChange)
-			window.removeEventListener(
-				'internal-away-state-change',
-				handlePresenceChange,
-			)
-			void setEmployeePresence({
-				data: { status: 'offline' },
-			}).catch(() => undefined)
-		}
-	}, [])
 
 	// Auto-load first pipeline item if nothing selected and not working on a saved order
 	useEffect(() => {
@@ -690,7 +640,7 @@ export function SalesModule() {
 function AutomaticSalesQueueState({
 	presenceStatus,
 }: {
-	presenceStatus: SalesPresenceStatus
+	presenceStatus: EmployeePresenceStatus
 }) {
 	const headline =
 		presenceStatus === 'online'

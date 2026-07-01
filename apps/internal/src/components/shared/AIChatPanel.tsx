@@ -1,3 +1,4 @@
+import { readFencedCodeBlock } from '@hyperquote/ui/text/markdown'
 import { ArrowDown } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -549,15 +550,10 @@ function parseAssistantBlocks(content: string): AssistantBlock[] {
 			continue
 		}
 
-		if (/^\s*```/.test(line)) {
-			const codeLines: string[] = []
-			index += 1
-			while (index < lines.length && !/^\s*```/.test(lines[index] ?? '')) {
-				codeLines.push(lines[index] ?? '')
-				index += 1
-			}
-			if (index < lines.length) index += 1
-			blocks.push({ text: codeLines.join('\n'), type: 'code' })
+		const codeBlock = readFencedCodeBlock(lines, index)
+		if (codeBlock) {
+			blocks.push({ text: codeBlock.text, type: 'code' })
+			index = codeBlock.nextIndex
 			continue
 		}
 
