@@ -2,8 +2,13 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { connect } from 'node:net'
 import process from 'node:process'
+import {
+	INFISICAL_DEV_SENTINEL,
+	infisicalDevRunArgs,
+	requireInfisicalReady,
+	skipInfisical,
+} from './infisical-dev.mjs'
 
-const HYPERQUOTE_INFISICAL_PATH = '/Projects/HyperQuote'
 const SUPABASE_READY_TIMEOUT_MS = 90_000
 const SUPABASE_READY_INTERVAL_MS = 1_000
 const APP_PORTS = [
@@ -25,11 +30,7 @@ async function main() {
 	requireCommand('supabase', 'Install Supabase CLI, then run this again.')
 
 	if (!skipInfisical()) {
-		requireCommand(
-			'infisical',
-			'Install Infisical CLI, then run `infisical login`.',
-		)
-		await verifyInfisical()
+		loadInfisicalDevSecrets()
 	} else {
 		warn('Skipping Infisical because HYPERQUOTE_SKIP_INFISICAL is set.')
 	}
@@ -69,6 +70,29 @@ async function main() {
 	})
 }
 
+function loadInfisicalDevSecrets() {
+	if (process.env[INFISICAL_DEV_SENTINEL]) {
+		log('Infisical dev secrets are loaded.')
+		return
+	}
+
+	log('Checking Infisical dev login...')
+	requireInfisicalReady('HyperQuote dev secrets')
+	log('Loading HyperQuote dev secrets from Infisical...')
+	const relaunched = spawnSync(
+		'infisical',
+		infisicalDevRunArgs([process.execPath, ...process.argv.slice(1)]),
+		{
+			env: {
+				...process.env,
+				[INFISICAL_DEV_SENTINEL]: '1',
+			},
+			stdio: 'inherit',
+		},
+	)
+	process.exit(relaunched.status ?? 1)
+}
+
 function requireCommand(command, hint) {
 	const result = spawnSync(command, ['--version'], {
 		encoding: 'utf8',
@@ -76,35 +100,6 @@ function requireCommand(command, hint) {
 	})
 	if (result.status === 0) return
 	fail(`Missing required command: ${command}\n${hint}`)
-}
-
-async function verifyInfisical() {
-	log('Checking Infisical dev access...')
-	const result = spawnSync(
-		'infisical',
-		[
-			'run',
-			'--silent',
-			'--env=dev',
-			`--path=${HYPERQUOTE_INFISICAL_PATH}`,
-			'--recursive',
-			'--',
-			process.execPath,
-			'-e',
-			'process.exit(0)',
-		],
-		{
-			encoding: 'utf8',
-			stdio: ['ignore', 'pipe', 'pipe'],
-		},
-	)
-	if (result.status === 0) return
-
-	const output = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim()
-	const loginHint = /login|session|auth/i.test(output)
-		? 'Run `infisical login`, then run `bun run dev` again.'
-		: 'Check Infisical access to /Projects/HyperQuote dev secrets.'
-	fail(`Infisical dev access is not ready.\n${loginHint}`)
 }
 
 async function ensureSupabase() {
@@ -119,6 +114,13 @@ async function ensureSupabase() {
 		stdio: 'inherit',
 	})
 	if (started.status !== 0) {
+		warn(
+			'Supabase start returned non-zero; waiting for local Supabase readiness before failing.',
+		)
+		if (await waitForLocalSupabaseEnv()) {
+			log('Local Supabase is ready.')
+			return
+		}
 		fail(
 			[
 				'Could not start local Supabase.',
@@ -209,11 +211,6 @@ function isHostPortOpen(host, port) {
 		socket.once('error', () => finish(false))
 		socket.setTimeout(750, () => finish(false))
 	})
-}
-
-function skipInfisical() {
-	const normalized = process.env.HYPERQUOTE_SKIP_INFISICAL?.trim().toLowerCase()
-	return normalized === '1' || normalized === 'true'
 }
 
 function log(message) {

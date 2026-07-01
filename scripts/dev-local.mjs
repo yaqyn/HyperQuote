@@ -3,12 +3,16 @@ import { spawn, spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import process from 'node:process'
+import {
+	INFISICAL_DEV_SENTINEL,
+	infisicalDevRunArgs,
+	requireInfisicalReady,
+	skipInfisical,
+} from './infisical-dev.mjs'
 import { hasConfiguredTwilioVerifyEnv } from './supabase-auth-env.mjs'
 
 const DEFAULT_GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const LOCAL_AI_PROXY_KEY = 'local-groq-proxy'
-const INFISICAL_DEV_SENTINEL = 'HYPERQUOTE_DEV_INFISICAL_LOADED'
-const HYPERQUOTE_INFISICAL_PATH = '/Projects/HyperQuote'
 const SUPABASE_READY_TIMEOUT_MS = 90_000
 const SUPABASE_READY_INTERVAL_MS = 1_000
 
@@ -51,29 +55,11 @@ function maybeRelaunchWithInfisical() {
 	if (process.env.CI) return
 	if (skipInfisical()) return
 
-	const infisical = spawnSync('infisical', ['--version'], {
-		encoding: 'utf8',
-		stdio: ['ignore', 'ignore', 'ignore'],
-	})
-	if (infisical.status !== 0) {
-		console.error(
-			'Infisical CLI is required for local dev secrets. Install/login to Infisical or set HYPERQUOTE_SKIP_INFISICAL=1 for an explicit local-only bypass.',
-		)
-		process.exit(1)
-	}
-
 	console.log('Loading local development secrets from Infisical dev...')
+	requireInfisicalReady('local dev secrets')
 	const relaunched = spawnSync(
 		'infisical',
-		[
-			'run',
-			'--env=dev',
-			`--path=${HYPERQUOTE_INFISICAL_PATH}`,
-			'--recursive',
-			'--',
-			process.execPath,
-			...process.argv.slice(1),
-		],
+		infisicalDevRunArgs([process.execPath, ...process.argv.slice(1)]),
 		{
 			env: {
 				...process.env,
@@ -83,12 +69,6 @@ function maybeRelaunchWithInfisical() {
 		},
 	)
 	process.exit(relaunched.status ?? 1)
-}
-
-function skipInfisical() {
-	const flag = process.env.HYPERQUOTE_SKIP_INFISICAL
-	const normalized = flag?.trim().toLowerCase()
-	return normalized === '1' || normalized === 'true'
 }
 
 async function main() {
@@ -101,10 +81,17 @@ async function main() {
 			{ stdio: 'ignore' },
 		)
 		if (started.status !== 0) {
-			console.error('Could not start local Supabase. Run `bun run db:start`.')
-			process.exit(started.status ?? 1)
+			console.error(
+				'Supabase start returned non-zero; waiting for local Supabase readiness before failing.',
+			)
+			localEnv = await waitForLocalSupabaseEnv()
+			if (!localEnv) {
+				console.error('Could not start local Supabase. Run `bun run db:start`.')
+				process.exit(started.status ?? 1)
+			}
+		} else {
+			localEnv = await waitForLocalSupabaseEnv()
 		}
-		localEnv = await waitForLocalSupabaseEnv()
 	}
 
 	if (!localEnv) {

@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
 import process from 'node:process'
+import {
+	HYPERQUOTE_INFISICAL_PATH,
+	requireInfisicalReady,
+	skipInfisical,
+} from './infisical-dev.mjs'
 
 const INFISICAL_DEV_SENTINEL = 'HYPERQUOTE_APP_DEV_INFISICAL_LOADED'
-const HYPERQUOTE_INFISICAL_PATH = '/Projects/HyperQuote'
 
 const [command, ...args] = process.argv.slice(2)
 if (!command) {
@@ -13,6 +17,7 @@ if (!command) {
 
 if (shouldLoadInfisical()) {
 	console.log('Loading local development secrets from Infisical dev...')
+	requireInfisicalReady('direct app dev secrets')
 	const relaunched = spawnSync(
 		'infisical',
 		[
@@ -51,19 +56,5 @@ function shouldLoadInfisical() {
 	if (process.env.CI) return false
 	if (skipInfisical()) return false
 
-	const infisical = spawnSync('infisical', ['--version'], {
-		encoding: 'utf8',
-		stdio: ['ignore', 'ignore', 'ignore'],
-	})
-	if (infisical.status === 0) return true
-	console.error(
-		'Infisical CLI is required for local dev secrets. Install/login to Infisical or set HYPERQUOTE_SKIP_INFISICAL=1 for an explicit local-only bypass.',
-	)
-	process.exit(1)
-}
-
-function skipInfisical() {
-	const flag = process.env.HYPERQUOTE_SKIP_INFISICAL
-	const normalized = flag?.trim().toLowerCase()
-	return normalized === '1' || normalized === 'true'
+	return true
 }

@@ -2,12 +2,16 @@
 import { spawn, spawnSync } from 'node:child_process'
 import process from 'node:process'
 import {
+	HYPERQUOTE_INFISICAL_PATH,
+	requireInfisicalReady,
+	skipInfisical,
+} from './infisical-dev.mjs'
+import {
 	hasConfiguredTwilioVerifyEnv,
 	withLocalSupabaseAuthEnv,
 } from './supabase-auth-env.mjs'
 
 const INFISICAL_SENTINEL = 'HYPERQUOTE_SUPABASE_INFISICAL_LOADED'
-const HYPERQUOTE_INFISICAL_PATH = '/Projects/HyperQuote'
 
 const args = process.argv.slice(2)
 const quiet = args.includes('--quiet')
@@ -70,16 +74,7 @@ function maybeRelaunchWithInfisical() {
 	if (process.env.CI) return
 	if (skipInfisical()) return
 
-	const infisical = spawnSync('infisical', ['--version'], {
-		encoding: 'utf8',
-		stdio: ['ignore', 'ignore', 'ignore'],
-	})
-	if (infisical.status !== 0) {
-		console.error(
-			'Infisical CLI is required for local Supabase secrets. Install/login to Infisical or set HYPERQUOTE_SKIP_INFISICAL=1 for an explicit local-only bypass.',
-		)
-		process.exit(1)
-	}
+	requireInfisicalReady('local Supabase secrets')
 
 	const relaunched = spawnSync(
 		'infisical',
@@ -101,10 +96,4 @@ function maybeRelaunchWithInfisical() {
 		},
 	)
 	process.exit(relaunched.status ?? 1)
-}
-
-function skipInfisical() {
-	const flag = process.env.HYPERQUOTE_SKIP_INFISICAL
-	const normalized = flag?.trim().toLowerCase()
-	return normalized === '1' || normalized === 'true'
 }
