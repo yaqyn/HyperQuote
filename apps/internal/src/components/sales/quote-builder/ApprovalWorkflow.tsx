@@ -36,7 +36,7 @@ interface ApprovalChainEntry {
 
 type SecurityMethod = 'password' | 'qr'
 
-function determineApprovalChain(
+export function determineApprovalChain(
 	marginPercent: number,
 	totalValue: number,
 	thresholds: MarginThresholds[],
@@ -50,31 +50,67 @@ function determineApprovalChain(
 
 	let marginRole: ApproverRole = 'none'
 	let marginSummary = ''
+	const marginEntries: ApprovalChainEntry[] = []
 	if (marginPercent < 0) {
 		marginRole = 'ceo'
 		marginSummary = 'CEO approval required (strategic deal)'
+		marginEntries.push({
+			role: 'ceo',
+			label: 'CEO',
+			required: true,
+			reason: `Margin ${marginPercent}% below minimum ${ref.absoluteMin}%`,
+		})
 	} else if (marginPercent < ref.absoluteMin) {
 		marginRole = 'ceo'
 		marginSummary = 'CEO approval required (strategic deal)'
+		marginEntries.push({
+			role: 'ceo',
+			label: 'CEO',
+			required: true,
+			reason: `Margin ${marginPercent}% below minimum ${ref.absoluteMin}%`,
+		})
 	} else if (marginPercent < ref.floor) {
 		marginRole = 'vp_sales'
 		marginSummary = 'VP Sales approval required'
+		marginEntries.push({
+			role: 'vp_sales',
+			label: 'VP Sales',
+			required: true,
+			reason: `Margin ${marginPercent}% below floor ${ref.floor}%`,
+		})
 	} else if (marginPercent < ref.target) {
 		marginRole = 'sales_manager'
 		marginSummary = 'Sales Manager approval required'
+		marginEntries.push({
+			role: 'sales_manager',
+			label: 'Sales Manager',
+			required: true,
+			reason: `Margin ${marginPercent}% below target ${ref.target}%`,
+		})
 	}
 
 	let valueRole: ApproverRole = 'none'
 	let valueSummary = ''
+	const valueEntries: ApprovalChainEntry[] = []
 	if (totalValue > 50_000_000) {
 		valueRole = 'ceo'
 		valueSummary = 'Sales Manager + Director + CEO'
+		valueEntries.push(
+			valueApprovalEntry('sales_manager', totalValue),
+			valueApprovalEntry('director', totalValue),
+			valueApprovalEntry('ceo', totalValue),
+		)
 	} else if (totalValue > 10_000_000) {
 		valueRole = 'director'
 		valueSummary = 'Sales Manager + Director'
+		valueEntries.push(
+			valueApprovalEntry('sales_manager', totalValue),
+			valueApprovalEntry('director', totalValue),
+		)
 	} else if (totalValue > 2_500_000) {
 		valueRole = 'sales_manager'
 		valueSummary = 'Sales Manager sign-off'
+		valueEntries.push(valueApprovalEntry('sales_manager', totalValue))
 	}
 
 	const rolePriority: ApproverRole[] = [
@@ -97,48 +133,43 @@ function determineApprovalChain(
 	if (highestRole === 'none')
 		return { chain: [], highestRole, summaryLabel: 'No approval needed' }
 
-	const neededIndex = rolePriority.indexOf(highestRole)
-
-	if (neededIndex >= 1) {
-		chain.push({
-			role: 'sales_manager',
-			label: 'Sales Manager',
-			required: true,
-			reason:
-				marginPercent < ref.target
-					? `Margin ${marginPercent}% below target ${ref.target}%`
-					: `Value EGP ${(totalValue / 1_000_000).toFixed(1)}M`,
-		})
-	}
-	if (neededIndex >= 2) {
-		chain.push({
-			role: 'director',
-			label: 'Director',
-			required: true,
-			reason: 'Value exceeds EGP 10M',
-		})
-	}
-	if (neededIndex >= 3) {
-		chain.push({
-			role: 'vp_sales',
-			label: 'VP Sales',
-			required: true,
-			reason: `Margin ${marginPercent}% below floor ${ref.floor}%`,
-		})
-	}
-	if (neededIndex >= 4) {
-		chain.push({
-			role: 'ceo',
-			label: 'CEO',
-			required: true,
-			reason:
-				marginPercent < ref.absoluteMin
-					? `Margin ${marginPercent}% below minimum ${ref.absoluteMin}%`
-					: 'Value exceeds EGP 50M',
-		})
+	for (const role of rolePriority) {
+		const entry = [...valueEntries, ...marginEntries].find(
+			(candidate) => candidate.role === role,
+		)
+		if (entry) chain.push(entry)
 	}
 
 	return { chain, highestRole, summaryLabel }
+}
+
+function valueApprovalEntry(
+	role: Exclude<ApproverRole, 'none' | 'vp_sales'>,
+	totalValue: number,
+): ApprovalChainEntry {
+	const value = `EGP ${(totalValue / 1_000_000).toFixed(1)}M`
+	if (role === 'sales_manager') {
+		return {
+			role,
+			label: 'Sales Manager',
+			required: true,
+			reason: `Value ${value}`,
+		}
+	}
+	if (role === 'director') {
+		return {
+			role,
+			label: 'Director',
+			required: true,
+			reason: 'Value exceeds EGP 10M',
+		}
+	}
+	return {
+		role,
+		label: 'CEO',
+		required: true,
+		reason: 'Value exceeds EGP 50M',
+	}
 }
 
 function SignatureSlot({

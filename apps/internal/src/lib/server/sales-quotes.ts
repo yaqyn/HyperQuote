@@ -33,7 +33,12 @@ const QUOTE_BUILDER_FOREIGN_CURRENCIES: Array<
 	Exclude<QuoteBuilderCurrency, 'EGP'>
 > = ['USD', 'EUR', 'SAR']
 const EXCHANGE_RATE_SOURCE_URL = 'https://open.er-api.com/v6/latest/EGP'
-const EXCHANGE_RATE_SOURCE_NAME = ''
+const EXCHANGE_RATE_SOURCE_NAME = 'open.er-api.com'
+const EXCHANGE_RATE_CACHE_TTL_MS = 30 * 60_000
+let exchangeRateCache: {
+	expiresAt: number
+	value: QuoteBuilderExchangeRates
+} | null = null
 
 interface QuoteBuilderExchangeRates {
 	baseCurrency: 'EGP'
@@ -87,6 +92,11 @@ function isUnknownRecord(value: unknown): value is Record<string, unknown> {
 }
 
 async function getQuoteBuilderExchangeRates(): Promise<QuoteBuilderExchangeRates> {
+	const now = Date.now()
+	if (exchangeRateCache && exchangeRateCache.expiresAt > now) {
+		return exchangeRateCache.value
+	}
+
 	const rates: Record<QuoteBuilderCurrency, number | null> = {
 		EGP: 1,
 		USD: null,
@@ -97,22 +107,22 @@ async function getQuoteBuilderExchangeRates(): Promise<QuoteBuilderExchangeRates
 	try {
 		const response = await fetch(EXCHANGE_RATE_SOURCE_URL)
 		if (!response.ok) {
-			return {
+			return cacheExchangeRates({
 				baseCurrency: 'EGP',
 				rates,
 				updatedAt: null,
 				source: EXCHANGE_RATE_SOURCE_NAME,
-			}
+			})
 		}
 
 		const payload: unknown = await response.json()
 		if (!isUnknownRecord(payload) || !isUnknownRecord(payload.rates)) {
-			return {
+			return cacheExchangeRates({
 				baseCurrency: 'EGP',
 				rates,
 				updatedAt: null,
 				source: EXCHANGE_RATE_SOURCE_NAME,
-			}
+			})
 		}
 
 		for (const currency of QUOTE_BUILDER_FOREIGN_CURRENCIES) {
@@ -126,7 +136,7 @@ async function getQuoteBuilderExchangeRates(): Promise<QuoteBuilderExchangeRates
 			}
 		}
 
-		return {
+		return cacheExchangeRates({
 			baseCurrency: 'EGP',
 			rates,
 			updatedAt:
@@ -134,15 +144,25 @@ async function getQuoteBuilderExchangeRates(): Promise<QuoteBuilderExchangeRates
 					? payload.time_last_update_utc
 					: null,
 			source: EXCHANGE_RATE_SOURCE_NAME,
-		}
+		})
 	} catch {
-		return {
+		return cacheExchangeRates({
 			baseCurrency: 'EGP',
 			rates,
 			updatedAt: null,
 			source: EXCHANGE_RATE_SOURCE_NAME,
-		}
+		})
 	}
+}
+
+function cacheExchangeRates(
+	value: QuoteBuilderExchangeRates,
+): QuoteBuilderExchangeRates {
+	exchangeRateCache = {
+		expiresAt: Date.now() + EXCHANGE_RATE_CACHE_TTL_MS,
+		value,
+	}
+	return value
 }
 
 interface SupabasePricingRuleRow {

@@ -232,6 +232,18 @@ describe('driver app contracts', () => {
 		expect(apiSource).toContain("'driver_session_replaced'")
 	})
 
+	it('keeps repeated dashboard reads behind one in-flight repository request', () => {
+		const repositorySource = readFileSync(
+			new URL('../lib/supabase-driver-repository.ts', import.meta.url),
+			'utf8',
+		)
+
+		expect(repositorySource).toContain('let dashboardRequest')
+		expect(repositorySource).toContain('dashboardRequest ??= apiRequest')
+		expect(repositorySource).toContain('finally(() => {')
+		expect(repositorySource).toContain('dashboardRequest = null')
+	})
+
 	it('normalizes delivery secret input before workflow transitions', () => {
 		expect(
 			extractDeliverySecretCode(
@@ -240,6 +252,17 @@ describe('driver app contracts', () => {
 		).toBe('AB2C3D4E')
 		expect(extractDeliverySecretCode('AB2C-3D4E')).toBe('AB2C3D4E')
 		expect(isDeliverySecretCodeReady('00000000')).toBe(false)
+	})
+
+	it('generates delivery secret codes from unbiased random bytes', () => {
+		const source = latestMigrationFunctionSource(
+			'app_private.generate_delivery_secret_code',
+		)
+
+		expect(source).toContain('gen_random_bytes(8)')
+		expect(source).toContain('max_unbiased_byte')
+		expect(source).toContain('random_byte >= max_unbiased_byte')
+		expect(source).not.toContain('gen_random_uuid()')
 	})
 
 	it('submits scanned customer codes as delivery completion proof', () => {

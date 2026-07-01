@@ -143,7 +143,7 @@ async function getInternalAiSource(
 	const simpleAnswer = simpleEmployeeChatAnswer(options.userText)
 	if (simpleAnswer) return textStream(simpleAnswer)
 
-	await refreshSearchDocumentsIfDirty(client)
+	await refreshSearchDocumentsIfDirty(client, options.scope)
 	if (await isAIEnabled()) {
 		try {
 			const result = await runInternalAiToolLoop(client, messages, {
@@ -175,7 +175,11 @@ function internalPolicyRefusal(
 	return internalAiPolicyRefusal(userText, scope, panelId)
 }
 
-async function refreshSearchDocumentsIfDirty(client: InternalSupabaseClient) {
+async function refreshSearchDocumentsIfDirty(
+	client: InternalSupabaseClient,
+	scope: InternalAiScope,
+) {
+	if (scope !== 'search') return
 	const { error } = await client.rpc('refresh_ceo_search_documents_if_dirty')
 	if (error) throw new Error(error.message)
 }

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { getCustomerSupabaseConfig } from '@hyperquote/auth/customer-server'
 import {
 	clearInstalledRuntimeEnv,
 	installRuntimeEnv,
@@ -83,6 +84,23 @@ describe('driver login validation', () => {
 				supabaseAnonKey: 'installed-anon-key',
 				supabaseServiceRoleKey: 'installed-service-role-key',
 				supabaseUrl: 'https://installed.supabase.co',
+			})
+		} finally {
+			clearInstalledRuntimeEnv()
+		}
+	})
+
+	it('reads customer server config from installed runtime bindings', async () => {
+		clearInstalledRuntimeEnv()
+		installRuntimeEnv({
+			SUPABASE_ANON_KEY: { get: async () => 'customer-anon-key' },
+			SUPABASE_URL: { get: async () => 'https://customer.supabase.co' },
+		})
+
+		try {
+			await expect(getCustomerSupabaseConfig()).resolves.toMatchObject({
+				supabaseAnonKey: 'customer-anon-key',
+				supabaseUrl: 'https://customer.supabase.co',
 			})
 		} finally {
 			clearInstalledRuntimeEnv()

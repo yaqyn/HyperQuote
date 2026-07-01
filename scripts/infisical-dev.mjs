@@ -1,8 +1,9 @@
 import { spawnSync } from 'node:child_process'
 
 export const HYPERQUOTE_INFISICAL_PATH = '/Projects/HyperQuote'
-export const INFISICAL_DEV_ENV = 'dev'
 export const INFISICAL_DEV_SENTINEL = 'HYPERQUOTE_DEV_INFISICAL_LOADED'
+
+const INFISICAL_DEV_ENV = 'dev'
 
 export function skipInfisical(env = process.env) {
 	const normalized = env.HYPERQUOTE_SKIP_INFISICAL?.trim().toLowerCase()

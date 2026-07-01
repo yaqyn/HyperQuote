@@ -244,11 +244,7 @@ export async function saveSyncedCustomerQuoteCart(options: {
 		options.store,
 		options.input,
 	)
-	const current = await loadSyncedCustomerQuoteCart({
-		customerId: options.customerId,
-		source: options.input.source,
-		store: options.store,
-	})
+	const current = await options.store.loadCart(options.customerId)
 	const row = await options.store.upsertCart(
 		options.customerId,
 		snapshot,

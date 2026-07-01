@@ -1041,16 +1041,48 @@ function actionButtonEvent(data: WebsiteActionButtonData): WebsiteCustomChunk {
 
 async function checkWebsiteChatRateLimit() {
 	const request = getRequest()
-	const ip =
-		request.headers.get('cf-connecting-ip') ??
-		request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-		'unknown'
 	const rateLimitStore = await getRateLimitStore()
 	return checkRateLimit(rateLimitStore, {
-		key: `website-chat:${ip}`,
+		key: websiteChatRateLimitKey(request),
 		limit: CHAT_RATE_LIMIT,
 		windowSeconds: CHAT_RATE_LIMIT_WINDOW_SECONDS,
 	})
+}
+
+export function websiteChatRateLimitKey(request: Request): string {
+	const ip =
+		firstHeaderValue(request.headers, 'cf-connecting-ip') ??
+		firstForwardedIp(request.headers.get('x-forwarded-for')) ??
+		firstHeaderValue(request.headers, 'x-real-ip')
+	if (ip) return `website-chat:ip:${ip}`
+
+	const fingerprint = [
+		request.headers.get('user-agent'),
+		request.headers.get('accept-language'),
+		request.headers.get('sec-ch-ua-platform'),
+	]
+		.map((value) => value?.trim())
+		.filter((value): value is string => Boolean(value))
+		.join('|')
+
+	return `website-chat:fallback:${stableRateLimitHash(fingerprint || 'anonymous')}`
+}
+
+function firstHeaderValue(headers: Headers, name: string): string | null {
+	return headers.get(name)?.split(',')[0]?.trim() || null
+}
+
+function firstForwardedIp(value: string | null): string | null {
+	return value?.split(',')[0]?.trim() || null
+}
+
+function stableRateLimitHash(value: string): string {
+	let hash = 2166136261
+	for (let index = 0; index < value.length; index += 1) {
+		hash ^= value.charCodeAt(index)
+		hash = Math.imul(hash, 16777619)
+	}
+	return (hash >>> 0).toString(36)
 }
 
 function rateLimitResponse(userText: string, retryAfter: number): string {

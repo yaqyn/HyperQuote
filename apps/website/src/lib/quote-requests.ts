@@ -237,6 +237,8 @@ async function replaceQuoteRequestItems(
 	quoteRequestId: string,
 	items: QuoteRequestItemInput[],
 ) {
+	await assertQuoteRequestItemsOrderable(client, items)
+
 	const { error: deleteError } = await client
 		.from('quote_request_items')
 		.delete()
@@ -244,15 +246,20 @@ async function replaceQuoteRequestItems(
 
 	if (deleteError) throw deleteError
 
-	await insertQuoteRequestItems(client, quoteRequestId, items)
+	await insertQuoteRequestItems(client, quoteRequestId, items, {
+		orderableChecked: true,
+	})
 }
 
 async function insertQuoteRequestItems(
 	client: WebsiteCustomerSupabaseClient,
 	quoteRequestId: string,
 	items: QuoteRequestItemInput[],
+	options: { orderableChecked?: boolean } = {},
 ) {
-	await assertQuoteRequestItemsOrderable(client, items)
+	if (!options.orderableChecked) {
+		await assertQuoteRequestItemsOrderable(client, items)
+	}
 	const { error } = await client
 		.from('quote_request_items')
 		.insert(quoteRequestItemRows(quoteRequestId, items))

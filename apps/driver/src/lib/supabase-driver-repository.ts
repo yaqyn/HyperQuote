@@ -322,6 +322,9 @@ export function createSupabaseDriverRepository(
 		config.supabaseAnonKey,
 		config.cookieName,
 	)
+	let dashboardRequest: Promise<
+		DriverDashboard & { deliveries: DriverDelivery[] }
+	> | null = null
 
 	async function accessToken() {
 		const {
@@ -365,7 +368,13 @@ export function createSupabaseDriverRepository(
 	}
 
 	async function dashboard() {
-		return apiRequest('/api/driver/dashboard', dashboardSchema)
+		dashboardRequest ??= apiRequest(
+			'/api/driver/dashboard',
+			dashboardSchema,
+		).finally(() => {
+			dashboardRequest = null
+		})
+		return dashboardRequest
 	}
 
 	async function mutateDelivery(

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
 	shouldShowWebsiteChatActionButtons,
+	websiteChatRateLimitKey,
 	websiteDirectNavigationButtons,
 	websiteUnsupportedHelpButtons,
 } from './chat'
@@ -66,5 +67,44 @@ describe('website chat navigation helpers', () => {
 			'Portal App',
 		])
 		assert.deepEqual(unsupportedLabelsFor('where do I buy wood?'), [])
+	})
+
+	it('keeps website chat rate limits scoped to stable request identity', () => {
+		assert.equal(
+			websiteChatRateLimitKey(
+				new Request('https://www.hyperquote.net/api/chat', {
+					headers: { 'cf-connecting-ip': '203.0.113.10' },
+				}),
+			),
+			'website-chat:ip:203.0.113.10',
+		)
+		assert.equal(
+			websiteChatRateLimitKey(
+				new Request('https://www.hyperquote.net/api/chat', {
+					headers: { 'x-forwarded-for': '198.51.100.1, 10.0.0.1' },
+				}),
+			),
+			'website-chat:ip:198.51.100.1',
+		)
+
+		const firstFallback = websiteChatRateLimitKey(
+			new Request('https://www.hyperquote.net/api/chat', {
+				headers: {
+					'accept-language': 'en',
+					'user-agent': 'browser-one',
+				},
+			}),
+		)
+		const secondFallback = websiteChatRateLimitKey(
+			new Request('https://www.hyperquote.net/api/chat', {
+				headers: {
+					'accept-language': 'en',
+					'user-agent': 'browser-two',
+				},
+			}),
+		)
+
+		assert.match(firstFallback, /^website-chat:fallback:/)
+		assert.notEqual(firstFallback, secondFallback)
 	})
 })

@@ -553,8 +553,12 @@ async function handleDriverApi(request: Request, env: DriverApiEnv) {
 		if (isDeliverySecretError(error)) {
 			return errorJson(400, 'invalid_delivery_secret')
 		}
-		const message = error instanceof Error ? error.message : 'driver_api_failed'
-		return errorJson(message.includes('permission') ? 403 : 400, message)
+		const message = error instanceof Error ? error.message : ''
+		const forbidden = message.includes('permission')
+		return errorJson(
+			forbidden ? 403 : 400,
+			forbidden ? 'forbidden' : 'driver_api_failed',
+		)
 	}
 }
 

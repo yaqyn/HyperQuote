@@ -29,6 +29,7 @@ import {
 	createExternalActorServiceRoleClient,
 	createSupabaseServerClient,
 	getSupabaseServerUser,
+	type RuntimeEnvValue,
 	resolveSupabaseRuntimeConfig,
 } from './server'
 
@@ -106,6 +107,12 @@ type VerifyCustomerOtpInput = z.infer<typeof verifyCustomerOtpInput>
 type CreateCustomerAccountInput = z.infer<typeof createCustomerAccountInput>
 type ClaimCustomerAccountInput = z.infer<typeof claimCustomerAccountInput>
 
+interface ProcessEnvHost {
+	process?: {
+		env?: Record<string, RuntimeEnvValue>
+	}
+}
+
 export interface CustomerOtpVerificationResult {
 	success: boolean
 	error?: 'invalid_code' | 'rate_limited' | 'verify_failed'
@@ -129,7 +136,7 @@ interface AuthenticatedCustomerContextOptions<
 }
 
 export function getCustomerSupabaseConfig() {
-	return resolveSupabaseRuntimeConfig(process.env)
+	return resolveSupabaseRuntimeConfig(customerRuntimeEnv())
 }
 
 export function appendCurrentResponseAuthCookies(
@@ -144,7 +151,18 @@ export function customerLoginRedirectUrl(request: Request) {
 }
 
 export async function createCustomerDataClient(userId: string) {
-	return createExternalActorServiceRoleClient(process.env, userId)
+	return createExternalActorServiceRoleClient(customerRuntimeEnv(), userId)
+}
+
+function customerRuntimeEnv(): Record<string, RuntimeEnvValue> {
+	return processEnvRecord()
+}
+
+function processEnvRecord(): Record<string, RuntimeEnvValue> {
+	// Shared auth code runs in Workers too, so inspect the optional Node-like
+	// host shape without referencing the process global directly.
+	const host = globalThis as typeof globalThis & ProcessEnvHost
+	return host.process?.env ?? {}
 }
 
 export async function getCustomerAuthRequestContext() {
