@@ -33,7 +33,11 @@ export function ChatView({ locale }: ChatViewProps) {
 	const [activeDraft, setActiveDraft] = useState<ActiveChatDraftContext | null>(
 		null,
 	)
-	const chat = usePortalChat({ activeDraft })
+	const [chatThreadKey, setChatThreadKey] = useState('default')
+	const [clearDefaultChatRequested, setClearDefaultChatRequested] =
+		useState(false)
+	const [draftSelectionResetToken, setDraftSelectionResetToken] = useState(0)
+	const chat = usePortalChat({ activeDraft, conversationKey: chatThreadKey })
 	const keyboard = useVisualViewportKeyboard()
 	const [draftPanelInitiallyLoading, setDraftPanelInitiallyLoading] =
 		useState(true)
@@ -43,6 +47,7 @@ export function ChatView({ locale }: ChatViewProps) {
 	const handleActiveDraftChange = useCallback(
 		(draft: ActiveChatDraftContext | null) => {
 			setActiveDraft(draft)
+			setChatThreadKey(draft ? `draft:${draft.id ?? 'new'}` : 'default')
 		},
 		[],
 	)
@@ -51,6 +56,12 @@ export function ChatView({ locale }: ChatViewProps) {
 	}, [])
 	const closeDraftPanel = useCallback(() => {
 		setDraftPanelOpen(false)
+	}, [])
+	const handleNewPage = useCallback(() => {
+		setActiveDraft(null)
+		setChatThreadKey('default')
+		setDraftSelectionResetToken((value) => value + 1)
+		setClearDefaultChatRequested(true)
 	}, [])
 
 	const realMessages = useMemo(
@@ -105,6 +116,12 @@ export function ChatView({ locale }: ChatViewProps) {
 		setIntroVisible(false)
 	}, [introMinimumElapsed, introReady])
 
+	useEffect(() => {
+		if (!clearDefaultChatRequested || chatThreadKey !== 'default') return
+		chat.clear()
+		setClearDefaultChatRequested(false)
+	}, [chat, chatThreadKey, clearDefaultChatRequested])
+
 	return (
 		<div
 			dir="ltr"
@@ -124,7 +141,7 @@ export function ChatView({ locale }: ChatViewProps) {
 								{hasMessages ? (
 									<button
 										type="button"
-										onClick={() => chat.clear()}
+										onClick={handleNewPage}
 										className="office-quiet"
 										aria-label={newPageLabel}
 									>
@@ -165,6 +182,7 @@ export function ChatView({ locale }: ChatViewProps) {
 					onActiveDraftChange={handleActiveDraftChange}
 					onInitialLoadChange={handleDraftInitialLoadChange}
 					onDraftPrompt={(prompt) => chat.sendMessage(prompt)}
+					resetSelectionToken={draftSelectionResetToken}
 				/>
 			</aside>
 			<AnimatePresence>
@@ -193,6 +211,7 @@ export function ChatView({ locale }: ChatViewProps) {
 									chat.sendMessage(prompt)
 									closeDraftPanel()
 								}}
+								resetSelectionToken={draftSelectionResetToken}
 								headerAction={
 									<button
 										type="button"

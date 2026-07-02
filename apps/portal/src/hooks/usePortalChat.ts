@@ -169,6 +169,18 @@ function storedMessagesForRole(role: 'customer' | 'supplier'): ChatMessage[] {
 	return role === 'customer' ? state.customerMessages : state.supplierMessages
 }
 
+function storedMessagesForThread(
+	role: 'customer' | 'supplier',
+	threadKey: string,
+): ChatMessage[] {
+	const state = useChatStore.getState()
+	const threads =
+		role === 'customer'
+			? state.customerThreadMessages
+			: state.supplierThreadMessages
+	return threads[threadKey] ?? []
+}
+
 function localCartResponse(options: { opened?: boolean } = {}): {
 	richContent: RichContent[]
 	text: string
@@ -284,13 +296,16 @@ function cartTextTable(
 
 export function usePortalChat({
 	activeDraft = null,
+	conversationKey = 'default',
 }: {
 	activeDraft?: ActiveChatDraftContext | null
+	conversationKey?: string
 } = {}) {
 	const activeRole = usePortalStore((s) => s.activeRole)
 	const queryClient = useQueryClient()
 	const setMessages = useChatStore((s) => s.setMessages)
 	const clearStoreActive = useChatStore((s) => s.clearActive)
+	const moveStoreThread = useChatStore((s) => s.moveThread)
 	const _addMessage = useChatStore((s) => s.addMessage)
 	const [isChatStoreHydrated, setIsChatStoreHydrated] = useState(() =>
 		useChatStore.persist.hasHydrated(),
@@ -298,7 +313,9 @@ export function usePortalChat({
 	const [isHistoryReady, setIsHistoryReady] = useState(false)
 	const [isResponsePending, setIsResponsePending] = useState(false)
 	const activeDraftRef = useRef<ActiveChatDraftContext | null>(activeDraft)
+	const conversationKeyRef = useRef(conversationKey)
 	const loadedRoleRef = useRef<'customer' | 'supplier' | null>(null)
+	const loadedConversationKeyRef = useRef<string | null>(null)
 	const lastPersistedChatFingerprintRef = useRef('')
 	const richContentByMessageIdRef = useRef<Map<string, RichContent[]>>(
 		new Map(),
@@ -327,6 +344,18 @@ export function usePortalChat({
 		activeDraftRef.current = activeDraft
 	}, [activeDraft])
 
+	useEffect(() => {
+		const previousKey = conversationKeyRef.current
+		conversationKeyRef.current = conversationKey
+		if (
+			previousKey === 'draft:new' &&
+			conversationKey.startsWith('draft:') &&
+			conversationKey !== 'draft:new'
+		) {
+			moveStoreThread(activeRole, previousKey, conversationKey)
+		}
+	}, [activeRole, conversationKey, moveStoreThread])
+
 	const chat = useChat({
 		connection: stream(async function* (messages) {
 			try {
@@ -343,7 +372,10 @@ export function usePortalChat({
 						activeDraft: activeDraftRef.current,
 						messages: simpleMessages,
 						role: activeRole,
-						conversationId: null,
+						conversationId:
+							conversationKeyRef.current === 'default'
+								? null
+								: conversationKeyRef.current,
 					},
 				})
 				const chunks = raw as unknown as StreamChunk[]
@@ -397,18 +429,27 @@ export function usePortalChat({
 			setIsHistoryReady(false)
 			return
 		}
-		if (loadedRoleRef.current === activeRole) {
+		if (
+			loadedRoleRef.current === activeRole &&
+			loadedConversationKeyRef.current === conversationKey
+		) {
 			setIsHistoryReady(true)
 			return
 		}
 		setIsHistoryReady(false)
-		const storedMessages = storedMessagesForRole(activeRole)
+		const storedMessages =
+			storedMessagesForThread(activeRole, conversationKey).length > 0
+				? storedMessagesForThread(activeRole, conversationKey)
+				: conversationKey === 'default'
+					? storedMessagesForRole(activeRole)
+					: []
 		const storedFingerprint = storedMessagesFingerprint(storedMessages)
 		const currentFingerprint = uiMessagesFingerprint(chatMessagesRef.current)
 		richContentByMessageIdRef.current =
 			richContentMapFromStoredMessages(storedMessages)
 		pendingRichContentRef.current = []
 		loadedRoleRef.current = activeRole
+		loadedConversationKeyRef.current = conversationKey
 		if (storedFingerprint === currentFingerprint) {
 			lastPersistedChatFingerprintRef.current = storedFingerprint
 			setIsHistoryReady(true)
@@ -417,18 +458,18 @@ export function usePortalChat({
 		lastPersistedChatFingerprintRef.current = currentFingerprint
 		chat.setMessages(storedMessages.map(uiMessageFromStoredMessage))
 		setIsHistoryReady(true)
-	}, [activeRole, chat.setMessages, isChatStoreHydrated])
+	}, [activeRole, chat.setMessages, conversationKey, isChatStoreHydrated])
 
-	// Sync messages to the single durable Zustand thread when messages change.
+	// Sync messages to the durable Zustand thread for the active chat context.
 	useEffect(() => {
 		if (!isChatStoreHydrated) return
 		const fingerprint = uiMessagesFingerprint(chat.messages)
 		if (fingerprint === lastPersistedChatFingerprintRef.current) return
 		lastPersistedChatFingerprintRef.current = fingerprint
-		const activeStoredMessages =
-			activeRole === 'customer'
-				? useChatStore.getState().customerMessages
-				: useChatStore.getState().supplierMessages
+		const activeStoredMessages = storedMessagesForThread(
+			activeRole,
+			conversationKey,
+		)
 		const existingById = new Map(
 			activeStoredMessages.map((message) => [message.id, message]),
 		)
@@ -460,8 +501,14 @@ export function usePortalChat({
 				existingById.get(msg.id)?.richContent,
 			timestamp: msg.createdAt?.getTime() ?? Date.now(),
 		}))
-		setMessages(activeRole, mapped)
-	}, [activeRole, chat.messages, isChatStoreHydrated, setMessages])
+		setMessages(activeRole, mapped, conversationKey)
+	}, [
+		activeRole,
+		chat.messages,
+		conversationKey,
+		isChatStoreHydrated,
+		setMessages,
+	])
 
 	// Map UIMessage to simplified ChatMessage for consumers
 	const messages: ChatMessage[] = chat.messages.map((msg: UIMessage) => ({
@@ -480,7 +527,7 @@ export function usePortalChat({
 		pendingRichContentRef.current = []
 		lastChunksRef.current = []
 		lastPersistedChatFingerprintRef.current = ''
-		clearStoreActive(activeRole)
+		clearStoreActive(activeRole, conversationKeyRef.current)
 	}, [activeRole, chat.clear, chat.stop, clearStoreActive])
 
 	const stop = useCallback(() => {

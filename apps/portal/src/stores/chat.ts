@@ -1,6 +1,6 @@
 /**
  * Zustand chat store with durable local persistence.
- * The portal keeps one active chat thread per role until the user clears it.
+ * The portal keeps one active chat thread per role and draft context.
  * Uses skipHydration for SSR safety — rehydrate in useEffect.
  */
 import { create } from 'zustand'
@@ -28,6 +28,9 @@ interface ChatStoreState {
 	// Per-role active messages
 	customerMessages: ChatMessage[]
 	supplierMessages: ChatMessage[]
+	// Per-role scoped threads. Keys are "default", "draft:<id>", or "draft:new".
+	customerThreadMessages: Record<string, ChatMessage[]>
+	supplierThreadMessages: Record<string, ChatMessage[]>
 	// Per-role conversation history
 	customerConversations: Conversation[]
 	supplierConversations: Conversation[]
@@ -41,9 +44,18 @@ interface ChatStoreState {
 
 interface ChatStoreActions {
 	addMessage: (role: 'customer' | 'supplier', msg: ChatMessage) => void
-	setMessages: (role: 'customer' | 'supplier', msgs: ChatMessage[]) => void
+	setMessages: (
+		role: 'customer' | 'supplier',
+		msgs: ChatMessage[],
+		threadKey?: string,
+	) => void
 	loadConversation: (role: 'customer' | 'supplier', id: string) => void
-	clearActive: (role: 'customer' | 'supplier') => void
+	clearActive: (role: 'customer' | 'supplier', threadKey?: string) => void
+	moveThread: (
+		role: 'customer' | 'supplier',
+		fromKey: string,
+		toKey: string,
+	) => void
 	saveConversation: (role: 'customer' | 'supplier') => void
 	togglePin: (role: 'customer' | 'supplier', id: string) => void
 	setQuickActionContext: (ctx: 'home' | 'product' | 'order') => void
@@ -54,14 +66,20 @@ type ChatStore = ChatStoreState & ChatStoreActions
 
 type PersistedChatStore = Pick<
 	ChatStoreState,
-	'customerMessages' | 'quickActionContext' | 'supplierMessages'
+	| 'customerMessages'
+	| 'customerThreadMessages'
+	| 'quickActionContext'
+	| 'supplierMessages'
+	| 'supplierThreadMessages'
 >
 
 function emptyPersistedChatStore(): PersistedChatStore {
 	return {
 		customerMessages: [],
+		customerThreadMessages: {},
 		quickActionContext: 'home',
 		supplierMessages: [],
+		supplierThreadMessages: {},
 	}
 }
 
@@ -80,6 +98,17 @@ function readStoredMessages(value: unknown): ChatMessage[] {
 	return Array.isArray(value) ? value.filter(isChatMessage) : []
 }
 
+function readStoredThreadMessages(
+	value: unknown,
+): Record<string, ChatMessage[]> {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+	return Object.fromEntries(
+		Object.entries(value as Record<string, unknown>)
+			.map(([key, messages]) => [key, readStoredMessages(messages)] as const)
+			.filter(([key, messages]) => key.trim() && messages.length > 0),
+	)
+}
+
 function migrateChatStoreToSingleSession(
 	persistedState: unknown,
 ): PersistedChatStore {
@@ -87,14 +116,30 @@ function migrateChatStoreToSingleSession(
 		return emptyPersistedChatStore()
 	}
 	const state = persistedState as Partial<ChatStoreState>
+	const customerMessages = readStoredMessages(state.customerMessages)
+	const supplierMessages = readStoredMessages(state.supplierMessages)
+	const customerThreadMessages = readStoredThreadMessages(
+		state.customerThreadMessages,
+	)
+	const supplierThreadMessages = readStoredThreadMessages(
+		state.supplierThreadMessages,
+	)
+	if (customerMessages.length > 0 && !customerThreadMessages.default) {
+		customerThreadMessages.default = customerMessages
+	}
+	if (supplierMessages.length > 0 && !supplierThreadMessages.default) {
+		supplierThreadMessages.default = supplierMessages
+	}
 	return {
-		customerMessages: readStoredMessages(state.customerMessages),
+		customerMessages,
+		customerThreadMessages,
 		quickActionContext:
 			state.quickActionContext === 'product' ||
 			state.quickActionContext === 'order'
 				? state.quickActionContext
 				: 'home',
-		supplierMessages: readStoredMessages(state.supplierMessages),
+		supplierMessages,
+		supplierThreadMessages,
 	}
 }
 
@@ -168,7 +213,9 @@ export const useChatStore = create<ChatStore>()(
 		(set) => ({
 			// State
 			customerMessages: [],
+			customerThreadMessages: {},
 			supplierMessages: [],
+			supplierThreadMessages: {},
 			customerConversations: [],
 			supplierConversations: [],
 			activeConversationId: { customer: null, supplier: null },
@@ -183,28 +230,64 @@ export const useChatStore = create<ChatStore>()(
 					return { [key]: [...state[key], msg] }
 				}),
 
-			setMessages: (role, msgs) =>
-				set(() => {
+			setMessages: (role, msgs, threadKey = 'default') =>
+				set((state) => {
 					const key =
 						role === 'customer' ? 'customerMessages' : 'supplierMessages'
-					return { [key]: msgs }
+					const threadStoreKey =
+						role === 'customer'
+							? 'customerThreadMessages'
+							: 'supplierThreadMessages'
+					const nextThreads = { ...state[threadStoreKey] }
+					if (msgs.length > 0) {
+						nextThreads[threadKey] = msgs
+					} else {
+						delete nextThreads[threadKey]
+					}
+					return {
+						[key]: msgs,
+						[threadStoreKey]: nextThreads,
+					}
 				}),
 
 			loadConversation: () => undefined,
 
-			clearActive: (role) =>
+			clearActive: (role, threadKey = 'default') =>
 				set((state) => {
 					const msgKey =
 						role === 'customer' ? 'customerMessages' : 'supplierMessages'
+					const threadStoreKey =
+						role === 'customer'
+							? 'customerThreadMessages'
+							: 'supplierThreadMessages'
+					const nextThreads = { ...state[threadStoreKey] }
+					delete nextThreads[threadKey]
 					return {
 						customerConversations: [],
 						supplierConversations: [],
 						[msgKey]: [],
+						[threadStoreKey]: nextThreads,
 						activeConversationId: {
 							...state.activeConversationId,
 							[role]: null,
 						},
 					}
+				}),
+
+			moveThread: (role, fromKey, toKey) =>
+				set((state) => {
+					if (fromKey === toKey) return state
+					const threadStoreKey =
+						role === 'customer'
+							? 'customerThreadMessages'
+							: 'supplierThreadMessages'
+					const fromMessages = state[threadStoreKey][fromKey]
+					const toMessages = state[threadStoreKey][toKey]
+					if (!fromMessages?.length || toMessages?.length) return state
+					const nextThreads = { ...state[threadStoreKey] }
+					nextThreads[toKey] = fromMessages
+					delete nextThreads[fromKey]
+					return { [threadStoreKey]: nextThreads }
 				}),
 
 			saveConversation: () => undefined,
@@ -230,8 +313,10 @@ export const useChatStore = create<ChatStore>()(
 			}),
 			partialize: (state) => ({
 				customerMessages: state.customerMessages,
+				customerThreadMessages: state.customerThreadMessages,
 				quickActionContext: state.quickActionContext,
 				supplierMessages: state.supplierMessages,
+				supplierThreadMessages: state.supplierThreadMessages,
 			}),
 			skipHydration: true,
 		},

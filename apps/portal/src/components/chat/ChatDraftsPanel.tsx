@@ -49,6 +49,7 @@ interface ChatDraftsPanelProps {
 	onInitialLoadChange?: (loading: boolean) => void
 	onDraftPrompt?: (prompt: string) => void
 	onSubmitted?: (reference: string) => void
+	resetSelectionToken?: number
 }
 
 interface DraftEditorState {
@@ -289,6 +290,7 @@ export function ChatDraftsPanel({
 	onInitialLoadChange,
 	onDraftPrompt,
 	onSubmitted,
+	resetSelectionToken = 0,
 }: ChatDraftsPanelProps) {
 	const { t, i18n } = useTranslation('portal')
 	const queryClient = useQueryClient()
@@ -330,6 +332,20 @@ export function ChatDraftsPanel({
 	useEffect(() => {
 		onInitialLoadChange?.(isLoading)
 	}, [isLoading, onInitialLoadChange])
+
+	useEffect(() => {
+		if (resetSelectionToken < 0) return
+		setActiveDraftKey(null)
+		setActionsMenuOpen(false)
+		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
+		setConfirmDeleteId(null)
+		setDraftMenuOpen(false)
+		setEditor(null)
+		setProductMenuOpen(false)
+		setProductSearch('')
+		setSubmitError(null)
+	}, [resetSelectionToken])
 
 	const savedDrafts = useMemo(
 		() => data?.orders.filter((order) => order.type === 'saved') ?? [],
