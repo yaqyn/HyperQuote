@@ -29,6 +29,9 @@ export function defineReactStartAppConfig({
 	return defineConfig({
 		server: { port },
 		assetsInclude,
+		define: {
+			'process.env.TSS_SERVER_FN_BASE': JSON.stringify('/_serverFn/'),
+		},
 		build: {
 			rollupOptions: {
 				output: {
