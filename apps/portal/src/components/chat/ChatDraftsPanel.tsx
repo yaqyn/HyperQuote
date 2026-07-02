@@ -875,7 +875,7 @@ export function ChatDraftsPanel({
 		return (
 			<motion.section
 				key="draft-submitted-panel"
-				className={`flex min-h-0 flex-col overflow-hidden bg-white text-black ${className}`}
+				className={`flex min-h-0 flex-col overflow-hidden bg-[var(--p-bg)] text-[var(--p-text)] ${className}`}
 				initial={shouldReduceMotion ? false : { opacity: 0.92 }}
 				animate={{ opacity: 1 }}
 				transition={{
@@ -1435,8 +1435,8 @@ export function ChatDraftsPanel({
 											disabled={deleteMutation.isPending}
 											className={`flex h-9 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start text-[12px] font-semibold transition-colors disabled:pointer-events-none disabled:opacity-45 ${
 												confirmDeleteId === (editor.id ?? NEW_DRAFT_KEY)
-													? 'bg-[var(--p-error)] text-white hover:opacity-90'
-													: 'text-[var(--p-error)] hover:bg-[var(--p-hover)]'
+													? 'bg-[#B3261E] text-white hover:bg-[#9F201B]'
+													: 'text-[#B3261E] hover:bg-[#B3261E]/10 dark:text-[#FF6B61] dark:hover:bg-[#FF6B61]/10'
 											}`}
 										>
 											{confirmDeleteId === (editor.id ?? NEW_DRAFT_KEY) ? (
@@ -1484,7 +1484,7 @@ function SubmittedDraftPanel({
 				}}
 			>
 				<motion.div
-					className="relative flex h-20 w-20 items-center justify-center rounded-full bg-black text-white shadow-[0_18px_45px_-24px_rgba(0,0,0,0.9)]"
+					className="relative flex h-20 w-20 items-center justify-center rounded-full bg-[var(--p-text)] text-[var(--p-bg)] shadow-[0_18px_45px_-24px_rgba(0,0,0,0.9)]"
 					initial={shouldReduceMotion ? false : { scale: 0.82 }}
 					animate={{ scale: 1 }}
 					transition={{
@@ -1495,7 +1495,7 @@ function SubmittedDraftPanel({
 				>
 					<motion.span
 						aria-hidden="true"
-						className="absolute inset-0 rounded-full border border-black/10"
+						className="absolute inset-0 rounded-full border border-[var(--p-border)]"
 						initial={shouldReduceMotion ? false : { opacity: 0.42, scale: 1 }}
 						animate={
 							shouldReduceMotion
@@ -1521,7 +1521,7 @@ function SubmittedDraftPanel({
 					</motion.div>
 				</motion.div>
 				<motion.p
-					className="mt-5 text-[20px] font-semibold text-black"
+					className="mt-5 text-[20px] font-semibold text-[var(--p-text)]"
 					initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{
@@ -1533,7 +1533,7 @@ function SubmittedDraftPanel({
 					{t('orders.draftSubmitted')}
 				</motion.p>
 				<motion.p
-					className="mt-2 text-[12px] font-medium text-black/45"
+					className="mt-2 text-[12px] font-medium text-[var(--p-text-muted)]"
 					initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{

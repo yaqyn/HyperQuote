@@ -121,17 +121,6 @@ function PortalLayout() {
 				}
 				className="relative flex flex-1 overflow-hidden"
 			>
-				{/* Very soft wash from above */}
-				<motion.div
-					className="pointer-events-none absolute inset-0 z-[1]"
-					initial={false}
-					animate={{ opacity: 1 }}
-					transition={{ duration: 1.4, delay: 0.1, ease: 'easeOut' }}
-					style={{
-						background:
-							'radial-gradient(ellipse 70% 30% at 50% 0%, var(--p-layout-wash) 0%, transparent 70%)',
-					}}
-				/>
 				<AnimatePresence initial={false}>
 					{isSidebarOpen && (
 						<motion.button

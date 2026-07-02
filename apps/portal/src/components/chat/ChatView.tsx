@@ -265,8 +265,6 @@ function EmptyDesk({
 }) {
 	return (
 		<div className="relative z-[2] flex flex-1 items-center justify-center overflow-hidden px-4 py-[calc(env(safe-area-inset-top)+3rem)] sm:px-6 lg:px-10 lg:py-0">
-			<DataGridBackdrop />
-
 			<div className="relative z-[2] flex w-full max-w-[720px] flex-col items-center text-center">
 				<motion.h1
 					initial={{ opacity: 0, y: 8 }}
@@ -290,20 +288,6 @@ function EmptyDesk({
 				/>
 			</div>
 		</div>
-	)
-}
-
-// Ambient depth — static radial lift behind the content.
-function DataGridBackdrop() {
-	return (
-		<div
-			aria-hidden
-			className="pointer-events-none absolute inset-0"
-			style={{
-				background:
-					'radial-gradient(ellipse 70% 50% at 50% 0%, var(--p-desk-depth-top), transparent 70%), radial-gradient(ellipse 100% 80% at 50% 100%, var(--p-desk-depth-bottom), transparent 65%)',
-			}}
-		/>
 	)
 }
 

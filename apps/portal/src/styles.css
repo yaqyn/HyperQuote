@@ -101,7 +101,6 @@ textarea,
 	--p-accent-contrast: #ffffff;
 	--p-accent-contrast-soft: rgba(255, 255, 255, 0.3);
 	--p-accent-dim: rgba(37, 99, 235, 0.08);
-	--p-glow: rgba(37, 99, 235, 0.06);
 	--p-hover: rgba(37, 99, 235, 0.05);
 	--p-active: rgba(37, 99, 235, 0.1);
 	--p-active-ring: rgba(37, 99, 235, 0.14);
@@ -111,17 +110,8 @@ textarea,
 	--p-selection-bg: rgba(37, 99, 235, 0.16);
 	--p-selection-text: var(--p-text);
 
-	/* Atmosphere — kept for /login atelier scene cross-references */
-	--p-lamp-warm: 37, 99, 235;
+	/* Shared shadows and marks */
 	--p-seal: #2563eb;
-	--p-seal-deep: #1d4ed8;
-	--p-layout-wash: rgba(37, 99, 235, 0.04);
-	--p-sidebar-wash: rgba(37, 99, 235, 0.06);
-	--p-sidebar-sheen: rgba(15, 23, 42, 0.025);
-	--p-desk-depth-top: rgba(37, 99, 235, 0.055);
-	--p-desk-depth-bottom: rgba(15, 23, 42, 0.04);
-	--p-desk-grid-dot: rgba(37, 99, 235, 0.28);
-	--p-card-top-glow: rgba(37, 99, 235, 0.16);
 	--p-sidebar-shadow: 0 16px 42px rgba(15, 23, 42, 0.08);
 	--p-mark-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
 	--p-popover-shadow: 0 24px 70px rgba(15, 23, 42, 0.14);
@@ -166,17 +156,6 @@ textarea,
 	--text-lg: var(--p-text-lg);
 	--font-geist-mono: var(--font-mono);
 	--font-inter: var(--font-sans);
-
-	/* Light paper textures — kept for chat surface only */
-	--p-paper-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='3' stitchTiles='stitch' seed='2'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.025 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-	--p-paper-fibers: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='480'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.018 0.8' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.035 0'/><feComposite in='SourceGraphic' operator='in'/></filter><rect width='100%' height='100%' filter='url(%23f)' fill='transparent'/></svg>");
-	--p-paper-vignette: radial-gradient(
-		ellipse 120% 90% at 50% 50%,
-		transparent 0%,
-		transparent 62%,
-		rgba(37, 99, 235, 0.025) 82%,
-		rgba(15, 23, 42, 0.045) 100%
-	);
 }
 
 [data-theme="dark"] {
@@ -185,24 +164,24 @@ textarea,
 	   ========================================================== */
 
 	/* Surfaces */
-	--p-bg: #121212;
-	--p-sidebar: #171717;
-	--p-surface: #1a1a1a;
-	--p-card: #202020;
-	--p-elevated: #2a2a2a;
-	--p-input: #191919;
+	--p-bg: #050505;
+	--p-sidebar: #090909;
+	--p-surface: #0d0d0d;
+	--p-card: #111111;
+	--p-elevated: #171717;
+	--p-input: #0b0b0b;
 
 	/* Lines + rules */
-	--p-border: rgba(255, 255, 255, 0.1);
-	--p-border-strong: rgba(255, 255, 255, 0.2);
-	--p-rule: rgba(255, 255, 255, 0.09);
-	--p-rule-strong: rgba(255, 255, 255, 0.24);
+	--p-border: rgba(255, 255, 255, 0.08);
+	--p-border-strong: rgba(255, 255, 255, 0.16);
+	--p-rule: rgba(255, 255, 255, 0.07);
+	--p-rule-strong: rgba(255, 255, 255, 0.18);
 
 	/* Text */
-	--p-text: #eeeeee;
-	--p-text-secondary: #c4c4c4;
-	--p-text-muted: #969696;
-	--p-text-faint: #737373;
+	--p-text: #f2f2f2;
+	--p-text-secondary: #c7c7c7;
+	--p-text-muted: #8f8f8f;
+	--p-text-faint: #6f6f6f;
 
 	/* Accent — grayscale ink */
 	--p-accent: #e5e5e5;
@@ -210,31 +189,21 @@ textarea,
 	--p-accent-contrast: #141414;
 	--p-accent-contrast-soft: rgba(20, 20, 20, 0.36);
 	--p-accent-dim: rgba(255, 255, 255, 0.09);
-	--p-glow: rgba(255, 255, 255, 0.035);
-	--p-hover: rgba(255, 255, 255, 0.07);
-	--p-active: rgba(255, 255, 255, 0.11);
-	--p-active-ring: rgba(255, 255, 255, 0.14);
-	--p-active-ring-soft: rgba(255, 255, 255, 0.1);
+	--p-hover: rgba(255, 255, 255, 0.055);
+	--p-active: rgba(255, 255, 255, 0.085);
+	--p-active-ring: rgba(255, 255, 255, 0.12);
+	--p-active-ring-soft: rgba(255, 255, 255, 0.08);
 	--p-focus-ring: rgba(255, 255, 255, 0.42);
 	--p-border-hint: rgba(255, 255, 255, 0.7);
 	--p-selection-bg: rgba(255, 255, 255, 0.2);
 	--p-selection-text: var(--p-text);
 
-	/* Atmosphere */
-	--p-lamp-warm: 255, 255, 255;
+	/* Shared shadows and marks */
 	--p-seal: #dedede;
-	--p-seal-deep: #8a8a8a;
-	--p-layout-wash: rgba(255, 255, 255, 0.04);
-	--p-sidebar-wash: rgba(255, 255, 255, 0.035);
-	--p-sidebar-sheen: rgba(255, 255, 255, 0.04);
-	--p-desk-depth-top: rgba(255, 255, 255, 0.04);
-	--p-desk-depth-bottom: rgba(0, 0, 0, 0.24);
-	--p-desk-grid-dot: rgba(255, 255, 255, 0.32);
-	--p-card-top-glow: rgba(255, 255, 255, 0.08);
-	--p-sidebar-shadow: 0 22px 54px rgba(0, 0, 0, 0.32);
-	--p-mark-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
-	--p-popover-shadow: 0 24px 70px rgba(0, 0, 0, 0.46);
-	--p-panel-shadow: 0 18px 52px rgba(0, 0, 0, 0.36);
+	--p-sidebar-shadow: 0 18px 48px rgba(0, 0, 0, 0.46);
+	--p-mark-shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+	--p-popover-shadow: 0 24px 70px rgba(0, 0, 0, 0.58);
+	--p-panel-shadow: 0 18px 52px rgba(0, 0, 0, 0.48);
 
 	/* Signal through luminance — no hue */
 	--p-success: #b8b8b8;
@@ -263,30 +232,6 @@ textarea,
 	--color-error-bg: rgba(255, 255, 255, 0.1);
 	--color-info: var(--p-accent);
 	--color-info-bg: rgba(255, 255, 255, 0.1);
-
-	/* Grayscale paper textures — kept for chat surface only */
-	--p-paper-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.4' numOctaves='3' stitchTiles='stitch' seed='2'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.04 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
-	--p-paper-fibers: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='480'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='0.018 0.8' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.08 0'/><feComposite in='SourceGraphic' operator='in'/></filter><rect width='100%' height='100%' filter='url(%23f)' fill='transparent'/></svg>");
-	--p-paper-vignette: radial-gradient(
-		ellipse 120% 90% at 50% 50%,
-		transparent 0%,
-		transparent 58%,
-		rgba(0, 0, 0, 0.16) 80%,
-		rgba(0, 0, 0, 0.32) 100%
-	);
-}
-
-/* Office-paper utility: chat-surface only. */
-.office-paper::before,
-.office-paper::after {
-	mix-blend-mode: multiply;
-	opacity: 0.4;
-}
-
-[data-theme="dark"] .office-paper::before,
-[data-theme="dark"] .office-paper::after {
-	mix-blend-mode: screen;
-	opacity: 0.3;
 }
 
 /* View Transition — language crossfade (text only, not background) */
@@ -1515,38 +1460,15 @@ input::placeholder {
 
 /* The page — main reading column in the chat + other rooms. */
 .office-paper {
-	--p-hover: rgba(15, 23, 42, 0.045);
-	--p-active: rgba(15, 23, 42, 0.075);
-	--p-desk-depth-top: rgba(15, 23, 42, 0.028);
-	--p-desk-depth-bottom: rgba(15, 23, 42, 0.038);
-	--p-paper-vignette: radial-gradient(
-		ellipse 120% 90% at 50% 50%,
-		transparent 0%,
-		transparent 64%,
-		rgba(15, 23, 42, 0.026) 86%,
-		rgba(15, 23, 42, 0.045) 100%
-	);
 	position: relative;
-	background:
-		var(--p-paper-vignette),
-		linear-gradient(180deg, var(--p-card) 0%, var(--p-elevated) 100%);
-	background-blend-mode: multiply, normal;
+	background: var(--p-card);
 }
 .office-paper::before {
 	content: "";
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
-	opacity: 0.16;
-	mix-blend-mode: multiply;
-	background:
-		linear-gradient(
-			90deg,
-			transparent 0%,
-			rgba(15, 23, 42, 0.035) 50%,
-			transparent 100%
-		),
-		linear-gradient(180deg, rgba(15, 23, 42, 0.026), transparent 34%);
+	display: none;
 }
 .office-paper::after {
 	content: "";
@@ -1557,16 +1479,7 @@ input::placeholder {
 }
 
 [data-theme="dark"] .office-paper::before {
-	opacity: 0.14;
-	mix-blend-mode: screen;
-	background:
-		linear-gradient(
-			90deg,
-			transparent 0%,
-			rgba(255, 255, 255, 0.05) 50%,
-			transparent 100%
-		),
-		linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 34%);
+	display: none;
 }
 
 /* The office wall — darker than the paper, used for sidebars. */

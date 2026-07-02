@@ -173,15 +173,6 @@ function ServiceCard({
 
 	const content = (
 		<>
-			{/* Top glow */}
-			<div
-				className="absolute inset-x-0 top-0 h-px rounded-t-xl"
-				style={{
-					background:
-						'linear-gradient(90deg, transparent 10%, var(--p-card-top-glow) 50%, transparent 90%)',
-				}}
-			/>
-
 			{/* Icon */}
 			<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--p-border)] bg-[var(--p-elevated)]">
 				<Icon
