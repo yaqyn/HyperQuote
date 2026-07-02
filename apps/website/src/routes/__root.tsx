@@ -83,6 +83,11 @@ function RootComponent() {
 				<script
 					dangerouslySetInnerHTML={{
 						__html: `(function(){
+							var g=globalThis;
+							var p=g.process;
+							if(!p||typeof p!=="object")p=g.process={};
+							if(!p.env||typeof p.env!=="object")p.env={};
+							if(!p.env.TSS_SERVER_FN_BASE)p.env.TSS_SERVER_FN_BASE="/_serverFn/";
 							var d=document.documentElement;
 							var t=localStorage.getItem("hq-theme");
 							if(t==="dark"||t==="light")d.setAttribute("data-theme",t);
