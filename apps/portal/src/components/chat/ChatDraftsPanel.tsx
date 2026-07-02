@@ -60,6 +60,7 @@ interface DraftEditorState {
 	name: string
 	notes: string
 	reference: string | null
+	sessionKey: string
 }
 
 const NEW_DRAFT_KEY = '__new_draft__'
@@ -180,6 +181,7 @@ function createEditorFromOrder(order: Order): DraftEditorState {
 		name: order.name ?? order.reference ?? '',
 		notes: order.notes ?? '',
 		reference: order.reference ?? null,
+		sessionKey: `draft:${order.id}`,
 	}
 	return {
 		...editor,
@@ -195,6 +197,7 @@ function createNewEditor(defaultName: string): DraftEditorState {
 		name: defaultName,
 		notes: '',
 		reference: null,
+		sessionKey: `draft:temp:${crypto.randomUUID()}`,
 	}
 	return {
 		...editor,
@@ -280,6 +283,7 @@ function activeDraftContextFromEditor(
 		name: editor.name.trim() || null,
 		notes: editor.notes.trim().slice(0, 600),
 		reference: editor.reference,
+		sessionKey: editor.sessionKey,
 	}
 }
 
@@ -306,6 +310,8 @@ export function ChatDraftsPanel({
 	const draftMenuRef = useRef<HTMLDivElement>(null)
 	const knownSavedDraftIdsRef = useRef<Set<string>>(new Set())
 	const productMenuRef = useRef<HTMLDivElement>(null)
+	const reportedDraftRef = useRef(false)
+	const resetSelectionTokenRef = useRef(resetSelectionToken)
 	const [activeDraftKey, setActiveDraftKey] = useState<string | null>(null)
 	const [actionsMenuOpen, setActionsMenuOpen] = useState(false)
 	const [confirmCartAddOpen, setConfirmCartAddOpen] = useState(false)
@@ -334,7 +340,10 @@ export function ChatDraftsPanel({
 	}, [isLoading, onInitialLoadChange])
 
 	useEffect(() => {
+		if (resetSelectionTokenRef.current === resetSelectionToken) return
+		resetSelectionTokenRef.current = resetSelectionToken
 		if (resetSelectionToken < 0) return
+		reportedDraftRef.current = false
 		setActiveDraftKey(null)
 		setActionsMenuOpen(false)
 		setConfirmCartAddOpen(false)
@@ -345,7 +354,8 @@ export function ChatDraftsPanel({
 		setProductMenuOpen(false)
 		setProductSearch('')
 		setSubmitError(null)
-	}, [resetSelectionToken])
+		onActiveDraftChange?.(null)
+	}, [onActiveDraftChange, resetSelectionToken])
 
 	const savedDrafts = useMemo(
 		() => data?.orders.filter((order) => order.type === 'saved') ?? [],
@@ -461,7 +471,14 @@ export function ChatDraftsPanel({
 	)
 
 	useEffect(() => {
-		onActiveDraftChange?.(activeDraftContext)
+		if (activeDraftContext) {
+			reportedDraftRef.current = true
+			onActiveDraftChange?.(activeDraftContext)
+			return
+		}
+		if (!reportedDraftRef.current) return
+		reportedDraftRef.current = false
+		onActiveDraftChange?.(null)
 	}, [activeDraftContext, onActiveDraftChange])
 
 	useEffect(() => {
@@ -612,6 +629,7 @@ export function ChatDraftsPanel({
 				name: draft.name.trim() || defaultDraftName,
 				notes: draft.notes.trim(),
 				reference: result.reference,
+				sessionKey: `draft:${result.draftId}`,
 			}
 			setActiveDraftKey(result.draftId)
 			setConfirmCartAddOpen(false)
@@ -848,6 +866,7 @@ export function ChatDraftsPanel({
 			name: t('orders.copyName', { name }),
 			notes: editor.notes,
 			reference: null,
+			sessionKey: `draft:temp:${crypto.randomUUID()}`,
 		}
 		setActiveDraftKey(NEW_DRAFT_KEY)
 		setConfirmDeleteId(null)

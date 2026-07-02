@@ -57,14 +57,31 @@ describe('portal chat session threading', () => {
 		const store = useChatStore.getState()
 		const tempMessages = [message('temp-1', 'before save')]
 
-		store.setMessages('customer', tempMessages, 'draft:new')
-		store.moveThread('customer', 'draft:new', 'draft:123')
+		store.setMessages('customer', tempMessages, 'draft:temp:abc')
+		store.moveThread('customer', 'draft:temp:abc', 'draft:123')
 
-		expect(useChatStore.getState().customerThreadMessages['draft:new']).toBe(
-			undefined,
-		)
+		expect(
+			useChatStore.getState().customerThreadMessages['draft:temp:abc'],
+		).toBe(undefined)
 		expect(useChatStore.getState().customerThreadMessages['draft:123']).toEqual(
 			tempMessages,
+		)
+	})
+
+	it('removes a temp draft chat when the saved draft already has a thread', () => {
+		const store = useChatStore.getState()
+		const savedMessages = [message('saved-1', 'existing saved chat')]
+		const tempMessages = [message('temp-1', 'temporary chat')]
+
+		store.setMessages('customer', savedMessages, 'draft:123')
+		store.setMessages('customer', tempMessages, 'draft:temp:abc')
+		store.moveThread('customer', 'draft:temp:abc', 'draft:123')
+
+		expect(
+			useChatStore.getState().customerThreadMessages['draft:temp:abc'],
+		).toBe(undefined)
+		expect(useChatStore.getState().customerThreadMessages['draft:123']).toEqual(
+			savedMessages,
 		)
 	})
 
@@ -79,13 +96,17 @@ describe('portal chat session threading', () => {
 		expect(chatViewSource).toContain(
 			'usePortalChat({ activeDraft, conversationKey: chatThreadKey })',
 		)
-		expect(chatViewSource).toMatch(/`draft:\$\{draft\.id \?\? 'new'\}`/)
+		expect(chatViewSource).toContain("draft?.sessionKey ?? 'default'")
 		expect(chatViewSource).toContain("setChatThreadKey('default')")
 		expect(chatViewSource).toContain('setDraftSelectionResetToken')
 		expect(chatViewSource).toContain(
 			'resetSelectionToken={draftSelectionResetToken}',
 		)
 
+		expect(draftPanelSource).toMatch(
+			/sessionKey: `draft:temp:\$\{crypto\.randomUUID\(\)\}`/,
+		)
+		expect(draftPanelSource).toMatch(/sessionKey: `draft:\$\{order\.id\}`/)
 		expect(draftPanelSource).toContain('resetSelectionToken?: number')
 		expect(draftPanelSource).toContain('setActiveDraftKey(null)')
 		expect(draftPanelSource).toContain('setEditor(null)')

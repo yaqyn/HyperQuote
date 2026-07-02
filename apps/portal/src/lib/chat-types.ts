@@ -86,6 +86,7 @@ export interface ActiveChatDraftContext {
 	name: string | null
 	notes: string
 	reference: string | null
+	sessionKey?: string
 }
 
 export interface CommandPaletteData {

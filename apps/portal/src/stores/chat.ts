@@ -28,7 +28,7 @@ interface ChatStoreState {
 	// Per-role active messages
 	customerMessages: ChatMessage[]
 	supplierMessages: ChatMessage[]
-	// Per-role scoped threads. Keys are "default", "draft:<id>", or "draft:new".
+	// Per-role scoped threads. Keys are "default", "draft:<id>", or "draft:temp:<id>".
 	customerThreadMessages: Record<string, ChatMessage[]>
 	supplierThreadMessages: Record<string, ChatMessage[]>
 	// Per-role conversation history
@@ -282,10 +282,11 @@ export const useChatStore = create<ChatStore>()(
 							? 'customerThreadMessages'
 							: 'supplierThreadMessages'
 					const fromMessages = state[threadStoreKey][fromKey]
-					const toMessages = state[threadStoreKey][toKey]
-					if (!fromMessages?.length || toMessages?.length) return state
+					if (!fromMessages?.length) return state
 					const nextThreads = { ...state[threadStoreKey] }
-					nextThreads[toKey] = fromMessages
+					if (!nextThreads[toKey]?.length) {
+						nextThreads[toKey] = fromMessages
+					}
 					delete nextThreads[fromKey]
 					return { [threadStoreKey]: nextThreads }
 				}),

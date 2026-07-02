@@ -348,9 +348,9 @@ export function usePortalChat({
 		const previousKey = conversationKeyRef.current
 		conversationKeyRef.current = conversationKey
 		if (
-			previousKey === 'draft:new' &&
+			previousKey.startsWith('draft:temp:') &&
 			conversationKey.startsWith('draft:') &&
-			conversationKey !== 'draft:new'
+			!conversationKey.startsWith('draft:temp:')
 		) {
 			moveStoreThread(activeRole, previousKey, conversationKey)
 		}
