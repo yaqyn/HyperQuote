@@ -1,0 +1,44 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+const repoRoot = process.cwd().endsWith('apps/portal')
+	? join(process.cwd(), '../..')
+	: process.cwd()
+
+function readRepoFile(path: string): string {
+	return readFileSync(join(repoRoot, path), 'utf8')
+}
+
+describe('chat drafts panel state', () => {
+	it('does not auto-select a saved draft when drafts refresh', () => {
+		const source = readRepoFile(
+			'apps/portal/src/components/chat/ChatDraftsPanel.tsx',
+		)
+
+		expect(source).not.toContain('savedDrafts[0]')
+		expect(source).toContain("t('orders.noDraftSelected', 'No draft selected')")
+	})
+
+	it('returns passive resets to the unselected draft workspace', () => {
+		const source = readRepoFile(
+			'apps/portal/src/components/chat/ChatDraftsPanel.tsx',
+		)
+		const staleServerDraftBranch = source.slice(
+			source.indexOf('if (!serverDraft) {'),
+			source.indexOf('const serverEditor = createEditorFromOrder(serverDraft)'),
+		)
+		const submittedResetBranch = source.slice(
+			source.indexOf('const timeout = window.setTimeout(() => {'),
+			source.indexOf('}, SUBMITTED_RESET_DELAY_MS)'),
+		)
+
+		expect(staleServerDraftBranch).toContain('setActiveDraftKey(null)')
+		expect(staleServerDraftBranch).toContain('setEditor(null)')
+		expect(staleServerDraftBranch).not.toContain('createNewEditor')
+
+		expect(submittedResetBranch).toContain('setActiveDraftKey(null)')
+		expect(submittedResetBranch).toContain('setEditor(null)')
+		expect(submittedResetBranch).not.toContain('createNewEditor')
+	})
+})

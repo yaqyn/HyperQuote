@@ -449,13 +449,6 @@ export function ChatDraftsPanel({
 	}, [activeDraftContext, onActiveDraftChange])
 
 	useEffect(() => {
-		if (activeDraftKey || savedDrafts.length === 0) return
-		const firstDraft = savedDrafts[0]
-		setActiveDraftKey(firstDraft.id)
-		setEditor(createEditorFromOrder(firstDraft))
-	}, [activeDraftKey, savedDrafts])
-
-	useEffect(() => {
 		if (
 			!activeDraftKey ||
 			activeDraftKey === NEW_DRAFT_KEY ||
@@ -469,13 +462,13 @@ export function ChatDraftsPanel({
 		const serverDraft = savedDrafts.find((draft) => draft.id === activeDraftKey)
 		if (!serverDraft) {
 			if (!knownSavedDraftIdsRef.current.has(activeDraftKey)) return
-			setActiveDraftKey(NEW_DRAFT_KEY)
+			setActiveDraftKey(null)
 			setActionsMenuOpen(false)
 			setConfirmCartAddOpen(false)
 			setConfirmSubmitOpen(false)
 			setConfirmDeleteId(null)
 			setDraftMenuOpen(false)
-			setEditor(createNewEditor(defaultDraftName))
+			setEditor(null)
 			setProductMenuOpen(false)
 			setProductSearch('')
 			setSubmitError(null)
@@ -487,7 +480,7 @@ export function ChatDraftsPanel({
 		setConfirmCartAddOpen(false)
 		setConfirmSubmitOpen(false)
 		setEditor(serverEditor)
-	}, [activeDraftKey, defaultDraftName, dirty, editor, savedDrafts])
+	}, [activeDraftKey, dirty, editor, savedDrafts])
 
 	useEffect(() => {
 		knownSavedDraftIdsRef.current = new Set(
@@ -567,22 +560,21 @@ export function ChatDraftsPanel({
 	useEffect(() => {
 		if (!submittedReference) return
 		const timeout = window.setTimeout(() => {
-			const nextEditor = createNewEditor(defaultDraftName)
 			setSubmittedReference(null)
-			setActiveDraftKey(NEW_DRAFT_KEY)
+			setActiveDraftKey(null)
 			setActionsMenuOpen(false)
 			setConfirmCartAddOpen(false)
 			setConfirmSubmitOpen(false)
 			setConfirmDeleteId(null)
 			setDraftMenuOpen(false)
 			setDraftSearch('')
-			setEditor(nextEditor)
+			setEditor(null)
 			setProductMenuOpen(false)
 			setProductSearch('')
 			setSubmitError(null)
 		}, SUBMITTED_RESET_DELAY_MS)
 		return () => window.clearTimeout(timeout)
-	}, [defaultDraftName, submittedReference])
+	}, [submittedReference])
 
 	const saveMutation = useMutation({
 		mutationFn: (draft: DraftEditorState) => {
@@ -666,9 +658,9 @@ export function ChatDraftsPanel({
 			setConfirmCartAddOpen(false)
 			setConfirmSubmitOpen(false)
 			setConfirmDeleteId(null)
-			setActiveDraftKey(NEW_DRAFT_KEY)
+			setActiveDraftKey(null)
 			setDraftMenuOpen(false)
-			setEditor(createNewEditor(defaultDraftName))
+			setEditor(null)
 			setProductMenuOpen(false)
 			setProductSearch('')
 			setSubmitError(null)
@@ -705,13 +697,13 @@ export function ChatDraftsPanel({
 	}
 
 	function clearEditorWorkspace() {
-		setActiveDraftKey(NEW_DRAFT_KEY)
+		setActiveDraftKey(null)
 		setActionsMenuOpen(false)
 		setConfirmCartAddOpen(false)
 		setConfirmSubmitOpen(false)
 		setConfirmDeleteId(null)
 		setDraftMenuOpen(false)
-		setEditor(createNewEditor(defaultDraftName))
+		setEditor(null)
 		setProductMenuOpen(false)
 		setProductSearch('')
 		setSubmitError(null)
@@ -1226,7 +1218,7 @@ export function ChatDraftsPanel({
 								className="mb-3 text-[var(--p-text-faint)]"
 							/>
 							<p className="text-[14px] font-semibold text-[var(--p-text)]">
-								{t('quoteBuilder.emptyDraftsTitle')}
+								{t('orders.noDraftSelected', 'No draft selected')}
 							</p>
 							<motion.button
 								type="button"
