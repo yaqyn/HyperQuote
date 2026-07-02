@@ -889,11 +889,11 @@ function LifecycleBlock({
 				{lines && lines.length > 0 && (
 					<div className="mt-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-3">
 						{linesLabel && <p className={DETAIL_LABEL_CLASS}>{linesLabel}</p>}
-						<ul className="mt-2 space-y-1.5">
+						<ul className="mt-2 grid gap-2">
 							{lines.map((line) => (
 								<li
 									key={line}
-									className="text-[13px] leading-relaxed text-[var(--p-text)]"
+									className="rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-relaxed text-[var(--p-text)]"
 								>
 									{line}
 								</li>

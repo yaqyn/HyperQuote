@@ -498,6 +498,26 @@ function reportStep({
 	}
 }
 
+function formatPortalReportUnit(quantity: number, unit: string): string {
+	if (unit.toLowerCase() !== 'piece') return unit
+	return quantity === 1 ? 'Piece' : 'Pieces'
+}
+
+export function formatPortalReportItemLine({
+	productName,
+	quantity,
+	unitOfMeasure,
+}: {
+	productName: string
+	quantity: number
+	unitOfMeasure: string
+}): string {
+	return `${productName}: ${quantity.toLocaleString('en-EG')} ${formatPortalReportUnit(
+		quantity,
+		unitOfMeasure,
+	)}`
+}
+
 function orderReportStopReason(
 	quoteRequest: QuoteRequestDetailRow | null,
 	order: OrderRow | null | undefined,
@@ -597,11 +617,12 @@ function buildOrderReport({
 		order.status === 'delivered' ||
 		Boolean(linkedOrder?.delivered_at) ||
 		delivery?.currentStage === 'delivered'
-	const submissionLines = items.map(
-		(item) =>
-			`${item.productName}: ${item.quantity.toLocaleString('en-EG')} ${
-				item.unitOfMeasure
-			}`,
+	const submissionLines = items.map((item) =>
+		formatPortalReportItemLine({
+			productName: item.productName,
+			quantity: item.quantity,
+			unitOfMeasure: item.unitOfMeasure,
+		}),
 	)
 	const processingLines = [
 		...reservations.map((reservation) => {
