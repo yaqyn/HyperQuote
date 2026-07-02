@@ -891,12 +891,7 @@ function LifecycleBlock({
 						{linesLabel && <p className={DETAIL_LABEL_CLASS}>{linesLabel}</p>}
 						<ul className="mt-2 grid gap-2">
 							{lines.map((line) => (
-								<li
-									key={line}
-									className="rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-relaxed text-[var(--p-text)]"
-								>
-									{line}
-								</li>
+								<ReportDetailLine key={line} line={line} />
 							))}
 						</ul>
 					</div>
@@ -904,6 +899,39 @@ function LifecycleBlock({
 			</div>
 		</article>
 	)
+}
+
+function ReportDetailLine({ line }: { line: string }) {
+	const detail = splitReportDetailLine(line)
+	if (!detail) {
+		return (
+			<li className="rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-relaxed text-[var(--p-text)]">
+				{line}
+			</li>
+		)
+	}
+
+	return (
+		<li className="grid grid-cols-[minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] text-[13px] leading-relaxed text-[var(--p-text)]">
+			<span className="min-w-0 break-words px-3 py-2 font-medium">
+				{detail.label}
+			</span>
+			<span className="border-s border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-2 text-end font-semibold">
+				{detail.value}
+			</span>
+		</li>
+	)
+}
+
+function splitReportDetailLine(
+	line: string,
+): { label: string; value: string } | null {
+	const separatorIndex = line.indexOf(': ')
+	if (separatorIndex <= 0) return null
+	const label = line.slice(0, separatorIndex).trim()
+	const value = line.slice(separatorIndex + 2).trim()
+	if (!label || !value) return null
+	return { label, value }
 }
 
 function getOrderStatusLabelKey(status: OrderStatus): ParseKeys<'portal'> {
