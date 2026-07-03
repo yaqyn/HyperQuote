@@ -37,7 +37,6 @@ export function ChatView({ locale }: ChatViewProps) {
 	const [clearDefaultChatRequested, setClearDefaultChatRequested] =
 		useState(false)
 	const [draftSelectionResetToken, setDraftSelectionResetToken] = useState(0)
-	const chat = usePortalChat({ activeDraft, conversationKey: chatThreadKey })
 	const keyboard = useVisualViewportKeyboard()
 	const [draftPanelInitiallyLoading, setDraftPanelInitiallyLoading] =
 		useState(true)
@@ -63,6 +62,11 @@ export function ChatView({ locale }: ChatViewProps) {
 		setDraftSelectionResetToken((value) => value + 1)
 		setClearDefaultChatRequested(true)
 	}, [])
+	const chat = usePortalChat({
+		activeDraft,
+		conversationKey: chatThreadKey,
+		onNewSession: handleNewPage,
+	})
 
 	const realMessages = useMemo(
 		() =>

@@ -93,15 +93,14 @@ describe('portal chat session threading', () => {
 			'apps/portal/src/components/chat/ChatDraftsPanel.tsx',
 		)
 
-		expect(chatViewSource).toContain(
-			'usePortalChat({ activeDraft, conversationKey: chatThreadKey })',
-		)
+		expect(chatViewSource).toContain('conversationKey: chatThreadKey')
 		expect(chatViewSource).toContain("draft?.sessionKey ?? 'default'")
 		expect(chatViewSource).toContain("setChatThreadKey('default')")
 		expect(chatViewSource).toContain('setDraftSelectionResetToken')
 		expect(chatViewSource).toContain(
 			'resetSelectionToken={draftSelectionResetToken}',
 		)
+		expect(chatViewSource).toContain('onNewSession: handleNewPage')
 
 		expect(draftPanelSource).toMatch(
 			/sessionKey: `draft:temp:\$\{crypto\.randomUUID\(\)\}`/,
@@ -110,5 +109,41 @@ describe('portal chat session threading', () => {
 		expect(draftPanelSource).toContain('resetSelectionToken?: number')
 		expect(draftPanelSource).toContain('setActiveDraftKey(null)')
 		expect(draftPanelSource).toContain('setEditor(null)')
+	})
+
+	it('keeps chat-created drafts temporary until the draft desk saves them', () => {
+		const chatSource = readRepoFile('apps/portal/src/lib/chat.ts')
+		const draftPanelSource = readRepoFile(
+			'apps/portal/src/components/chat/ChatDraftsPanel.tsx',
+		)
+		const createDraftStart = chatSource.indexOf(
+			'async function createDraftFromPlan',
+		)
+		const createDraftEnd = chatSource.indexOf(
+			'async function insertStrictCatalogDraftItems',
+		)
+		const createDraftSource = chatSource.slice(createDraftStart, createDraftEnd)
+
+		expect(createDraftSource).toContain('tempDraftDataFromDraftItems')
+		expect(createDraftSource).toContain('tempDraft,')
+		expect(createDraftSource).not.toContain(".from('quote_requests')")
+		expect(createDraftSource).not.toContain('insertStrictCatalogDraftItems')
+		expect(chatSource).toContain(
+			'portalOpenDraftPanelEvent(result.context.result.tempDraft',
+		)
+
+		expect(draftPanelSource).toContain('createEditorFromTempDraft')
+		expect(draftPanelSource).toContain('detail?.tempDraft')
+		expect(draftPanelSource).toContain('onClick={clearEditorWorkspace}')
+		expect(draftPanelSource).toContain('onClick={saveCurrentEditor}')
+	})
+
+	it('abandons unsaved temp chat threads when returning to the default page', () => {
+		const hookSource = readRepoFile('apps/portal/src/hooks/usePortalChat.ts')
+
+		expect(hookSource).toContain("previousKey.startsWith('draft:temp:')")
+		expect(hookSource).toContain("conversationKey === 'default'")
+		expect(hookSource).toContain('clearStoreActive(activeRole, previousKey)')
+		expect(hookSource).toContain('onNewSession?.()')
 	})
 })

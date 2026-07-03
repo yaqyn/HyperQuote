@@ -20,6 +20,7 @@ import {
 	type ActiveChatDraftContext,
 	type ChatMessage,
 	PORTAL_CHAT_OPEN_DRAFT_EVENT,
+	type PortalChatOpenDraftEventDetail,
 	type RichContent,
 } from '../lib/chat-types'
 import { logPortalError } from '../lib/log'
@@ -96,14 +97,19 @@ function shouldInvalidateCustomerOrders(chunks: StreamChunk[]): boolean {
 	)
 }
 
-function draftPanelOpenDraftId(chunks: StreamChunk[]): string | null {
+function draftPanelOpenDraftDetail(
+	chunks: StreamChunk[],
+): PortalChatOpenDraftEventDetail | null {
 	for (const chunk of chunks) {
 		if (chunk.type !== 'CUSTOM' || chunk.name !== 'portal_open_draft_panel') {
 			continue
 		}
-		const value = chunk.value as { draftId?: unknown } | undefined
-		if (typeof value?.draftId === 'string' && value.draftId.trim()) {
-			return value.draftId
+		const value = chunk.value as PortalChatOpenDraftEventDetail | undefined
+		if (
+			(typeof value?.draftId === 'string' && value.draftId.trim()) ||
+			value?.tempDraft
+		) {
+			return value
 		}
 	}
 	return null
@@ -162,6 +168,19 @@ function storedMessagesFingerprint(messages: ChatMessage[]): string {
 	return JSON.stringify(
 		messages.map((message) => [message.id, message.role, message.content]),
 	)
+}
+
+function storedMessagesFromUiMessages(
+	messages: UIMessage[],
+	richContentByMessageId: Map<string, RichContent[]>,
+): ChatMessage[] {
+	return messages.map((msg: UIMessage) => ({
+		id: msg.id,
+		role: msg.role as 'user' | 'assistant',
+		content: extractContent(msg),
+		richContent: richContentByMessageId.get(msg.id),
+		timestamp: msg.createdAt?.getTime() ?? Date.now(),
+	}))
 }
 
 function storedMessagesForRole(role: 'customer' | 'supplier'): ChatMessage[] {
@@ -297,9 +316,11 @@ function cartTextTable(
 export function usePortalChat({
 	activeDraft = null,
 	conversationKey = 'default',
+	onNewSession,
 }: {
 	activeDraft?: ActiveChatDraftContext | null
 	conversationKey?: string
+	onNewSession?: () => void
 } = {}) {
 	const activeRole = usePortalStore((s) => s.activeRole)
 	const queryClient = useQueryClient()
@@ -343,18 +364,6 @@ export function usePortalChat({
 	useEffect(() => {
 		activeDraftRef.current = activeDraft
 	}, [activeDraft])
-
-	useEffect(() => {
-		const previousKey = conversationKeyRef.current
-		conversationKeyRef.current = conversationKey
-		if (
-			previousKey.startsWith('draft:temp:') &&
-			conversationKey.startsWith('draft:') &&
-			!conversationKey.startsWith('draft:temp:')
-		) {
-			moveStoreThread(activeRole, previousKey, conversationKey)
-		}
-	}, [activeRole, conversationKey, moveStoreThread])
 
 	const chat = useChat({
 		connection: stream(async function* (messages) {
@@ -402,11 +411,11 @@ export function usePortalChat({
 						type: 'active',
 					})
 				}
-				const draftId = draftPanelOpenDraftId(chunks)
-				if (draftId) {
+				const openDraftDetail = draftPanelOpenDraftDetail(chunks)
+				if (openDraftDetail) {
 					window.dispatchEvent(
 						new CustomEvent(PORTAL_CHAT_OPEN_DRAFT_EVENT, {
-							detail: { draftId },
+							detail: openDraftDetail,
 						}),
 					)
 				}
@@ -423,6 +432,46 @@ export function usePortalChat({
 	})
 	const chatMessagesRef = useRef<UIMessage[]>(chat.messages)
 	chatMessagesRef.current = chat.messages
+
+	useEffect(() => {
+		const previousKey = conversationKeyRef.current
+		conversationKeyRef.current = conversationKey
+		if (
+			previousKey.startsWith('draft:temp:') &&
+			conversationKey.startsWith('draft:') &&
+			!conversationKey.startsWith('draft:temp:')
+		) {
+			moveStoreThread(activeRole, previousKey, conversationKey)
+			return
+		}
+		if (
+			previousKey.startsWith('draft:temp:') &&
+			conversationKey === 'default'
+		) {
+			clearStoreActive(activeRole, previousKey)
+			return
+		}
+		if (
+			previousKey === 'default' &&
+			conversationKey.startsWith('draft:temp:')
+		) {
+			setMessages(
+				activeRole,
+				storedMessagesFromUiMessages(
+					chatMessagesRef.current,
+					richContentByMessageIdRef.current,
+				),
+				previousKey,
+			)
+			moveStoreThread(activeRole, previousKey, conversationKey)
+		}
+	}, [
+		activeRole,
+		clearStoreActive,
+		conversationKey,
+		moveStoreThread,
+		setMessages,
+	])
 
 	useEffect(() => {
 		if (!isChatStoreHydrated) {
@@ -576,7 +625,8 @@ export function usePortalChat({
 					])
 					return
 				}
-				clear()
+				onNewSession?.()
+				if (!onNewSession) clear()
 				return
 			}
 			setIsResponsePending(true)
@@ -584,7 +634,7 @@ export function usePortalChat({
 				setIsResponsePending(false)
 			})
 		},
-		[chat.sendMessage, chat.setMessages, clear],
+		[chat.sendMessage, chat.setMessages, clear, onNewSession],
 	)
 
 	const isLoading = chat.isLoading || isResponsePending

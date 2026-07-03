@@ -27,7 +27,9 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	type ActiveChatDraftContext,
+	type ChatTempDraftData,
 	PORTAL_CHAT_OPEN_DRAFT_EVENT,
+	type PortalChatOpenDraftEventDetail,
 } from '../../lib/chat-types'
 import { getMarketProducts, type MarketProduct } from '../../lib/server/market'
 import { deleteOrder, getAllCustomerOrders } from '../../lib/server/orders'
@@ -198,6 +200,35 @@ function createNewEditor(defaultName: string): DraftEditorState {
 		notes: '',
 		reference: null,
 		sessionKey: `draft:temp:${crypto.randomUUID()}`,
+	}
+	return {
+		...editor,
+		baseFingerprint: editorFingerprint(editor),
+	}
+}
+
+function createEditorFromTempDraft(draft: ChatTempDraftData): DraftEditorState {
+	const editor = {
+		date: new Date().toISOString(),
+		id: null,
+		items: draft.items.map((item) => ({
+			availabilityStatus: item.availabilityStatus,
+			catalogProductId: item.productId,
+			category: item.category,
+			imageUrl: item.imageUrl,
+			isOrderable: true,
+			isUnmatched: false,
+			productId: item.productId,
+			productName: item.productName,
+			productNameAr: item.productNameAr,
+			quantity: item.quantity,
+			unitOfMeasure: item.unitOfMeasure,
+			unitOfMeasureAr: item.unitOfMeasureAr,
+		})),
+		name: draft.name,
+		notes: draft.notes,
+		reference: null,
+		sessionKey: draft.sessionKey,
 	}
 	return {
 		...editor,
@@ -523,8 +554,20 @@ export function ChatDraftsPanel({
 
 	useEffect(() => {
 		function handleOpenDraft(event: Event) {
-			const draftId = (event as CustomEvent<{ draftId?: string }>).detail
-				?.draftId
+			const detail = (event as CustomEvent<PortalChatOpenDraftEventDetail>)
+				.detail
+			if (detail?.tempDraft) {
+				setActiveDraftKey(NEW_DRAFT_KEY)
+				setConfirmCartAddOpen(false)
+				setConfirmSubmitOpen(false)
+				setConfirmDeleteId(null)
+				setDraftMenuOpen(false)
+				setEditor(createEditorFromTempDraft(detail.tempDraft))
+				setProductSearch('')
+				setSubmitError(null)
+				return
+			}
+			const draftId = detail?.draftId
 			if (!draftId) return
 			void queryClient
 				.refetchQueries({
@@ -728,6 +771,12 @@ export function ChatDraftsPanel({
 		setProductMenuOpen(false)
 		setProductSearch('')
 		setSubmitError(null)
+	}
+
+	function saveCurrentEditor() {
+		if (!editor || !canPersist || saveMutation.isPending) return
+		setConfirmSubmitOpen(false)
+		saveMutation.mutate(editor)
 	}
 
 	function clearEditorWorkspace() {
@@ -935,12 +984,27 @@ export function ChatDraftsPanel({
 					<div className="flex shrink-0 items-center gap-1">
 						<motion.button
 							type="button"
-							onClick={startNewDraft}
-							className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
-							aria-label={t('orders.newDraft')}
+							onClick={clearEditorWorkspace}
+							disabled={!editor}
+							className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--p-border)] text-[#B3261E] transition-colors hover:bg-[#B3261E]/10 disabled:pointer-events-none disabled:opacity-40 dark:text-[#FF6B61] dark:hover:bg-[#FF6B61]/10"
+							aria-label={t('orders.deleteClear', 'Delete / Clear')}
 							whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
 						>
-							<Plus size={16} strokeWidth={1.8} />
+							<Trash2 size={16} strokeWidth={1.8} />
+						</motion.button>
+						<motion.button
+							type="button"
+							onClick={saveCurrentEditor}
+							disabled={!canPersist || saveMutation.isPending}
+							className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-40"
+							aria-label={
+								saveMutation.isPending
+									? t('quoteBuilder.savingDraft')
+									: t('orders.save')
+							}
+							whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
+						>
+							<Save size={16} strokeWidth={1.8} />
 						</motion.button>
 						{headerAction}
 					</div>
@@ -1353,7 +1417,7 @@ export function ChatDraftsPanel({
 							</motion.div>
 						)}
 					</AnimatePresence>
-					<div className="grid grid-cols-[minmax(0,1fr)_40px_40px_40px_40px] gap-2">
+					<div className="grid grid-cols-[minmax(0,1fr)_40px_40px_40px] gap-2">
 						<motion.button
 							type="button"
 							onClick={requestSubmitEditor}
@@ -1367,23 +1431,6 @@ export function ChatDraftsPanel({
 									? t('quoteBuilder.submitting')
 									: t('orders.submit')}
 							</span>
-						</motion.button>
-						<motion.button
-							type="button"
-							onClick={() => {
-								setConfirmSubmitOpen(false)
-								editor && saveMutation.mutate(editor)
-							}}
-							disabled={!canPersist || saveMutation.isPending}
-							className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)] disabled:pointer-events-none disabled:opacity-45"
-							whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
-							aria-label={
-								saveMutation.isPending
-									? t('quoteBuilder.savingDraft')
-									: t('orders.save')
-							}
-						>
-							<Save size={15} strokeWidth={1.7} />
 						</motion.button>
 						<motion.button
 							type="button"

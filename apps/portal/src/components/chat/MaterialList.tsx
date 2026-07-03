@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import {
 	type MaterialListData,
 	PORTAL_CHAT_OPEN_DRAFT_EVENT,
+	type PortalChatOpenDraftEventDetail,
 } from '../../lib/chat-types'
 import { toArabicIndic } from '../../lib/localized-digits'
 
@@ -20,9 +21,12 @@ export function MaterialList({ data }: MaterialListProps) {
 	const editLabel = isArabic ? 'تعديل في الشات' : 'Edit in chat'
 
 	function editInChat() {
+		const detail: PortalChatOpenDraftEventDetail = data.tempDraft
+			? { adoptCurrentChat: true, tempDraft: data.tempDraft }
+			: { draftId: data.draftId }
 		window.dispatchEvent(
 			new CustomEvent(PORTAL_CHAT_OPEN_DRAFT_EVENT, {
-				detail: { draftId: data.draftId },
+				detail,
 			}),
 		)
 	}
@@ -34,14 +38,16 @@ export function MaterialList({ data }: MaterialListProps) {
 					{title}
 					{data.reference ? ` · ${data.reference}` : ''}
 				</p>
-				{data.editRoute ? (
+				{data.editRoute || data.tempDraft ? (
 					<div className="flex flex-wrap gap-2">
-						<Button
-							onPress={() => navigate({ to: data.editRoute })}
-							className="min-h-8 shrink-0 rounded-md border border-[var(--color-primary)] px-2 text-[12px] font-semibold text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)]/5"
-						>
-							{openLabel}
-						</Button>
+						{data.editRoute ? (
+							<Button
+								onPress={() => navigate({ to: data.editRoute ?? '/' })}
+								className="min-h-8 shrink-0 rounded-md border border-[var(--color-primary)] px-2 text-[12px] font-semibold text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)]/5"
+							>
+								{openLabel}
+							</Button>
+						) : null}
 						<Button
 							onPress={editInChat}
 							className="min-h-8 shrink-0 rounded-md border border-[var(--p-border)] px-2 text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"

@@ -89,6 +89,23 @@ export interface ActiveChatDraftContext {
 	sessionKey?: string
 }
 
+export interface ChatTempDraftData {
+	items: {
+		availabilityStatus?: string
+		category: string
+		imageUrl: string
+		productId: string
+		productName: string
+		productNameAr: string
+		quantity: number
+		unitOfMeasure: string
+		unitOfMeasureAr: string
+	}[]
+	name: string
+	notes: string
+	sessionKey: string
+}
+
 export interface CommandPaletteData {
 	description: string
 	groups: {
@@ -118,9 +135,12 @@ export interface MaterialListData {
 	draftId?: string
 	editRoute?: string
 	reference?: string
+	tempDraft?: ChatTempDraftData
 	items: {
 		name: string
 		nameAr?: string
+		orderable?: boolean
+		productId?: string
 		qty: number
 		unit: string
 		unitAr?: string
@@ -170,6 +190,12 @@ export type RichContent =
 
 export const PORTAL_CHAT_OPEN_DRAFT_EVENT = 'portal:chat-open-draft'
 export const PORTAL_CHAT_RUN_COMMAND_EVENT = 'portal:chat-run-command'
+
+export interface PortalChatOpenDraftEventDetail {
+	adoptCurrentChat?: boolean
+	draftId?: string
+	tempDraft?: ChatTempDraftData
+}
 
 // ============================================================================
 // Chat Message Types

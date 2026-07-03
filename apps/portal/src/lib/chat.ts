@@ -30,6 +30,7 @@ import { z } from 'zod'
 import type {
 	ActionButtonData,
 	ActiveChatDraftContext,
+	ChatTempDraftData,
 	CommandPaletteData,
 	SupportOptionsData,
 } from './chat-types'
@@ -307,6 +308,8 @@ interface CustomerOrderSummary {
 }
 
 interface DraftMaterialItem {
+	category?: string
+	imageUrl?: string
 	name: string
 	nameAr: string
 	notes?: string
@@ -370,6 +373,7 @@ interface DraftWriteContext {
 	renamed?: Array<{ from: string; to: string }>
 	deleted?: string[]
 	message: string
+	tempDraft?: ChatTempDraftData
 }
 
 type PortalToolContext =
@@ -1038,12 +1042,7 @@ async function executePortalCustomerToolRequest(
 			}
 		}
 		case 'create_draft_from_plan': {
-			const result = await createDraftFromPlan(
-				supabase,
-				customerId,
-				route,
-				userText,
-			)
+			const result = await createDraftFromPlan(supabase, route, userText)
 			return draftWriteToolResult(route, 'create_draft_from_plan', result)
 		}
 		case 'draft_add_items': {
@@ -2439,6 +2438,13 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 			break
 		case 'draft_write':
 			events.push(draftCleanupEvent(result.context.result))
+			if (result.context.result.tempDraft) {
+				events.push(
+					portalOpenDraftPanelEvent(result.context.result.tempDraft, {
+						adoptCurrentChat: true,
+					}),
+				)
+			}
 			if (result.context.result.draftId) {
 				events.push(portalOpenDraftPanelEvent(result.context.result.draftId))
 			}
@@ -2874,7 +2880,6 @@ async function loadOrderableDraftProductPool(
 
 async function createDraftFromPlan(
 	supabase: AuthedSupabase,
-	customerId: string,
 	route: PortalCustomerToolRequest,
 	userText: string,
 ): Promise<DraftWriteContext> {
@@ -2922,54 +2927,35 @@ async function createDraftFromPlan(
 	}
 	const draftName = normalizePortalDraftTitle(route.draftName, items, locale)
 	const draftNotes = normalizePortalDraftNotes(route.draftNotes, items, locale)
+	const tempDraft = tempDraftDataFromDraftItems(draftName, draftNotes, items)
 
-	const { data: draft, error } = await supabase
-		.from('quote_requests')
-		.insert({
-			attachment_urls: [],
-			customer_id: customerId,
-			draft_name: draftName,
-			notes: draftNotes,
-			status: 'draft',
-			urgency: 'standard',
-		})
-		.select('id, request_number')
-		.single()
-	if (error || !draft)
-		throw new Error(error?.message ?? 'Failed to create draft')
+	return {
+		items,
+		message: `I prepared a temporary draft with ${items.length} material line${items.length === 1 ? '' : 's'}. Save it from the draft desk when you want to keep it.`,
+		tempDraft,
+	}
+}
 
-	const insertFailure = await insertStrictCatalogDraftItems(
-		supabase,
-		customerId,
-		draft.id,
-		items.map((item, index) => ({
-			customerDescription: item.name,
-			isUnmatched: false,
-			matchConfidence: 0.85,
-			notes: item.notes,
-			productId: item.productId,
+function tempDraftDataFromDraftItems(
+	name: string,
+	notes: string,
+	items: DraftMaterialItem[],
+): ChatTempDraftData {
+	return {
+		items: items.map((item) => ({
+			availabilityStatus: 'available',
+			category: item.category ?? 'catalog',
+			imageUrl: item.imageUrl ?? '',
+			productId: item.productId ?? '',
+			productName: item.name,
+			productNameAr: item.nameAr,
 			quantity: item.qty,
-			sortOrder: index,
 			unitOfMeasure: item.unit,
 			unitOfMeasureAr: item.unitAr,
 		})),
-		'The catalog changed before I could save those products, so I did not create a draft. Search the catalog again and I can draft from the current available products.',
-	)
-	if (insertFailure) {
-		return { message: insertFailure }
-	}
-
-	await recordDraftSavedActivity(supabase, draft.id, {
-		item_count: items.length,
-		operation: 'portal_ai_create',
-	})
-
-	return {
-		draftId: draft.id,
-		editRoute: `/orders/edit/${draft.id}`,
-		items,
-		reference: draft.request_number,
-		message: `I created ${draft.request_number} with ${items.length} material line${items.length === 1 ? '' : 's'}.`,
+		name,
+		notes,
+		sessionKey: `draft:temp:${crypto.randomUUID()}`,
 	}
 }
 
@@ -4753,6 +4739,8 @@ function draftMaterialItemFromProduct(
 	quantity: number,
 ): DraftMaterialItem {
 	return {
+		category: product.category,
+		imageUrl: product.image_urls?.[0] ?? '',
 		name: product.name,
 		nameAr: product.name_ar ?? product.name,
 		productId: product.id,
@@ -5029,6 +5017,7 @@ function materialListEvent(result: DraftWriteContext): StreamChunk {
 				editRoute: result.editRoute,
 				items: result.items ?? [],
 				reference: result.reference,
+				tempDraft: result.tempDraft,
 			},
 		},
 	}
@@ -5533,12 +5522,18 @@ function customerOrdersInvalidationEvent(): StreamChunk {
 	}
 }
 
-function portalOpenDraftPanelEvent(draftId: string): StreamChunk {
+function portalOpenDraftPanelEvent(
+	draft: string | ChatTempDraftData,
+	options: { adoptCurrentChat?: boolean } = {},
+): StreamChunk {
 	return {
 		type: 'CUSTOM' as const,
 		timestamp: Date.now(),
 		name: 'portal_open_draft_panel',
-		value: { draftId },
+		value:
+			typeof draft === 'string'
+				? { draftId: draft, ...options }
+				: { tempDraft: draft, ...options },
 	}
 }
 
