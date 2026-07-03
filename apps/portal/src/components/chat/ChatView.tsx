@@ -16,7 +16,9 @@ import { useTranslation } from 'react-i18next'
 import { usePortalChat } from '../../hooks/usePortalChat'
 import {
 	type ActiveChatDraftContext,
+	type ChatMessage,
 	PORTAL_CHAT_OPEN_DRAFT_EVENT,
+	type ProductChoiceListData,
 } from '../../lib/chat-types'
 import { PortalTitleRow } from '../shell/PortalTitleRow'
 import { ChatDraftsPanel } from './ChatDraftsPanel'
@@ -76,6 +78,20 @@ export function ChatView({ locale }: ChatViewProps) {
 		[chat.messages],
 	)
 	const hasMessages = realMessages.length > 0 || chat.isLoading
+	const pendingProductChoice = useMemo(():
+		| ProductChoiceListData
+		| undefined => {
+		if (chat.isLoading) return undefined
+		for (let index = chat.richContent.length - 1; index >= 0; index -= 1) {
+			const item = chat.richContent[index]
+			if (item?.type === 'product_choice_list') return item.data
+		}
+		return undefined
+	}, [chat.isLoading, chat.richContent])
+	const displayMessages = useMemo(
+		() => realMessages.map(withoutProductChoiceRichContent),
+		[realMessages],
+	)
 
 	const isArabic = locale === 'ar'
 	const newPageLabel = t('chat.newPage', 'New page')
@@ -167,7 +183,7 @@ export function ChatView({ locale }: ChatViewProps) {
 				<div className="office-rule mx-5 sm:mx-8 lg:mx-12" />
 
 				{hasMessages ? (
-					<ActiveLedger messages={realMessages} isLoading={chat.isLoading} />
+					<ActiveLedger messages={displayMessages} isLoading={chat.isLoading} />
 				) : (
 					<EmptyDesk heading={t('chat.newProject')} isArabic={isArabic} />
 				)}
@@ -175,7 +191,10 @@ export function ChatView({ locale }: ChatViewProps) {
 				<div className="relative z-[2] shrink-0">
 					<div className="px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:px-8 sm:pb-7 sm:pt-5 lg:px-12">
 						<div className="mx-auto w-full max-w-[820px]">
-							<ChatInput chat={chat} />
+							<ChatInput
+								chat={chat}
+								pendingProductChoice={pendingProductChoice}
+							/>
 						</div>
 					</div>
 				</div>
@@ -242,6 +261,18 @@ export function ChatView({ locale }: ChatViewProps) {
 			</AnimatePresence>
 		</div>
 	)
+}
+
+function withoutProductChoiceRichContent(message: ChatMessage): ChatMessage {
+	const richContent = message.richContent?.filter(
+		(item) => item.type !== 'product_choice_list',
+	)
+	if (richContent?.length === message.richContent?.length) return message
+	return {
+		...message,
+		richContent:
+			richContent && richContent.length > 0 ? richContent : undefined,
+	}
 }
 
 function ChatWorkspaceIntro({

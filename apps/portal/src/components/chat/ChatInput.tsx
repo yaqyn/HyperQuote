@@ -14,12 +14,14 @@ import type { usePortalChat } from '../../hooks/usePortalChat'
 import {
 	PORTAL_CHAT_RUN_COMMAND_EVENT,
 	type PortalConfirmedActionPayload,
+	type ProductChoiceListData,
 } from '../../lib/chat-types'
 import {
 	PORTAL_CHAT_COMMANDS,
 	parsePortalChatCommand,
 	portalChatCommandInputMode,
 } from '../../lib/portal-chat-commands'
+import { ProductChoiceList } from './ProductChoiceList'
 
 const SMOOTH_EASE = cubicBezier(0.22, 1, 0.36, 1)
 
@@ -76,11 +78,12 @@ interface SpeechRecognitionLike {
 
 interface ChatInputProps {
 	chat: ReturnType<typeof usePortalChat>
+	pendingProductChoice?: ProductChoiceListData
 }
 
 type PortalChatCommand = (typeof PORTAL_CHAT_COMMANDS)[number]
 
-export function ChatInput({ chat }: ChatInputProps) {
+export function ChatInput({ chat, pendingProductChoice }: ChatInputProps) {
 	const { t, i18n } = useTranslation('portal')
 	const isAr = i18n.language === 'ar'
 	const [value, setValue] = useState('')
@@ -451,6 +454,16 @@ export function ChatInput({ chat }: ChatInputProps) {
 	}, [])
 
 	const hasText = value.trim().length > 0
+
+	if (pendingProductChoice) {
+		return (
+			<div className="office-composer">
+				<div className="min-w-0 flex-1">
+					<ProductChoiceList data={pendingProductChoice} />
+				</div>
+			</div>
+		)
+	}
 
 	return (
 		<>

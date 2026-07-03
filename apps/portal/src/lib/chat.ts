@@ -34,6 +34,8 @@ import type {
 	ChatTempDraftData,
 	CommandPaletteData,
 	PortalConfirmedActionPayload,
+	PortalConfirmedDraftLinePayload,
+	ProductChoiceListData,
 	SupportOptionsData,
 } from './chat-types'
 import {
@@ -136,7 +138,9 @@ const confirmedActionInput = z
 	.object({
 		action: z.enum([
 			'cleanup_drafts',
+			'create_draft_from_plan',
 			'delete_draft',
+			'draft_add_items',
 			'draft_replace_item',
 			'support_request',
 			'update_draft_items',
@@ -145,6 +149,19 @@ const confirmedActionInput = z
 		cleanupMode: z.enum(['delete_all', 'merge', 'remove_empty']).optional(),
 		draftItemAction: z
 			.enum(['clear_items', 'remove_item', 'set_item_notes', 'set_quantity'])
+			.optional(),
+		draftLines: z
+			.array(
+				z.object({
+					pendingChoiceId: z.string().max(120).optional(),
+					productId: z.string().max(80).optional(),
+					query: z.string().max(240),
+					quantity: z.number().min(0).max(1_000_000),
+					rawText: z.string().max(400).optional(),
+					unitHint: z.string().max(80).optional(),
+				}),
+			)
+			.max(20)
 			.optional(),
 		draftName: z.string().max(120).optional(),
 		draftNotes: z.string().max(600).optional(),
@@ -401,6 +418,27 @@ interface PendingActionContext {
 	title: string
 }
 
+interface DraftProductChoiceOption {
+	product: PortalAiProduct
+}
+
+interface DraftProductChoiceGroup {
+	options: DraftProductChoiceOption[]
+	pendingChoiceId: string
+	query: string
+	quantity: number
+	rawText: string
+	unitHint?: string
+}
+
+interface DraftProductChoiceContext {
+	action: 'create_draft_from_plan' | 'draft_add_items'
+	baseLines: PortalConfirmedDraftLinePayload[]
+	groups: DraftProductChoiceGroup[]
+	locale: 'ar' | 'en'
+	targetReference?: string
+}
+
 interface DraftWriteContext {
 	clearThreadSessionKeys?: string[]
 	draftId?: string
@@ -412,6 +450,7 @@ interface DraftWriteContext {
 	renamed?: Array<{ from: string; to: string }>
 	deleted?: string[]
 	message: string
+	productChoice?: DraftProductChoiceContext
 	tempDraft?: ChatTempDraftData
 }
 
@@ -498,8 +537,11 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 		}
 
 		const activeDraft = input.activeDraft ?? null
+		const confirmedRoute = confirmedActionToToolRequest(
+			input.confirmedAction ?? null,
+		)
 		const initialRoute =
-			confirmedActionToToolRequest(input.confirmedAction ?? null) ??
+			confirmedRoute ??
 			routePortalChatCommand(userText) ??
 			explicitSupportTicketRoute(userText) ??
 			(await requestPortalCustomerTool(
@@ -511,32 +553,37 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 				),
 				activeDraft,
 			))
-		const baseRoute = await repairActiveDraftChatRoute(
-			initialRoute,
-			modelMessages,
-			userText,
-			activeDraft,
-		)
-		const route = applyActiveDraftContextToRoute(
-			restorePendingChoiceQuantity(
-				preserveUserDraftLineWording(
-					correctPendingChoiceSelectionRoute(
-						correctProductLineDraftRoute(
-							correctActiveDraftItemEditRoute(baseRoute, userText, activeDraft),
+		const route = confirmedRoute
+			? initialRoute
+			: applyActiveDraftContextToRoute(
+					restorePendingChoiceQuantity(
+						preserveUserDraftLineWording(
+							correctPendingChoiceSelectionRoute(
+								correctProductLineDraftRoute(
+									correctActiveDraftItemEditRoute(
+										await repairActiveDraftChatRoute(
+											initialRoute,
+											modelMessages,
+											userText,
+											activeDraft,
+										),
+										userText,
+										activeDraft,
+									),
+									userText,
+									activeDraft,
+								),
+								modelMessages,
+								userText,
+							),
 							userText,
-							activeDraft,
 						),
 						modelMessages,
 						userText,
 					),
 					userText,
-				),
-				modelMessages,
-				userText,
-			),
-			userText,
-			activeDraft,
-		)
+					activeDraft,
+				)
 		const result = await executePortalCustomerToolRequest(
 			supabase,
 			customerId,
@@ -592,6 +639,7 @@ function confirmedActionToToolRequest(
 		cleanupMode: action.cleanupMode,
 		confirmedAction: true,
 		draftItemAction: action.draftItemAction,
+		draftLines: confirmedDraftLinesToToolLines(action.draftLines),
 		draftName: action.draftName,
 		draftNotes: action.draftNotes,
 		itemQuery: action.itemQuery,
@@ -603,6 +651,32 @@ function confirmedActionToToolRequest(
 		supportSubject: action.supportSubject,
 		targetReference: action.targetReference,
 	}
+}
+
+function confirmedDraftLinesToToolLines(
+	lines: PortalConfirmedActionPayload['draftLines'],
+): PortalCustomerToolRequest['draftLines'] {
+	if (!lines) return undefined
+	return lines.flatMap(
+		(line): NonNullable<PortalCustomerToolRequest['draftLines']> => {
+			const quantity =
+				typeof line.quantity === 'number' && Number.isFinite(line.quantity)
+					? line.quantity
+					: 0
+			const query = line.query.trim()
+			if (!query || quantity <= 0) return []
+			return [
+				{
+					pendingChoiceId: line.pendingChoiceId,
+					productId: line.productId,
+					query,
+					quantity,
+					rawText: line.rawText?.trim() || query,
+					unitHint: line.unitHint,
+				},
+			]
+		},
+	)
 }
 
 async function requestPortalCustomerTool(
@@ -673,7 +747,7 @@ function correctProductLineDraftRoute(
 			searchQuery: route.searchQuery || userText,
 		}
 	}
-	if (route.action === 'chat') {
+	if (route.action === 'chat' || route.action === 'product_search') {
 		const draftLines = parsePortalDraftMaterialRequestLines(userText)
 		if (draftLines.length === 0) return route
 		if (activeDraft && asksToAddDraftLine(userText)) {
@@ -820,8 +894,13 @@ function correctPendingChoiceSelectionRoute(
 	userText: string,
 ): PortalCustomerToolRequest {
 	if (!pendingChoiceSelectionCanOverride(route.action)) return route
-	if (parsePortalDraftMaterialRequestLines(userText).length > 0) return route
 	const pendingChoice = pendingBroadChoiceContext(messages)
+	if (
+		!pendingChoice &&
+		parsePortalDraftMaterialRequestLines(userText).length > 0
+	) {
+		return route
+	}
 	const chosenQuery = pendingChoiceSelectedQuery(userText, pendingChoice)
 	const wordCount = chosenQuery?.split(/\s+/).filter(Boolean).length ?? 0
 	if (
@@ -940,7 +1019,7 @@ function pendingBroadChoiceContext(messages: ChatMessageInput[]): {
 function numberedChoiceNames(
 	content: string,
 ): Array<{ index: number; name: string }> {
-	return content
+	const numbered = content
 		.split(/\n+/)
 		.flatMap((line): Array<{ index: number; name: string }> => {
 			const match = line.match(/^\s*(\d+)\.\s+(.+?)(?:\s+-\s+|$)/)
@@ -949,6 +1028,16 @@ function numberedChoiceNames(
 			if (!Number.isInteger(index) || !name) return []
 			return [{ index, name }]
 		})
+	if (numbered.length > 0) return numbered
+	return content
+		.split(/\n+/)
+		.flatMap((line): string[] => {
+			const match = line.match(/^\s*([^-:\n]+?)\s+-\s+/)
+			const name = match?.[1]?.trim()
+			if (!name || /^i found multiple/i.test(name)) return []
+			return [name]
+		})
+		.map((name, index) => ({ index: index + 1, name }))
 }
 
 function pendingChoiceSelectedQuery(
@@ -2892,6 +2981,9 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 			break
 		case 'draft_write':
 			events.push(draftCleanupEvent(result.context.result))
+			if (result.context.result.productChoice) {
+				events.push(productChoiceListEvent(result.context.result.productChoice))
+			}
 			if (result.context.result.clearThreadSessionKeys?.length) {
 				events.push(
 					portalClearDraftThreadsEvent(
@@ -3356,6 +3448,9 @@ async function createDraftFromPlan(
 					supabase,
 					requestedLines,
 					locale,
+					{
+						action: 'create_draft_from_plan',
+					},
 				)
 			: buildDraftItemsFromPlan(
 					draftPlanText,
@@ -3365,7 +3460,9 @@ async function createDraftFromPlan(
 						route.searchQuery,
 					),
 				)
-	if ('message' in items) return { message: items.message }
+	if ('message' in items) {
+		return { message: items.message, productChoice: items.productChoice }
+	}
 	if (items.length === 0) {
 		const visibleMatches = await findPublishedProducts(
 			supabase,
@@ -3467,14 +3564,34 @@ async function addItemsToTempDraft(
 	userText: string,
 	activeDraft: ActiveChatDraftContext,
 ): Promise<DraftWriteContext> {
+	const locale = detectPortalAiLocale(userText)
 	const searchText = route.itemQuery || route.searchQuery || userText
-	const products = await findOrderableProductsForDraft(
-		supabase,
-		searchText,
-		searchText,
-	)
-	const items = buildDraftItemsFromPlan(searchText, products)
+	const requestedLines =
+		route.draftLines && route.draftLines.length > 0
+			? route.draftLines
+			: parsePortalDraftMaterialRequestLines(searchText)
+	const resolvedItems =
+		requestedLines.length > 0
+			? await buildDraftItemsFromRequestedLines(
+					supabase,
+					requestedLines,
+					locale,
+					{ action: 'draft_add_items' },
+				)
+			: buildDraftItemsFromPlan(
+					searchText,
+					await findOrderableProductsForDraft(supabase, searchText, searchText),
+				)
 	const currentItems = activeTempDraftItems(activeDraft)
+	if ('message' in resolvedItems) {
+		return {
+			items: currentItems,
+			message: resolvedItems.message,
+			productChoice: resolvedItems.productChoice,
+			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
+		}
+	}
+	const items = resolvedItems
 	if (items.length === 0 || items.some((item) => !item.productId)) {
 		return {
 			items: currentItems,
@@ -3767,12 +3884,36 @@ async function addItemsToDraft(
 		}
 	}
 	const searchText = route.itemQuery || route.searchQuery || userText
-	const products = await findOrderableProductsForDraft(
-		supabase,
-		searchText,
-		searchText,
-	)
-	const items = buildDraftItemsFromPlan(searchText, products)
+	const requestedLines =
+		route.draftLines && route.draftLines.length > 0
+			? route.draftLines
+			: parsePortalDraftMaterialRequestLines(searchText)
+	const resolvedItems =
+		requestedLines.length > 0
+			? await buildDraftItemsFromRequestedLines(
+					supabase,
+					requestedLines,
+					locale,
+					{
+						action: 'draft_add_items',
+						targetReference: draft.request_number,
+					},
+				)
+			: buildDraftItemsFromPlan(
+					searchText,
+					await findOrderableProductsForDraft(supabase, searchText, searchText),
+				)
+	if ('message' in resolvedItems) {
+		return {
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: sortedQuoteRequestItems(draft).map(toDraftMaterialItem),
+			reference: draft.request_number,
+			message: resolvedItems.message,
+			productChoice: resolvedItems.productChoice,
+		}
+	}
+	const items = resolvedItems
 	if (items.length === 0 || items.some((item) => !item.productId)) {
 		return {
 			draftId: draft.id,
@@ -5238,15 +5379,43 @@ function isOrderableQuoteRequestProduct(
 	)
 }
 
+type DraftRequestedLineResolution =
+	| DraftMaterialItem[]
+	| { message: string; productChoice?: DraftProductChoiceContext }
+
+interface DraftLineResolutionOptions {
+	action: 'create_draft_from_plan' | 'draft_add_items'
+	targetReference?: string
+}
+
 async function buildDraftItemsFromRequestedLines(
 	supabase: AuthedSupabase,
 	requestedLines: ReturnType<typeof parsePortalDraftMaterialRequestLines>,
 	locale: 'ar' | 'en',
-): Promise<DraftMaterialItem[] | { message: string }> {
+	options: DraftLineResolutionOptions,
+): Promise<DraftRequestedLineResolution> {
 	const items: DraftMaterialItem[] = []
+	const resolvedLines: PortalConfirmedDraftLinePayload[] = []
+	const choiceGroups: DraftProductChoiceGroup[] = []
 	for (const line of requestedLines) {
-		const broadChoiceQuery =
-			!line.pendingChoiceId && isBroadDraftChoiceQuery(line.query)
+		if (line.productId) {
+			const product = await findOrderableDraftProductById(
+				supabase,
+				line.productId,
+			)
+			if (!product) {
+				return {
+					message:
+						locale === 'ar'
+							? `المنتج المختار مش متاح للطلب حالياً. ماعملتش مسودة.`
+							: `The selected catalog product is not available to order right now. I did not create a draft.`,
+				}
+			}
+			items.push(draftMaterialItemFromProduct(product, line.quantity))
+			resolvedLines.push(confirmedDraftLineFromResolvedProduct(line, product))
+			continue
+		}
+		const broadChoiceQuery = isBroadDraftChoiceQuery(line.query)
 		const products = broadChoiceQuery
 			? await loadOrderableDraftProductPool(supabase)
 			: await findOrderableProductsForDraft(supabase, line.query, line.query)
@@ -5255,6 +5424,9 @@ async function buildDraftItemsFromRequestedLines(
 			: exactProductMatchForDraftLine(products, line.query)
 		if (exactMatch) {
 			items.push(draftMaterialItemFromProduct(exactMatch, line.quantity))
+			resolvedLines.push(
+				confirmedDraftLineFromResolvedProduct(line, exactMatch),
+			)
 			continue
 		}
 		const fuzzyMatch = broadChoiceQuery
@@ -5262,6 +5434,9 @@ async function buildDraftItemsFromRequestedLines(
 			: fuzzyCatalogMatchForDraftLine(products, line.query)
 		if (fuzzyMatch) {
 			items.push(draftMaterialItemFromProduct(fuzzyMatch, line.quantity))
+			resolvedLines.push(
+				confirmedDraftLineFromResolvedProduct(line, fuzzyMatch),
+			)
 			continue
 		}
 		const matches = rankProductsForDraftLine(products, line.query, 4)
@@ -5281,12 +5456,14 @@ async function buildDraftItemsFromRequestedLines(
 			items.push(
 				draftMaterialItemFromProduct(uniqueCatalogMeaningMatch, line.quantity),
 			)
+			resolvedLines.push(
+				confirmedDraftLineFromResolvedProduct(line, uniqueCatalogMeaningMatch),
+			)
 			continue
 		}
 		if (broadChoiceQuery) {
-			return {
-				message: draftLineChoiceFallbackMessage(line.query, matches, locale),
-			}
+			choiceGroups.push(draftProductChoiceGroupFromLine(line, matches))
+			continue
 		}
 		if (matches.length > 1) {
 			const resolution = await resolveDraftLineProductWithModel(
@@ -5298,13 +5475,91 @@ async function buildDraftItemsFromRequestedLines(
 			items.push(
 				draftMaterialItemFromProduct(resolution.product, line.quantity),
 			)
+			resolvedLines.push(
+				confirmedDraftLineFromResolvedProduct(line, resolution.product),
+			)
 			continue
 		}
 		const product = matches[0]
 		if (!product) continue
 		items.push(draftMaterialItemFromProduct(product, line.quantity))
+		resolvedLines.push(confirmedDraftLineFromResolvedProduct(line, product))
+	}
+	if (choiceGroups.length > 0) {
+		return draftProductChoiceResolution(
+			resolvedLines,
+			choiceGroups,
+			locale,
+			options,
+		)
 	}
 	return items
+}
+
+async function findOrderableDraftProductById(
+	supabase: AuthedSupabase,
+	productId: string,
+): Promise<PortalAiProduct | null> {
+	const { data, error } = await supabase
+		.from('products')
+		.select(
+			'id, sku, slug, name, name_ar, category, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar',
+		)
+		.eq('id', productId)
+		.eq('is_active', true)
+		.neq('availability_status', 'hidden')
+		.neq('availability_status', 'out_of_stock')
+		.maybeSingle()
+	if (error) throw new Error(error.message)
+	return data as PortalAiProduct | null
+}
+
+function confirmedDraftLineFromResolvedProduct(
+	line: ReturnType<typeof parsePortalDraftMaterialRequestLines>[number],
+	product: PortalAiProduct,
+): PortalConfirmedDraftLinePayload {
+	return {
+		pendingChoiceId: line.pendingChoiceId,
+		productId: product.id,
+		query: product.name,
+		quantity: line.quantity,
+		rawText: line.rawText,
+		unitHint: line.unitHint,
+	}
+}
+
+function draftProductChoiceGroupFromLine(
+	line: ReturnType<typeof parsePortalDraftMaterialRequestLines>[number],
+	products: PortalAiProduct[],
+): DraftProductChoiceGroup {
+	return {
+		options: products.map((product) => ({ product })),
+		pendingChoiceId:
+			line.pendingChoiceId ??
+			`choice:${normalizeForMatch(line.query)}:${line.quantity}`,
+		query: line.query,
+		quantity: line.quantity,
+		rawText: line.rawText,
+		unitHint: line.unitHint,
+	}
+}
+
+function draftProductChoiceResolution(
+	baseLines: PortalConfirmedDraftLinePayload[],
+	groups: DraftProductChoiceGroup[],
+	locale: 'ar' | 'en',
+	options: DraftLineResolutionOptions,
+): { message: string; productChoice: DraftProductChoiceContext } {
+	return {
+		message: draftProductChoiceFallbackMessage(groups, locale),
+		productChoice: {
+			action: options.action,
+			baseLines,
+			groups,
+			locale,
+			targetReference: options.targetReference,
+		},
+	}
 }
 
 function buildDraftItemsFromPlan(
@@ -5396,7 +5651,7 @@ function exactProductMatchForDraftLine(
 }
 
 function isBroadDraftChoiceQuery(query: string): boolean {
-	return /^(wood|steel|metal|metals|خشب|حديد|معدن|معادن)$/i.test(
+	return /^(cement|concrete|wood|steel|metal|metals|أسمنت|اسمنت|خرسانة|خشب|حديد|معدن|معادن)$/i.test(
 		normalizeForMatch(query),
 	)
 }
@@ -5540,16 +5795,26 @@ function rankProductsForDraftLine(
 	query: string,
 	limit: number,
 ): PortalAiProduct[] {
-	const directMatches = products.filter((product) =>
-		productMatchesDraftLine(product, query, true),
+	const normalizedQuery = productSearchTerm(query) || query
+	const directMatches = products.filter(
+		(product) =>
+			productMatchesDraftLine(product, query, true) ||
+			productMatchesDraftLine(product, normalizedQuery, true),
 	)
 	const candidates =
 		directMatches.length > 0
 			? directMatches
-			: products.filter((product) => productMatchesDraftLine(product, query))
+			: products.filter(
+					(product) =>
+						productMatchesDraftLine(product, query) ||
+						productMatchesDraftLine(product, normalizedQuery),
+				)
 	return rankProductsForPlanning(
 		candidates,
-		draftProductIntentTerms(query),
+		[
+			...draftProductIntentTerms(query),
+			...draftProductIntentTerms(normalizedQuery),
+		],
 		limit,
 	)
 }
@@ -5659,6 +5924,24 @@ function draftLineChoiceFallbackMessage(
 	return locale === 'ar'
 		? `لقيت أكتر من اختيار لـ ${query}. اختار رقم واحد:\n${choices}`
 		: `I found multiple ${query} options. Pick one by number:\n${choices}`
+}
+
+function draftProductChoiceFallbackMessage(
+	groups: DraftProductChoiceGroup[],
+	locale: 'ar' | 'en',
+): string {
+	if (groups.length === 1) {
+		const group = groups[0]
+		if (!group) return locale === 'ar' ? 'اختار المنتج.' : 'Pick a product.'
+		return draftLineChoiceFallbackMessage(
+			group.query,
+			group.options.map((option) => option.product),
+			locale,
+		)
+	}
+	return locale === 'ar'
+		? `لقيت أكتر من اختيار في ${groups.length} بنود. اختار المنتج المناسب لكل بند.`
+		: `I found multiple options for ${groups.length} material lines. Pick the right product for each line.`
 }
 
 function productMatchesDraftLine(
@@ -6296,6 +6579,102 @@ function actionButtonEvent(data: ActionButtonData): StreamChunk {
 			data,
 		},
 	}
+}
+
+function productChoiceListEvent(
+	context: DraftProductChoiceContext,
+): StreamChunk {
+	return {
+		type: 'CUSTOM' as const,
+		timestamp: Date.now(),
+		name: 'rich_message',
+		value: {
+			type: 'product_choice_list',
+			data: productChoiceListData(context),
+		},
+	}
+}
+
+function productChoiceListData(
+	context: DraftProductChoiceContext,
+): ProductChoiceListData {
+	const total = context.groups.length
+	const visibleGroups = context.groups.slice(0, 1)
+	return {
+		description:
+			context.locale === 'ar'
+				? 'اختار منتج من الكتالوج لكل بند عشان أجهز المسودة بدون تخمين.'
+				: 'Choose the catalog product for each line so I can draft it without guessing.',
+		groups: visibleGroups.map((group, groupIndex) => ({
+			options: group.options.map(({ product }) => ({
+				action: productChoiceAction(context, group, product),
+				category: product.category,
+				name: product.name,
+				nameAr: product.name_ar ?? product.name,
+				priceRange: formatPriceRange(product, context.locale),
+				productId: product.id,
+				subcategory: product.subcategory ?? undefined,
+				unit: product.unit_of_measure,
+				unitAr: product.unit_of_measure_ar,
+			})),
+			pendingChoiceId: group.pendingChoiceId,
+			query: group.query,
+			quantity: group.quantity,
+			title:
+				context.locale === 'ar'
+					? `اختيار ${groupIndex + 1}/${total}: ${group.quantity} ${group.query}`
+					: `Choice ${groupIndex + 1}/${total}: ${group.quantity} ${group.query}`,
+		})),
+		title: context.locale === 'ar' ? 'اختيارات المنتج' : 'Product choices',
+	}
+}
+
+function productChoiceAction(
+	context: DraftProductChoiceContext,
+	group: DraftProductChoiceGroup,
+	product: PortalAiProduct,
+): ActionButtonData {
+	return {
+		action: {
+			action: context.action,
+			draftLines: productChoiceActionDraftLines(context, group, product),
+			searchQuery: product.name,
+			targetReference: context.targetReference,
+		},
+		icon: 'market',
+		label: product.name,
+		labelAr: product.name_ar ?? product.name,
+		runCommand: true,
+	}
+}
+
+function productChoiceActionDraftLines(
+	context: DraftProductChoiceContext,
+	selectedGroup: DraftProductChoiceGroup,
+	selectedProduct: PortalAiProduct,
+): PortalConfirmedDraftLinePayload[] {
+	return [
+		...context.baseLines,
+		{
+			pendingChoiceId: selectedGroup.pendingChoiceId,
+			productId: selectedProduct.id,
+			query: selectedProduct.name,
+			quantity: selectedGroup.quantity,
+			rawText: selectedGroup.rawText,
+			unitHint: selectedGroup.unitHint,
+		},
+		...context.groups
+			.filter(
+				(group) => group.pendingChoiceId !== selectedGroup.pendingChoiceId,
+			)
+			.map((group) => ({
+				pendingChoiceId: group.pendingChoiceId,
+				query: group.query,
+				quantity: group.quantity,
+				rawText: group.rawText,
+				unitHint: group.unitHint,
+			})),
+	]
 }
 
 function customerOrdersInvalidationEvent(): StreamChunk {

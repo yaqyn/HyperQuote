@@ -76,10 +76,21 @@ export interface ActionButtonData {
 	unavailableTitleAr?: string
 }
 
+export interface PortalConfirmedDraftLinePayload {
+	pendingChoiceId?: string
+	productId?: string
+	query: string
+	quantity: number
+	rawText?: string
+	unitHint?: string
+}
+
 export interface PortalConfirmedActionPayload {
 	action:
 		| 'cleanup_drafts'
+		| 'create_draft_from_plan'
 		| 'delete_draft'
+		| 'draft_add_items'
 		| 'draft_replace_item'
 		| 'support_request'
 		| 'update_draft_items'
@@ -90,6 +101,7 @@ export interface PortalConfirmedActionPayload {
 		| 'remove_item'
 		| 'set_item_notes'
 		| 'set_quantity'
+	draftLines?: PortalConfirmedDraftLinePayload[]
 	draftName?: string
 	draftNotes?: string
 	itemQuery?: string
@@ -179,6 +191,28 @@ export interface MaterialListData {
 	}[]
 }
 
+export interface ProductChoiceListData {
+	description: string
+	groups: {
+		options: {
+			action: ActionButtonData
+			category: string
+			name: string
+			nameAr?: string
+			priceRange: string
+			productId: string
+			subcategory?: string
+			unit: string
+			unitAr?: string
+		}[]
+		pendingChoiceId: string
+		query: string
+		quantity: number
+		title: string
+	}[]
+	title: string
+}
+
 export interface DeliveryTrackingData {
 	deliveryNumber: string
 	destinationPlace: string | null
@@ -216,6 +250,7 @@ export type RichContent =
 	| { type: 'command_palette'; data: CommandPaletteData }
 	| { type: 'support_options'; data: SupportOptionsData }
 	| { type: 'material_list'; data: MaterialListData }
+	| { type: 'product_choice_list'; data: ProductChoiceListData }
 	| { type: 'delivery_tracking'; data: DeliveryTrackingData }
 	| { type: 'draft_cleanup_result'; data: DraftCleanupResultData }
 	| { type: 'disclaimer'; data: DisclaimerData }

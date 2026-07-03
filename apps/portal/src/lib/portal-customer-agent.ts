@@ -72,7 +72,9 @@ export interface PortalCustomerToolRequest {
 }
 
 export interface PortalDraftMaterialRequestLine {
+	pendingChoiceIndex?: number
 	pendingChoiceId?: string
+	productId?: string
 	query: string
 	quantity: number
 	rawText: string
@@ -254,6 +256,7 @@ function draftLinesSchema(): Record<string, unknown> {
 		items: {
 			properties: {
 				pending_choice_id: { type: 'string' },
+				product_id: { type: 'string' },
 				query: { type: 'string' },
 				quantity: { type: 'number' },
 				raw_text: { type: 'string' },
@@ -1518,9 +1521,14 @@ function readDraftLines(value: unknown): PortalDraftMaterialRequestLine[] {
 			typeof line.pending_choice_id === 'string'
 				? line.pending_choice_id.trim().slice(0, 120)
 				: undefined
+		const productId =
+			typeof line.product_id === 'string'
+				? line.product_id.trim().slice(0, 80)
+				: undefined
 		return [
 			{
 				pendingChoiceId: pendingChoiceId || undefined,
+				productId: productId || undefined,
 				query,
 				quantity,
 				rawText: query,

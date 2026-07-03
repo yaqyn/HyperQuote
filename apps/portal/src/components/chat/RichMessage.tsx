@@ -11,6 +11,7 @@ import { CommandPalette } from './CommandPalette'
 import { DeliveryTrackingCard } from './DeliveryTrackingCard'
 import { DraftCleanupResult } from './DraftCleanupResult'
 import { MaterialList } from './MaterialList'
+import { ProductChoiceList } from './ProductChoiceList'
 import { StatusCard } from './StatusCard'
 import { SupportOptions } from './SupportOptions'
 
@@ -78,6 +79,20 @@ function RichMessage({ type, data }: RichMessageProps) {
 				<MaterialList
 					data={
 						data as RichContent extends { type: 'material_list'; data: infer D }
+							? D
+							: never
+					}
+				/>
+			)
+			break
+		case 'product_choice_list':
+			content = (
+				<ProductChoiceList
+					data={
+						data as RichContent extends {
+							type: 'product_choice_list'
+							data: infer D
+						}
 							? D
 							: never
 					}
