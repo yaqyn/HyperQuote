@@ -94,7 +94,9 @@ describe('portal chat session threading', () => {
 		)
 
 		expect(chatViewSource).toContain('conversationKey: chatThreadKey')
-		expect(chatViewSource).toContain("draft?.sessionKey ?? 'default'")
+		expect(chatViewSource).toContain(
+			"draft?.id ? (draft.sessionKey ?? 'default') : 'default'",
+		)
 		expect(chatViewSource).toContain("setChatThreadKey('default')")
 		expect(chatViewSource).toContain('setDraftSelectionResetToken')
 		expect(chatViewSource).toContain(

@@ -749,7 +749,20 @@ function correctProductLineDraftRoute(
 	}
 	if (route.action === 'chat' || route.action === 'product_search') {
 		const draftLines = parsePortalDraftMaterialRequestLines(userText)
-		if (draftLines.length === 0) return route
+		if (draftLines.length === 0) {
+			if (activeDraft && asksToAddDraftLine(userText)) {
+				const pendingMaterial = missingQuantityDraftMaterial(userText)
+				if (pendingMaterial) {
+					return {
+						...route,
+						action: 'draft_add_items',
+						itemQuery: pendingMaterial,
+						searchQuery: route.searchQuery || userText,
+					}
+				}
+			}
+			return route
+		}
 		if (activeDraft && asksToAddDraftLine(userText)) {
 			return {
 				...route,
@@ -784,6 +797,15 @@ function correctProductLineDraftRoute(
 
 function asksToAddDraftLine(userText: string): boolean {
 	return /\b(?:add|append|include|put)\b/i.test(userText)
+}
+
+function missingQuantityDraftMaterial(userText: string): string | null {
+	const material = productSearchTerm(userText).trim()
+	if (!material) return null
+	if (material !== userText.trim() || isBroadDraftChoiceQuery(material)) {
+		return material
+	}
+	return null
 }
 
 function correctActiveDraftItemEditRoute(
@@ -3570,6 +3592,16 @@ async function addItemsToTempDraft(
 		route.draftLines && route.draftLines.length > 0
 			? route.draftLines
 			: parsePortalDraftMaterialRequestLines(searchText)
+	const currentItems = activeTempDraftItems(activeDraft)
+	if (requestedLines.length === 0 && asksToAddDraftLine(userText)) {
+		const pendingMaterial = missingQuantityDraftMaterial(searchText)
+		if (pendingMaterial) {
+			return {
+				items: currentItems,
+				message: `How much ${pendingMaterial} should I add to the draft desk?`,
+			}
+		}
+	}
 	const resolvedItems =
 		requestedLines.length > 0
 			? await buildDraftItemsFromRequestedLines(
@@ -3582,7 +3614,6 @@ async function addItemsToTempDraft(
 					searchText,
 					await findOrderableProductsForDraft(supabase, searchText, searchText),
 				)
-	const currentItems = activeTempDraftItems(activeDraft)
 	if ('message' in resolvedItems) {
 		return {
 			items: currentItems,
@@ -3888,6 +3919,18 @@ async function addItemsToDraft(
 		route.draftLines && route.draftLines.length > 0
 			? route.draftLines
 			: parsePortalDraftMaterialRequestLines(searchText)
+	if (requestedLines.length === 0 && asksToAddDraftLine(userText)) {
+		const pendingMaterial = missingQuantityDraftMaterial(searchText)
+		if (pendingMaterial) {
+			return {
+				draftId: draft.id,
+				editRoute: `/orders/edit/${draft.id}`,
+				items: sortedQuoteRequestItems(draft).map(toDraftMaterialItem),
+				reference: draft.request_number,
+				message: `How much ${pendingMaterial} should I add to ${draft.request_number}?`,
+			}
+		}
+	}
 	const resolvedItems =
 		requestedLines.length > 0
 			? await buildDraftItemsFromRequestedLines(

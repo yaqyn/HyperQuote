@@ -20,6 +20,7 @@ interface ExpectedDraftLine {
 
 interface WorkbenchCase {
 	expectDraft?: ExpectedDraftLine[]
+	expectText?: RegExp
 	expectNoDraft?: boolean
 	prompt: string
 	selections?: string[]
@@ -33,7 +34,7 @@ const CUSTOMER = {
 const PORTAL_URL = process.env.FLOW_PORTAL_URL ?? 'http://localhost:3001'
 const CUSTOMER_COOKIE = 'hyperquote_customer_auth'
 
-const CASES: WorkbenchCase[] = [
+const ISOLATED_CASES: WorkbenchCase[] = [
 	{
 		expectDraft: [
 			{ name: 'Plywood', quantity: 1000 },
@@ -103,31 +104,61 @@ const CASES: WorkbenchCase[] = [
 		prompt: 'can you draft 5 cement and 6 wood and 7 steel',
 		selections: ['Cement', 'Plywood', 'Rebar'],
 	},
+]
+
+const SESSION_CASES: WorkbenchCase[] = [
 	{
 		expectDraft: [
-			{ name: 'Plywood', quantity: 3 },
-			{ name: 'Timber Beam', quantity: 4 },
-			{ name: 'Steel Mesh', quantity: 5 },
+			{ name: 'Plywood', quantity: 100 },
+			{ name: 'Rebar', quantity: 200 },
 		],
-		prompt: 'for tomorrow: 3 plywood, 4 timber beam, and 5 steel mesh',
+		prompt: 'first build the scratch draft with 100 wood and 200 steel',
+		selections: ['Plywood', 'Rebar'],
 	},
-	{ expectNoDraft: true, prompt: 'just browsing, whatshu got?' },
-	{ expectNoDraft: true, prompt: 'need lunar stone 2' },
 	{
-		expectDraft: [{ name: 'Steel Angle', quantity: 800 }],
-		prompt: '800 metal',
+		expectDraft: [
+			{ name: 'Plywood', quantity: 100 },
+			{ name: 'Rebar', quantity: 200 },
+		],
+		expectText: /How much cement should I add/i,
+		prompt: 'add cement',
+	},
+	{
+		expectDraft: [
+			{ name: 'Plywood', quantity: 100 },
+			{ name: 'Rebar', quantity: 200 },
+			{ name: 'Cement', quantity: 3000 },
+		],
+		prompt: 'add 3000 cement',
+		selections: ['Cement'],
+	},
+	{
+		expectDraft: [
+			{ name: 'Plywood', quantity: 100 },
+			{ name: 'Rebar', quantity: 200 },
+			{ name: 'Cement', quantity: 3000 },
+			{ name: 'Steel Angle', quantity: 12 },
+		],
+		prompt: 'append 12 metal',
 		selections: ['Steel Angle'],
 	},
 	{
-		expectDraft: [{ name: 'Wood', quantity: 33 }],
-		prompt: 'please prepare 33 wood, not sure which one',
-		selections: ['Wood'],
+		expectDraft: [
+			{ name: 'Plywood', quantity: 100 },
+			{ name: 'Rebar', quantity: 200 },
+			{ name: 'Cement', quantity: 3000 },
+			{ name: 'Steel Angle', quantity: 12 },
+			{ name: 'Ready Mix', quantity: 7 },
+		],
+		prompt: 'include 7 concrete too, same draft',
 	},
 ]
 
+const TOTAL_CASE_COUNT = ISOLATED_CASES.length + SESSION_CASES.length
+
 test.describe.configure({ mode: 'serial' })
 
-test('portal AI product-choice workbench answers 20 hard prompts', async ({
+test('portal AI product-choice workbench answers 20 hard prompts, including one 5-prompt session', async ({
 	browser,
 }) => {
 	test.setTimeout(600_000)
@@ -135,8 +166,8 @@ test('portal AI product-choice workbench answers 20 hard prompts', async ({
 	const failures: string[] = []
 	const caseFilter = process.env.PORTAL_AI_WORKBENCH_CASE?.trim()
 
-	for (const [index, workbenchCase] of CASES.entries()) {
-		const label = `${index + 1}/20 ${workbenchCase.prompt}`
+	for (const [index, workbenchCase] of ISOLATED_CASES.entries()) {
+		const label = `${index + 1}/${TOTAL_CASE_COUNT} ${workbenchCase.prompt}`
 		if (
 			caseFilter &&
 			caseFilter !== String(index + 1) &&
@@ -147,16 +178,7 @@ test('portal AI product-choice workbench answers 20 hard prompts', async ({
 		try {
 			const { context, page } = await openCustomerPortal(browser, env)
 			try {
-				await sendPortalChat(page, workbenchCase.prompt)
-				for (const selection of workbenchCase.selections ?? []) {
-					await chooseProduct(page, selection)
-				}
-				if (workbenchCase.expectNoDraft) {
-					await expectNoDraft(page)
-				}
-				for (const expected of workbenchCase.expectDraft ?? []) {
-					await expectDraftLine(page, expected)
-				}
+				await runWorkbenchCase(page, workbenchCase)
 			} finally {
 				await context.close()
 			}
@@ -167,8 +189,45 @@ test('portal AI product-choice workbench answers 20 hard prompts', async ({
 		}
 	}
 
+	if (!caseFilter || caseFilter === 'session') {
+		const { context, page } = await openCustomerPortal(browser, env)
+		try {
+			for (const [index, workbenchCase] of SESSION_CASES.entries()) {
+				const caseNumber = ISOLATED_CASES.length + index + 1
+				const label = `${caseNumber}/${TOTAL_CASE_COUNT} session ${index + 1}/5 ${workbenchCase.prompt}`
+				try {
+					await runWorkbenchCase(page, workbenchCase)
+				} catch (error) {
+					failures.push(
+						`${label}: ${error instanceof Error ? error.message : error}`,
+					)
+				}
+			}
+		} finally {
+			await context.close()
+		}
+	}
+
 	expect(failures).toEqual([])
 })
+
+async function runWorkbenchCase(page: Page, workbenchCase: WorkbenchCase) {
+	await sendPortalChat(page, workbenchCase.prompt)
+	for (const selection of workbenchCase.selections ?? []) {
+		await chooseProduct(page, selection)
+	}
+	if (workbenchCase.expectText) {
+		await expect(page.locator('body')).toContainText(workbenchCase.expectText, {
+			timeout: 30_000,
+		})
+	}
+	if (workbenchCase.expectNoDraft) {
+		await expectNoDraft(page)
+	}
+	for (const expected of workbenchCase.expectDraft ?? []) {
+		await expectDraftLine(page, expected)
+	}
+}
 
 async function openCustomerPortal(browser: Browser, env: LocalSupabaseEnv) {
 	const context = await browser.newContext({
@@ -226,13 +285,26 @@ async function expectDraftLine(page: Page, expected: ExpectedDraftLine) {
 	await expect(page.getByText('Draft materials').last()).toBeVisible({
 		timeout: 30_000,
 	})
-	const quantityInput = page.locator(
-		`input[aria-label*="${cssAttributeValue(expected.name)}" i]`,
+	await page.waitForFunction(
+		({ name, quantity }) => {
+			const inputs = Array.from(
+				document.querySelectorAll<HTMLInputElement>('input[aria-label]'),
+			)
+			return inputs.some((input) => {
+				const label = input.getAttribute('aria-label') ?? ''
+				if (!label.toLowerCase().includes(name.toLowerCase())) return false
+				const rect = input.getBoundingClientRect()
+				const visible =
+					rect.width > 0 &&
+					rect.height > 0 &&
+					getComputedStyle(input).visibility !== 'hidden' &&
+					getComputedStyle(input).display !== 'none'
+				return visible && input.value === String(quantity)
+			})
+		},
+		expected,
+		{ timeout: 30_000 },
 	)
-	await expect(quantityInput).toBeVisible({ timeout: 30_000 })
-	await expect(quantityInput).toHaveValue(String(expected.quantity), {
-		timeout: 30_000,
-	})
 }
 
 async function expectNoDraft(page: Page) {
@@ -320,8 +392,4 @@ function stripEnvQuotes(value: string) {
 
 function escapeRegex(value: string) {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function cssAttributeValue(value: string) {
-	return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
