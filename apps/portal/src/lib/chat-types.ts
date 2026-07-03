@@ -57,6 +57,7 @@ export interface ActionButtonUnavailableAction {
 }
 
 export interface ActionButtonData {
+	action?: PortalConfirmedActionPayload
 	command?: string
 	confirmMessage?: string
 	confirmMessageAr?: string
@@ -75,13 +76,44 @@ export interface ActionButtonData {
 	unavailableTitleAr?: string
 }
 
+export interface PortalConfirmedActionPayload {
+	action:
+		| 'cleanup_drafts'
+		| 'delete_draft'
+		| 'draft_replace_item'
+		| 'support_request'
+		| 'update_draft_items'
+		| 'update_draft_metadata'
+	cleanupMode?: 'delete_all' | 'merge' | 'remove_empty'
+	draftItemAction?:
+		| 'clear_items'
+		| 'remove_item'
+		| 'set_item_notes'
+		| 'set_quantity'
+	draftName?: string
+	draftNotes?: string
+	itemQuery?: string
+	previousQuantity?: number
+	quantity?: number
+	replacementQuery?: string
+	searchQuery: string
+	supportMessage?: string
+	supportSubject?: string
+	targetReference?: string
+}
+
 export interface ActiveChatDraftContext {
+	dirty: boolean
 	id: string | null
 	items: {
+		lineId: string
+		orderable: boolean
+		productId?: string
 		productName: string
 		productNameAr?: string
 		quantity: number
 		unitOfMeasure: string
+		unitOfMeasureAr?: string
 	}[]
 	name: string | null
 	notes: string

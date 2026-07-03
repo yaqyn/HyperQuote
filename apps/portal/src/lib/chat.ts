@@ -11,6 +11,7 @@
 
 import {
 	completeChat,
+	completeChatWithTools,
 	isAIEnabled,
 	LYON_PORTAL,
 	streamChat,
@@ -32,6 +33,7 @@ import type {
 	ActiveChatDraftContext,
 	ChatTempDraftData,
 	CommandPaletteData,
+	PortalConfirmedActionPayload,
 	SupportOptionsData,
 } from './chat-types'
 import {
@@ -55,10 +57,12 @@ import {
 	isDraftWriteAction,
 	type PortalCustomerCatalogSnapshot,
 	type PortalCustomerToolRequest,
+	parsePortalCustomerToolCall,
 	parsePortalCustomerToolRequest,
 	parsePortalDraftMaterialRequestLines,
 	portalCustomerActionNeedsConfirmation,
 	portalCustomerPolicyRefusal,
+	portalCustomerToolDefinitions,
 	routePortalChatCommand,
 } from './portal-customer-agent'
 import {
@@ -105,14 +109,19 @@ const SALES_QUOTE_ADDRESS_LABEL = 'Sales quote site'
 
 const activeDraftInput = z
 	.object({
+		dirty: z.boolean().default(false),
 		id: z.string().uuid().nullable(),
 		items: z
 			.array(
 				z.object({
+					lineId: z.string().max(180).default(''),
+					orderable: z.boolean().default(false),
+					productId: z.string().uuid().optional(),
 					productName: z.string().max(240),
 					productNameAr: z.string().max(240).optional(),
 					quantity: z.number().min(0).max(1_000_000),
 					unitOfMeasure: z.string().max(80),
+					unitOfMeasureAr: z.string().max(80).optional(),
 				}),
 			)
 			.max(40),
@@ -123,8 +132,37 @@ const activeDraftInput = z
 	.nullable()
 	.optional()
 
+const confirmedActionInput = z
+	.object({
+		action: z.enum([
+			'cleanup_drafts',
+			'delete_draft',
+			'draft_replace_item',
+			'support_request',
+			'update_draft_items',
+			'update_draft_metadata',
+		]),
+		cleanupMode: z.enum(['delete_all', 'merge', 'remove_empty']).optional(),
+		draftItemAction: z
+			.enum(['clear_items', 'remove_item', 'set_item_notes', 'set_quantity'])
+			.optional(),
+		draftName: z.string().max(120).optional(),
+		draftNotes: z.string().max(600).optional(),
+		itemQuery: z.string().max(160).optional(),
+		previousQuantity: z.number().min(0).max(1_000_000).optional(),
+		quantity: z.number().min(0).max(1_000_000).optional(),
+		replacementQuery: z.string().max(160).optional(),
+		searchQuery: z.string().max(1200),
+		supportMessage: z.string().max(1200).optional(),
+		supportSubject: z.string().max(160).optional(),
+		targetReference: z.string().max(180).optional(),
+	})
+	.nullable()
+	.optional()
+
 const portalChatInput = z.object({
 	activeDraft: activeDraftInput,
+	confirmedAction: confirmedActionInput,
 	messages: z
 		.array(
 			z.object({
@@ -461,7 +499,9 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 
 		const activeDraft = input.activeDraft ?? null
 		const initialRoute =
+			confirmedActionToToolRequest(input.confirmedAction ?? null) ??
 			routePortalChatCommand(userText) ??
+			explicitSupportTicketRoute(userText) ??
 			(await requestPortalCustomerTool(
 				modelMessages,
 				userText,
@@ -478,7 +518,22 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 			activeDraft,
 		)
 		const route = applyActiveDraftContextToRoute(
-			correctProductLineDraftRoute(baseRoute, userText),
+			restorePendingChoiceQuantity(
+				preserveUserDraftLineWording(
+					correctPendingChoiceSelectionRoute(
+						correctProductLineDraftRoute(
+							correctActiveDraftItemEditRoute(baseRoute, userText, activeDraft),
+							userText,
+							activeDraft,
+						),
+						modelMessages,
+						userText,
+					),
+					userText,
+				),
+				modelMessages,
+				userText,
+			),
 			userText,
 			activeDraft,
 		)
@@ -488,6 +543,7 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 			route,
 			userText,
 			supportIdentity,
+			activeDraft,
 		)
 		const chunks = await renderPortalCustomerResponse(modelMessages, result)
 
@@ -503,6 +559,52 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 		return chunks as unknown as Array<{ [k: string]: {} }>
 	})
 
+function explicitSupportTicketRoute(
+	userText: string,
+): PortalCustomerToolRequest | null {
+	const normalized = normalizeForMatch(userText)
+	if (
+		!/\b(?:send|create|open|submit|file|raise|log)\s+support\b/.test(
+			normalized,
+		) &&
+		!/\b(?:support request|support ticket|ticket|feedback)\s*[:-]/.test(
+			normalized,
+		)
+	) {
+		return null
+	}
+	const message = userText.trim()
+	if (!message) return null
+	return {
+		action: 'support_request',
+		searchQuery: message,
+		supportMessage: message,
+		supportSubject: supportSubjectFromMessage(message),
+	}
+}
+
+function confirmedActionToToolRequest(
+	action: PortalConfirmedActionPayload | null,
+): PortalCustomerToolRequest | null {
+	if (!action) return null
+	return {
+		action: action.action,
+		cleanupMode: action.cleanupMode,
+		confirmedAction: true,
+		draftItemAction: action.draftItemAction,
+		draftName: action.draftName,
+		draftNotes: action.draftNotes,
+		itemQuery: action.itemQuery,
+		previousQuantity: action.previousQuantity,
+		quantity: action.quantity,
+		replacementQuery: action.replacementQuery,
+		searchQuery: action.searchQuery,
+		supportMessage: action.supportMessage,
+		supportSubject: action.supportSubject,
+		targetReference: action.targetReference,
+	}
+}
+
 async function requestPortalCustomerTool(
 	messages: ChatMessageInput[],
 	userText: string,
@@ -515,16 +617,18 @@ async function requestPortalCustomerTool(
 	if (!(await isAIEnabled())) return safeFallback
 
 	try {
-		const rawRoute = await completeChat(
+		const rawRoute = await completeChatWithTools(
 			recentRouteMessages(messages),
 			buildPortalCustomerAgentPrompt(
 				toAgentCatalogSnapshot(catalog),
 				activeDraft,
 			),
+			portalCustomerToolDefinitions(),
 			{ temperature: 0 },
 		)
 		return enforcePortalCustomerToolRequest(
-			parsePortalCustomerToolRequest(rawRoute, userText),
+			parsePortalCustomerToolCall(rawRoute, userText) ??
+				parsePortalCustomerToolRequest(rawRoute.content, userText),
 			userText,
 		)
 	} catch {
@@ -553,7 +657,40 @@ function toAgentCatalogSnapshot(
 function correctProductLineDraftRoute(
 	route: PortalCustomerToolRequest,
 	userText: string,
+	activeDraft: ActiveChatDraftContext | null,
 ): PortalCustomerToolRequest {
+	if (
+		route.action === 'create_draft_from_plan' &&
+		activeDraft &&
+		asksToAddDraftLine(userText)
+	) {
+		return {
+			...route,
+			action: 'draft_add_items',
+			draftLines: route.draftLines?.length
+				? route.draftLines
+				: parsePortalDraftMaterialRequestLines(userText),
+			searchQuery: route.searchQuery || userText,
+		}
+	}
+	if (route.action === 'chat') {
+		const draftLines = parsePortalDraftMaterialRequestLines(userText)
+		if (draftLines.length === 0) return route
+		if (activeDraft && asksToAddDraftLine(userText)) {
+			return {
+				...route,
+				action: 'draft_add_items',
+				draftLines,
+				searchQuery: route.searchQuery || userText,
+			}
+		}
+		return {
+			...route,
+			action: 'create_draft_from_plan',
+			draftLines,
+			searchQuery: route.searchQuery || userText,
+		}
+	}
 	if (route.action !== 'update_draft_items') return route
 	const draftLines = route.draftLines?.length
 		? route.draftLines
@@ -569,6 +706,202 @@ function correctProductLineDraftRoute(
 		quantity: undefined,
 		targetReference: undefined,
 	}
+}
+
+function asksToAddDraftLine(userText: string): boolean {
+	return /\b(?:add|append|include|put)\b/i.test(userText)
+}
+
+function correctActiveDraftItemEditRoute(
+	route: PortalCustomerToolRequest,
+	userText: string,
+	activeDraft: ActiveChatDraftContext | null,
+): PortalCustomerToolRequest {
+	if (!activeDraft) return route
+	if (
+		route.action !== 'chat' &&
+		route.action !== 'product_search' &&
+		route.action !== 'public_docs' &&
+		route.action !== 'create_draft_from_plan'
+	) {
+		return route
+	}
+	const replacement = inferActiveDraftReplacement(userText)
+	if (replacement) {
+		return {
+			...route,
+			action: 'draft_replace_item',
+			itemQuery: replacement.itemQuery,
+			replacementQuery: replacement.replacementQuery,
+			searchQuery: route.searchQuery || userText,
+		}
+	}
+	const inferred =
+		inferDraftItemEdit(userText) ?? inferActiveDraftItemEdit(userText)
+	if (!inferred) return route
+	return {
+		...route,
+		action: 'update_draft_items',
+		draftItemAction: inferred.draftItemAction,
+		itemQuery: inferred.itemQuery,
+		previousQuantity: inferred.previousQuantity,
+		quantity: inferred.quantity,
+		searchQuery: route.searchQuery || userText,
+	}
+}
+
+function inferActiveDraftReplacement(
+	userText: string,
+): Pick<PortalCustomerToolRequest, 'itemQuery' | 'replacementQuery'> | null {
+	const match = userText.match(
+		/\b(?:replace|swap|change)\s+(.+?)\s+(?:with|to|for)\s+(.+)$/i,
+	)
+	const itemQuery = match?.[1]?.replace(/[.?!]+$/g, '').trim()
+	const replacementQuery = match?.[2]?.replace(/[.?!]+$/g, '').trim()
+	if (!itemQuery || !replacementQuery) return null
+	return { itemQuery, replacementQuery }
+}
+
+function inferActiveDraftItemEdit(
+	userText: string,
+): ReturnType<typeof inferDraftItemEdit> {
+	const normalized = normalizeForMatch(userText)
+	const setMatch = userText.match(
+		/\b(?:make|set|change|update)\s+(.+?)\s+(?:to\s+)?(\d+(?:[.,]\d+)?)\b/i,
+	)
+	if (setMatch) {
+		const quantity = Number(setMatch[2]?.replace(',', '.'))
+		const itemQuery = setMatch[1]
+			?.replace(/\b(?:quantity|qty|to)\b/gi, ' ')
+			.replace(/\s+/g, ' ')
+			.trim()
+		if (itemQuery && Number.isFinite(quantity) && quantity > 0) {
+			return {
+				draftItemAction: 'set_quantity',
+				itemQuery,
+				quantity,
+			}
+		}
+	}
+	if (/\b(?:clear|empty|remove all|delete all)\b/.test(normalized)) {
+		return { draftItemAction: 'clear_items' }
+	}
+	if (!/\b(?:remove|delete|drop)\b/.test(normalized)) return null
+	const itemQuery = userText
+		.replace(/\b(?:remove|delete|drop)\b/gi, ' ')
+		.replace(/\b(?:from|in|the|this|that|draft|quote|item|line)\b/gi, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+	return {
+		draftItemAction: 'remove_item',
+		itemQuery: itemQuery || undefined,
+	}
+}
+
+function preserveUserDraftLineWording(
+	route: PortalCustomerToolRequest,
+	userText: string,
+): PortalCustomerToolRequest {
+	if (route.action !== 'create_draft_from_plan') return route
+	const userLines = parsePortalDraftMaterialRequestLines(userText)
+	if (userLines.length === 0) return route
+	if (route.draftLines && route.draftLines.length !== userLines.length) {
+		return route
+	}
+	return {
+		...route,
+		draftLines: userLines,
+	}
+}
+
+function correctPendingChoiceSelectionRoute(
+	route: PortalCustomerToolRequest,
+	messages: ChatMessageInput[],
+	userText: string,
+): PortalCustomerToolRequest {
+	if (!pendingChoiceSelectionCanOverride(route.action)) return route
+	if (parsePortalDraftMaterialRequestLines(userText).length > 0) return route
+	const chosenQuery = userText.trim()
+	const wordCount = chosenQuery.split(/\s+/).filter(Boolean).length
+	if (
+		!chosenQuery ||
+		chosenQuery.length > 120 ||
+		wordCount > 4 ||
+		/\b(?:wrong|incorrect|mistake|cancel|nope|nah)\b/i.test(chosenQuery)
+	) {
+		return route
+	}
+	const pendingLine = pendingBroadChoiceLine(messages)
+	if (!pendingLine) return route
+	return {
+		...route,
+		action: 'create_draft_from_plan',
+		draftLines: [
+			{
+				pendingChoiceId: pendingLine.query,
+				query: chosenQuery,
+				quantity: pendingLine.quantity,
+				rawText: chosenQuery,
+				unitHint: pendingLine.unitHint,
+			},
+		],
+		searchQuery: route.searchQuery || chosenQuery,
+	}
+}
+
+function pendingChoiceSelectionCanOverride(
+	action: PortalCustomerToolRequest['action'],
+): boolean {
+	return (
+		action === 'chat' ||
+		action === 'product_search' ||
+		action === 'compare_products' ||
+		action === 'recommend_materials' ||
+		action === 'public_docs'
+	)
+}
+
+function restorePendingChoiceQuantity(
+	route: PortalCustomerToolRequest,
+	messages: ChatMessageInput[],
+	userText: string,
+): PortalCustomerToolRequest {
+	if (route.action !== 'create_draft_from_plan') return route
+	if (!route.draftLines?.length) return route
+	if (parsePortalDraftMaterialRequestLines(userText).length > 0) return route
+
+	const chosenQuery = userText.trim()
+	if (!chosenQuery || chosenQuery.length > 120) return route
+
+	const pendingLine = pendingBroadChoiceLine(messages)
+	if (!pendingLine) return route
+
+	return {
+		...route,
+		draftLines: route.draftLines.map((line) => ({
+			...line,
+			pendingChoiceId: line.pendingChoiceId ?? pendingLine.query,
+			quantity: line.quantity > 1 ? line.quantity : pendingLine.quantity,
+			unitHint: line.unitHint ?? pendingLine.unitHint,
+		})),
+		searchQuery: route.searchQuery || chosenQuery,
+	}
+}
+
+function pendingBroadChoiceLine(
+	messages: ChatMessageInput[],
+): ReturnType<typeof parsePortalDraftMaterialRequestLines>[number] | null {
+	return (
+		[...messages]
+			.slice(0, -1)
+			.reverse()
+			.flatMap((message) =>
+				message.role === 'user'
+					? parsePortalDraftMaterialRequestLines(message.content)
+					: [],
+			)
+			.find((line) => isBroadDraftChoiceQuery(line.query)) ?? null
+	)
 }
 
 async function repairActiveDraftChatRoute(
@@ -628,12 +961,16 @@ function applyActiveDraftContextToRoute(
 	userText: string,
 	activeDraft: ActiveChatDraftContext | null,
 ): PortalCustomerToolRequest {
-	if (!activeDraft?.id || !draftRouteCanUseActiveContext(route.action)) {
+	if (!activeDraft || !draftRouteCanUseActiveContext(route.action)) {
 		return route
 	}
+	const activeReference = activeDraft.id ?? activeDraft.sessionKey ?? 'active'
 	if (route.targetReference) {
+		if (!activeDraft.id && tempDraftItemMutationCanUseActive(route.action)) {
+			return { ...route, targetReference: activeReference }
+		}
 		return isCurrentDraftReference(route.targetReference)
-			? { ...route, targetReference: activeDraft.id }
+			? { ...route, targetReference: activeReference }
 			: route
 	}
 
@@ -648,17 +985,27 @@ function applyActiveDraftContextToRoute(
 			route.itemQuery && activeDraftHasItemQuery(activeDraft, route.itemQuery),
 		)
 	const canUseActiveForDraftMutation =
-		(route.action === 'draft_add_items' ||
-			route.action === 'draft_set_delivery') &&
-		(!descriptor.specific || activeMatchesDescriptor)
+		route.action === 'draft_add_items' ||
+		(route.action === 'draft_set_delivery' &&
+			(!descriptor.specific || activeMatchesDescriptor))
 	if (
 		activeMatchesDescriptor ||
 		canUseActiveForLineTarget ||
 		canUseActiveForDraftMutation
 	) {
-		return { ...route, targetReference: activeDraft.id }
+		return { ...route, targetReference: activeReference }
 	}
 	return route
+}
+
+function tempDraftItemMutationCanUseActive(
+	action: PortalCustomerToolRequest['action'],
+): boolean {
+	return (
+		action === 'draft_add_items' ||
+		action === 'draft_replace_item' ||
+		action === 'update_draft_items'
+	)
 }
 
 function draftRouteCanUseActiveContext(
@@ -780,6 +1127,7 @@ async function executePortalCustomerToolRequest(
 	route: PortalCustomerToolRequest,
 	userText: string,
 	supportIdentity: PortalSupportIdentity,
+	activeDraft: ActiveChatDraftContext | null,
 ): Promise<PortalToolResult> {
 	const refusal =
 		route.action === 'refuse'
@@ -1052,6 +1400,7 @@ async function executePortalCustomerToolRequest(
 				customerId,
 				route,
 				userText,
+				activeDraft,
 			)
 			return draftWriteToolResult(route, 'draft_add_items', result)
 		}
@@ -1061,6 +1410,7 @@ async function executePortalCustomerToolRequest(
 				customerId,
 				route,
 				userText,
+				activeDraft,
 			)
 			return draftWriteToolResult(route, 'draft_replace_item', result)
 		}
@@ -1095,6 +1445,7 @@ async function executePortalCustomerToolRequest(
 				customerId,
 				route,
 				userText,
+				activeDraft,
 			)
 			return draftWriteToolResult(route, 'update_draft_items', result)
 		}
@@ -1265,13 +1616,25 @@ function pendingSupportTicketConfirmation(
 	const actions: ActionButtonData[] = [
 		hasVerifiedEmail
 			? confirmationButton({
-					command: `/feedback ${commandValue(message)} --confirm`,
+					action: {
+						action: 'support_request',
+						searchQuery: message,
+						supportMessage: message,
+						supportSubject:
+							route.supportSubject ?? supportSubjectFromMessage(message),
+					},
 					icon: 'support',
 					label: 'Submit ticket',
 					labelAr: 'إرسال التذكرة',
 				})
 			: {
-					command: `/feedback ${commandValue(message)} --confirm`,
+					action: {
+						action: 'support_request',
+						searchQuery: message,
+						supportMessage: message,
+						supportSubject:
+							route.supportSubject ?? supportSubjectFromMessage(message),
+					},
 					icon: 'support',
 					label: 'Submit ticket',
 					labelAr: 'إرسال التذكرة',
@@ -1364,7 +1727,11 @@ async function pendingDeleteDraftConfirmation(
 	return {
 		actions: [
 			confirmationButton({
-				command: `/delete-draft ${draft.request_number} --confirm`,
+				action: {
+					action: 'delete_draft',
+					searchQuery: draft.request_number,
+					targetReference: draft.id,
+				},
 				icon: 'draft',
 				label: 'Delete draft',
 				labelAr: 'احذف المسودة',
@@ -1392,7 +1759,11 @@ async function pendingCleanupDraftsConfirmation(
 		return {
 			actions: [
 				confirmationButton({
-					command: '/merge-drafts --confirm',
+					action: {
+						action: 'cleanup_drafts',
+						cleanupMode: 'merge',
+						searchQuery: 'merge editable drafts',
+					},
 					icon: 'draft',
 					label: 'Merge drafts',
 					labelAr: 'ادمج المسودات',
@@ -1413,10 +1784,14 @@ async function pendingCleanupDraftsConfirmation(
 	return {
 		actions: [
 			confirmationButton({
-				command:
-					mode === 'delete_all'
-						? '/clear-all-drafts --confirm'
-						: '/clean-drafts --confirm',
+				action: {
+					action: 'cleanup_drafts',
+					cleanupMode: mode,
+					searchQuery:
+						mode === 'delete_all'
+							? 'delete all editable drafts'
+							: 'remove empty editable drafts',
+				},
 				icon: 'draft',
 				label: mode === 'delete_all' ? 'Delete drafts' : 'Clean drafts',
 				labelAr: mode === 'delete_all' ? 'احذف المسودات' : 'نظّف المسودات',
@@ -1462,14 +1837,16 @@ async function pendingDraftMetadataConfirmation(
 			: undefined
 	if (!nextName && nextNotes === undefined) return null
 
-	const command = nextName
-		? `/rename-draft ${draft.request_number} ${commandValue(nextName)} --confirm`
-		: `/note-draft ${draft.request_number} ${commandValue(nextNotes ?? '')} --confirm`
-
 	return {
 		actions: [
 			confirmationButton({
-				command,
+				action: {
+					action: 'update_draft_metadata',
+					draftName: nextName,
+					draftNotes: nextName ? undefined : (nextNotes ?? ''),
+					searchQuery: draft.request_number,
+					targetReference: draft.id,
+				},
 				icon: 'draft',
 				label: nextName ? 'Rename draft' : 'Update note',
 				labelAr: nextName ? 'غيّر الاسم' : 'حدّث الملاحظة',
@@ -1508,7 +1885,12 @@ async function pendingDraftItemConfirmation(
 		return {
 			actions: [
 				confirmationButton({
-					command: `/clear-draft ${draft.request_number} --confirm`,
+					action: {
+						action: 'update_draft_items',
+						draftItemAction: 'clear_items',
+						searchQuery: draft.request_number,
+						targetReference: draft.id,
+					},
 					icon: 'draft',
 					label: 'Clear draft',
 					labelAr: 'افرغ المسودة',
@@ -1531,7 +1913,13 @@ async function pendingDraftItemConfirmation(
 	return {
 		actions: [
 			confirmationButton({
-				command: `/remove-from-draft ${draft.request_number} ${commandValue(itemName)} --confirm`,
+				action: {
+					action: 'update_draft_items',
+					draftItemAction: 'remove_item',
+					itemQuery: itemName,
+					searchQuery: draft.request_number,
+					targetReference: draft.id,
+				},
 				icon: 'draft',
 				label: 'Remove item',
 				labelAr: 'احذف البند',
@@ -1562,7 +1950,13 @@ async function pendingDraftReplacementConfirmation(
 	return {
 		actions: [
 			confirmationButton({
-				command: `/replace-draft-item ${draft.request_number} ${commandValue(itemQuery)} with ${commandValue(route.replacementQuery)} --confirm`,
+				action: {
+					action: 'draft_replace_item',
+					itemQuery,
+					replacementQuery: route.replacementQuery,
+					searchQuery: draft.request_number,
+					targetReference: draft.id,
+				},
 				icon: 'draft',
 				label: 'Replace item',
 				labelAr: 'استبدل البند',
@@ -1582,15 +1976,6 @@ function confirmationButton(
 		...data,
 		runCommand: true,
 	}
-}
-
-function commandValue(value: string): string {
-	const cleaned = value
-		.replace(/(?:^|\s)--confirm(?:\s|$)/gi, ' ')
-		.replace(/["“”\r\n]+/g, ' ')
-		.replace(/\s+/g, ' ')
-		.trim()
-	return cleaned ? `"${cleaned}"` : '""'
 }
 
 async function renderPortalCustomerResponse(
@@ -2945,6 +3330,7 @@ function tempDraftDataFromDraftItems(
 	name: string,
 	notes: string,
 	items: DraftMaterialItem[],
+	sessionKey = `draft:temp:${crypto.randomUUID()}`,
 ): ChatTempDraftData {
 	return {
 		items: items.map((item) => ({
@@ -2960,12 +3346,206 @@ function tempDraftDataFromDraftItems(
 		})),
 		name,
 		notes,
-		sessionKey: `draft:temp:${crypto.randomUUID()}`,
+		sessionKey,
 	}
 }
 
 function draftSessionKey(draftId: string): string {
 	return `draft:${draftId}`
+}
+
+function isActiveTempDraftTarget(
+	activeDraft: ActiveChatDraftContext | null,
+	targetReference: string | undefined,
+): activeDraft is ActiveChatDraftContext {
+	if (!activeDraft || activeDraft.id) return false
+	return (
+		!targetReference ||
+		isCurrentDraftReference(targetReference) ||
+		targetReference === activeDraft.sessionKey
+	)
+}
+
+function activeTempDraftItems(
+	activeDraft: ActiveChatDraftContext,
+): DraftMaterialItem[] {
+	return activeDraft.items.map((item) => ({
+		category: 'catalog',
+		imageUrl: '',
+		name: item.productName,
+		nameAr: item.productNameAr ?? item.productName,
+		orderable: item.orderable,
+		productId: item.productId,
+		qty: item.quantity,
+		unit: item.unitOfMeasure,
+		unitAr: item.unitOfMeasureAr ?? item.unitOfMeasure,
+	}))
+}
+
+function activeTempDraftPayload(
+	activeDraft: ActiveChatDraftContext,
+	items: DraftMaterialItem[],
+): ChatTempDraftData {
+	return tempDraftDataFromDraftItems(
+		activeDraft.name ?? 'Portal AI draft',
+		activeDraft.notes,
+		items,
+		activeDraft.sessionKey,
+	)
+}
+
+async function addItemsToTempDraft(
+	supabase: AuthedSupabase,
+	route: PortalCustomerToolRequest,
+	userText: string,
+	activeDraft: ActiveChatDraftContext,
+): Promise<DraftWriteContext> {
+	const searchText = route.itemQuery || route.searchQuery || userText
+	const products = await findOrderableProductsForDraft(
+		supabase,
+		searchText,
+		searchText,
+	)
+	const items = buildDraftItemsFromPlan(searchText, products)
+	const currentItems = activeTempDraftItems(activeDraft)
+	if (items.length === 0 || items.some((item) => !item.productId)) {
+		return {
+			items: currentItems,
+			message: 'I could not find a currently available catalog product to add.',
+			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
+		}
+	}
+	const nextItems = [...currentItems, ...items]
+	return {
+		items: nextItems,
+		message: `I added ${items.length} material line${items.length === 1 ? '' : 's'} to the draft desk.`,
+		tempDraft: activeTempDraftPayload(activeDraft, nextItems),
+	}
+}
+
+async function updateTempDraftItems(
+	supabase: AuthedSupabase,
+	route: PortalCustomerToolRequest,
+	userText: string,
+	activeDraft: ActiveChatDraftContext,
+): Promise<DraftWriteContext> {
+	const inferred = inferDraftItemEdit(route.searchQuery || userText)
+	const action = route.draftItemAction ?? inferred?.draftItemAction
+	const currentItems = activeTempDraftItems(activeDraft)
+	if (!action) {
+		return {
+			items: currentItems,
+			message:
+				'Tell me exactly what to change in the draft, for example "set Wood to 340 pieces", "remove Wood", or "clear the draft".',
+			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
+		}
+	}
+	if (action === 'clear_items') {
+		return {
+			items: [],
+			message: 'I cleared all material lines from the draft desk.',
+			tempDraft: activeTempDraftPayload(activeDraft, []),
+		}
+	}
+	const target = findActiveTempDraftItemTarget(
+		currentItems,
+		route.itemQuery ?? inferred?.itemQuery,
+		route.previousQuantity ?? inferred?.previousQuantity,
+	)
+	if (typeof target === 'string') {
+		return {
+			items: currentItems,
+			message: target,
+			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
+		}
+	}
+	if (action === 'remove_item') {
+		const nextItems = currentItems.filter((_, index) => index !== target)
+		return {
+			items: nextItems,
+			message: `I removed ${currentItems[target]?.name ?? 'that line'} from the draft desk.`,
+			tempDraft: activeTempDraftPayload(activeDraft, nextItems),
+		}
+	}
+	if (action === 'set_item_notes') {
+		return {
+			items: currentItems,
+			message:
+				'Draft desk line notes are saved with the draft form. Use the draft note field for now.',
+			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
+		}
+	}
+	const quantity = normalizeDraftQuantity(
+		route.quantity ?? inferred?.quantity ?? 0,
+	)
+	if (!quantity) {
+		return {
+			items: currentItems,
+			message: 'Tell me the new quantity for that draft line.',
+			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
+		}
+	}
+	const nextItems = currentItems.map((item, index) =>
+		index === target ? { ...item, qty: quantity } : item,
+	)
+	await assertQuoteRequestItemsHaveOrderableProductLinks(
+		supabase,
+		nextItems
+			.filter((item) => item.productId)
+			.map((item, index) => ({
+				customerDescription: item.name,
+				isUnmatched: false,
+				productId: item.productId,
+				quantity: item.qty,
+				sortOrder: index,
+				unitOfMeasure: item.unit,
+				unitOfMeasureAr: item.unitAr,
+			})),
+	)
+	return {
+		items: nextItems,
+		message: `I set ${currentItems[target]?.name ?? 'that line'} to ${quantity}.`,
+		tempDraft: activeTempDraftPayload(activeDraft, nextItems),
+	}
+}
+
+function findActiveTempDraftItemTarget(
+	items: DraftMaterialItem[],
+	itemQuery: string | undefined,
+	previousQuantity: number | undefined,
+): number | string {
+	if (items.length === 0) return 'That draft has no material lines to edit.'
+	const normalizedQuery = normalizeForMatch(itemQuery ?? '')
+	const queryTokens = normalizedQuery
+		.split(' ')
+		.filter((token) => token.length > 2)
+	const queryMatches =
+		queryTokens.length > 0
+			? items
+					.map((item, index) => ({ index, item }))
+					.filter(({ item }) => {
+						const itemText = normalizeForMatch(
+							[item.name, item.nameAr, item.unit].join(' '),
+						)
+						return queryTokens.every((token) => itemText.includes(token))
+					})
+			: []
+	if (queryMatches.length === 1) return queryMatches[0]?.index ?? 0
+	const quantityMatches = items
+		.map((item, index) => ({ index, item }))
+		.filter(({ item }) =>
+			previousQuantity === undefined
+				? false
+				: quantitiesEqual(item.qty, previousQuantity),
+		)
+	if (quantityMatches.length === 1) return quantityMatches[0]?.index ?? 0
+	if (items.length === 1) return 0
+	return `Which draft line should I edit? This draft has ${items.map((item) => `${item.qty} ${item.unit} ${item.name}`).join(', ')}.`
+}
+
+function normalizeDraftQuantity(value: number): number | null {
+	if (!Number.isFinite(value) || value <= 0) return null
+	return Math.min(value, 1_000_000)
 }
 
 async function insertStrictCatalogDraftItems(
@@ -3099,8 +3679,12 @@ async function addItemsToDraft(
 	customerId: string,
 	route: PortalCustomerToolRequest,
 	userText: string,
+	activeDraft: ActiveChatDraftContext | null,
 ): Promise<DraftWriteContext> {
 	const locale = detectPortalAiLocale(userText)
+	if (isActiveTempDraftTarget(activeDraft, route.targetReference)) {
+		return addItemsToTempDraft(supabase, route, userText, activeDraft)
+	}
 	const draftResolution = await resolveEditableDraft(
 		supabase,
 		customerId,
@@ -3196,8 +3780,12 @@ async function replaceDraftItem(
 	customerId: string,
 	route: PortalCustomerToolRequest,
 	userText: string,
+	activeDraft: ActiveChatDraftContext | null,
 ): Promise<DraftWriteContext> {
 	const locale = detectPortalAiLocale(userText)
+	if (isActiveTempDraftTarget(activeDraft, route.targetReference)) {
+		return replaceTempDraftItem(supabase, route, userText, activeDraft)
+	}
 	const draftResolution = await resolveEditableDraft(
 		supabase,
 		customerId,
@@ -3331,6 +3919,94 @@ async function replaceDraftItem(
 		reference: draft.request_number,
 		message: `I replaced ${draftItemDisplayName(target.item)} with ${replacement.name} in ${draft.request_number}.`,
 	}
+}
+
+async function replaceTempDraftItem(
+	supabase: AuthedSupabase,
+	route: PortalCustomerToolRequest,
+	userText: string,
+	activeDraft: ActiveChatDraftContext,
+): Promise<DraftWriteContext> {
+	const currentItems = activeTempDraftItems(activeDraft)
+	if (currentItems.length === 0) {
+		return {
+			items: [],
+			message: 'That draft has no material lines to replace.',
+			tempDraft: activeTempDraftPayload(activeDraft, []),
+		}
+	}
+	const target = findActiveTempDraftItemTarget(
+		currentItems,
+		route.itemQuery,
+		route.previousQuantity,
+	)
+	if (typeof target === 'string') {
+		return {
+			items: currentItems,
+			message: target,
+			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
+		}
+	}
+	const replacementText = tempDraftReplacementText(route, userText)
+	if (!replacementText) {
+		return {
+			items: currentItems,
+			message:
+				'Tell me what available catalog product should replace that line.',
+			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
+		}
+	}
+	const products = await findOrderableProductsForDraft(
+		supabase,
+		replacementText,
+		replacementText,
+	)
+	const exactReplacement = exactProductMatchForDraftLine(
+		products,
+		replacementText,
+	)
+	const [plannedReplacement] = buildDraftItemsFromPlan(
+		replacementText,
+		products,
+	)
+	const replacement = exactReplacement
+		? draftMaterialItemFromProduct(
+				exactReplacement,
+				plannedReplacement?.qty ?? 1,
+			)
+		: plannedReplacement
+	if (!replacement?.productId) {
+		return {
+			items: currentItems,
+			message:
+				'I could not find a currently available catalog product for the replacement.',
+			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
+		}
+	}
+	const previous = currentItems[target]
+	const nextItem = {
+		...replacement,
+		qty: previous?.qty ?? replacement.qty,
+	}
+	const nextItems = currentItems.map((item, index) =>
+		index === target ? nextItem : item,
+	)
+	return {
+		items: nextItems,
+		message: `I replaced ${previous?.name ?? 'that line'} with ${nextItem.name} in the draft desk.`,
+		tempDraft: activeTempDraftPayload(activeDraft, nextItems),
+	}
+}
+
+function tempDraftReplacementText(
+	route: PortalCustomerToolRequest,
+	userText: string,
+): string {
+	const explicit = route.replacementQuery?.trim()
+	if (explicit) return explicit
+	const withMatch = userText.match(/\bwith\s+(.+)$/i)?.[1]
+	if (withMatch) return withMatch.replace(/[.?!]+$/g, '').trim()
+	return ''
 }
 
 async function setDraftDelivery(
@@ -3540,8 +4216,12 @@ async function updateDraftItems(
 	customerId: string,
 	route: PortalCustomerToolRequest,
 	userText: string,
+	activeDraft: ActiveChatDraftContext | null,
 ): Promise<DraftWriteContext> {
 	const locale = detectPortalAiLocale(userText)
+	if (isActiveTempDraftTarget(activeDraft, route.targetReference)) {
+		return updateTempDraftItems(supabase, route, userText, activeDraft)
+	}
 	const draftResolution = await resolveEditableDraft(
 		supabase,
 		customerId,
@@ -4498,17 +5178,21 @@ async function buildDraftItemsFromRequestedLines(
 ): Promise<DraftMaterialItem[] | { message: string }> {
 	const items: DraftMaterialItem[] = []
 	for (const line of requestedLines) {
-		const products = await findOrderableProductsForDraft(
-			supabase,
-			line.query,
-			line.query,
-		)
-		const exactMatch = exactProductMatchForDraftLine(products, line.query)
+		const broadChoiceQuery =
+			!line.pendingChoiceId && isBroadDraftChoiceQuery(line.query)
+		const products = broadChoiceQuery
+			? await loadOrderableDraftProductPool(supabase)
+			: await findOrderableProductsForDraft(supabase, line.query, line.query)
+		const exactMatch = broadChoiceQuery
+			? null
+			: exactProductMatchForDraftLine(products, line.query)
 		if (exactMatch) {
 			items.push(draftMaterialItemFromProduct(exactMatch, line.quantity))
 			continue
 		}
-		const fuzzyMatch = fuzzyCatalogMatchForDraftLine(products, line.query)
+		const fuzzyMatch = broadChoiceQuery
+			? null
+			: fuzzyCatalogMatchForDraftLine(products, line.query)
 		if (fuzzyMatch) {
 			items.push(draftMaterialItemFromProduct(fuzzyMatch, line.quantity))
 			continue
@@ -4526,11 +5210,16 @@ async function buildDraftItemsFromRequestedLines(
 			matches,
 			line.query,
 		)
-		if (uniqueCatalogMeaningMatch) {
+		if (uniqueCatalogMeaningMatch && !broadChoiceQuery) {
 			items.push(
 				draftMaterialItemFromProduct(uniqueCatalogMeaningMatch, line.quantity),
 			)
 			continue
+		}
+		if (broadChoiceQuery) {
+			return {
+				message: draftLineChoiceFallbackMessage(line.query, matches, locale),
+			}
 		}
 		if (matches.length > 1) {
 			const resolution = await resolveDraftLineProductWithModel(
@@ -4559,12 +5248,18 @@ function buildDraftItemsFromPlan(
 	if (requestedLines.length > 0) {
 		const items: DraftMaterialItem[] = []
 		for (const line of requestedLines) {
-			const exactMatch = exactProductMatchForDraftLine(products, line.query)
+			const broadChoiceQuery =
+				!line.pendingChoiceId && isBroadDraftChoiceQuery(line.query)
+			const exactMatch = broadChoiceQuery
+				? null
+				: exactProductMatchForDraftLine(products, line.query)
 			if (exactMatch) {
 				items.push(draftMaterialItemFromProduct(exactMatch, line.quantity))
 				continue
 			}
-			const fuzzyMatch = fuzzyCatalogMatchForDraftLine(products, line.query)
+			const fuzzyMatch = broadChoiceQuery
+				? null
+				: fuzzyCatalogMatchForDraftLine(products, line.query)
 			if (fuzzyMatch) {
 				items.push(draftMaterialItemFromProduct(fuzzyMatch, line.quantity))
 				continue
@@ -4631,6 +5326,12 @@ function exactProductMatchForDraftLine(
 	})
 	if (matches.length !== 1) return null
 	return matches[0] ?? null
+}
+
+function isBroadDraftChoiceQuery(query: string): boolean {
+	return /^(wood|steel|metal|metals|خشب|حديد|معدن|معادن)$/i.test(
+		normalizeForMatch(query),
+	)
 }
 
 function fuzzyCatalogMatchForDraftLine(

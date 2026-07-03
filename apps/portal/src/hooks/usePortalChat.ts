@@ -23,6 +23,7 @@ import {
 	PORTAL_CHAT_OPEN_DRAFT_EVENT,
 	type PortalChatClearDraftThreadsEventDetail,
 	type PortalChatOpenDraftEventDetail,
+	type PortalConfirmedActionPayload,
 	type RichContent,
 } from '../lib/chat-types'
 import { logPortalError } from '../lib/log'
@@ -354,6 +355,9 @@ export function usePortalChat({
 	const [isHistoryReady, setIsHistoryReady] = useState(false)
 	const [isResponsePending, setIsResponsePending] = useState(false)
 	const activeDraftRef = useRef<ActiveChatDraftContext | null>(activeDraft)
+	const pendingConfirmedActionRef = useRef<PortalConfirmedActionPayload | null>(
+		null,
+	)
 	const conversationKeyRef = useRef(conversationKey)
 	const loadedRoleRef = useRef<'customer' | 'supplier' | null>(null)
 	const loadedConversationKeyRef = useRef<string | null>(null)
@@ -389,7 +393,14 @@ export function usePortalChat({
 		connection: stream(async function* (messages) {
 			try {
 				// Convert UIMessage[] to simple format for server function
-				const simpleMessages = (messages as UIMessage[]).map((m) => ({
+				const outgoingMessages = messages as UIMessage[]
+				const historyById = new Map(
+					chatMessagesRef.current.map((message) => [message.id, message]),
+				)
+				for (const message of outgoingMessages) {
+					historyById.set(message.id, message)
+				}
+				const simpleMessages = Array.from(historyById.values()).map((m) => ({
 					role: m.role as 'user' | 'assistant',
 					content: extractContent(m),
 				}))
@@ -399,6 +410,7 @@ export function usePortalChat({
 				const raw = await portalChatFn({
 					data: {
 						activeDraft: activeDraftRef.current,
+						confirmedAction: pendingConfirmedActionRef.current,
 						messages: simpleMessages,
 						role: activeRole,
 						conversationId:
@@ -407,6 +419,7 @@ export function usePortalChat({
 								: conversationKeyRef.current,
 					},
 				})
+				pendingConfirmedActionRef.current = null
 				const chunks = raw as unknown as StreamChunk[]
 
 				lastChunksRef.current = chunks
@@ -627,7 +640,11 @@ export function usePortalChat({
 	}, [chat.stop])
 
 	const sendMessage = useCallback(
-		(message: string) => {
+		(
+			message: string,
+			options?: { confirmedAction?: PortalConfirmedActionPayload },
+		) => {
+			pendingConfirmedActionRef.current = options?.confirmedAction ?? null
 			const command = parsePortalChatCommand(message)
 			if (command && isLocalPortalChatCommand(command.name)) {
 				if (command.name === '/help') {

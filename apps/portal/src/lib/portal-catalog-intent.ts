@@ -52,8 +52,15 @@ export function productIntentTerms(userText: string): string[] {
 
 export function draftProductIntentTerms(userText: string): string[] {
 	const normalized = normalizeCatalogIntentText(userText)
-	const terms = new Set(productPlanningTerms(userText))
-	addCatalogTerms(terms, materialSynonymTerms(normalized, userText))
+	const terms = new Set<string>()
+	addCatalogTerms(
+		terms,
+		normalized
+			.split(' ')
+			.filter(
+				(token) => token.length > 2 && !PRODUCT_INTENT_STOP_WORDS.has(token),
+			),
+	)
 	return Array.from(terms)
 }
 
@@ -228,6 +235,7 @@ const PRODUCT_INTENT_STOP_WORDS = new Set([
 	'material',
 	'materials',
 	'need',
+	'now',
 	'order',
 	'plan',
 	'please',

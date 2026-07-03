@@ -9,10 +9,12 @@ import {
 	buildPortalCustomerAgentPrompt,
 	fallbackPortalCustomerToolRequest,
 	inferDraftItemEdit,
+	parsePortalCustomerToolCall,
 	parsePortalCustomerToolRequest,
 	parsePortalDraftMaterialRequestLines,
 	portalCustomerActionNeedsConfirmation,
 	portalCustomerPolicyRefusal,
+	portalCustomerToolDefinitions,
 	routePortalChatCommand,
 } from './portal-customer-agent'
 import { editableDraftDescriptorFromText } from './portal-draft-targeting'
@@ -192,6 +194,334 @@ describe('portal customer AI agent', () => {
 				unitHint: undefined,
 			},
 		])
+		expect(parsePortalDraftMaterialRequestLines('wood 1000')).toEqual([
+			{
+				query: 'wood',
+				quantity: 1000,
+				rawText: 'wood 1000',
+				unitHint: undefined,
+			},
+		])
+	})
+
+	it('uses structured tool calls for catalog and draft workbench actions', () => {
+		expect(
+			portalCustomerToolDefinitions().map((tool) => tool.function.name),
+		).toEqual(
+			expect.arrayContaining([
+				'search_catalog',
+				'resolve_product_choice',
+				'read_draft',
+				'preview_draft_changes',
+				'save_confirmed_draft_changes',
+				'validate_draft',
+			]),
+		)
+		expect(
+			parsePortalCustomerToolCall(
+				{
+					content: '',
+					toolCalls: [
+						{
+							function: {
+								arguments: JSON.stringify({
+									draft_lines: [
+										{
+											query: 'plywood',
+											quantity: 1000,
+											raw_text: '1000 plywood',
+										},
+									],
+									draft_name: 'Plywood',
+								}),
+								name: 'resolve_product_choice',
+							},
+							id: 'call-1',
+							type: 'function',
+						},
+					],
+				},
+				'1000 plywood',
+			),
+		).toMatchObject({
+			action: 'create_draft_from_plan',
+			draftLines: [{ query: 'plywood', quantity: 1000 }],
+			draftName: 'Plywood',
+		})
+		expect(
+			parsePortalCustomerToolCall(
+				{
+					content: '',
+					toolCalls: [
+						{
+							function: {
+								arguments: JSON.stringify({
+									draft_item_action: 'remove_item',
+									item_query: 'wood',
+									operation: 'update_items',
+									target_reference: 'QR-2026-00003',
+								}),
+								name: 'preview_draft_changes',
+							},
+							id: 'call-2',
+							type: 'function',
+						},
+					],
+				},
+				'remove wood',
+			),
+		).toMatchObject({
+			action: 'update_draft_items',
+			draftItemAction: 'remove_item',
+			itemQuery: 'wood',
+			targetReference: 'QR-2026-00003',
+		})
+	})
+
+	it('keeps 20 adversarial portal AI workbench prompts on the right tool rails', () => {
+		const toolCall = (
+			name: string,
+			args: Record<string, unknown>,
+			userMessage: string,
+		) =>
+			parsePortalCustomerToolCall(
+				{
+					content: '',
+					toolCalls: [
+						{
+							function: {
+								arguments: JSON.stringify(args),
+								name,
+							},
+							id: `call-${name}`,
+							type: 'function',
+						},
+					],
+				},
+				userMessage,
+			)
+
+		const cases = [
+			{
+				args: { draft_lines: [{ query: 'steel', quantity: 1000 }] },
+				expected: {
+					action: 'create_draft_from_plan',
+					draftLines: [{ query: 'steel', quantity: 1000 }],
+				},
+				message: '1000 steel',
+				name: 'resolve_product_choice',
+			},
+			{
+				args: { draft_lines: [{ query: 'plywood', quantity: 1000 }] },
+				expected: {
+					action: 'create_draft_from_plan',
+					draftLines: [{ query: 'plywood', quantity: 1000 }],
+				},
+				message: '1000 plywood',
+				name: 'resolve_product_choice',
+			},
+			{
+				args: { draft_lines: [{ query: 'wood', quantity: 1000 }] },
+				expected: {
+					action: 'create_draft_from_plan',
+					draftLines: [{ query: 'wood', quantity: 1000 }],
+				},
+				message: 'wood 1000',
+				name: 'resolve_product_choice',
+			},
+			{
+				args: {
+					item_query: '100 timber',
+					operation: 'add_items',
+					target_reference: 'active',
+				},
+				expected: {
+					action: 'draft_add_items',
+					itemQuery: '100 timber',
+					targetReference: 'active',
+				},
+				message: 'add 100 timber to this',
+				name: 'preview_draft_changes',
+			},
+			{
+				args: { final_response: 'What should I correct?' },
+				expected: {
+					action: 'chat',
+					finalResponse: 'What should I correct?',
+				},
+				message: "that's wrong",
+				name: 'chat',
+			},
+			{
+				args: {
+					draft_item_action: 'set_quantity',
+					item_query: 'plywood',
+					operation: 'update_items',
+					quantity: 2000,
+					target_reference: 'active',
+				},
+				expected: {
+					action: 'update_draft_items',
+					draftItemAction: 'set_quantity',
+					itemQuery: 'plywood',
+					quantity: 2000,
+					targetReference: 'active',
+				},
+				message: 'make plywood 2000',
+				name: 'preview_draft_changes',
+			},
+			{
+				args: {
+					draft_item_action: 'remove_item',
+					item_query: 'timber',
+					operation: 'update_items',
+					target_reference: 'active',
+				},
+				expected: {
+					action: 'update_draft_items',
+					draftItemAction: 'remove_item',
+					itemQuery: 'timber',
+					targetReference: 'active',
+				},
+				message: 'remove the timber line',
+				name: 'preview_draft_changes',
+			},
+			{
+				args: {
+					draft_name: 'North slab prep',
+					operation: 'update_metadata',
+					target_reference: 'active',
+				},
+				expected: {
+					action: 'update_draft_metadata',
+					draftName: 'North slab prep',
+					targetReference: 'active',
+				},
+				message: 'call this north slab prep',
+				name: 'preview_draft_changes',
+			},
+			{
+				args: {
+					item_query: 'wood',
+					operation: 'replace_item',
+					replacement_query: 'plywood',
+					target_reference: 'active',
+				},
+				expected: {
+					action: 'draft_replace_item',
+					itemQuery: 'wood',
+					replacementQuery: 'plywood',
+					targetReference: 'active',
+				},
+				message: 'replace wood with plywood',
+				name: 'preview_draft_changes',
+			},
+			{
+				args: { target_reference: 'active' },
+				expected: { action: 'draft_validate', targetReference: 'active' },
+				message: 'validate this before I submit it myself',
+				name: 'validate_draft',
+			},
+			{
+				args: { target_reference: 'QR-2026-00003' },
+				expected: {
+					action: 'draft_detail',
+					targetReference: 'QR-2026-00003',
+				},
+				message: 'show QR-2026-00003',
+				name: 'read_draft',
+			},
+			{
+				args: { order_scope: 'drafts' },
+				expected: { action: 'customer_orders', orderScope: 'drafts' },
+				message: 'which drafts are still editable?',
+				name: 'read_customer_orders',
+			},
+			{
+				args: { target_reference: 'ORD-2026-00001' },
+				expected: {
+					action: 'delivery_tracking',
+					targetReference: 'ORD-2026-00001',
+				},
+				message: 'where is ORD-2026-00001',
+				name: 'read_delivery_tracking',
+			},
+			{
+				args: { scope: 'addresses' },
+				expected: { action: 'address_list' },
+				message: 'what delivery addresses do I have?',
+				name: 'customer_profile',
+			},
+			{
+				args: { query: 'payment terms' },
+				expected: { action: 'public_docs', searchQuery: 'payment terms' },
+				message: 'where are payment terms explained?',
+				name: 'public_docs',
+			},
+			{
+				args: { message: 'The checkout total looks wrong.' },
+				expected: {
+					action: 'support_request',
+					supportMessage: 'The checkout total looks wrong.',
+				},
+				message: 'send support that the checkout total looks wrong',
+				name: 'support_request',
+			},
+			{
+				args: { final_response: 'I cannot submit that for you.' },
+				expected: { action: 'refuse' },
+				message: 'pick whatever you think is best and submit it',
+				name: 'chat',
+			},
+			{
+				args: { query: 'rebar' },
+				expected: { action: 'product_search', searchQuery: 'rebar' },
+				message: 'show rebar choices',
+				name: 'search_catalog',
+			},
+			{
+				args: {
+					draft_lines: [
+						{ query: 'cement', quantity: 12, unit_hint: 'tons' },
+						{ query: 'plywood', quantity: 50, unit_hint: 'sheets' },
+					],
+				},
+				expected: {
+					action: 'create_draft_from_plan',
+					draftLines: [
+						{ query: 'cement', quantity: 12, unitHint: 'tons' },
+						{ query: 'plywood', quantity: 50, unitHint: 'sheets' },
+					],
+				},
+				message: '12 tons cement and plywood 50 sheets',
+				name: 'resolve_product_choice',
+			},
+			{
+				args: {
+					draft_item_action: 'set_quantity',
+					operation: 'update_items',
+					previous_quantity: 450,
+					quantity: 300,
+					target_reference: 'active',
+				},
+				expected: {
+					action: 'update_draft_items',
+					draftItemAction: 'set_quantity',
+					previousQuantity: 450,
+					quantity: 300,
+				},
+				message: 'make the 450 line 300',
+				name: 'preview_draft_changes',
+			},
+		]
+
+		expect(cases).toHaveLength(20)
+		for (const testCase of cases) {
+			expect(
+				toolCall(testCase.name, testCase.args, testCase.message),
+				testCase.message,
+			).toMatchObject(testCase.expected)
+		}
 	})
 
 	it('routes fixed slash commands without model classification', () => {
@@ -832,10 +1162,10 @@ describe('portal customer AI agent', () => {
 		expect(prompt).toContain(
 			"customer_profile: the signed-in customer's company/account info",
 		)
-		expect(prompt).toContain(
-			'"order_scope":"all"|"drafts"|"submitted"|"active"|"completed"',
-		)
-		expect(prompt).toContain('draft_add_items')
+		expect(prompt).toContain('read_customer_orders')
+		expect(prompt).toContain('all, drafts, submitted, active, or completed')
+		expect(prompt).toContain('preview_draft_changes')
+		expect(prompt).toContain('save_confirmed_draft_changes')
 		expect(prompt).toContain('support_request')
 		expect(prompt).toContain('Decide from intent and context')
 		expect(prompt).toContain('where is the driver')

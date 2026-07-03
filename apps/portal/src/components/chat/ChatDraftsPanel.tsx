@@ -159,6 +159,10 @@ function editorFingerprint(editor: Omit<DraftEditorState, 'baseFingerprint'>) {
 	})
 }
 
+function dirtyEditor(editor: DraftEditorState): boolean {
+	return editorFingerprint(editor) !== editor.baseFingerprint
+}
+
 function itemWithoutNotes(item: OrderItem): OrderItem {
 	return {
 		availabilityStatus: item.availabilityStatus,
@@ -305,13 +309,22 @@ function activeDraftContextFromEditor(
 	editor: DraftEditorState,
 ): ActiveChatDraftContext {
 	return {
+		dirty: dirtyEditor(editor),
 		id: editor.id,
-		items: editor.items.slice(0, 40).map((item) => ({
-			productName: item.productName,
-			productNameAr: item.productNameAr,
-			quantity: item.quantity,
-			unitOfMeasure: item.unitOfMeasure,
-		})),
+		items: editor.items.slice(0, 40).map((item, index) => {
+			const productId = item.catalogProductId ?? item.productId
+			return {
+				lineId: `${editor.id ?? editor.sessionKey}:${index}:${productId}`,
+				orderable:
+					item.isOrderable !== false && !item.isUnmatched && Boolean(productId),
+				productId,
+				productName: item.productName,
+				productNameAr: item.productNameAr,
+				quantity: item.quantity,
+				unitOfMeasure: item.unitOfMeasure,
+				unitOfMeasureAr: item.unitOfMeasureAr,
+			}
+		}),
 		name: editor.name.trim() || null,
 		notes: editor.notes.trim().slice(0, 600),
 		reference: editor.reference,
@@ -435,9 +448,7 @@ export function ChatDraftsPanel({
 		) ?? []
 	const showProductMenuLoading = useDelayedVisibility(isProductLoading)
 
-	const dirty = editor
-		? editorFingerprint(editor) !== editor.baseFingerprint
-		: false
+	const dirty = editor ? dirtyEditor(editor) : false
 	const editorQuoteRequestItems = useMemo(
 		() => (editor ? toQuoteRequestItems(editor.items) : []),
 		[editor],

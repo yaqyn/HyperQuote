@@ -90,10 +90,15 @@ export function ActionButton({ data }: ActionButtonProps) {
 	}
 
 	const runAction = () => {
-		if (data.command) {
+		if (data.command || data.action) {
 			window.dispatchEvent(
 				new CustomEvent(PORTAL_CHAT_RUN_COMMAND_EVENT, {
-					detail: { command: data.command, run: data.runCommand === true },
+					detail: {
+						action: data.action,
+						command: data.command,
+						message: label,
+						run: data.runCommand === true,
+					},
 				}),
 			)
 			return
@@ -120,7 +125,7 @@ export function ActionButton({ data }: ActionButtonProps) {
 			setUnavailableOpen(true)
 			return
 		}
-		if (data.command && data.runCommand && confirmMessage) {
+		if ((data.command || data.action) && data.runCommand && confirmMessage) {
 			setConfirmOpen(true)
 			return
 		}

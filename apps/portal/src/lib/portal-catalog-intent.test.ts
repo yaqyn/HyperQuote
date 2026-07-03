@@ -8,7 +8,7 @@ import {
 
 describe('portal catalog intent helpers', () => {
 	it('keeps arbitrary chat text out of draft-write product ranking', () => {
-		expect(draftProductIntentTerms('hello')).toEqual([])
+		expect(draftProductIntentTerms('hello')).toEqual(['hello'])
 		expect(draftProductIntentTerms('please make the draft now')).toEqual([])
 		expect(productSearchTerm('hello')).toBe('hello')
 	})
@@ -17,19 +17,21 @@ describe('portal catalog intent helpers', () => {
 		expect(productIntentTerms('find glossy finish panels')).toEqual(
 			expect.arrayContaining(['glossy', 'finish', 'panels']),
 		)
-		expect(draftProductIntentTerms('find glossy finish panels')).toEqual([])
+		expect(draftProductIntentTerms('find glossy finish panels')).toEqual([
+			'find',
+			'glossy',
+			'finish',
+			'panels',
+		])
 	})
 
-	it('recognizes project and material intent for draft creation', () => {
-		expect(draftProductIntentTerms('tree house draft')).toEqual(
-			expect.arrayContaining(['wood', 'timber', 'lumber', 'paint']),
-		)
-		expect(draftProductIntentTerms('just wood')).toEqual(
-			expect.arrayContaining(['wood', 'timber', 'lumber']),
-		)
-		expect(draftProductIntentTerms('مسودة خشب')).toEqual(
-			expect.arrayContaining(['wood', 'خشب']),
-		)
+	it('keeps draft-write product terms literal', () => {
+		expect(draftProductIntentTerms('tree house draft')).toEqual([
+			'tree',
+			'house',
+		])
+		expect(draftProductIntentTerms('just wood')).toEqual(['just', 'wood'])
+		expect(draftProductIntentTerms('مسودة خشب')).toEqual(['مسوده', 'خشب'])
 		expect(productSearchTerm('timber')).toBe('timber')
 		expect(productSearchTerm('lumber')).toBe('lumber')
 	})

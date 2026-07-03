@@ -1,3 +1,4 @@
+import type { ChatToolCompletion, ChatToolDefinition } from '@hyperquote/ai'
 import {
 	type PortalChatCommandName,
 	parsePortalChatCommand,
@@ -71,6 +72,7 @@ export interface PortalCustomerToolRequest {
 }
 
 export interface PortalDraftMaterialRequestLine {
+	pendingChoiceId?: string
 	query: string
 	quantity: number
 	rawText: string
@@ -94,16 +96,204 @@ export interface PortalCustomerCatalogSnapshot {
 }
 
 export interface PortalCustomerActiveDraftSnapshot {
+	dirty?: boolean
 	id: string | null
 	items: {
+		lineId?: string
+		orderable?: boolean
+		productId?: string
 		productName: string
 		productNameAr?: string
 		quantity: number
 		unitOfMeasure: string
+		unitOfMeasureAr?: string
 	}[]
 	name: string | null
 	notes: string
 	reference: string | null
+}
+
+export function portalCustomerToolDefinitions(): ChatToolDefinition[] {
+	return [
+		toolDefinition(
+			'search_catalog',
+			'Search visible customer catalog products.',
+			{
+				properties: {
+					query: { type: 'string' },
+				},
+				required: ['query'],
+				type: 'object',
+			},
+		),
+		toolDefinition(
+			'resolve_product_choice',
+			'Resolve customer requested product lines into real catalog choices.',
+			{
+				properties: {
+					draft_lines: draftLinesSchema(),
+					draft_name: { type: 'string' },
+					draft_notes: { type: 'string' },
+					target_reference: { type: 'string' },
+				},
+				required: ['draft_lines'],
+				type: 'object',
+			},
+		),
+		toolDefinition('read_draft', 'Read one editable customer draft.', {
+			properties: {
+				search_query: { type: 'string' },
+				target_reference: { type: 'string' },
+			},
+			type: 'object',
+		}),
+		toolDefinition(
+			'preview_draft_changes',
+			'Preview or request a confirmation for draft-only changes.',
+			{
+				properties: draftChangeProperties(),
+				required: ['operation'],
+				type: 'object',
+			},
+		),
+		toolDefinition(
+			'save_confirmed_draft_changes',
+			'Save a draft change only after the app supplied confirmed action payload.',
+			{
+				properties: draftChangeProperties(),
+				required: ['operation'],
+				type: 'object',
+			},
+		),
+		toolDefinition('validate_draft', 'Validate editable draft lines.', {
+			properties: {
+				search_query: { type: 'string' },
+				target_reference: { type: 'string' },
+			},
+			type: 'object',
+		}),
+		toolDefinition(
+			'read_customer_orders',
+			'Read customer-owned orders or quotes.',
+			{
+				properties: {
+					order_scope: {
+						enum: ['all', 'drafts', 'submitted', 'active', 'completed'],
+						type: 'string',
+					},
+					search_query: { type: 'string' },
+					target_reference: { type: 'string' },
+				},
+				type: 'object',
+			},
+		),
+		toolDefinition(
+			'read_delivery_tracking',
+			'Read customer delivery tracking.',
+			{
+				properties: {
+					search_query: { type: 'string' },
+					target_reference: { type: 'string' },
+				},
+				type: 'object',
+			},
+		),
+		toolDefinition(
+			'customer_profile',
+			'Read customer profile, addresses, or projects.',
+			{
+				properties: {
+					scope: {
+						enum: ['profile', 'addresses', 'projects', 'account_health'],
+						type: 'string',
+					},
+				},
+				type: 'object',
+			},
+		),
+		toolDefinition('public_docs', 'Search public HyperQuote documentation.', {
+			properties: { query: { type: 'string' } },
+			required: ['query'],
+			type: 'object',
+		}),
+		toolDefinition(
+			'support_request',
+			'Create support ticket after confirmation.',
+			{
+				properties: {
+					message: { type: 'string' },
+					subject: { type: 'string' },
+				},
+				required: ['message'],
+				type: 'object',
+			},
+		),
+		toolDefinition('chat', 'Answer directly or ask one clarification.', {
+			properties: {
+				final_response: { type: 'string' },
+				search_query: { type: 'string' },
+			},
+			type: 'object',
+		}),
+	]
+}
+
+function toolDefinition(
+	name: string,
+	description: string,
+	parameters: Record<string, unknown>,
+): ChatToolDefinition {
+	return {
+		function: { description, name, parameters },
+		type: 'function',
+	}
+}
+
+function draftLinesSchema(): Record<string, unknown> {
+	return {
+		items: {
+			properties: {
+				pending_choice_id: { type: 'string' },
+				query: { type: 'string' },
+				quantity: { type: 'number' },
+				raw_text: { type: 'string' },
+				unit_hint: { type: 'string' },
+			},
+			required: ['query', 'quantity'],
+			type: 'object',
+		},
+		type: 'array',
+	}
+}
+
+function draftChangeProperties(): Record<string, unknown> {
+	return {
+		draft_item_action: {
+			enum: ['clear_items', 'remove_item', 'set_item_notes', 'set_quantity'],
+			type: 'string',
+		},
+		draft_name: { type: 'string' },
+		draft_notes: { type: 'string' },
+		item_notes: { type: 'string' },
+		item_query: { type: 'string' },
+		operation: {
+			enum: [
+				'add_items',
+				'replace_item',
+				'set_delivery',
+				'update_items',
+				'update_metadata',
+				'delete_draft',
+				'cleanup_drafts',
+			],
+			type: 'string',
+		},
+		previous_quantity: { type: 'number' },
+		quantity: { type: 'number' },
+		replacement_query: { type: 'string' },
+		search_query: { type: 'string' },
+		target_reference: { type: 'string' },
+	}
 }
 
 export function buildPortalCustomerAgentPrompt(
@@ -112,11 +302,8 @@ export function buildPortalCustomerAgentPrompt(
 ): string {
 	return `You are Lyon inside the signed-in HyperQuote customer portal.
 
-Choose one internal tool only when it helps. Use chat for normal conversation or one short clarification. Return JSON only.
+Choose one internal tool only when it helps. Use chat for normal conversation or one short clarification.
 When writing final_response, sound like a capable teammate: short, direct, and inviting. Prefer one strong sentence or two tight bullets. Ask only the missing question.
-
-Schema:
-{"tool":"chat"|"public_docs"|"customer_profile"|"customer_orders"|"order_detail"|"delivery_tracking"|"delivery_list"|"product_search"|"compare_products"|"recommend_materials"|"address_list"|"project_list"|"account_health"|"draft_detail"|"draft_add_items"|"draft_replace_item"|"draft_set_delivery"|"draft_validate"|"create_draft_from_plan"|"update_draft_items"|"duplicate_order_to_draft"|"update_draft_metadata"|"cleanup_drafts"|"delete_draft"|"order_activity"|"support_request"|"refuse","search_query":"string","draft_lines":[{"query":"customer product name","quantity":123,"unit_hint":"optional unit words"}],"target_reference":"string","order_scope":"all"|"drafts"|"submitted"|"active"|"completed","draft_name":"string","draft_notes":"string","draft_item_action":"set_quantity"|"remove_item"|"clear_items"|"set_item_notes","item_query":"string","replacement_query":"string","quantity":123,"previous_quantity":123,"item_notes":"string","address_query":"string","delivery_date":"YYYY-MM-DD","cleanup_mode":"delete_all"|"merge"|"remove_empty","support_subject":"string","support_message":"string","reason":"string","final_response":"string"}
 
 Tools:
 - chat: friendly talk, clarification, or final_response.
@@ -128,9 +315,11 @@ Tools:
 - product_search, compare_products, recommend_materials: catalog search, comparison, or material planning. Ask before writing plans to drafts.
 - address_list, project_list, account_health: customer-owned account context.
 - draft_detail, draft_validate, order_activity: inspect customer-owned records.
-- create_draft_from_plan: customer buy intent or draft-create/catalog-selection. Include draft_lines for every requested product line. Keep each product's own quantity. Server writes real Available product IDs. Include a natural draft_name and draft_notes.
-- update_draft_items: edit an editable draft line, quantity, note, or clear lines. Include refreshed draft_notes; include draft_name when the title should change.
-- draft_add_items, draft_replace_item, draft_set_delivery, duplicate_order_to_draft, update_draft_metadata, cleanup_drafts, delete_draft: customer-scoped draft-only edits.
+- resolve_product_choice: customer buy intent or draft-create/catalog-selection. Include draft_lines for every requested product line. Keep the original wording, quantity, unit hint, and pending choice id when applicable. Server writes only real Available product IDs.
+- read_draft, validate_draft: inspect the active or named editable draft.
+- preview_draft_changes: use for draft edits that may need confirmation or clarification.
+- save_confirmed_draft_changes: use only when the app sends a confirmed action payload.
+- read_customer_orders, read_delivery_tracking: customer-owned reads only.
 - support_request: when the user asks to create, send, submit, or file a support ticket/feedback, or says they need to contact support about a concrete issue or complaint. Do not ask them for a separate subject/title/description; infer the subject and use their natural message as the description. If they only ask for support contact details, docs, FAQ, or help finding something, use public_docs or chat instead.
 - refuse: submit/confirm/place/cancel orders, payments, cross-customer data, internal finance, supplier costs/margins, employee data, secrets, or unrelated driver-only data.
 
@@ -691,6 +880,180 @@ export function parsePortalCustomerToolRequest(
 	}
 }
 
+export function parsePortalCustomerToolCall(
+	completion: ChatToolCompletion,
+	userMessage: string,
+): PortalCustomerToolRequest | null {
+	const call = completion.toolCalls[0]
+	if (!call) return null
+	let args: unknown
+	try {
+		args = JSON.parse(call.function.arguments || '{}')
+	} catch {
+		return fallbackPortalCustomerToolRequest(userMessage)
+	}
+	if (!isRecord(args)) return fallbackPortalCustomerToolRequest(userMessage)
+	const searchQuery =
+		readString(args.search_query) ??
+		readString(args.query) ??
+		userMessage.trim()
+
+	switch (call.function.name) {
+		case 'search_catalog':
+			return { action: 'product_search', searchQuery }
+		case 'resolve_product_choice':
+			return enforcePortalCustomerToolRequest(
+				{
+					action: 'create_draft_from_plan',
+					draftLines: readDraftLines(args.draft_lines),
+					draftName: readString(args.draft_name),
+					draftNotes: readString(args.draft_notes),
+					searchQuery,
+					targetReference: readString(args.target_reference),
+				},
+				userMessage,
+			)
+		case 'read_draft':
+			return {
+				action: 'draft_detail',
+				searchQuery,
+				targetReference: readString(args.target_reference),
+			}
+		case 'preview_draft_changes':
+			return draftChangeToolCallToRequest(args, userMessage, false)
+		case 'save_confirmed_draft_changes':
+			return draftChangeToolCallToRequest(args, userMessage, true)
+		case 'validate_draft':
+			return {
+				action: 'draft_validate',
+				searchQuery,
+				targetReference: readString(args.target_reference),
+			}
+		case 'read_customer_orders': {
+			const orderScope = readString(args.order_scope)
+			return {
+				action: readString(args.target_reference)
+					? 'order_detail'
+					: 'customer_orders',
+				orderScope: isPortalCustomerOrderScope(orderScope)
+					? orderScope
+					: undefined,
+				searchQuery,
+				targetReference: readString(args.target_reference),
+			}
+		}
+		case 'read_delivery_tracking':
+			return {
+				action: 'delivery_tracking',
+				searchQuery,
+				targetReference: readString(args.target_reference),
+			}
+		case 'customer_profile': {
+			const scope = readString(args.scope)
+			if (scope === 'addresses') return { action: 'address_list', searchQuery }
+			if (scope === 'projects') return { action: 'project_list', searchQuery }
+			if (scope === 'account_health') {
+				return { action: 'account_health', searchQuery }
+			}
+			return { action: 'customer_profile', searchQuery }
+		}
+		case 'public_docs':
+			return { action: 'public_docs', searchQuery }
+		case 'support_request': {
+			const message = readString(args.message) ?? searchQuery
+			return enforcePortalCustomerToolRequest(
+				{
+					action: 'support_request',
+					searchQuery,
+					supportMessage: message,
+					supportSubject:
+						readString(args.subject) ?? supportSubjectFromText(message),
+				},
+				userMessage,
+			)
+		}
+		case 'chat':
+			return enforcePortalCustomerToolRequest(
+				{
+					action: 'chat',
+					finalResponse: readString(args.final_response),
+					searchQuery,
+				},
+				userMessage,
+			)
+		default:
+			return fallbackPortalCustomerToolRequest(userMessage)
+	}
+}
+
+function draftChangeToolCallToRequest(
+	args: Record<string, unknown>,
+	userMessage: string,
+	confirmedAction: boolean,
+): PortalCustomerToolRequest {
+	const operation = readString(args.operation)
+	const searchQuery = readString(args.search_query) ?? userMessage.trim()
+	const base = {
+		confirmedAction,
+		searchQuery,
+		targetReference: readString(args.target_reference),
+	}
+	switch (operation) {
+		case 'add_items':
+			return {
+				...base,
+				action: 'draft_add_items',
+				itemQuery: readString(args.item_query) ?? searchQuery,
+			}
+		case 'replace_item':
+			return {
+				...base,
+				action: 'draft_replace_item',
+				itemQuery: readString(args.item_query),
+				replacementQuery: readString(args.replacement_query),
+			}
+		case 'set_delivery':
+			return {
+				...base,
+				action: 'draft_set_delivery',
+				addressQuery: readString(args.address_query),
+				deliveryDate: readString(args.delivery_date),
+			}
+		case 'update_metadata':
+			return {
+				...base,
+				action: 'update_draft_metadata',
+				draftName: readString(args.draft_name),
+				draftNotes: readString(args.draft_notes),
+			}
+		case 'delete_draft':
+			return { ...base, action: 'delete_draft' }
+		case 'cleanup_drafts': {
+			const cleanupMode = readString(args.cleanup_mode)
+			return {
+				...base,
+				action: 'cleanup_drafts',
+				cleanupMode: isCleanupMode(cleanupMode) ? cleanupMode : undefined,
+			}
+		}
+		default: {
+			const draftItemAction = readString(args.draft_item_action)
+			return {
+				...base,
+				action: 'update_draft_items',
+				draftItemAction: isDraftItemAction(draftItemAction)
+					? draftItemAction
+					: undefined,
+				itemNotes: readString(args.item_notes),
+				itemQuery: readString(args.item_query),
+				previousQuantity:
+					readPositiveNumber(args.previous_quantity) ?? undefined,
+				quantity: readPositiveNumber(args.quantity) ?? undefined,
+			}
+		}
+	}
+}
+
 export function enforcePortalCustomerToolRequest(
 	request: PortalCustomerToolRequest,
 	userMessage: string,
@@ -735,6 +1098,18 @@ export function enforcePortalCustomerToolRequest(
 	) {
 		return naturalSupportRequest
 	}
+	if (
+		(request.action === 'chat' || request.action === 'public_docs') &&
+		isExplicitSupportTicketRequest(userMessage, request)
+	) {
+		const message = userMessage.trim()
+		return {
+			action: 'support_request',
+			searchQuery: message,
+			supportMessage: message,
+			supportSubject: supportSubjectFromText(message),
+		}
+	}
 	if (request.action === 'chat' && request.draftLines?.length) {
 		return {
 			...request,
@@ -748,29 +1123,30 @@ export function enforcePortalCustomerToolRequest(
 export function parsePortalDraftMaterialRequestLines(
 	userMessage: string,
 ): PortalDraftMaterialRequestLine[] {
-	const normalized = normalizeForAgentMatch(userMessage)
-	const hasBuyIntent =
-		/\b(i\s+need|need|i\s+want|want|give\s+me|gimme|get\s+me|add|draft|quote|order|can\s+i\s+get|please)\b/.test(
-			normalized,
-		) || /عايز|عاوز|محتاج|هات|ضيف|اطلب|مسودة|عرض/.test(userMessage)
-	if (!hasBuyIntent) return []
-
 	const lines = draftRequestSegments(userMessage).flatMap(
 		(segment): PortalDraftMaterialRequestLine[] => {
-			const match = segment.match(
-				/(?:^|\bfor\s+)(?:.*?\s)?(?:some\s+)?(\d+(?:[.,]\d+)?)\s*(?:(bags?|tons?|tonnes?|pieces?|pcs?|units?|bars?|sheets?|kg|m2|m3)\s+)?(.+)$/iu,
+			const materialFirst = segment.match(
+				/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*(bags?|tons?|tonnes?|pieces?|pcs?|units?|bars?|sheets?|kg|m2|m3)?$/iu,
 			)
-			if (!match) return []
-			const quantity = readPositiveNumber((match[1] ?? '').replace(',', '.'))
+			const quantityFirst = materialFirst
+				? null
+				: segment.match(
+						/(?:^|\bfor\s+)(?:.*?\s)?(?:some\s+)?(\d+(?:[.,]\d+)?)\s*(?:(bags?|tons?|tonnes?|pieces?|pcs?|units?|bars?|sheets?|kg|m2|m3)\s+)?(.+)$/iu,
+					)
+			const quantity = readPositiveNumber(
+				(quantityFirst?.[1] ?? materialFirst?.[2] ?? '').replace(',', '.'),
+			)
 			if (quantity === null) return []
-			const rawQuery = cleanMaterialLineQuery(match[3] ?? '')
+			const rawQuery = cleanMaterialLineQuery(
+				quantityFirst?.[3] ?? materialFirst?.[1] ?? '',
+			)
 			if (!rawQuery || !looksLikeMaterialRequest(rawQuery)) return []
 			return [
 				{
 					query: rawQuery,
 					quantity,
 					rawText: segment,
-					unitHint: normalizeUnitHint(match[2]),
+					unitHint: normalizeUnitHint(quantityFirst?.[2] ?? materialFirst?.[3]),
 				},
 			]
 		},
@@ -924,6 +1300,9 @@ function asksToSubmitOrder(lower: string, raw: string): boolean {
 	return (
 		(/\b(submit|place|confirm|send|approve|accept|checkout)\b/.test(lower) &&
 			/\b(order|quote|rfq|request)\b/.test(lower)) ||
+		/\b(submit|place|confirm|approve|accept|checkout)\s+(it|this|that|draft)\b/.test(
+			lower,
+		) ||
 		/قدّم|قدم|اكد|أكد|ابعت|ارسل|اعتمد/.test(raw)
 	)
 }
@@ -955,6 +1334,8 @@ function isExplicitSupportTicketRequest(
 	if (request.commandName === '/feedback') return true
 	const normalized = normalizeForAgentMatch(userMessage)
 	return (
+		/\b(send|create|open|submit|file|raise|log)\s+support\b/.test(normalized) ||
+		/\bsupport\s+(this|that|it)\b/.test(normalized) ||
 		/\b(create|open|submit|send|file|raise|log)\b.*\b(support\s+request|support\s+ticket|ticket|feedback)\b/.test(
 			normalized,
 		) ||
@@ -1133,8 +1514,13 @@ function readDraftLines(value: unknown): PortalDraftMaterialRequestLine[] {
 			typeof line.unit_hint === 'string'
 				? normalizeUnitHint(line.unit_hint)
 				: undefined
+		const pendingChoiceId =
+			typeof line.pending_choice_id === 'string'
+				? line.pending_choice_id.trim().slice(0, 120)
+				: undefined
 		return [
 			{
+				pendingChoiceId: pendingChoiceId || undefined,
 				query,
 				quantity,
 				rawText: query,
@@ -1257,6 +1643,12 @@ function extractJsonObject(rawResponse: string): string | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null
+}
+
+function readString(value: unknown): string | undefined {
+	return typeof value === 'string' && value.trim()
+		? value.trim().slice(0, 1200)
+		: undefined
 }
 
 function normalizeForAgentMatch(value: string): string {

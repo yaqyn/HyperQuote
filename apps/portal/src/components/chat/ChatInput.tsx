@@ -11,7 +11,10 @@ import {
 import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import type { usePortalChat } from '../../hooks/usePortalChat'
-import { PORTAL_CHAT_RUN_COMMAND_EVENT } from '../../lib/chat-types'
+import {
+	PORTAL_CHAT_RUN_COMMAND_EVENT,
+	type PortalConfirmedActionPayload,
+} from '../../lib/chat-types'
 import {
 	PORTAL_CHAT_COMMANDS,
 	parsePortalChatCommand,
@@ -190,8 +193,24 @@ export function ChatInput({ chat }: ChatInputProps) {
 
 	useEffect(() => {
 		function handleCommandEvent(event: Event) {
-			const detail = (event as CustomEvent<{ command?: string; run?: boolean }>)
-				.detail
+			const detail = (
+				event as CustomEvent<{
+					action?: PortalConfirmedActionPayload
+					command?: string
+					message?: string
+					run?: boolean
+				}>
+			).detail
+			if (detail?.action) {
+				setValue('')
+				chat.sendMessage(detail.message?.trim() || 'Confirm action', {
+					confirmedAction: detail.action,
+				})
+				requestAnimationFrame(() => {
+					textareaRef.current?.focus()
+				})
+				return
+			}
 			const commandText = detail?.command?.trim()
 			if (!commandText) return
 			const parsed = parsePortalChatCommand(commandText)
