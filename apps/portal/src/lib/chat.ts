@@ -821,8 +821,9 @@ function correctPendingChoiceSelectionRoute(
 ): PortalCustomerToolRequest {
 	if (!pendingChoiceSelectionCanOverride(route.action)) return route
 	if (parsePortalDraftMaterialRequestLines(userText).length > 0) return route
-	const chosenQuery = userText.trim()
-	const wordCount = chosenQuery.split(/\s+/).filter(Boolean).length
+	const pendingChoice = pendingBroadChoiceContext(messages)
+	const chosenQuery = pendingChoiceSelectedQuery(userText, pendingChoice)
+	const wordCount = chosenQuery?.split(/\s+/).filter(Boolean).length ?? 0
 	if (
 		!chosenQuery ||
 		chosenQuery.length > 120 ||
@@ -831,7 +832,7 @@ function correctPendingChoiceSelectionRoute(
 	) {
 		return route
 	}
-	const pendingLine = pendingBroadChoiceLine(messages)
+	const pendingLine = pendingChoice?.line ?? pendingBroadChoiceLine(messages)
 	if (!pendingLine) return route
 	return {
 		...route,
@@ -857,7 +858,8 @@ function pendingChoiceSelectionCanOverride(
 		action === 'product_search' ||
 		action === 'compare_products' ||
 		action === 'recommend_materials' ||
-		action === 'public_docs'
+		action === 'public_docs' ||
+		action === 'create_draft_from_plan'
 	)
 }
 
@@ -902,6 +904,71 @@ function pendingBroadChoiceLine(
 			)
 			.find((line) => isBroadDraftChoiceQuery(line.query)) ?? null
 	)
+}
+
+function pendingBroadChoiceContext(messages: ChatMessageInput[]): {
+	choices: Array<{ index: number; name: string }>
+	line: ReturnType<typeof parsePortalDraftMaterialRequestLines>[number]
+} | null {
+	const previousMessages = messages.slice(0, -1)
+	for (let index = previousMessages.length - 1; index >= 0; index -= 1) {
+		const message = previousMessages[index]
+		if (message?.role !== 'assistant') continue
+		const query = message.content.match(/multiple\s+(.+?)\s+options/i)?.[1]
+		if (!query || !isBroadDraftChoiceQuery(query)) continue
+		const line = [...previousMessages]
+			.slice(0, index)
+			.reverse()
+			.flatMap((candidate) =>
+				candidate.role === 'user'
+					? parsePortalDraftMaterialRequestLines(candidate.content)
+					: [],
+			)
+			.find(
+				(candidate) =>
+					normalizeForMatch(candidate.query) === normalizeForMatch(query),
+			)
+		if (!line) continue
+		return {
+			choices: numberedChoiceNames(message.content),
+			line,
+		}
+	}
+	return null
+}
+
+function numberedChoiceNames(
+	content: string,
+): Array<{ index: number; name: string }> {
+	return content
+		.split(/\n+/)
+		.flatMap((line): Array<{ index: number; name: string }> => {
+			const match = line.match(/^\s*(\d+)\.\s+(.+?)(?:\s+-\s+|$)/)
+			const index = Number(match?.[1])
+			const name = match?.[2]?.trim()
+			if (!Number.isInteger(index) || !name) return []
+			return [{ index, name }]
+		})
+}
+
+function pendingChoiceSelectedQuery(
+	userText: string,
+	pendingChoice: ReturnType<typeof pendingBroadChoiceContext>,
+): string | null {
+	const cleaned = userText
+		.replace(/\b(?:yeah|yes|yep|ok|okay|sure|please|pls)\b/gi, ' ')
+		.replace(/\b(?:i\s+mean|i\s+meant|mean)\b/gi, ' ')
+		.replace(/[.?!]+/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+	const numeric = cleaned.match(/(?:^|\D)(\d+)(?:\D|$)/)?.[1]
+	if (numeric && pendingChoice) {
+		const selected = pendingChoice.choices.find(
+			(choice) => choice.index === Number(numeric),
+		)
+		if (selected) return selected.name
+	}
+	return cleaned || null
 }
 
 async function repairActiveDraftChatRoute(

@@ -202,6 +202,24 @@ describe('portal customer AI agent', () => {
 				unitHint: undefined,
 			},
 		])
+		expect(
+			parsePortalDraftMaterialRequestLines(
+				'hook me up with some 1000 wood please, and 800 steel',
+			),
+		).toEqual([
+			{
+				query: 'wood',
+				quantity: 1000,
+				rawText: 'hook me up with some 1000 wood please',
+				unitHint: undefined,
+			},
+			{
+				query: 'steel',
+				quantity: 800,
+				rawText: '800 steel',
+				unitHint: undefined,
+			},
+		])
 	})
 
 	it('uses structured tool calls for catalog and draft workbench actions', () => {
