@@ -19,7 +19,9 @@ import { portalChatFn } from '../lib/chat'
 import {
 	type ActiveChatDraftContext,
 	type ChatMessage,
+	PORTAL_CHAT_CLEAR_DRAFT_THREADS_EVENT,
 	PORTAL_CHAT_OPEN_DRAFT_EVENT,
+	type PortalChatClearDraftThreadsEventDetail,
 	type PortalChatOpenDraftEventDetail,
 	type RichContent,
 } from '../lib/chat-types'
@@ -113,6 +115,24 @@ function draftPanelOpenDraftDetail(
 		}
 	}
 	return null
+}
+
+function clearDraftThreadKeys(chunks: StreamChunk[]): string[] {
+	for (const chunk of chunks) {
+		if (
+			chunk.type !== 'CUSTOM' ||
+			chunk.name !== 'portal_clear_draft_threads'
+		) {
+			continue
+		}
+		const value = chunk.value as
+			| PortalChatClearDraftThreadsEventDetail
+			| undefined
+		return Array.isArray(value?.sessionKeys)
+			? value.sessionKeys.filter((key) => key.trim())
+			: []
+	}
+	return []
 }
 
 function textMessage(role: 'assistant' | 'user', content: string): UIMessage {
@@ -419,6 +439,21 @@ export function usePortalChat({
 						}),
 					)
 				}
+				const draftThreadKeys = clearDraftThreadKeys(chunks)
+				if (draftThreadKeys.length > 0) {
+					const activeThreadCleared = draftThreadKeys.includes(
+						conversationKeyRef.current,
+					)
+					for (const key of draftThreadKeys) {
+						clearStoreActive(activeRole, key)
+					}
+					if (activeThreadCleared) onNewSession?.()
+					window.dispatchEvent(
+						new CustomEvent(PORTAL_CHAT_CLEAR_DRAFT_THREADS_EVENT, {
+							detail: { sessionKeys: draftThreadKeys },
+						}),
+					)
+				}
 
 				yield* arrayToAsyncIterable(chunks)
 			} catch (err) {
@@ -579,6 +614,13 @@ export function usePortalChat({
 		clearStoreActive(activeRole, conversationKeyRef.current)
 	}, [activeRole, chat.clear, chat.stop, clearStoreActive])
 
+	const clearThread = useCallback(
+		(threadKey: string) => {
+			clearStoreActive(activeRole, threadKey)
+		},
+		[activeRole, clearStoreActive],
+	)
+
 	const stop = useCallback(() => {
 		chat.stop()
 		setIsResponsePending(false)
@@ -653,6 +695,7 @@ export function usePortalChat({
 		isReady: isChatStoreHydrated && isHistoryReady,
 		stop,
 		clear,
+		clearThread,
 		error: chat.error,
 		richContent: latestAssistantRichContent,
 	}

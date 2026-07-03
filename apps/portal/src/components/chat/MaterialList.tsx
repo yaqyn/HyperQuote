@@ -22,7 +22,7 @@ export function MaterialList({ data }: MaterialListProps) {
 
 	function editInChat() {
 		const detail: PortalChatOpenDraftEventDetail = data.tempDraft
-			? { adoptCurrentChat: true, tempDraft: data.tempDraft }
+			? { tempDraft: data.tempDraft }
 			: { draftId: data.draftId }
 		window.dispatchEvent(
 			new CustomEvent(PORTAL_CHAT_OPEN_DRAFT_EVENT, {

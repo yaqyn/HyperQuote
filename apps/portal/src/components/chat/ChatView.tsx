@@ -186,6 +186,7 @@ export function ChatView({ locale }: ChatViewProps) {
 					onActiveDraftChange={handleActiveDraftChange}
 					onInitialLoadChange={handleDraftInitialLoadChange}
 					onDraftPrompt={(prompt) => chat.sendMessage(prompt)}
+					onDraftThreadClear={(sessionKey) => chat.clearThread(sessionKey)}
 					resetSelectionToken={draftSelectionResetToken}
 				/>
 			</aside>
@@ -215,6 +216,9 @@ export function ChatView({ locale }: ChatViewProps) {
 									chat.sendMessage(prompt)
 									closeDraftPanel()
 								}}
+								onDraftThreadClear={(sessionKey) =>
+									chat.clearThread(sessionKey)
+								}
 								resetSelectionToken={draftSelectionResetToken}
 								headerAction={
 									<button

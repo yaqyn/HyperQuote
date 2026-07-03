@@ -131,6 +131,7 @@ describe('portal chat session threading', () => {
 		expect(chatSource).toContain(
 			'portalOpenDraftPanelEvent(result.context.result.tempDraft',
 		)
+		expect(chatSource).not.toContain('adoptCurrentChat')
 
 		expect(draftPanelSource).toContain('createEditorFromTempDraft')
 		expect(draftPanelSource).toContain('detail?.tempDraft')
@@ -145,5 +146,36 @@ describe('portal chat session threading', () => {
 		expect(hookSource).toContain("conversationKey === 'default'")
 		expect(hookSource).toContain('clearStoreActive(activeRole, previousKey)')
 		expect(hookSource).toContain('onNewSession?.()')
+	})
+
+	it('clears a draft chat thread when the draft desk clears or deletes that draft', () => {
+		const hookSource = readRepoFile('apps/portal/src/hooks/usePortalChat.ts')
+		const chatViewSource = readRepoFile(
+			'apps/portal/src/components/chat/ChatView.tsx',
+		)
+		const draftPanelSource = readRepoFile(
+			'apps/portal/src/components/chat/ChatDraftsPanel.tsx',
+		)
+
+		expect(hookSource).toContain('clearThread')
+		expect(chatViewSource).toContain(
+			'onDraftThreadClear={(sessionKey) => chat.clearThread(sessionKey)}',
+		)
+		expect(draftPanelSource).toContain('onDraftThreadClear?.(draft.sessionKey)')
+		expect(draftPanelSource).toContain(
+			'onDraftThreadClear?.(editor.sessionKey)',
+		)
+	})
+
+	it('clears draft chat threads after server-side draft clear or delete actions', () => {
+		const chatSource = readRepoFile('apps/portal/src/lib/chat.ts')
+		const hookSource = readRepoFile('apps/portal/src/hooks/usePortalChat.ts')
+
+		expect(chatSource).toContain('clearThreadSessionKeys')
+		expect(chatSource).toContain("name: 'portal_clear_draft_threads'")
+		expect(chatSource).toContain('clearThreadSessionKeys: [draftSessionKey')
+		expect(hookSource).toContain('clearDraftThreadKeys')
+		expect(hookSource).toContain('clearStoreActive(activeRole, key)')
+		expect(hookSource).toContain('if (activeThreadCleared) onNewSession?.()')
 	})
 })

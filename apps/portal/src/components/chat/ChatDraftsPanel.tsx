@@ -50,6 +50,7 @@ interface ChatDraftsPanelProps {
 	onActiveDraftChange?: (draft: ActiveChatDraftContext | null) => void
 	onInitialLoadChange?: (loading: boolean) => void
 	onDraftPrompt?: (prompt: string) => void
+	onDraftThreadClear?: (sessionKey: string) => void
 	onSubmitted?: (reference: string) => void
 	resetSelectionToken?: number
 }
@@ -324,6 +325,7 @@ export function ChatDraftsPanel({
 	onActiveDraftChange,
 	onInitialLoadChange,
 	onDraftPrompt,
+	onDraftThreadClear,
 	onSubmitted,
 	resetSelectionToken = 0,
 }: ChatDraftsPanelProps) {
@@ -728,9 +730,12 @@ export function ChatDraftsPanel({
 	})
 
 	const deleteMutation = useMutation({
-		mutationFn: (draftId: string) =>
-			deleteOrder({ data: { orderId: draftId } }),
-		onSuccess: () => {
+		mutationFn: (draft: DraftEditorState) => {
+			if (!draft.id) throw new Error('Draft has not been saved')
+			return deleteOrder({ data: { orderId: draft.id } })
+		},
+		onSuccess: (_result, draft) => {
+			onDraftThreadClear?.(draft.sessionKey)
 			setActionsMenuOpen(false)
 			setConfirmCartAddOpen(false)
 			setConfirmSubmitOpen(false)
@@ -780,6 +785,7 @@ export function ChatDraftsPanel({
 	}
 
 	function clearEditorWorkspace() {
+		if (editor) onDraftThreadClear?.(editor.sessionKey)
 		setActiveDraftKey(null)
 		setActionsMenuOpen(false)
 		setConfirmCartAddOpen(false)
@@ -941,7 +947,7 @@ export function ChatDraftsPanel({
 				clearEditorWorkspace()
 				return
 			}
-			deleteMutation.mutate(editor.id)
+			deleteMutation.mutate(editor)
 			return
 		}
 		setConfirmDeleteId(deleteKey)

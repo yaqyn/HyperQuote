@@ -364,6 +364,7 @@ interface PendingActionContext {
 }
 
 interface DraftWriteContext {
+	clearThreadSessionKeys?: string[]
 	draftId?: string
 	editRoute?: string
 	items?: DraftMaterialItem[]
@@ -1190,6 +1191,7 @@ function draftWriteToolResult(
 function draftWriteChanged(result: DraftWriteContext): boolean {
 	return Boolean(
 		result.draftId ||
+			result.clearThreadSessionKeys?.length ||
 			result.deleted?.length ||
 			result.merged?.length ||
 			result.renamed?.length,
@@ -2438,12 +2440,15 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 			break
 		case 'draft_write':
 			events.push(draftCleanupEvent(result.context.result))
-			if (result.context.result.tempDraft) {
+			if (result.context.result.clearThreadSessionKeys?.length) {
 				events.push(
-					portalOpenDraftPanelEvent(result.context.result.tempDraft, {
-						adoptCurrentChat: true,
-					}),
+					portalClearDraftThreadsEvent(
+						result.context.result.clearThreadSessionKeys,
+					),
 				)
+			}
+			if (result.context.result.tempDraft) {
+				events.push(portalOpenDraftPanelEvent(result.context.result.tempDraft))
 			}
 			if (result.context.result.draftId) {
 				events.push(portalOpenDraftPanelEvent(result.context.result.draftId))
@@ -2957,6 +2962,10 @@ function tempDraftDataFromDraftItems(
 		notes,
 		sessionKey: `draft:temp:${crypto.randomUUID()}`,
 	}
+}
+
+function draftSessionKey(draftId: string): string {
+	return `draft:${draftId}`
 }
 
 async function insertStrictCatalogDraftItems(
@@ -3583,6 +3592,7 @@ async function updateDraftItems(
 			operation: 'portal_ai_clear_items',
 		})
 		return {
+			clearThreadSessionKeys: [draftSessionKey(draft.id)],
 			draftId: draft.id,
 			editRoute: `/orders/edit/${draft.id}`,
 			items: [],
@@ -3943,6 +3953,9 @@ async function cleanupDrafts(
 			source_count: sourceDrafts.length,
 		})
 		return {
+			clearThreadSessionKeys: sourceDrafts.map((draft) =>
+				draftSessionKey(draft.id),
+			),
 			deleted: sourceDrafts.map((draft) => draft.request_number),
 			draftId: mergedDraft.id,
 			editRoute: `/orders/edit/${mergedDraft.id}`,
@@ -3971,6 +3984,9 @@ async function cleanupDrafts(
 		.map((draft) => draft.request_number)
 
 	return {
+		clearThreadSessionKeys: draftsToDelete.map((draft) =>
+			draftSessionKey(draft.id),
+		),
 		deleted: draftsToDelete.map((draft) => draft.request_number),
 		kept,
 		message:
@@ -4000,6 +4016,7 @@ async function deleteDraft(
 		}
 	await deleteDraftIds(supabase, customerId, [draft.id])
 	return {
+		clearThreadSessionKeys: [draftSessionKey(draft.id)],
 		deleted: [draft.request_number],
 		message: `I deleted draft ${draft.request_number}. Submitted and confirmed records were not touched.`,
 	}
@@ -5524,16 +5541,22 @@ function customerOrdersInvalidationEvent(): StreamChunk {
 
 function portalOpenDraftPanelEvent(
 	draft: string | ChatTempDraftData,
-	options: { adoptCurrentChat?: boolean } = {},
 ): StreamChunk {
 	return {
 		type: 'CUSTOM' as const,
 		timestamp: Date.now(),
 		name: 'portal_open_draft_panel',
 		value:
-			typeof draft === 'string'
-				? { draftId: draft, ...options }
-				: { tempDraft: draft, ...options },
+			typeof draft === 'string' ? { draftId: draft } : { tempDraft: draft },
+	}
+}
+
+function portalClearDraftThreadsEvent(sessionKeys: string[]): StreamChunk {
+	return {
+		type: 'CUSTOM' as const,
+		timestamp: Date.now(),
+		name: 'portal_clear_draft_threads',
+		value: { sessionKeys },
 	}
 }
 

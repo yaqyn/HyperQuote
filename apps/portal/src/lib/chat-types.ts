@@ -190,11 +190,16 @@ export type RichContent =
 
 export const PORTAL_CHAT_OPEN_DRAFT_EVENT = 'portal:chat-open-draft'
 export const PORTAL_CHAT_RUN_COMMAND_EVENT = 'portal:chat-run-command'
+export const PORTAL_CHAT_CLEAR_DRAFT_THREADS_EVENT =
+	'portal:chat-clear-draft-threads'
 
 export interface PortalChatOpenDraftEventDetail {
-	adoptCurrentChat?: boolean
 	draftId?: string
 	tempDraft?: ChatTempDraftData
+}
+
+export interface PortalChatClearDraftThreadsEventDetail {
+	sessionKeys: string[]
 }
 
 // ============================================================================
