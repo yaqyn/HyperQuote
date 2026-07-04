@@ -30,6 +30,34 @@ describe('portal customer AI agent', () => {
 		expect(fallbackPortalCustomerToolRequest('hello').action).toBe('chat')
 	})
 
+	it('routes broad catalog read fallback through live product search', () => {
+		for (const message of [
+			'products?',
+			'what products do you have?',
+			'what materials do you carry?',
+			'show me the catalog',
+		]) {
+			expect(fallbackPortalCustomerToolRequest(message), message).toMatchObject(
+				{
+					action: 'product_search',
+					searchQuery: '',
+				},
+			)
+		}
+	})
+
+	it('corrects model chat output for broad catalog read questions', () => {
+		expect(
+			parsePortalCustomerToolRequest(
+				JSON.stringify({ tool: 'chat', final_response: 'Products...' }),
+				'products?',
+			),
+		).toMatchObject({
+			action: 'product_search',
+			searchQuery: '',
+		})
+	})
+
 	it('does not route natural requests through keyword triggers', () => {
 		for (const message of [
 			'Why are there no published prices on HyperQuote?',
@@ -1136,6 +1164,8 @@ describe('portal customer AI agent', () => {
 		expect(prompt).toContain('Never ask for SKU')
 		expect(prompt).toContain('asks in any language')
 		expect(prompt).toContain('server tools must do writes')
+		expect(prompt).toContain('use search_catalog')
+		expect(prompt).toContain('Never answer catalog contents from memory')
 		expect(prompt).toContain('ask which one is better')
 		expect(prompt).toContain('keep the earlier requested quantities')
 		expect(prompt).toContain('do not replace it with a broader synonym')

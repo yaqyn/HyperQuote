@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
 	draftProductIntentTerms,
+	isBroadCatalogReadRequest,
 	isOpenEndedCatalogSelectionRequest,
 	productIntentTerms,
 	productSearchTerm,
@@ -47,5 +48,26 @@ describe('portal catalog intent helpers', () => {
 			false,
 		)
 		expect(isOpenEndedCatalogSelectionRequest('رشح خشب')).toBe(false)
+	})
+
+	it('detects broad catalog read questions without treating targeted product text as broad', () => {
+		for (const message of [
+			'products?',
+			'what products do you have?',
+			'what materials do you carry?',
+			'show me the catalog',
+			'منتجات؟',
+		]) {
+			expect(isBroadCatalogReadRequest(message), message).toBe(true)
+		}
+
+		for (const message of [
+			'hey, how are you?',
+			'whatshu got?',
+			'find 42.5 cement products',
+			'suggest wood products',
+		]) {
+			expect(isBroadCatalogReadRequest(message), message).toBe(false)
+		}
 	})
 })

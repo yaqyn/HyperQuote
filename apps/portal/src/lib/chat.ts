@@ -45,6 +45,7 @@ import {
 } from './delivery-location-copy'
 import {
 	draftProductIntentTerms,
+	isBroadCatalogReadRequest,
 	isOpenEndedCatalogSelectionRequest,
 	productIntentTerms,
 	productSearchTerm,
@@ -679,6 +680,22 @@ function confirmedDraftLinesToToolLines(
 	)
 }
 
+function correctBroadCatalogReadRoute(
+	route: PortalCustomerToolRequest,
+	userText: string,
+): PortalCustomerToolRequest {
+	if (
+		(route.action === 'chat' || route.action === 'public_docs') &&
+		isBroadCatalogReadRequest(userText)
+	) {
+		return {
+			action: 'product_search',
+			searchQuery: '',
+		}
+	}
+	return route
+}
+
 async function requestPortalCustomerTool(
 	messages: ChatMessageInput[],
 	userText: string,
@@ -700,9 +717,12 @@ async function requestPortalCustomerTool(
 			portalCustomerToolDefinitions(),
 			{ temperature: 0 },
 		)
-		return enforcePortalCustomerToolRequest(
-			parsePortalCustomerToolCall(rawRoute, userText) ??
-				parsePortalCustomerToolRequest(rawRoute.content, userText),
+		return correctBroadCatalogReadRoute(
+			enforcePortalCustomerToolRequest(
+				parsePortalCustomerToolCall(rawRoute, userText) ??
+					parsePortalCustomerToolRequest(rawRoute.content, userText),
+				userText,
+			),
 			userText,
 		)
 	} catch {

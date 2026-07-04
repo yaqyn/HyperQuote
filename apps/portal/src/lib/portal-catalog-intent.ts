@@ -160,6 +160,28 @@ export function isOpenEndedCatalogSelectionRequest(userText: string): boolean {
 	)
 }
 
+export function isBroadCatalogReadRequest(userText: string): boolean {
+	const normalized = normalizeCatalogIntentText(userText)
+	if (!normalized) return false
+	const hasCatalogWord =
+		/\b(catalog|catalogue|products?|materials?|items?|stock|inventory)\b/.test(
+			normalized,
+		) || /كتالوج|منتجات?|مواد|مخزون|متاح/.test(userText)
+	const asksInventory =
+		/\b(what|which|show|list|tell|see|view|browse|available)\b/.test(
+			normalized,
+		) ||
+		/\b(do you|you)\s+(have|carry|sell|offer|stock)\b/.test(normalized) ||
+		/ايه|ما|ماذا|اعرض|وريني|عندك|متوفر/.test(userText)
+	const broadShortQuestion =
+		/^(products?|materials?|catalog|catalogue|stock|inventory)$/.test(
+			normalized,
+		) || /^(منتجات?|مواد|كتالوج|مخزون)$/.test(normalized)
+	if (broadShortQuestion) return true
+	if (!hasCatalogWord || !asksInventory) return false
+	return !hasSpecificCatalogMaterialTerm(normalized, userText)
+}
+
 function materialSynonymTerms(
 	normalizedText: string,
 	rawText: string,

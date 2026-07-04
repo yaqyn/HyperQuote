@@ -20,6 +20,7 @@ interface ExpectedDraftLine {
 
 interface WorkbenchCase {
 	expectDraft?: ExpectedDraftLine[]
+	expectNotText?: RegExp
 	expectText?: RegExp
 	expectNoDraft?: boolean
 	prompt: string
@@ -87,8 +88,11 @@ const ISOLATED_CASES: WorkbenchCase[] = [
 		prompt: '100 timber',
 	},
 	{
-		expectDraft: [{ name: 'Rebar', quantity: 42 }],
-		prompt: 'send 42 rebar',
+		expectNoDraft: true,
+		expectNotText:
+			/Standard Freight Quote|Express Air Quote|Customs Brokerage/i,
+		expectText: /real catalog-backed product|Cement|Ready Mix|Plywood|Rebar/i,
+		prompt: 'products?',
 	},
 	{
 		expectDraft: [{ name: 'Ready Mix', quantity: 10 }],
@@ -220,6 +224,12 @@ async function runWorkbenchCase(page: Page, workbenchCase: WorkbenchCase) {
 		await expect(page.locator('body')).toContainText(workbenchCase.expectText, {
 			timeout: 30_000,
 		})
+	}
+	if (workbenchCase.expectNotText) {
+		await expect(page.locator('body')).not.toContainText(
+			workbenchCase.expectNotText,
+			{ timeout: 3_000 },
+		)
 	}
 	if (workbenchCase.expectNoDraft) {
 		await expectNoDraft(page)
