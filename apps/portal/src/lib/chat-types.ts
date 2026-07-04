@@ -112,6 +112,7 @@ export interface PortalConfirmedActionPayload {
 	supportMessage?: string
 	supportSubject?: string
 	targetReference?: string
+	unavailableQueries?: string[]
 }
 
 export interface ActiveChatDraftContext {

@@ -47,19 +47,21 @@ const STRESS_SESSION_CASES: WorkbenchCase[] = [
 	},
 	{
 		expectDraft: [
-			{ name: 'Plywood', quantity: 2000 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Cement', quantity: 3000 },
+			{ name: 'Plywood', quantity: 200 },
+			{ name: 'Steel Mesh', quantity: 2000 },
+			{ name: 'Cement', quantity: 10 },
 		],
+		expectAbsentDraft: ['Milk'],
+		expectText: /did not add: milk/i,
 		prompt:
-			'rushing procurement: start one draft w/ 2000 wood, 800 steel, 3000 cement pls',
-		selections: ['Plywood', 'Rebar', 'Cement'],
+			'hook me up with 200 wood, 1000 milk and 2000 steel... maybe also some 10 cement just for good old days',
+		selections: ['Plywood', 'Steel Mesh', 'Cement'],
 	},
 	{
 		expectDraft: [
-			{ name: 'Plywood', quantity: 2000 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Cement', quantity: 3000 },
+			{ name: 'Plywood', quantity: 200 },
+			{ name: 'Steel Mesh', quantity: 2000 },
+			{ name: 'Cement', quantity: 10 },
 			{ name: 'White Cement', quantity: 44 },
 			{ name: 'Ready Mix', quantity: 12 },
 		],
@@ -67,26 +69,26 @@ const STRESS_SESSION_CASES: WorkbenchCase[] = [
 	},
 	{
 		expectDraft: [
-			{ name: 'Plywood', quantity: 2000 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Cement', quantity: 3000 },
+			{ name: 'Plywood', quantity: 200 },
+			{ name: 'Steel Mesh', quantity: 2000 },
+			{ name: 'Cement', quantity: 10 },
 			{ name: 'White Cement', quantity: 44 },
 			{ name: 'Ready Mix', quantity: 12 },
-			{ name: 'Steel Mesh', quantity: 260 },
+			{ name: 'Rebar', quantity: 800 },
 			{ name: 'Timber Beam', quantity: 90 },
 		],
 		prompt:
-			'how about some 260 steel too, plus 90 timber, same draft, moving fast',
-		selections: ['Steel Mesh'],
+			'how about some 800 steel too, plus 90 timber, same draft, moving fast',
+		selections: ['Rebar'],
 	},
 	{
 		expectDraft: [
-			{ name: 'Plywood', quantity: 2000 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Cement', quantity: 3000 },
+			{ name: 'Plywood', quantity: 200 },
+			{ name: 'Steel Mesh', quantity: 2000 },
+			{ name: 'Cement', quantity: 10 },
 			{ name: 'White Cement', quantity: 44 },
 			{ name: 'Ready Mix', quantity: 12 },
-			{ name: 'Steel Mesh', quantity: 260 },
+			{ name: 'Rebar', quantity: 800 },
 			{ name: 'Timber Beam', quantity: 90 },
 			{ name: 'Steel Angle', quantity: 75 },
 		],
@@ -96,11 +98,11 @@ const STRESS_SESSION_CASES: WorkbenchCase[] = [
 	{
 		expectDraft: [
 			{ name: 'Plywood', quantity: 1800 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Cement', quantity: 3000 },
+			{ name: 'Steel Mesh', quantity: 2000 },
+			{ name: 'Cement', quantity: 10 },
 			{ name: 'White Cement', quantity: 44 },
 			{ name: 'Ready Mix', quantity: 12 },
-			{ name: 'Steel Mesh', quantity: 260 },
+			{ name: 'Rebar', quantity: 800 },
 			{ name: 'Timber Beam', quantity: 90 },
 			{ name: 'Steel Angle', quantity: 75 },
 		],
@@ -109,10 +111,10 @@ const STRESS_SESSION_CASES: WorkbenchCase[] = [
 	{
 		expectDraft: [
 			{ name: 'Plywood', quantity: 1800 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Cement', quantity: 3000 },
+			{ name: 'Steel Mesh', quantity: 2000 },
+			{ name: 'Cement', quantity: 10 },
 			{ name: 'White Cement', quantity: 44 },
-			{ name: 'Steel Mesh', quantity: 260 },
+			{ name: 'Rebar', quantity: 800 },
 			{ name: 'Timber Beam', quantity: 90 },
 			{ name: 'Steel Angle', quantity: 75 },
 		],
@@ -122,10 +124,10 @@ const STRESS_SESSION_CASES: WorkbenchCase[] = [
 	{
 		expectDraft: [
 			{ name: 'Plywood', quantity: 1800 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Cement', quantity: 3000 },
+			{ name: 'Steel Mesh', quantity: 2000 },
+			{ name: 'Cement', quantity: 10 },
 			{ name: 'White Cement', quantity: 44 },
-			{ name: 'Steel Mesh', quantity: 260 },
+			{ name: 'Rebar', quantity: 800 },
 			{ name: 'Timber Beam', quantity: 125 },
 			{ name: 'Steel Angle', quantity: 75 },
 		],
@@ -135,9 +137,9 @@ const STRESS_SESSION_CASES: WorkbenchCase[] = [
 	{
 		expectDraft: [
 			{ name: 'Plywood', quantity: 1800 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Cement', quantity: 3000 },
+			{ name: 'Cement', quantity: 10 },
 			{ name: 'White Cement', quantity: 44 },
+			{ name: 'Rebar', quantity: 800 },
 			{ name: 'Timber Beam', quantity: 125 },
 			{ name: 'Steel Angle', quantity: 75 },
 		],
@@ -147,9 +149,9 @@ const STRESS_SESSION_CASES: WorkbenchCase[] = [
 	{
 		expectDraft: [
 			{ name: 'Plywood', quantity: 1800 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Cement', quantity: 3000 },
+			{ name: 'Cement', quantity: 10 },
 			{ name: 'White Cement', quantity: 44 },
+			{ name: 'Rebar', quantity: 800 },
 			{ name: 'Timber Beam', quantity: 125 },
 			{ name: 'Steel Angle', quantity: 75 },
 			{ name: 'Wood', quantity: 33 },

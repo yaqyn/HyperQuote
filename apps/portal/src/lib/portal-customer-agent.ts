@@ -70,6 +70,7 @@ export interface PortalCustomerToolRequest {
 	supportMessage?: string
 	supportSubject?: string
 	targetReference?: string
+	unavailableQueries?: string[]
 }
 
 export interface PortalDraftMaterialRequestLine {
@@ -1175,6 +1176,10 @@ export function parsePortalDraftMaterialRequestLines(
 
 function draftRequestSegments(userMessage: string): string[] {
 	return userMessage
+		.replace(
+			/\s*(?:\.{2,}|[.!?])?\s+\b(?:maybe\s+)?(?:also|plus|then)\b\s+(?=(?:some\s+)?\d)/giu,
+			', ',
+		)
 		.split(/\s*(?:[,;]+|\+|&|\band\b)\s*/iu)
 		.map((segment) => segment.trim())
 		.filter(Boolean)

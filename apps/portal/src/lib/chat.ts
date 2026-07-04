@@ -438,6 +438,7 @@ interface DraftProductChoiceContext {
 	groups: DraftProductChoiceGroup[]
 	locale: 'ar' | 'en'
 	targetReference?: string
+	unavailableQueries?: string[]
 }
 
 interface DraftWriteContext {
@@ -655,6 +656,7 @@ function confirmedActionToToolRequest(
 		supportMessage: action.supportMessage,
 		supportSubject: action.supportSubject,
 		targetReference: action.targetReference,
+		unavailableQueries: action.unavailableQueries,
 	}
 }
 
@@ -3561,7 +3563,15 @@ async function createDraftFromPlan(
 	if ('message' in items) {
 		return { message: items.message, productChoice: items.productChoice }
 	}
-	if (items.length === 0) {
+	const {
+		items: resolvedDraftItems,
+		unavailableQueries: resolvedUnavailableQueries,
+	} = resolvedDraftItemsWithUnavailable(items)
+	const unavailableQueries = mergeUnavailableDraftQueries(
+		route.unavailableQueries,
+		resolvedUnavailableQueries,
+	)
+	if (resolvedDraftItems.length === 0) {
 		const visibleMatches = await findPublishedProducts(
 			supabase,
 			draftPlanText,
@@ -3574,16 +3584,29 @@ async function createDraftFromPlan(
 					: 'I could not find an available catalog product to add. I did not create a draft.',
 		}
 	}
-	if (items.some((item) => !item.productId)) {
+	if (resolvedDraftItems.some((item) => !item.productId)) {
 		throw new Error('Portal AI draft creation requires real catalog products')
 	}
-	const draftName = normalizePortalDraftTitle(route.draftName, items, locale)
-	const draftNotes = normalizePortalDraftNotes(route.draftNotes, items, locale)
-	const tempDraft = tempDraftDataFromDraftItems(draftName, draftNotes, items)
+	const draftName = normalizePortalDraftTitle(
+		route.draftName,
+		resolvedDraftItems,
+		locale,
+	)
+	const draftNotes = normalizePortalDraftNotes(
+		route.draftNotes,
+		resolvedDraftItems,
+		locale,
+	)
+	const tempDraft = tempDraftDataFromDraftItems(
+		draftName,
+		draftNotes,
+		resolvedDraftItems,
+	)
+	const unavailableNote = unavailableDraftLineNote(unavailableQueries, locale)
 
 	return {
-		items,
-		message: `I prepared a temporary draft with ${items.length} material line${items.length === 1 ? '' : 's'}. Save it from the draft desk when you want to keep it.`,
+		items: resolvedDraftItems,
+		message: `I prepared a temporary draft with ${resolvedDraftItems.length} material line${resolvedDraftItems.length === 1 ? '' : 's'}. Save it from the draft desk when you want to keep it.${unavailableNote}`,
 		tempDraft,
 	}
 }
@@ -3698,7 +3721,12 @@ async function addItemsToTempDraft(
 			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
 		}
 	}
-	const items = resolvedItems
+	const { items, unavailableQueries: resolvedUnavailableQueries } =
+		resolvedDraftItemsWithUnavailable(resolvedItems)
+	const unavailableQueries = mergeUnavailableDraftQueries(
+		route.unavailableQueries,
+		resolvedUnavailableQueries,
+	)
 	if (items.length === 0 || items.some((item) => !item.productId)) {
 		return {
 			items: currentItems,
@@ -3709,7 +3737,7 @@ async function addItemsToTempDraft(
 	const nextItems = [...currentItems, ...items]
 	return {
 		items: nextItems,
-		message: `I added ${items.length} material line${items.length === 1 ? '' : 's'} to the draft desk.`,
+		message: `I added ${items.length} material line${items.length === 1 ? '' : 's'} to the draft desk.${unavailableDraftLineNote(unavailableQueries, locale)}`,
 		tempDraft: activeTempDraftPayload(activeDraft, nextItems),
 	}
 }
@@ -4036,7 +4064,12 @@ async function addItemsToDraft(
 			productChoice: resolvedItems.productChoice,
 		}
 	}
-	const items = resolvedItems
+	const { items, unavailableQueries: resolvedUnavailableQueries } =
+		resolvedDraftItemsWithUnavailable(resolvedItems)
+	const unavailableQueries = mergeUnavailableDraftQueries(
+		route.unavailableQueries,
+		resolvedUnavailableQueries,
+	)
 	if (items.length === 0 || items.some((item) => !item.productId)) {
 		return {
 			draftId: draft.id,
@@ -4102,7 +4135,7 @@ async function addItemsToDraft(
 		editRoute: `/orders/edit/${draft.id}`,
 		items: materialItems,
 		reference: draft.request_number,
-		message: `I added ${items.length} material line${items.length === 1 ? '' : 's'} to ${draft.request_number}.`,
+		message: `I added ${items.length} material line${items.length === 1 ? '' : 's'} to ${draft.request_number}.${unavailableDraftLineNote(unavailableQueries, locale)}`,
 	}
 }
 
@@ -5504,7 +5537,19 @@ function isOrderableQuoteRequestProduct(
 
 type DraftRequestedLineResolution =
 	| DraftMaterialItem[]
+	| { items: DraftMaterialItem[]; unavailableQueries: string[] }
 	| { message: string; productChoice?: DraftProductChoiceContext }
+
+function resolvedDraftItemsWithUnavailable(
+	resolution: Exclude<
+		DraftRequestedLineResolution,
+		{ message: string; productChoice?: DraftProductChoiceContext }
+	>,
+): { items: DraftMaterialItem[]; unavailableQueries: string[] } {
+	return Array.isArray(resolution)
+		? { items: resolution, unavailableQueries: [] }
+		: resolution
+}
 
 interface DraftLineResolutionOptions {
 	action: 'create_draft_from_plan' | 'draft_add_items'
@@ -5520,6 +5565,7 @@ async function buildDraftItemsFromRequestedLines(
 	const items: DraftMaterialItem[] = []
 	const resolvedLines: PortalConfirmedDraftLinePayload[] = []
 	const choiceGroups: DraftProductChoiceGroup[] = []
+	const unavailableQueries: string[] = []
 	for (const line of requestedLines) {
 		if (line.productId) {
 			const product = await findOrderableDraftProductById(
@@ -5564,12 +5610,8 @@ async function buildDraftItemsFromRequestedLines(
 		}
 		const matches = rankProductsForDraftLine(products, line.query, 4)
 		if (matches.length === 0) {
-			return {
-				message:
-					locale === 'ar'
-						? `مش لاقي منتج متاح باسم ${line.query}. ماعملتش مسودة.`
-						: `I could not find an available catalog product for ${line.query}. I did not create a draft.`,
-			}
+			unavailableQueries.push(line.query)
+			continue
 		}
 		const uniqueCatalogMeaningMatch = uniqueCatalogMeaningMatchForDraftLine(
 			matches,
@@ -5603,7 +5645,20 @@ async function buildDraftItemsFromRequestedLines(
 			choiceGroups,
 			locale,
 			options,
+			unavailableQueries,
 		)
+	}
+	if (items.length > 0 && unavailableQueries.length > 0) {
+		return { items, unavailableQueries }
+	}
+	if (items.length === 0 && unavailableQueries.length > 0) {
+		const unavailable = unavailableQueries.join(', ')
+		return {
+			message:
+				locale === 'ar'
+					? `مش لاقي منتج متاح باسم ${unavailable}. ماعملتش مسودة.`
+					: `I could not find an available catalog product for ${unavailable}. I did not create a draft.`,
+		}
 	}
 	return items
 }
@@ -5661,15 +5716,21 @@ function draftProductChoiceResolution(
 	groups: DraftProductChoiceGroup[],
 	locale: 'ar' | 'en',
 	options: DraftLineResolutionOptions,
+	unavailableQueries: string[] = [],
 ): { message: string; productChoice: DraftProductChoiceContext } {
 	return {
-		message: draftProductChoiceFallbackMessage(groups, locale),
+		message: draftProductChoiceFallbackMessage(
+			groups,
+			locale,
+			unavailableQueries,
+		),
 		productChoice: {
 			action: options.action,
 			baseLines,
 			groups,
 			locale,
 			targetReference: options.targetReference,
+			unavailableQueries,
 		},
 	}
 }
@@ -5935,6 +5996,7 @@ function draftLineChoiceFallbackMessage(
 	query: string,
 	products: PortalAiProduct[],
 	locale: 'ar' | 'en',
+	unavailableQueries: string[] = [],
 ): string {
 	const choices = products
 		.map((product, index) => {
@@ -5950,14 +6012,16 @@ function draftLineChoiceFallbackMessage(
 			return `${index + 1}. ${detail}`
 		})
 		.join('\n')
+	const unavailableNote = unavailableDraftLineNote(unavailableQueries, locale)
 	return locale === 'ar'
-		? `لقيت أكتر من اختيار لـ ${query}. اختار من كروت المنتجات:\n${choices}`
-		: `I found multiple ${query} options. Choose from the product cards:\n${choices}`
+		? `لقيت أكتر من اختيار لـ ${query}. اختار من كروت المنتجات:\n${choices}${unavailableNote}`
+		: `I found multiple ${query} options. Choose from the product cards:\n${choices}${unavailableNote}`
 }
 
 function draftProductChoiceFallbackMessage(
 	groups: DraftProductChoiceGroup[],
 	locale: 'ar' | 'en',
+	unavailableQueries: string[] = [],
 ): string {
 	if (groups.length === 1) {
 		const group = groups[0]
@@ -5966,11 +6030,40 @@ function draftProductChoiceFallbackMessage(
 			group.query,
 			group.options.map((option) => option.product),
 			locale,
+			unavailableQueries,
 		)
 	}
+	const unavailableNote = unavailableDraftLineNote(unavailableQueries, locale)
 	return locale === 'ar'
-		? `لقيت أكتر من اختيار في ${groups.length} بنود. اختار المنتج المناسب لكل بند.`
-		: `I found multiple options for ${groups.length} material lines. Pick the right product for each line.`
+		? `لقيت أكتر من اختيار في ${groups.length} بنود. اختار المنتج المناسب لكل بند.${unavailableNote}`
+		: `I found multiple options for ${groups.length} material lines. Pick the right product for each line.${unavailableNote}`
+}
+
+function unavailableDraftLineNote(
+	queries: string[],
+	locale: 'ar' | 'en',
+): string {
+	const uniqueQueries = Array.from(
+		new Set(queries.map((query) => query.trim()).filter(Boolean)),
+	)
+	if (uniqueQueries.length === 0) return ''
+	const list = uniqueQueries.join(', ')
+	return locale === 'ar'
+		? ` لم أضف: ${list} لأنه غير موجود كمنتج متاح.`
+		: ` I did not add: ${list} because I could not find an available catalog product.`
+}
+
+function mergeUnavailableDraftQueries(
+	...queryGroups: Array<string[] | undefined>
+): string[] {
+	return Array.from(
+		new Set(
+			queryGroups
+				.flatMap((queries) => queries ?? [])
+				.map((query) => query.trim())
+				.filter(Boolean),
+		),
+	)
 }
 
 function productMatchesDraftLine(
@@ -6629,11 +6722,15 @@ function productChoiceListData(
 ): ProductChoiceListData {
 	const total = context.groups.length
 	const visibleGroups = context.groups.slice(0, 1)
+	const unavailableNote = unavailableDraftLineNote(
+		context.unavailableQueries ?? [],
+		context.locale,
+	)
 	return {
 		description:
 			context.locale === 'ar'
-				? 'اختار منتج من الكتالوج لكل بند عشان أجهز المسودة بدون تخمين.'
-				: 'Choose the catalog product for each line so I can draft it without guessing.',
+				? `اختار منتج من الكتالوج لكل بند عشان أجهز المسودة بدون تخمين.${unavailableNote}`
+				: `Choose the catalog product for each line so I can draft it without guessing.${unavailableNote}`,
 		groups: visibleGroups.map((group, groupIndex) => ({
 			options: group.options.map(({ product }) => ({
 				action: productChoiceAction(context, group, product),
@@ -6669,6 +6766,7 @@ function productChoiceAction(
 			draftLines: productChoiceActionDraftLines(context, group, product),
 			searchQuery: product.name,
 			targetReference: context.targetReference,
+			unavailableQueries: context.unavailableQueries,
 		},
 		icon: 'market',
 		label: product.name,

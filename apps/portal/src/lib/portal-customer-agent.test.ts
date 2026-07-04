@@ -248,6 +248,36 @@ describe('portal customer AI agent', () => {
 				unitHint: undefined,
 			},
 		])
+		expect(
+			parsePortalDraftMaterialRequestLines(
+				'hook me up with 200 wood, 1000 milk and 2000 steel... maybe also some 10 cement just for good old days',
+			),
+		).toEqual([
+			{
+				query: 'wood',
+				quantity: 200,
+				rawText: 'hook me up with 200 wood',
+				unitHint: undefined,
+			},
+			{
+				query: 'milk',
+				quantity: 1000,
+				rawText: '1000 milk',
+				unitHint: undefined,
+			},
+			{
+				query: 'steel',
+				quantity: 2000,
+				rawText: '2000 steel',
+				unitHint: undefined,
+			},
+			{
+				query: 'cement just for good old days',
+				quantity: 10,
+				rawText: 'some 10 cement just for good old days',
+				unitHint: undefined,
+			},
+		])
 	})
 
 	it('cleans active-draft reference tails from parsed material lines', () => {
