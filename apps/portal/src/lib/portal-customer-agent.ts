@@ -1186,6 +1186,15 @@ function cleanMaterialLineQuery(value: string): string {
 			/\b(?:for|to|into)\s+(?:a|an|the|my|our)?\s*(?:draft|quote|rfq|order|project|site)\b.*$/i,
 			'',
 		)
+		.replace(
+			/\b(?:for|to|into)\s+(?:that|this|the|same|current|active|open|opened|it|them)\s+(?:same\s+)?(?:thing|one|draft|quote|rfq|order|list)\b.*$/i,
+			'',
+		)
+		.replace(
+			/\b(?:in|on)\s+(?:there|here|it|that|this|the|same|current|active|open|opened)\b.*$/i,
+			'',
+		)
+		.replace(/\b(?:dont|don't|do not)\s+wipe\b.*$/i, '')
 		.replace(/\b(?:please|pls|thanks|thank you)\b/gi, ' ')
 		.replace(/\b(?:draft|quote|rfq|order|request)\b/gi, ' ')
 		.replace(/[.?!]+$/g, '')

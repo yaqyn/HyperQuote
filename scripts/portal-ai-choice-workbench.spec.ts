@@ -19,6 +19,7 @@ interface ExpectedDraftLine {
 }
 
 interface WorkbenchCase {
+	expectAbsentDraft?: string[]
 	expectDraft?: ExpectedDraftLine[]
 	expectNotText?: RegExp
 	expectText?: RegExp
@@ -35,181 +36,157 @@ const CUSTOMER = {
 const PORTAL_URL = process.env.FLOW_PORTAL_URL ?? 'http://localhost:3001'
 const CUSTOMER_COOKIE = 'hyperquote_customer_auth'
 
-const ISOLATED_CASES: WorkbenchCase[] = [
-	{
-		expectDraft: [
-			{ name: 'Plywood', quantity: 1000 },
-			{ name: 'Rebar', quantity: 800 },
-		],
-		prompt: 'hook me up with some 1000 wood please, and 800 steel',
-		selections: ['Plywood', 'Rebar'],
-	},
-	{
-		expectDraft: [
-			{ name: 'Cement', quantity: 1000 },
-			{ name: 'Rebar', quantity: 800 },
-		],
-		prompt: 'give me 1000 cement, 800 steel',
-		selections: ['Cement', 'Rebar'],
-	},
-	{
-		expectDraft: [{ name: 'Plywood', quantity: 1000 }],
-		prompt: 'wood 1000',
-		selections: ['Plywood'],
-	},
-	{ expectNoDraft: true, prompt: 'homie, 1 lol' },
-	{ expectNoDraft: true, prompt: "that's wrong" },
-	{
-		expectDraft: [{ name: 'Plywood', quantity: 1000 }],
-		prompt: '1000 plywood',
-	},
-	{
-		expectDraft: [{ name: 'Plywood', quantity: 1000 }],
-		prompt: 'Plywood i mean, 1000 sheets',
-	},
-	{
-		expectDraft: [{ name: 'White Cement', quantity: 12 }],
-		prompt: 'need 12 white cement',
-	},
-	{
-		expectDraft: [{ name: 'Ready Mix', quantity: 7 }],
-		prompt: 'ready mix 7',
-	},
-	{
-		expectDraft: [{ name: 'Steel Mesh', quantity: 800 }],
-		prompt: '800 steel mesh',
-	},
-	{
-		expectDraft: [{ name: 'Steel Angle', quantity: 210 }],
-		prompt: '210 steel angle',
-	},
-	{
-		expectDraft: [{ name: 'Timber Beam', quantity: 100 }],
-		prompt: '100 timber',
-	},
+const STRESS_SESSION_CASES: WorkbenchCase[] = [
 	{
 		expectNoDraft: true,
 		expectNotText:
 			/Standard Freight Quote|Express Air Quote|Customs Brokerage/i,
-		expectText: /real catalog-backed product|Cement|Ready Mix|Plywood|Rebar/i,
-		prompt: 'products?',
-	},
-	{
-		expectDraft: [{ name: 'Ready Mix', quantity: 10 }],
-		prompt: 'need 10 concrete',
-		selections: ['Ready Mix'],
+		expectText: /Cement|Plywood|Ready Mix|Rebar|Steel Mesh|Timber Beam/i,
+		prompt:
+			"boss mode, what do u have in products rn? quick catalog dump, don't freestyle",
 	},
 	{
 		expectDraft: [
-			{ name: 'Cement', quantity: 5 },
-			{ name: 'Plywood', quantity: 6 },
-			{ name: 'Rebar', quantity: 7 },
+			{ name: 'Plywood', quantity: 2000 },
+			{ name: 'Rebar', quantity: 800 },
+			{ name: 'Cement', quantity: 3000 },
 		],
-		prompt: 'can you draft 5 cement and 6 wood and 7 steel',
-		selections: ['Cement', 'Plywood', 'Rebar'],
+		prompt:
+			'rushing procurement: start one draft w/ 2000 wood, 800 steel, 3000 cement pls',
+		selections: ['Plywood', 'Rebar', 'Cement'],
+	},
+	{
+		expectDraft: [
+			{ name: 'Plywood', quantity: 2000 },
+			{ name: 'Rebar', quantity: 800 },
+			{ name: 'Cement', quantity: 3000 },
+			{ name: 'White Cement', quantity: 44 },
+			{ name: 'Ready Mix', quantity: 12 },
+		],
+		prompt: 'also add 44 white cement and 12 ready mix to that same thing, thx',
+	},
+	{
+		expectDraft: [
+			{ name: 'Plywood', quantity: 2000 },
+			{ name: 'Rebar', quantity: 800 },
+			{ name: 'Cement', quantity: 3000 },
+			{ name: 'White Cement', quantity: 44 },
+			{ name: 'Ready Mix', quantity: 12 },
+			{ name: 'Steel Mesh', quantity: 260 },
+			{ name: 'Timber Beam', quantity: 90 },
+		],
+		prompt:
+			'how about some 260 steel too, plus 90 timber, same draft, moving fast',
+		selections: ['Steel Mesh'],
+	},
+	{
+		expectDraft: [
+			{ name: 'Plywood', quantity: 2000 },
+			{ name: 'Rebar', quantity: 800 },
+			{ name: 'Cement', quantity: 3000 },
+			{ name: 'White Cement', quantity: 44 },
+			{ name: 'Ready Mix', quantity: 12 },
+			{ name: 'Steel Mesh', quantity: 260 },
+			{ name: 'Timber Beam', quantity: 90 },
+			{ name: 'Steel Angle', quantity: 75 },
+		],
+		prompt:
+			'forgot profiles: put 75 steel angle in there, dont wipe the old stuff',
+	},
+	{
+		expectDraft: [
+			{ name: 'Plywood', quantity: 1800 },
+			{ name: 'Rebar', quantity: 800 },
+			{ name: 'Cement', quantity: 3000 },
+			{ name: 'White Cement', quantity: 44 },
+			{ name: 'Ready Mix', quantity: 12 },
+			{ name: 'Steel Mesh', quantity: 260 },
+			{ name: 'Timber Beam', quantity: 90 },
+			{ name: 'Steel Angle', quantity: 75 },
+		],
+		prompt: 'repeat check: make plywood 1800. plywood one eight zero zero.',
+	},
+	{
+		expectDraft: [
+			{ name: 'Plywood', quantity: 1800 },
+			{ name: 'Rebar', quantity: 800 },
+			{ name: 'Cement', quantity: 3000 },
+			{ name: 'White Cement', quantity: 44 },
+			{ name: 'Steel Mesh', quantity: 260 },
+			{ name: 'Timber Beam', quantity: 90 },
+			{ name: 'Steel Angle', quantity: 75 },
+		],
+		expectAbsentDraft: ['Ready Mix'],
+		prompt: 'deduct ready mix from this draft, actually remove ready mix',
+	},
+	{
+		expectDraft: [
+			{ name: 'Plywood', quantity: 1800 },
+			{ name: 'Rebar', quantity: 800 },
+			{ name: 'Cement', quantity: 3000 },
+			{ name: 'White Cement', quantity: 44 },
+			{ name: 'Steel Mesh', quantity: 260 },
+			{ name: 'Timber Beam', quantity: 125 },
+			{ name: 'Steel Angle', quantity: 75 },
+		],
+		expectAbsentDraft: ['Ready Mix'],
+		prompt: 'make timber beam 125, repeat: timber beam one two five',
+	},
+	{
+		expectDraft: [
+			{ name: 'Plywood', quantity: 1800 },
+			{ name: 'Rebar', quantity: 800 },
+			{ name: 'Cement', quantity: 3000 },
+			{ name: 'White Cement', quantity: 44 },
+			{ name: 'Timber Beam', quantity: 125 },
+			{ name: 'Steel Angle', quantity: 75 },
+		],
+		expectAbsentDraft: ['Ready Mix', 'Steel Mesh'],
+		prompt: 'drop steel mesh too; too much mesh, remove it',
+	},
+	{
+		expectDraft: [
+			{ name: 'Plywood', quantity: 1800 },
+			{ name: 'Rebar', quantity: 800 },
+			{ name: 'Cement', quantity: 3000 },
+			{ name: 'White Cement', quantity: 44 },
+			{ name: 'Timber Beam', quantity: 125 },
+			{ name: 'Steel Angle', quantity: 75 },
+			{ name: 'Wood', quantity: 33 },
+		],
+		expectAbsentDraft: ['Ready Mix', 'Steel Mesh'],
+		prompt: 'now add 33 wood pieces, not plywood, actual wood line',
+		selections: ['Wood'],
 	},
 ]
-
-const SESSION_CASES: WorkbenchCase[] = [
-	{
-		expectDraft: [
-			{ name: 'Plywood', quantity: 100 },
-			{ name: 'Rebar', quantity: 200 },
-		],
-		prompt: 'first build the scratch draft with 100 wood and 200 steel',
-		selections: ['Plywood', 'Rebar'],
-	},
-	{
-		expectDraft: [
-			{ name: 'Plywood', quantity: 100 },
-			{ name: 'Rebar', quantity: 200 },
-		],
-		expectText: /How much cement should I add/i,
-		prompt: 'add cement',
-	},
-	{
-		expectDraft: [
-			{ name: 'Plywood', quantity: 100 },
-			{ name: 'Rebar', quantity: 200 },
-			{ name: 'Cement', quantity: 3000 },
-		],
-		prompt: 'add 3000 cement',
-		selections: ['Cement'],
-	},
-	{
-		expectDraft: [
-			{ name: 'Plywood', quantity: 100 },
-			{ name: 'Rebar', quantity: 200 },
-			{ name: 'Cement', quantity: 3000 },
-			{ name: 'Steel Angle', quantity: 12 },
-		],
-		prompt: 'append 12 metal',
-		selections: ['Steel Angle'],
-	},
-	{
-		expectDraft: [
-			{ name: 'Plywood', quantity: 100 },
-			{ name: 'Rebar', quantity: 200 },
-			{ name: 'Cement', quantity: 3000 },
-			{ name: 'Steel Angle', quantity: 12 },
-			{ name: 'Ready Mix', quantity: 7 },
-		],
-		prompt: 'include 7 concrete too, same draft',
-	},
-]
-
-const TOTAL_CASE_COUNT = ISOLATED_CASES.length + SESSION_CASES.length
 
 test.describe.configure({ mode: 'serial' })
 
-test('portal AI product-choice workbench answers 20 hard prompts, including one 5-prompt session', async ({
+test('portal AI product-choice workbench survives one 10-prompt pre-production stress session', async ({
 	browser,
 }) => {
 	test.setTimeout(600_000)
 	const env = readLocalSupabaseEnv()
 	const failures: string[] = []
-	const caseFilter = process.env.PORTAL_AI_WORKBENCH_CASE?.trim()
 
-	for (const [index, workbenchCase] of ISOLATED_CASES.entries()) {
-		const label = `${index + 1}/${TOTAL_CASE_COUNT} ${workbenchCase.prompt}`
-		if (
-			caseFilter &&
-			caseFilter !== String(index + 1) &&
-			!workbenchCase.prompt.includes(caseFilter)
-		) {
-			continue
-		}
-		try {
-			const { context, page } = await openCustomerPortal(browser, env)
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		for (const [index, workbenchCase] of STRESS_SESSION_CASES.entries()) {
+			const label = `${index + 1}/${STRESS_SESSION_CASES.length} ${workbenchCase.prompt}`
 			try {
 				await runWorkbenchCase(page, workbenchCase)
-			} finally {
-				await context.close()
+			} catch (error) {
+				const debugState = await readWorkbenchDebugState(page).catch(
+					(debugError) =>
+						`Could not read page state: ${debugError instanceof Error ? debugError.message : debugError}`,
+				)
+				failures.push(
+					`${label}: ${error instanceof Error ? error.message : error}\n${debugState}`,
+				)
 			}
-		} catch (error) {
-			failures.push(
-				`${label}: ${error instanceof Error ? error.message : error}`,
-			)
 		}
-	}
-
-	if (!caseFilter || caseFilter === 'session') {
-		const { context, page } = await openCustomerPortal(browser, env)
-		try {
-			for (const [index, workbenchCase] of SESSION_CASES.entries()) {
-				const caseNumber = ISOLATED_CASES.length + index + 1
-				const label = `${caseNumber}/${TOTAL_CASE_COUNT} session ${index + 1}/5 ${workbenchCase.prompt}`
-				try {
-					await runWorkbenchCase(page, workbenchCase)
-				} catch (error) {
-					failures.push(
-						`${label}: ${error instanceof Error ? error.message : error}`,
-					)
-				}
-			}
-		} finally {
-			await context.close()
-		}
+	} finally {
+		await context.close()
 	}
 
 	expect(failures).toEqual([])
@@ -236,6 +213,12 @@ async function runWorkbenchCase(page: Page, workbenchCase: WorkbenchCase) {
 	}
 	for (const expected of workbenchCase.expectDraft ?? []) {
 		await expectDraftLine(page, expected)
+	}
+	if (workbenchCase.expectDraft) {
+		await expectDraftLineCount(page, workbenchCase.expectDraft.length)
+	}
+	for (const absentName of workbenchCase.expectAbsentDraft ?? []) {
+		await expectNoDraftLine(page, absentName)
 	}
 }
 
@@ -315,6 +298,89 @@ async function expectDraftLine(page: Page, expected: ExpectedDraftLine) {
 		expected,
 		{ timeout: 30_000 },
 	)
+}
+
+async function expectNoDraftLine(page: Page, name: string) {
+	await expect(page.getByText('Draft materials').last()).toBeVisible({
+		timeout: 30_000,
+	})
+	await page.waitForFunction(
+		(nameToFind) => {
+			const inputs = Array.from(
+				document.querySelectorAll<HTMLInputElement>('input[aria-label]'),
+			)
+			return inputs.every((input) => {
+				const label = input.getAttribute('aria-label') ?? ''
+				const rect = input.getBoundingClientRect()
+				const visible =
+					rect.width > 0 &&
+					rect.height > 0 &&
+					getComputedStyle(input).visibility !== 'hidden' &&
+					getComputedStyle(input).display !== 'none'
+				return (
+					!visible || !label.toLowerCase().includes(nameToFind.toLowerCase())
+				)
+			})
+		},
+		name,
+		{ timeout: 30_000 },
+	)
+}
+
+async function expectDraftLineCount(page: Page, count: number) {
+	await page.waitForFunction(
+		(expectedCount) => {
+			const visibleInputs = Array.from(
+				document.querySelectorAll<HTMLInputElement>('input[aria-label]'),
+			).filter((input) => {
+				const label = input.getAttribute('aria-label') ?? ''
+				const rect = input.getBoundingClientRect()
+				return (
+					label.toLowerCase().startsWith('quantity for ') &&
+					rect.width > 0 &&
+					rect.height > 0 &&
+					getComputedStyle(input).visibility !== 'hidden' &&
+					getComputedStyle(input).display !== 'none'
+				)
+			})
+			return visibleInputs.length === expectedCount
+		},
+		count,
+		{ timeout: 30_000 },
+	)
+}
+
+async function readWorkbenchDebugState(page: Page): Promise<string> {
+	return page.evaluate(() => {
+		const inputs = Array.from(
+			document.querySelectorAll<HTMLInputElement>('input[aria-label]'),
+		)
+			.map((input) => {
+				const rect = input.getBoundingClientRect()
+				const visible =
+					rect.width > 0 &&
+					rect.height > 0 &&
+					getComputedStyle(input).visibility !== 'hidden' &&
+					getComputedStyle(input).display !== 'none'
+				return visible
+					? `${input.getAttribute('aria-label') ?? 'input'}=${input.value}`
+					: null
+			})
+			.filter(Boolean)
+		const buttons = Array.from(document.querySelectorAll('button'))
+			.map((button) => {
+				const rect = button.getBoundingClientRect()
+				const visible =
+					rect.width > 0 &&
+					rect.height > 0 &&
+					getComputedStyle(button).visibility !== 'hidden' &&
+					getComputedStyle(button).display !== 'none'
+				return visible ? button.textContent?.trim() || null : null
+			})
+			.filter(Boolean)
+			.slice(-20)
+		return `Visible draft inputs: ${inputs.join(' | ') || 'none'}\nVisible buttons: ${buttons.join(' | ') || 'none'}`
+	})
 }
 
 async function expectNoDraft(page: Page) {

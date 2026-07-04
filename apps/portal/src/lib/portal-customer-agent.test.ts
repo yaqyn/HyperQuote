@@ -250,6 +250,39 @@ describe('portal customer AI agent', () => {
 		])
 	})
 
+	it('cleans active-draft reference tails from parsed material lines', () => {
+		expect(
+			parsePortalDraftMaterialRequestLines(
+				'also add 44 white cement and 12 ready mix to that same thing, thx',
+			),
+		).toEqual([
+			{
+				query: 'white cement',
+				quantity: 44,
+				rawText: 'also add 44 white cement',
+				unitHint: undefined,
+			},
+			{
+				query: 'ready mix',
+				quantity: 12,
+				rawText: '12 ready mix to that same thing',
+				unitHint: undefined,
+			},
+		])
+		expect(
+			parsePortalDraftMaterialRequestLines(
+				'forgot profiles: put 75 steel angle in there, dont wipe the old stuff',
+			),
+		).toEqual([
+			{
+				query: 'steel angle',
+				quantity: 75,
+				rawText: 'forgot profiles: put 75 steel angle in there',
+				unitHint: undefined,
+			},
+		])
+	})
+
 	it('uses structured tool calls for catalog and draft workbench actions', () => {
 		expect(
 			portalCustomerToolDefinitions().map((tool) => tool.function.name),

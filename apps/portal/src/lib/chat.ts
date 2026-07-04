@@ -556,31 +556,35 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 			))
 		const route = confirmedRoute
 			? initialRoute
-			: applyActiveDraftContextToRoute(
-					restorePendingChoiceQuantity(
-						preserveUserDraftLineWording(
-							correctPendingChoiceSelectionRoute(
-								correctProductLineDraftRoute(
-									correctActiveDraftItemEditRoute(
-										await repairActiveDraftChatRoute(
-											initialRoute,
-											modelMessages,
+			: forceActiveDraftItemEditRoute(
+					applyActiveDraftContextToRoute(
+						restorePendingChoiceQuantity(
+							preserveUserDraftLineWording(
+								correctPendingChoiceSelectionRoute(
+									correctProductLineDraftRoute(
+										correctActiveDraftItemEditRoute(
+											await repairActiveDraftChatRoute(
+												initialRoute,
+												modelMessages,
+												userText,
+												activeDraft,
+											),
 											userText,
 											activeDraft,
 										),
 										userText,
 										activeDraft,
 									),
+									modelMessages,
 									userText,
-									activeDraft,
 								),
-								modelMessages,
 								userText,
 							),
+							modelMessages,
 							userText,
 						),
-						modelMessages,
 						userText,
+						activeDraft,
 					),
 					userText,
 					activeDraft,
@@ -756,7 +760,7 @@ function correctProductLineDraftRoute(
 	if (
 		route.action === 'create_draft_from_plan' &&
 		activeDraft &&
-		asksToAddDraftLine(userText)
+		isActiveDraftAddLineFollowup(userText)
 	) {
 		return {
 			...route,
@@ -770,7 +774,7 @@ function correctProductLineDraftRoute(
 	if (route.action === 'chat' || route.action === 'product_search') {
 		const draftLines = parsePortalDraftMaterialRequestLines(userText)
 		if (draftLines.length === 0) {
-			if (activeDraft && asksToAddDraftLine(userText)) {
+			if (activeDraft && isActiveDraftAddLineFollowup(userText)) {
 				const pendingMaterial = missingQuantityDraftMaterial(userText)
 				if (pendingMaterial) {
 					return {
@@ -783,7 +787,7 @@ function correctProductLineDraftRoute(
 			}
 			return route
 		}
-		if (activeDraft && asksToAddDraftLine(userText)) {
+		if (activeDraft && isActiveDraftAddLineFollowup(userText)) {
 			return {
 				...route,
 				action: 'draft_add_items',
@@ -799,6 +803,14 @@ function correctProductLineDraftRoute(
 		}
 	}
 	if (route.action !== 'update_draft_items') return route
+	if (
+		route.draftItemAction ||
+		route.itemQuery ||
+		route.quantity ||
+		route.previousQuantity
+	) {
+		return route
+	}
 	const draftLines = route.draftLines?.length
 		? route.draftLines
 		: parsePortalDraftMaterialRequestLines(userText)
@@ -817,6 +829,15 @@ function correctProductLineDraftRoute(
 
 function asksToAddDraftLine(userText: string): boolean {
 	return /\b(?:add|append|include|put)\b/i.test(userText)
+}
+
+function isActiveDraftAddLineFollowup(userText: string): boolean {
+	return (
+		asksToAddDraftLine(userText) ||
+		/\b(?:also|too|as well|same draft|same order|with that|how about)\b/i.test(
+			userText,
+		)
+	)
 }
 
 function missingQuantityDraftMaterial(userText: string): string | null {
@@ -838,7 +859,8 @@ function correctActiveDraftItemEditRoute(
 		route.action !== 'chat' &&
 		route.action !== 'product_search' &&
 		route.action !== 'public_docs' &&
-		route.action !== 'create_draft_from_plan'
+		route.action !== 'create_draft_from_plan' &&
+		route.action !== 'draft_add_items'
 	) {
 		return route
 	}
@@ -853,7 +875,7 @@ function correctActiveDraftItemEditRoute(
 		}
 	}
 	const inferred =
-		inferDraftItemEdit(userText) ?? inferActiveDraftItemEdit(userText)
+		inferActiveDraftItemEdit(userText) ?? inferDraftItemEdit(userText)
 	if (!inferred) return route
 	return {
 		...route,
@@ -863,6 +885,36 @@ function correctActiveDraftItemEditRoute(
 		previousQuantity: inferred.previousQuantity,
 		quantity: inferred.quantity,
 		searchQuery: route.searchQuery || userText,
+	}
+}
+
+function forceActiveDraftItemEditRoute(
+	route: PortalCustomerToolRequest,
+	userText: string,
+	activeDraft: ActiveChatDraftContext | null,
+): PortalCustomerToolRequest {
+	if (!activeDraft || route.confirmedAction) return route
+	const inferred =
+		inferActiveDraftItemEdit(userText) ?? inferDraftItemEdit(userText)
+	if (!inferred) return route
+	if (
+		inferred.draftItemAction !== 'clear_items' &&
+		inferred.itemQuery &&
+		!activeDraftHasItemQuery(activeDraft, inferred.itemQuery)
+	) {
+		return route
+	}
+	return {
+		...route,
+		action: 'update_draft_items',
+		draftItemAction: inferred.draftItemAction,
+		draftLines: undefined,
+		itemQuery: inferred.itemQuery,
+		previousQuantity: inferred.previousQuantity,
+		quantity: inferred.quantity,
+		replacementQuery: undefined,
+		searchQuery: route.searchQuery || userText,
+		targetReference: activeDraft.id ?? activeDraft.sessionKey ?? 'active',
 	}
 }
 
@@ -902,10 +954,14 @@ function inferActiveDraftItemEdit(
 	if (/\b(?:clear|empty|remove all|delete all)\b/.test(normalized)) {
 		return { draftItemAction: 'clear_items' }
 	}
-	if (!/\b(?:remove|delete|drop)\b/.test(normalized)) return null
-	const itemQuery = userText
-		.replace(/\b(?:remove|delete|drop)\b/gi, ' ')
+	if (!/\b(?:remove|delete|drop|deduct)\b/.test(normalized)) return null
+	const directRemove = userText.match(
+		/\b(?:remove|delete|drop|deduct)\s+(.+?)(?:\s+(?:from|too|actually|please|pls)\b|[.,;?!]|$)/i,
+	)?.[1]
+	const itemQuery = (directRemove ?? userText)
+		.replace(/\b(?:remove|delete|drop|deduct)\b/gi, ' ')
 		.replace(/\b(?:from|in|the|this|that|draft|quote|item|line)\b/gi, ' ')
+		.replace(/\b(?:actually|please|pls|too|also)\b/gi, ' ')
 		.replace(/\s+/g, ' ')
 		.trim()
 	return {
@@ -3664,7 +3720,11 @@ async function updateTempDraftItems(
 	userText: string,
 	activeDraft: ActiveChatDraftContext,
 ): Promise<DraftWriteContext> {
-	const inferred = inferDraftItemEdit(route.searchQuery || userText)
+	const inferred =
+		inferActiveDraftItemEdit(userText) ??
+		inferDraftItemEdit(userText) ??
+		inferActiveDraftItemEdit(route.searchQuery || '') ??
+		inferDraftItemEdit(route.searchQuery || '')
 	const action = route.draftItemAction ?? inferred?.draftItemAction
 	const currentItems = activeTempDraftItems(activeDraft)
 	if (!action) {
@@ -3684,8 +3744,8 @@ async function updateTempDraftItems(
 	}
 	const target = findActiveTempDraftItemTarget(
 		currentItems,
-		route.itemQuery ?? inferred?.itemQuery,
-		route.previousQuantity ?? inferred?.previousQuantity,
+		inferred?.itemQuery ?? route.itemQuery,
+		inferred?.previousQuantity ?? route.previousQuantity,
 	)
 	if (typeof target === 'string') {
 		return {
@@ -3711,7 +3771,7 @@ async function updateTempDraftItems(
 		}
 	}
 	const quantity = normalizeDraftQuantity(
-		route.quantity ?? inferred?.quantity ?? 0,
+		inferred?.quantity ?? route.quantity ?? 0,
 	)
 	if (!quantity) {
 		return {
@@ -5529,18 +5589,7 @@ async function buildDraftItemsFromRequestedLines(
 			continue
 		}
 		if (matches.length > 1) {
-			const resolution = await resolveDraftLineProductWithModel(
-				line,
-				matches,
-				locale,
-			)
-			if ('message' in resolution) return { message: resolution.message }
-			items.push(
-				draftMaterialItemFromProduct(resolution.product, line.quantity),
-			)
-			resolvedLines.push(
-				confirmedDraftLineFromResolvedProduct(line, resolution.product),
-			)
+			choiceGroups.push(draftProductChoiceGroupFromLine(line, matches))
 			continue
 		}
 		const product = matches[0]
@@ -5882,89 +5931,6 @@ function rankProductsForDraftLine(
 	)
 }
 
-async function resolveDraftLineProductWithModel(
-	line: ReturnType<typeof parsePortalDraftMaterialRequestLines>[number],
-	products: PortalAiProduct[],
-	locale: 'ar' | 'en',
-): Promise<{ product: PortalAiProduct } | { message: string }> {
-	if (!(await isAIEnabled())) {
-		return {
-			message: draftLineChoiceFallbackMessage(line.query, products, locale),
-		}
-	}
-	const prompt = `${LYON_PORTAL}
-
-Choose the best real catalog product for the customer's requested line.
-Prefer the candidate whose real catalog text best matches the requested product phrase. Use human meaning, synonyms, category, unit, and product names when the phrase is not exact. Do not invent products.
-The requested line already includes the requested quantity when quantity is present. Never ask for a quantity that is already present.
-If one option clearly fits, return exactly {"product_id":"..."}.
-Only if it is genuinely impossible to choose, return exactly {"question":"short natural clarification"}.
-
-Requested line:
-${safeJson(line)}
-
-Real candidate products:
-${safeJson(
-	products.map((product) => ({
-		category: product.category,
-		description: product.description,
-		id: product.id,
-		name: product.name,
-		name_ar: product.name_ar,
-		price_range: formatPriceRange(product, locale),
-		sku: product.sku,
-		subcategory: product.subcategory,
-		unit: product.unit_of_measure,
-	})),
-)}`
-
-	try {
-		const raw = await completeChat(
-			[{ role: 'user', content: line.query }],
-			prompt,
-			{
-				temperature: 0,
-			},
-		)
-		const parsed = parseDraftLineProductResolution(raw)
-		const product = parsed.productId
-			? products.find((candidate) => candidate.id === parsed.productId)
-			: null
-		if (product) return { product }
-		if (parsed.question) return { message: parsed.question }
-	} catch {
-		return {
-			message: draftLineChoiceFallbackMessage(line.query, products, locale),
-		}
-	}
-	return {
-		message: draftLineChoiceFallbackMessage(line.query, products, locale),
-	}
-}
-
-function parseDraftLineProductResolution(raw: string): {
-	productId?: string
-	question?: string
-} {
-	const jsonText = raw.match(/\{[\s\S]*\}/)?.[0]
-	if (!jsonText) return {}
-	try {
-		const parsed: unknown = JSON.parse(jsonText)
-		if (!parsed || typeof parsed !== 'object') return {}
-		const record = parsed as Record<string, unknown>
-		return {
-			productId:
-				typeof record.product_id === 'string' ? record.product_id : undefined,
-			question:
-				typeof record.question === 'string'
-					? record.question.trim().slice(0, 400)
-					: undefined,
-		}
-	} catch {
-		return {}
-	}
-}
-
 function draftLineChoiceFallbackMessage(
 	query: string,
 	products: PortalAiProduct[],
@@ -5985,8 +5951,8 @@ function draftLineChoiceFallbackMessage(
 		})
 		.join('\n')
 	return locale === 'ar'
-		? `لقيت أكتر من اختيار لـ ${query}. اختار رقم واحد:\n${choices}`
-		: `I found multiple ${query} options. Pick one by number:\n${choices}`
+		? `لقيت أكتر من اختيار لـ ${query}. اختار من كروت المنتجات:\n${choices}`
+		: `I found multiple ${query} options. Choose from the product cards:\n${choices}`
 }
 
 function draftProductChoiceFallbackMessage(
