@@ -987,6 +987,21 @@ function correctActiveDraftItemEditRoute(
 			searchQuery: route.searchQuery || userText,
 		}
 	}
+	const singleItemDelta = inferSingleActiveDraftItemQuantityDelta(
+		userText,
+		activeDraft,
+	)
+	if (singleItemDelta) {
+		return {
+			...route,
+			action: 'update_draft_items',
+			draftItemAction: 'set_quantity',
+			itemQuery: singleItemDelta.itemQuery,
+			previousQuantity: singleItemDelta.previousQuantity,
+			quantity: singleItemDelta.quantity,
+			searchQuery: route.searchQuery || userText,
+		}
+	}
 	const inferred =
 		inferActiveDraftItemEdit(userText) ?? inferDraftItemEdit(userText)
 	if (!inferred) return route
@@ -1007,6 +1022,24 @@ function forceActiveDraftItemEditRoute(
 	activeDraft: ActiveChatDraftContext | null,
 ): PortalCustomerToolRequest {
 	if (!activeDraft || route.confirmedAction) return route
+	const singleItemDelta = inferSingleActiveDraftItemQuantityDelta(
+		userText,
+		activeDraft,
+	)
+	if (singleItemDelta) {
+		return {
+			...route,
+			action: 'update_draft_items',
+			draftItemAction: 'set_quantity',
+			draftLines: undefined,
+			itemQuery: singleItemDelta.itemQuery,
+			previousQuantity: singleItemDelta.previousQuantity,
+			quantity: singleItemDelta.quantity,
+			replacementQuery: undefined,
+			searchQuery: route.searchQuery || userText,
+			targetReference: activeDraft.id ?? activeDraft.sessionKey ?? 'active',
+		}
+	}
 	const inferred =
 		inferActiveDraftItemEdit(userText) ?? inferDraftItemEdit(userText)
 	if (!inferred) return route
@@ -1041,6 +1074,60 @@ function inferActiveDraftReplacement(
 	const replacementQuery = match?.[2]?.replace(/[.?!]+$/g, '').trim()
 	if (!itemQuery || !replacementQuery) return null
 	return { itemQuery, replacementQuery }
+}
+
+function inferSingleActiveDraftItemQuantityDelta(
+	userText: string,
+	activeDraft: ActiveChatDraftContext,
+): Pick<
+	PortalCustomerToolRequest,
+	'itemQuery' | 'previousQuantity' | 'quantity'
+> | null {
+	if (activeDraft.items.length !== 1) return null
+	const normalized = normalizeForMatch(userText)
+	const numberMatch = normalized.match(/\b(\d+(?:[.,]\d+)?)\b/)
+	const delta = numberMatch
+		? Number.parseFloat(numberMatch[1]?.replace(',', '.') ?? '')
+		: Number.NaN
+	if (!Number.isFinite(delta) || delta <= 0) return null
+	const withoutNumber = normalized
+		.replace(/\b\d+(?:[.,]\d+)?\b/, ' ')
+		.replace(/\b(?:qty|quantity|pieces?|pcs?|units?|more|please|pls)\b/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+	const isIncrement =
+		/\b(?:add|increase|plus)\b/.test(normalized) ||
+		/\b(?:more)\b/.test(normalized)
+	const isDecrement =
+		/\b(?:deduct|subtract|minus|decrease|reduce|take off|remove)\b/.test(
+			normalized,
+		) || /\breduce\s+by\b/.test(normalized)
+	const allowedRemainder = new Set([
+		'',
+		'add',
+		'increase',
+		'plus',
+		'deduct',
+		'subtract',
+		'minus',
+		'decrease',
+		'reduce',
+		'remove',
+		'take off',
+	])
+	if (!isIncrement && !isDecrement) return null
+	if (!allowedRemainder.has(withoutNumber)) return null
+	const [item] = activeDraft.items
+	if (!item) return null
+	const nextQuantity = isDecrement
+		? item.quantity - delta
+		: item.quantity + delta
+	if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) return null
+	return {
+		itemQuery: item.productName,
+		previousQuantity: item.quantity,
+		quantity: nextQuantity,
+	}
 }
 
 function inferActiveDraftItemEdit(

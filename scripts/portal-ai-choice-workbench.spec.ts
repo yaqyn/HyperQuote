@@ -420,6 +420,29 @@ test('portal AI merges repeated catalog products in the active draft', async ({
 	}
 })
 
+test('portal AI applies bare quantity additions to the single active draft line', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await sendPortalChat(page, 'give me 2000 steel angle')
+		await expectDraftLine(page, { name: 'Steel Angle', quantity: 2000 })
+		await expectDraftLineCount(page, 1)
+
+		await sendPortalChat(page, 'add 20')
+		await expectDraftLine(page, { name: 'Steel Angle', quantity: 2020 })
+		await expectDraftLineCount(page, 1)
+		await expect(page.locator('body')).not.toContainText(
+			/could not find an available product for add/i,
+			{ timeout: 3_000 },
+		)
+	} finally {
+		await context.close()
+	}
+})
+
 async function runWorkbenchCase(page: Page, workbenchCase: WorkbenchCase) {
 	await sendPortalChat(page, workbenchCase.prompt)
 	for (const selection of workbenchCase.selections ?? []) {
