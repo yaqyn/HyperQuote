@@ -378,6 +378,27 @@ test('portal AI product choices use a centered mobile quantity flow', async ({
 	}
 })
 
+test('portal AI treats no-quantity material requests as product choices', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await sendPortalChat(page, 'hey give me wood')
+		await expectProductChoiceCard(page)
+		await expect(page.locator('body')).not.toContainText(
+			/type of wood|dimensions|quantity do you need/i,
+			{ timeout: 3_000 },
+		)
+		await chooseProductWithQuantity(page, 'Plywood', /quantity for wood/i, 25)
+		await expectDraftLine(page, { name: 'Plywood', quantity: 25 })
+		await expectDraftLineCount(page, 1)
+	} finally {
+		await context.close()
+	}
+})
+
 async function runWorkbenchCase(page: Page, workbenchCase: WorkbenchCase) {
 	await sendPortalChat(page, workbenchCase.prompt)
 	for (const selection of workbenchCase.selections ?? []) {

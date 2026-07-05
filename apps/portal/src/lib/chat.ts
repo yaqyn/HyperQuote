@@ -101,6 +101,7 @@ const MODEL_CHAT_MESSAGE_CHARACTERS = 2000
 const OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE = 24
 const OPEN_ENDED_DRAFT_ITEM_COUNT = 3
 const PRODUCT_CATALOG_CONTEXT_LIMIT = 160
+const PRODUCT_CATALOG_ROUTE_MATCH_LIMIT = 2500
 const WEBSITE_URL = (
 	import.meta.env.VITE_WEBSITE_URL ?? 'https://www.hyperquote.net'
 ).replace(/\/+$/, '')
@@ -542,6 +543,10 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 		const confirmedRoute = confirmedActionToToolRequest(
 			input.confirmedAction ?? null,
 		)
+		const agentCatalog = await loadVisibleProductCatalog(
+			supabase,
+			PRODUCT_CATALOG_CONTEXT_LIMIT,
+		)
 		const initialRoute =
 			confirmedRoute ??
 			routePortalChatCommand(userText) ??
@@ -549,12 +554,19 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 			(await requestPortalCustomerTool(
 				modelMessages,
 				userText,
-				await loadVisibleProductCatalog(
-					supabase,
-					PRODUCT_CATALOG_CONTEXT_LIMIT,
-				),
+				agentCatalog,
 				activeDraft,
 			))
+		const routeRepairCatalog = shouldLoadCatalogForRouteRepair(
+			initialRoute,
+			userText,
+			activeDraft,
+		)
+			? await loadVisibleProductCatalog(
+					supabase,
+					PRODUCT_CATALOG_ROUTE_MATCH_LIMIT,
+				)
+			: agentCatalog
 		const route = confirmedRoute
 			? initialRoute
 			: forceActiveDraftItemEditRoute(
@@ -575,6 +587,7 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 										),
 										userText,
 										activeDraft,
+										routeRepairCatalog,
 									),
 									modelMessages,
 									userText,
@@ -758,6 +771,7 @@ function correctProductLineDraftRoute(
 	route: PortalCustomerToolRequest,
 	userText: string,
 	activeDraft: ActiveChatDraftContext | null,
+	catalog: ProductCatalogResult,
 ): PortalCustomerToolRequest {
 	if (
 		route.action === 'create_draft_from_plan' &&
@@ -768,7 +782,9 @@ function correctProductLineDraftRoute(
 			? route.draftLines
 			: parsePortalDraftMaterialRequestLines(userText)
 		const pendingMaterial =
-			draftLines.length === 0 ? missingQuantityDraftMaterial(userText) : null
+			draftLines.length === 0
+				? missingQuantityDraftMaterial(userText, catalog)
+				: null
 		return {
 			...route,
 			action: 'draft_add_items',
@@ -791,7 +807,7 @@ function correctProductLineDraftRoute(
 		const draftLines = parsePortalDraftMaterialRequestLines(userText)
 		if (draftLines.length === 0) {
 			if (activeDraft && isActiveDraftAddLineFollowup(userText)) {
-				const pendingMaterial = missingQuantityDraftMaterial(userText)
+				const pendingMaterial = missingQuantityDraftMaterial(userText, catalog)
 				if (pendingMaterial) {
 					return {
 						...route,
@@ -807,7 +823,7 @@ function correctProductLineDraftRoute(
 					}
 				}
 			}
-			const pendingMaterial = missingQuantityDraftMaterial(userText)
+			const pendingMaterial = missingQuantityDraftMaterial(userText, catalog)
 			if (pendingMaterial && asksForProductHelp(userText)) {
 				return {
 					...route,
@@ -871,7 +887,7 @@ function asksToAddDraftLine(userText: string): boolean {
 function asksForProductHelp(userText: string): boolean {
 	const normalized = normalizeForMatch(userText)
 	return (
-		/\b(?:want|need|looking for|after|some|quote|draft|get|order|take|grab|hook me up|send me|prepare)\b/i.test(
+		/\b(?:want|need|looking for|after|some|quote|draft|get|give me|order|take|grab|hook me up|send me|prepare)\b/i.test(
 			normalized,
 		) || /عايز|عاوزه|محتاج|هات|ضيف|اطلب|جهز/.test(userText)
 	)
@@ -886,13 +902,64 @@ function isActiveDraftAddLineFollowup(userText: string): boolean {
 	)
 }
 
-function missingQuantityDraftMaterial(userText: string): string | null {
-	const material = productSearchTerm(userText).trim()
-	if (!material) return null
-	if (material !== userText.trim() || isBroadDraftChoiceQuery(material)) {
-		return material
+function shouldLoadCatalogForRouteRepair(
+	route: PortalCustomerToolRequest,
+	userText: string,
+	activeDraft: ActiveChatDraftContext | null,
+): boolean {
+	if (route.confirmedAction) return false
+	if (
+		route.action !== 'chat' &&
+		route.action !== 'product_search' &&
+		route.action !== 'create_draft_from_plan' &&
+		route.action !== 'draft_add_items'
+	) {
+		return false
 	}
-	return null
+	if (parsePortalDraftMaterialRequestLines(userText).length > 0) return false
+	return asksForProductHelp(userText) || Boolean(activeDraft)
+}
+
+function missingQuantityDraftMaterial(
+	userText: string,
+	catalog: ProductCatalogResult,
+): string | null {
+	return catalogProductTermFromRequest(userText, catalog.products)
+}
+
+function catalogProductTermFromRequest(
+	userText: string,
+	products: PortalAiProduct[],
+): string | null {
+	const normalizedText = normalizeForMatch(userText)
+	if (!normalizedText) return null
+	const candidates = new Map<string, string>()
+	for (const product of products) {
+		for (const value of [
+			product.name,
+			product.name_ar ?? '',
+			product.category,
+			product.subcategory ?? '',
+			product.subcategory_ar ?? '',
+		]) {
+			const normalized = normalizeForMatch(value)
+			if (!normalized || normalized.length < 2) continue
+			candidates.set(normalized, value.trim())
+		}
+	}
+	const matches = Array.from(candidates.entries())
+		.filter(([normalized]) => normalizedTextHasTerm(normalizedText, normalized))
+		.sort((left, right) => {
+			const lengthDelta = right[0].length - left[0].length
+			if (lengthDelta !== 0) return lengthDelta
+			return left[1].localeCompare(right[1])
+		})
+	return matches[0]?.[1] ?? null
+}
+
+function normalizedTextHasTerm(text: string, term: string): boolean {
+	const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+	return new RegExp(`(?:^|\\s)${escaped}(?:\\s|$)`, 'i').test(text)
 }
 
 function correctActiveDraftItemEditRoute(
@@ -3761,7 +3828,13 @@ async function addItemsToTempDraft(
 			: parsePortalDraftMaterialRequestLines(searchText)
 	const currentItems = activeTempDraftItems(activeDraft)
 	if (requestedLines.length === 0 && isActiveDraftAddLineFollowup(userText)) {
-		const pendingMaterial = missingQuantityDraftMaterial(searchText)
+		const pendingMaterial = missingQuantityDraftMaterial(
+			searchText,
+			await loadVisibleProductCatalog(
+				supabase,
+				PRODUCT_CATALOG_ROUTE_MATCH_LIMIT,
+			),
+		)
 		if (pendingMaterial) {
 			requestedLines = [
 				{
@@ -4099,7 +4172,13 @@ async function addItemsToDraft(
 			? route.draftLines
 			: parsePortalDraftMaterialRequestLines(searchText)
 	if (requestedLines.length === 0 && isActiveDraftAddLineFollowup(userText)) {
-		const pendingMaterial = missingQuantityDraftMaterial(searchText)
+		const pendingMaterial = missingQuantityDraftMaterial(
+			searchText,
+			await loadVisibleProductCatalog(
+				supabase,
+				PRODUCT_CATALOG_ROUTE_MATCH_LIMIT,
+			),
+		)
 		if (pendingMaterial) {
 			requestedLines = [
 				{
