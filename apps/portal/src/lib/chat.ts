@@ -773,10 +773,14 @@ function correctProductLineDraftRoute(
 	activeDraft: ActiveChatDraftContext | null,
 	catalog: ProductCatalogResult,
 ): PortalCustomerToolRequest {
+	const activeDraftShouldReceiveProducts =
+		Boolean(activeDraft) && !asksForSeparateNewDraft(userText)
 	if (
 		route.action === 'create_draft_from_plan' &&
-		activeDraft &&
-		isActiveDraftAddLineFollowup(userText)
+		activeDraftShouldReceiveProducts &&
+		(isActiveDraftAddLineFollowup(userText) ||
+			asksForProductHelp(userText) ||
+			Boolean(route.draftLines?.length))
 	) {
 		const draftLines = route.draftLines?.length
 			? route.draftLines
@@ -824,6 +828,24 @@ function correctProductLineDraftRoute(
 				}
 			}
 			const pendingMaterial = missingQuantityDraftMaterial(userText, catalog)
+			if (
+				activeDraftShouldReceiveProducts &&
+				pendingMaterial &&
+				asksForProductHelp(userText)
+			) {
+				return {
+					...route,
+					action: 'draft_add_items',
+					draftLines: [
+						{
+							query: pendingMaterial,
+							quantity: 1,
+							rawText: userText.trim(),
+						},
+					],
+					searchQuery: route.searchQuery || userText,
+				}
+			}
 			if (pendingMaterial && asksForProductHelp(userText)) {
 				return {
 					...route,
@@ -840,7 +862,10 @@ function correctProductLineDraftRoute(
 			}
 			return route
 		}
-		if (activeDraft && isActiveDraftAddLineFollowup(userText)) {
+		if (
+			activeDraftShouldReceiveProducts &&
+			(isActiveDraftAddLineFollowup(userText) || asksForProductHelp(userText))
+		) {
 			return {
 				...route,
 				action: 'draft_add_items',
@@ -882,6 +907,17 @@ function correctProductLineDraftRoute(
 
 function asksToAddDraftLine(userText: string): boolean {
 	return /\b(?:add|append|include|put)\b/i.test(userText)
+}
+
+function asksForSeparateNewDraft(userText: string): boolean {
+	const normalized = normalizeForMatch(userText)
+	return (
+		/\b(?:new|separate|another|fresh)\s+(?:draft|quote|rfq|request|order)\b/.test(
+			normalized,
+		) ||
+		/\b(?:start over|new page)\b/.test(normalized) ||
+		/مسوده جديده|طلب جديد|عرض جديد/.test(normalized)
+	)
 }
 
 function asksForProductHelp(userText: string): boolean {
@@ -1174,7 +1210,12 @@ function preserveUserDraftLineWording(
 	route: PortalCustomerToolRequest,
 	userText: string,
 ): PortalCustomerToolRequest {
-	if (route.action !== 'create_draft_from_plan') return route
+	if (
+		route.action !== 'create_draft_from_plan' &&
+		route.action !== 'draft_add_items'
+	) {
+		return route
+	}
 	const userLines = parsePortalDraftMaterialRequestLines(userText)
 	if (userLines.length === 0) return route
 	if (route.draftLines && route.draftLines.length !== userLines.length) {
@@ -5884,10 +5925,11 @@ async function buildDraftItemsFromRequestedLines(
 		const products = broadChoiceQuery
 			? await loadOrderableDraftProductPool(supabase)
 			: await findOrderableProductsForDraft(supabase, line.query, line.query)
+		const requiresQuantity = draftLineRequiresQuantity(line)
 		const exactMatch = broadChoiceQuery
 			? null
 			: exactProductMatchForDraftLine(products, line.query)
-		if (exactMatch) {
+		if (exactMatch && !requiresQuantity) {
 			items.push(draftMaterialItemFromProduct(exactMatch, line.quantity))
 			resolvedLines.push(
 				confirmedDraftLineFromResolvedProduct(line, exactMatch),
@@ -5897,7 +5939,7 @@ async function buildDraftItemsFromRequestedLines(
 		const fuzzyMatch = broadChoiceQuery
 			? null
 			: fuzzyCatalogMatchForDraftLine(products, line.query)
-		if (fuzzyMatch) {
+		if (fuzzyMatch && !requiresQuantity) {
 			items.push(draftMaterialItemFromProduct(fuzzyMatch, line.quantity))
 			resolvedLines.push(
 				confirmedDraftLineFromResolvedProduct(line, fuzzyMatch),
@@ -5913,7 +5955,7 @@ async function buildDraftItemsFromRequestedLines(
 			matches,
 			line.query,
 		)
-		if (uniqueCatalogMeaningMatch && !broadChoiceQuery) {
+		if (uniqueCatalogMeaningMatch && !broadChoiceQuery && !requiresQuantity) {
 			items.push(
 				draftMaterialItemFromProduct(uniqueCatalogMeaningMatch, line.quantity),
 			)
@@ -5922,7 +5964,7 @@ async function buildDraftItemsFromRequestedLines(
 			)
 			continue
 		}
-		if (broadChoiceQuery) {
+		if (broadChoiceQuery || requiresQuantity) {
 			choiceGroups.push(draftProductChoiceGroupFromLine(line, matches))
 			continue
 		}
@@ -5989,6 +6031,17 @@ function confirmedDraftLineFromResolvedProduct(
 		rawText: line.rawText,
 		unitHint: line.unitHint,
 	}
+}
+
+function draftLineRequiresQuantity(
+	line: ReturnType<typeof parsePortalDraftMaterialRequestLines>[number],
+): boolean {
+	const numericParts = line.rawText.match(/\d+(?:[,.]\d+)?/g) ?? []
+	if (numericParts.length === 0) return true
+	return !numericParts.some((part) => {
+		const value = Number.parseFloat(part.replace(/,/g, ''))
+		return Number.isFinite(value) && Math.abs(value - line.quantity) < 0.0001
+	})
 }
 
 function draftProductChoiceGroupFromLine(

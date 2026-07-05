@@ -399,6 +399,35 @@ test('portal AI treats no-quantity material requests as product choices', async 
 	}
 })
 
+test('portal AI asks for quantity before drafting a specific product without one', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await sendPortalChat(page, 'i want plywood')
+		await expectProductChoiceCard(page)
+		await expect(page.getByText('Draft materials')).toHaveCount(0, {
+			timeout: 3_000,
+		})
+		await page
+			.getByRole('button', { name: productChoiceButtonRegex('Plywood') })
+			.last()
+			.click()
+		const quantityInput = page.getByLabel(/quantity for plywood/i).last()
+		await expect(quantityInput).toBeVisible({ timeout: 30_000 })
+		await expect(quantityInput).toBeFocused()
+		await quantityInput.fill('80')
+		await quantityInput.press('Enter')
+		await waitForPortalChatIdle(page)
+		await expectDraftLine(page, { name: 'Plywood', quantity: 80 })
+		await expectDraftLineCount(page, 1)
+	} finally {
+		await context.close()
+	}
+})
+
 test('portal AI merges repeated catalog products in the active draft', async ({
 	browser,
 }) => {
@@ -414,6 +443,35 @@ test('portal AI merges repeated catalog products in the active draft', async ({
 		await sendPortalChat(page, 'add 20 plywood')
 		await expectDraftLine(page, { name: 'Plywood', quantity: 420 })
 		await expectDraftLine(page, { name: 'Ready Mix', quantity: 40 })
+		await expectDraftLineCount(page, 2)
+	} finally {
+		await context.close()
+	}
+})
+
+test('portal AI appends plain follow-up product requests to the active draft', async ({
+	browser,
+}) => {
+	test.setTimeout(240_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await sendPortalChat(page, 'give me 100 wood')
+		await chooseProduct(page, 'Plywood')
+		await expectDraftLine(page, { name: 'Plywood', quantity: 100 })
+		await expectDraftLineCount(page, 1)
+
+		await sendPortalChat(page, 'i want steel')
+		await expectProductChoiceCard(page)
+		await expectDraftLine(page, { name: 'Plywood', quantity: 100 })
+		await chooseProductWithQuantity(
+			page,
+			'Steel Mesh',
+			/quantity for steel/i,
+			25,
+		)
+		await expectDraftLine(page, { name: 'Plywood', quantity: 100 })
+		await expectDraftLine(page, { name: 'Steel Mesh', quantity: 25 })
 		await expectDraftLineCount(page, 2)
 	} finally {
 		await context.close()
