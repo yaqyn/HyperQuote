@@ -26,7 +26,7 @@ import {
 	replaceTruckOnOrder,
 	resetWarehouseOrder,
 	type SecurityMethod,
-	toggleItemLoaded,
+	setItemLoadedQuantity,
 	type WarehouseOrderDetailView,
 } from '../../lib/server/warehouse'
 import { useWarehouseStore } from '../../stores/warehouse'
@@ -396,12 +396,12 @@ function LoadStage({
 	const previousTruckCountRef = useRef(order.truckAssignments.length)
 	const qc = useQueryClient()
 
-	const loadedSet = new Set(
-		order.truckAssignments.flatMap((a) => a.itemsLoaded),
-	)
+	const loadedCount = order.items.filter(
+		(item) => item.loadedQuantity >= item.quantity,
+	).length
 	const allLoaded =
 		order.itemCount > 0 &&
-		order.items.every((i) => loadedSet.has(i.productSlug))
+		order.items.every((i) => i.loadedQuantity === i.quantity)
 	const emptyTruck = order.truckAssignments.find(
 		(a) => a.itemsLoaded.length === 0,
 	)
@@ -641,7 +641,7 @@ function LoadStage({
 								? 'Next → Signoff'
 								: hasEmptyTruck
 									? `Truck ${emptyTruck?.plateNumber} is empty — load or remove it`
-									: `${loadedSet.size}/${order.itemCount} loaded — load every item first`}
+									: `${loadedCount}/${order.itemCount} loaded — load every item first`}
 					</motion.button>
 				</section>
 			)}
@@ -661,7 +661,7 @@ function LoadStage({
 						? 'Choose at least one truck'
 						: hasEmptyTruck
 							? `Truck ${emptyTruck?.plateNumber} is empty`
-							: `${loadedSet.size}/${order.itemCount} items loaded`}
+							: `${loadedCount}/${order.itemCount} items loaded`}
 				</p>
 			</MobileStepControls>
 		</div>
@@ -818,10 +818,18 @@ function ItemChecklist({
 	onChange: () => void
 }) {
 	const qc = useQueryClient()
+	const [splitProductSlug, setSplitProductSlug] = useState<string | null>(null)
 	const mutation = useMutation({
-		mutationFn: (input: { truckId: string; productSlug: string }) =>
-			toggleItemLoaded({
+		mutationFn: (input: {
+			exclusive?: boolean
+			quantity: number
+			truckId: string
+			productSlug: string
+		}) =>
+			setItemLoadedQuantity({
 				data: {
+					exclusive: input.exclusive,
+					quantity: input.quantity,
 					quoteId: order.quoteId,
 					truckId: input.truckId,
 					productSlug: input.productSlug,
@@ -846,66 +854,175 @@ function ItemChecklist({
 				visible: { transition: { staggerChildren: 0.03 } },
 			}}
 		>
-			{order.items.map((item) => (
-				<motion.div
-					key={item.productSlug}
-					variants={{
-						hidden: { opacity: 0, x: -8 },
-						visible: { opacity: 1, x: 0 },
-					}}
-					transition={{ duration: 0.22 }}
-					animate={{
-						borderColor: item.loadedOnTruckId
-							? '#0A5C2E'
-							: 'rgba(10,10,10,0.2)',
-						backgroundColor: item.loadedOnTruckId ? '#F0F7F0' : '#FFFFFF',
-					}}
-					className="flex flex-col items-start gap-3 border-y-2 border-x-0 px-4 py-4 sm:px-6 lg:flex-row lg:flex-wrap lg:items-center lg:border-[3px] lg:px-5"
-					style={{ minHeight: '72px' }}
-				>
-					<div className="min-w-0 flex-1">
-						<p className="text-[16px] font-bold leading-tight">
-							{item.productName}
-						</p>
-						<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.16em] text-black/55">
-							{item.sku} · {item.quantity} {item.unit}
-						</p>
-					</div>
-
-					{/* Truck buttons — one per assigned truck */}
-					<div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap">
-						{order.truckAssignments.map((a) => {
-							const isHere = item.loadedOnTruckId === a.truckId
-							return (
-								<motion.button
-									key={a.truckId}
-									type="button"
-									onClick={() =>
-										mutation.mutate({
-											truckId: a.truckId,
-											productSlug: item.productSlug,
-										})
-									}
-									disabled={mutation.isPending}
-									whileTap={{ scale: 0.95 }}
-									animate={{
-										backgroundColor: isHere ? '#0A5C2E' : '#FFFFFF',
-										color: isHere ? '#FFFFFF' : 'var(--color-text)',
-									}}
-									transition={{ duration: 0.2 }}
-									className="border-2 border-[var(--color-text)] px-3 py-2 font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.16em] disabled:opacity-40 lg:border-[3px]"
-									style={{ minHeight: '44px', minWidth: '88px' }}
+			{order.items.map((item) => {
+				const complete = item.loadedQuantity === item.quantity
+				const overLoaded = item.loadedQuantity > item.quantity
+				const splitOpen = splitProductSlug === item.productSlug
+				const loadByTruck = new Map(
+					item.truckLoads.map((load) => [load.truckId, load.quantity]),
+				)
+				return (
+					<motion.div
+						key={item.productSlug}
+						variants={{
+							hidden: { opacity: 0, x: -8 },
+							visible: { opacity: 1, x: 0 },
+						}}
+						transition={{ duration: 0.22 }}
+						animate={{
+							borderColor: complete
+								? '#0A5C2E'
+								: overLoaded
+									? '#CC3300'
+									: 'rgba(10,10,10,0.2)',
+							backgroundColor: complete
+								? '#F0F7F0'
+								: overLoaded
+									? '#FFF0ED'
+									: '#FFFFFF',
+						}}
+						className="flex flex-col gap-3 border-y-2 border-x-0 px-4 py-4 sm:px-6 lg:border-[3px] lg:px-5"
+						style={{ minHeight: '72px' }}
+					>
+						<div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+							<div className="min-w-0 flex-1">
+								<p className="text-[16px] font-bold leading-tight">
+									{item.productName}
+								</p>
+								<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[10px] uppercase tracking-[0.16em] text-black/55">
+									{item.sku} · {formatQuantity(item.quantity)} {item.unit}
+								</p>
+								<p
+									className={`mt-1 font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.14em] ${
+										overLoaded ? 'text-[#CC3300]' : 'text-black/55'
+									}`}
 								>
-									{isHere ? '✓ ' : ''}
-									{a.plateNumber.split('-').pop()}
+									{formatQuantity(item.loadedQuantity)} loaded ·{' '}
+									{formatQuantity(item.remainingQuantity)} remaining
+								</p>
+							</div>
+
+							<div className="grid w-full grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap">
+								{order.truckAssignments.map((a) => {
+									const truckQuantity = loadByTruck.get(a.truckId) ?? 0
+									const isHere = truckQuantity > 0
+									return (
+										<motion.button
+											key={a.truckId}
+											type="button"
+											aria-label={`Load all ${item.productName} on truck ${a.plateNumber}`}
+											onClick={() =>
+												mutation.mutate({
+													exclusive: true,
+													quantity: item.quantity,
+													truckId: a.truckId,
+													productSlug: item.productSlug,
+												})
+											}
+											disabled={mutation.isPending}
+											whileTap={{ scale: 0.95 }}
+											animate={{
+												backgroundColor: isHere ? '#0A5C2E' : '#FFFFFF',
+												color: isHere ? '#FFFFFF' : 'var(--color-text)',
+											}}
+											transition={{ duration: 0.2 }}
+											className="border-2 border-[var(--color-text)] px-3 py-2 text-start font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.12em] disabled:opacity-40 lg:border-[3px]"
+											style={{ minHeight: '48px', minWidth: '96px' }}
+										>
+											<span className="block">
+												{a.plateNumber.split('-').pop()}
+											</span>
+											<span className="block text-[9px] opacity-70">
+												{isHere
+													? `${formatQuantity(truckQuantity)} ${item.unit}`
+													: 'Load all'}
+											</span>
+										</motion.button>
+									)
+								})}
+								<motion.button
+									type="button"
+									aria-expanded={splitOpen}
+									aria-controls={`split-${item.productSlug}`}
+									onClick={() =>
+										setSplitProductSlug(splitOpen ? null : item.productSlug)
+									}
+									whileTap={{ scale: 0.95 }}
+									className="border-2 border-[#2F5EAA] bg-[#F4F7FF] px-3 py-2 text-start font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.12em] text-[#2F5EAA] transition-colors hover:bg-[#2F5EAA] hover:text-[#FFFFFF] lg:border-[3px]"
+									style={{ minHeight: '48px', minWidth: '96px' }}
+								>
+									<span className="block">{splitOpen ? 'Close' : 'Split'}</span>
+									<span className="block text-[9px] opacity-70">
+										by quantity
+									</span>
 								</motion.button>
-							)
-						})}
-					</div>
-				</motion.div>
-			))}
+							</div>
+						</div>
+
+						<AnimatePresence initial={false}>
+							{splitOpen && (
+								<motion.div
+									id={`split-${item.productSlug}`}
+									initial={{ opacity: 0, height: 0 }}
+									animate={{ opacity: 1, height: 'auto' }}
+									exit={{ opacity: 0, height: 0 }}
+									transition={{ duration: 0.2 }}
+									className="overflow-hidden border-t-2 border-dashed border-black/15 pt-3"
+								>
+									<div className="grid gap-2 md:grid-cols-2">
+										{order.truckAssignments.map((a) => {
+											const truckQuantity = loadByTruck.get(a.truckId) ?? 0
+											return (
+												<label
+													key={a.truckId}
+													className="grid grid-cols-[minmax(0,1fr)_120px] items-center gap-3 border-2 border-black/15 bg-white px-3 py-2"
+												>
+													<span className="min-w-0">
+														<span className="block truncate text-[13px] font-bold">
+															{a.plateNumber}
+														</span>
+														<span className="block truncate font-[family-name:var(--font-geist-mono)] text-[9px] uppercase tracking-[0.12em] text-black/45">
+															{a.driverName}
+														</span>
+													</span>
+													<span className="flex items-center gap-2">
+														<input
+															type="number"
+															min={0}
+															max={item.quantity}
+															step="any"
+															value={truckQuantity}
+															onChange={(event) =>
+																mutation.mutate({
+																	quantity: Number(event.target.value) || 0,
+																	truckId: a.truckId,
+																	productSlug: item.productSlug,
+																})
+															}
+															disabled={mutation.isPending}
+															aria-label={`${item.productName} quantity on truck ${a.plateNumber}`}
+															className="h-10 w-full border-2 border-[var(--color-text)] bg-[var(--color-surface)] px-2 text-end font-[family-name:var(--font-geist-mono)] text-[14px] font-bold tabular-nums outline-none disabled:opacity-40"
+														/>
+														<span className="w-8 font-[family-name:var(--font-geist-mono)] text-[9px] uppercase tracking-[0.08em] text-black/45">
+															{item.unit}
+														</span>
+													</span>
+												</label>
+											)
+										})}
+									</div>
+								</motion.div>
+							)}
+						</AnimatePresence>
+					</motion.div>
+				)
+			})}
 		</motion.div>
 	)
+}
+
+function formatQuantity(value: number): string {
+	return Number.isInteger(value) ? String(value) : value.toFixed(2)
 }
 
 // ─── STAGE 3: Signoff ────────────────────────────────────

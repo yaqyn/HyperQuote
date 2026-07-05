@@ -10497,6 +10497,33 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			service_warehouse_set_loading_item_quantity: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_exclusive?: boolean
+					p_order_id: string
+					p_product_slug: string
+					p_quantity: number
+					p_truck_id: string
+				}
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					order_id: string
+					proof: Json
+					rejection_reason: string | null
+					status: Database['public']['Enums']['loading_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			service_warehouse_start_loading: {
 				Args: {
 					p_actor_pool: string
@@ -10770,6 +10797,31 @@ export type Database = {
 			}
 			warehouse_reset_loading: {
 				Args: { p_order_id: string }
+				Returns: {
+					advisor_employee_id: string | null
+					created_at: string
+					id: string
+					order_id: string
+					proof: Json
+					rejection_reason: string | null
+					status: Database['public']['Enums']['loading_task_status']
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'loading_tasks'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			warehouse_set_loading_item_quantity: {
+				Args: {
+					p_exclusive?: boolean
+					p_order_id: string
+					p_product_slug: string
+					p_quantity: number
+					p_truck_id: string
+				}
 				Returns: {
 					advisor_employee_id: string | null
 					created_at: string

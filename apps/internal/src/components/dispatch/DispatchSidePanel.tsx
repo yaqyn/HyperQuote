@@ -880,6 +880,23 @@ function OrderDetail({
 										{item.truckPlateNumber} · {item.driverName}
 									</span>
 								) : null}
+								{item.truckLoads.length > 1 ? (
+									<span
+										className="mt-1 block font-[family-name:var(--font-plex-mono)] tabular-nums"
+										style={{
+											fontSize: '10px',
+											color: 'var(--ink-mid)',
+											letterSpacing: '0.08em',
+										}}
+									>
+										{item.truckLoads
+											.map(
+												(load) =>
+													`${load.quantity} ${item.unit} ${load.truckPlateNumber ?? 'truck'}`,
+											)
+											.join(' · ')}
+									</span>
+								) : null}
 							</span>
 							<span
 								className="shrink-0 font-[family-name:var(--font-plex-mono)] tabular-nums"

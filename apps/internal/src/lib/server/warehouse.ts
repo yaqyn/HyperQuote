@@ -35,9 +35,14 @@ interface TruckAssignment {
 	plateNumber: string
 	driverName: string
 	capacityTons: number
-	/** productSlug entries that have been physically loaded onto this truck. */
-	itemsLoaded: string[]
+	/** Product quantities physically loaded onto this truck. */
+	itemsLoaded: LoadedTruckItem[]
 	assignedAt: string
+}
+
+interface LoadedTruckItem {
+	productSlug: string
+	quantity: number
 }
 
 export type SecurityMethod = 'password' | 'qr'
@@ -77,8 +82,12 @@ interface WarehouseItemView {
 	sku: string
 	unit: string
 	quantity: number
-	/** Which truck (if any) this item has been loaded onto. */
-	loadedOnTruckId: string | null
+	loadedQuantity: number
+	remainingQuantity: number
+	truckLoads: {
+		truckId: string
+		quantity: number
+	}[]
 }
 
 export interface WarehouseOrderRowView {
@@ -260,9 +269,51 @@ function firstRelation<T>(value: T | T[] | null): T | null {
 	return value
 }
 
-function parseAssignedItems(value: unknown): string[] {
+function parseAssignedItemLoads(
+	value: unknown,
+	quantityBySlug: Map<string, number>,
+): LoadedTruckItem[] {
 	if (!Array.isArray(value)) return []
-	return value.filter((item): item is string => typeof item === 'string')
+	return value
+		.map((item) => {
+			if (typeof item === 'string') {
+				const quantity = quantityBySlug.get(item) ?? 0
+				return quantity > 0 ? { productSlug: item, quantity } : null
+			}
+			if (
+				typeof item !== 'object' ||
+				item === null ||
+				!('productSlug' in item) ||
+				!('quantity' in item) ||
+				typeof item.productSlug !== 'string' ||
+				typeof item.quantity !== 'number' ||
+				!Number.isFinite(item.quantity) ||
+				item.quantity <= 0
+			) {
+				return null
+			}
+			return { productSlug: item.productSlug, quantity: item.quantity }
+		})
+		.filter((item): item is LoadedTruckItem => item !== null)
+}
+
+function lineSlug(item: SupabaseLoadingItemRow): string {
+	const product = firstRelation(item.products)
+	return (
+		product?.slug ??
+		item.customer_description
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, '-')
+			.replace(/^-|-$/g, '')
+	)
+}
+
+function lineQuantityBySlug(items: SupabaseLoadingItemRow[]) {
+	const quantities = new Map<string, number>()
+	for (const item of items) {
+		quantities.set(lineSlug(item), Number(item.quantity))
+	}
+	return quantities
 }
 
 function isWarehouseAdvisor(row: SupabaseWarehouseEmployeeRow): boolean {
@@ -485,6 +536,7 @@ async function getSupabaseLoadingData(orderId?: string) {
 
 function buildSupabaseTruckAssignment(
 	assignment: SupabaseLoadingTaskDriverRow,
+	quantityBySlug: Map<string, number>,
 ): TruckAssignment | null {
 	const truck = firstRelation(assignment.trucks)
 	const driver = firstRelation(assignment.drivers)
@@ -494,7 +546,10 @@ function buildSupabaseTruckAssignment(
 		plateNumber: truck.plate_number,
 		driverName: driver.full_name,
 		capacityTons: Number(truck.capacity_tons ?? 0),
-		itemsLoaded: parseAssignedItems(assignment.assigned_items),
+		itemsLoaded: parseAssignedItemLoads(
+			assignment.assigned_items,
+			quantityBySlug,
+		),
 		assignedAt: assignment.created_at,
 	}
 }
@@ -516,9 +571,19 @@ function buildSupabaseLoadingRow(
 	const customer = firstRelation(order.customers)
 	if (!request || !customer) return null
 	const items = request.quote_request_items ?? []
-	const loaded = new Set(
-		assignments.flatMap((a) => parseAssignedItems(a.assigned_items)),
-	)
+	const quantityBySlug = lineQuantityBySlug(items)
+	const loadedQuantityBySlug = new Map<string, number>()
+	for (const assignment of assignments) {
+		for (const item of parseAssignedItemLoads(
+			assignment.assigned_items,
+			quantityBySlug,
+		)) {
+			loadedQuantityBySlug.set(
+				item.productSlug,
+				(loadedQuantityBySlug.get(item.productSlug) ?? 0) + item.quantity,
+			)
+		}
+	}
 	const address = firstRelation(request.customer_addresses)
 	const salesAddress = isSalesQuoteAddress(address) ? address : null
 	return {
@@ -533,7 +598,10 @@ function buildSupabaseLoadingRow(
 		totalValue: roundMoney(Number(order.total_amount)),
 		approvedHoursAgo: roundedHoursSince(task.created_at),
 		stage: supabaseLoadingStage(task, assignments),
-		loadedCount: loaded.size,
+		loadedCount: items.filter((item) => {
+			const slug = lineSlug(item)
+			return (loadedQuantityBySlug.get(slug) ?? 0) >= Number(item.quantity)
+		}).length,
 		truckCount: assignments.length,
 	}
 }
@@ -546,36 +614,54 @@ function buildSupabaseLoadingDetail(
 	const order = firstRelation(task.orders)
 	const request = firstRelation(order?.quote_requests ?? null)
 	if (!row || !order || !request) return null
-	const loadedByTruck = new Map<string, string>()
+	const orderItems = request.quote_request_items ?? []
+	const quantityBySlug = lineQuantityBySlug(orderItems)
+	const loadedBySlug = new Map<
+		string,
+		{
+			truckId: string
+			quantity: number
+		}[]
+	>()
 	for (const assignment of assignments) {
 		const truck = firstRelation(assignment.trucks)
 		if (!truck) continue
-		for (const slug of parseAssignedItems(assignment.assigned_items)) {
-			loadedByTruck.set(slug, truck.id)
+		for (const load of parseAssignedItemLoads(
+			assignment.assigned_items,
+			quantityBySlug,
+		)) {
+			const list = loadedBySlug.get(load.productSlug) ?? []
+			list.push({ truckId: truck.id, quantity: load.quantity })
+			loadedBySlug.set(load.productSlug, list)
 		}
 	}
-	const items: WarehouseItemView[] = (request.quote_request_items ?? [])
+	const items: WarehouseItemView[] = orderItems
 		.slice()
 		.sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0))
 		.map((item) => {
 			const product = firstRelation(item.products)
-			const slug =
-				product?.slug ??
-				item.customer_description
-					.toLowerCase()
-					.replace(/[^a-z0-9]+/g, '-')
-					.replace(/^-|-$/g, '')
+			const slug = lineSlug(item)
+			const quantity = Number(item.quantity)
+			const truckLoads = loadedBySlug.get(slug) ?? []
+			const loadedQuantity = truckLoads.reduce(
+				(sum, load) => sum + load.quantity,
+				0,
+			)
 			return {
 				productSlug: slug,
 				productName: product?.name ?? item.customer_description,
 				sku: product?.sku ?? '',
 				unit: product?.unit_of_measure ?? item.unit_of_measure,
-				quantity: Number(item.quantity),
-				loadedOnTruckId: loadedByTruck.get(slug) ?? null,
+				quantity,
+				loadedQuantity,
+				remainingQuantity: Math.max(0, quantity - loadedQuantity),
+				truckLoads,
 			}
 		})
 	const truckAssignments = assignments
-		.map(buildSupabaseTruckAssignment)
+		.map((assignment) =>
+			buildSupabaseTruckAssignment(assignment, quantityBySlug),
+		)
 		.filter((assignment): assignment is TruckAssignment => assignment !== null)
 	const advisorName = supabaseAdvisorName(task)
 	const failedInspections: FailedInspection[] =
@@ -822,6 +908,35 @@ export const toggleItemLoaded = createServerFn({ method: 'POST' })
 			p_product_slug: data.productSlug,
 			p_truck_id: data.truckId,
 		})
+		if (error) return { success: false as const, error: error.message }
+		return { success: true as const }
+	})
+
+export const setItemLoadedQuantity = createServerFn({ method: 'POST' })
+	.inputValidator(
+		z.object({
+			exclusive: z.boolean().optional(),
+			quantity: z.number().finite().min(0),
+			quoteId: z.string(),
+			truckId: z.string(),
+			productSlug: z.string(),
+		}),
+	)
+	.handler(async ({ data }) => {
+		if (!isUuid(data.quoteId) || !isUuid(data.truckId)) {
+			return { success: false as const, error: 'Order or truck not found' }
+		}
+		const auth = await getInternalSupabaseClient()
+		const { error } = await auth.client.rpc(
+			'warehouse_set_loading_item_quantity',
+			{
+				p_exclusive: data.exclusive ?? false,
+				p_order_id: data.quoteId,
+				p_product_slug: data.productSlug,
+				p_quantity: data.quantity,
+				p_truck_id: data.truckId,
+			},
+		)
 		if (error) return { success: false as const, error: error.message }
 		return { success: true as const }
 	})

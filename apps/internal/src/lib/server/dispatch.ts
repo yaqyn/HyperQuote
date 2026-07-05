@@ -51,6 +51,12 @@ interface DispatchRouteItemView {
 	truckId: string | null
 	truckPlateNumber: string | null
 	driverName: string | null
+	truckLoads: {
+		truckId: string | null
+		truckPlateNumber: string | null
+		driverName: string
+		quantity: number
+	}[]
 }
 
 export interface DispatchRouteView {
@@ -255,9 +261,35 @@ function firstRelation<T>(value: T | T[] | null | undefined): T | null {
 	return value ?? null
 }
 
-function parseAssignedItems(value: unknown): string[] {
+function parseAssignedItemLoads(
+	value: unknown,
+	quantityBySlug: Map<string, number>,
+): { productSlug: string; quantity: number }[] {
 	if (!Array.isArray(value)) return []
-	return value.filter((item): item is string => typeof item === 'string')
+	return value
+		.map((item) => {
+			if (typeof item === 'string') {
+				const quantity = quantityBySlug.get(item) ?? 0
+				return quantity > 0 ? { productSlug: item, quantity } : null
+			}
+			if (
+				typeof item !== 'object' ||
+				item === null ||
+				!('productSlug' in item) ||
+				!('quantity' in item) ||
+				typeof item.productSlug !== 'string' ||
+				typeof item.quantity !== 'number' ||
+				!Number.isFinite(item.quantity) ||
+				item.quantity <= 0
+			) {
+				return null
+			}
+			return { productSlug: item.productSlug, quantity: item.quantity }
+		})
+		.filter(
+			(item): item is { productSlug: string; quantity: number } =>
+				item !== null,
+		)
 }
 
 function nullableCoordinate(value: number | null | undefined): number | null {
@@ -533,27 +565,46 @@ function buildSupabaseRoute(
 	const city = salesAddress?.city ?? ''
 	const passedAt = task.updated_at || task.created_at
 	const passedAtHoursAgo = roundedHoursSince(passedAt)
+	const requestItems = request.quote_request_items ?? []
+	const quantityBySlug = new Map<string, number>()
+	for (const item of requestItems) {
+		const product = firstRelation(item.products)
+		const slug =
+			product?.slug ??
+			item.customer_description
+				.toLowerCase()
+				.replace(/[^a-z0-9]+/g, '-')
+				.replace(/^-|-$/g, '')
+		quantityBySlug.set(slug, Number(item.quantity))
+	}
 	const itemAssignments = new Map<
 		string,
 		{
 			truckId: string | null
 			truckPlateNumber: string | null
 			driverName: string
-		}
+			quantity: number
+		}[]
 	>()
 	for (const assignment of assignments) {
 		const truck = firstRelation(assignment.trucks)
 		const driver = firstRelation(assignment.drivers)
 		if (!driver) continue
-		for (const slug of parseAssignedItems(assignment.assigned_items)) {
-			itemAssignments.set(slug, {
+		for (const load of parseAssignedItemLoads(
+			assignment.assigned_items,
+			quantityBySlug,
+		)) {
+			const list = itemAssignments.get(load.productSlug) ?? []
+			list.push({
 				truckId: truck?.id ?? null,
 				truckPlateNumber: truck?.plate_number ?? null,
 				driverName: driver.full_name,
+				quantity: load.quantity,
 			})
+			itemAssignments.set(load.productSlug, list)
 		}
 	}
-	const items: DispatchRouteItemView[] = (request.quote_request_items ?? [])
+	const items: DispatchRouteItemView[] = requestItems
 		.slice()
 		.sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0))
 		.map((item) => {
@@ -564,16 +615,25 @@ function buildSupabaseRoute(
 					.toLowerCase()
 					.replace(/[^a-z0-9]+/g, '-')
 					.replace(/^-|-$/g, '')
-			const assignment = itemAssignments.get(slug)
+			const assignmentsForItem = itemAssignments.get(slug) ?? []
+			const singleAssignment =
+				assignmentsForItem.length === 1 ? assignmentsForItem[0] : null
 			return {
 				productSlug: slug,
 				productName: product?.name ?? item.customer_description,
 				sku: product?.sku ?? '',
 				qty: Number(item.quantity),
 				unit: product?.unit_of_measure ?? item.unit_of_measure,
-				truckId: assignment?.truckId ?? null,
-				truckPlateNumber: assignment?.truckPlateNumber ?? null,
-				driverName: assignment?.driverName ?? null,
+				truckId: singleAssignment?.truckId ?? null,
+				truckPlateNumber:
+					singleAssignment?.truckPlateNumber ??
+					(assignmentsForItem.length > 1 ? 'Multiple trucks' : null),
+				driverName:
+					singleAssignment?.driverName ??
+					(assignmentsForItem.length > 1
+						? `${assignmentsForItem.length} drivers`
+						: null),
+				truckLoads: assignmentsForItem,
 			}
 		})
 
