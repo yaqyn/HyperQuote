@@ -6265,27 +6265,108 @@ export function rankProductsForDraftLine(
 	limit: number,
 ): PortalAiProduct[] {
 	const normalizedQuery = productSearchTerm(query) || query
-	const directMatches = products.filter(
-		(product) =>
-			productIdentityMatchesDraftLine(product, query) ||
-			productIdentityMatchesDraftLine(product, normalizedQuery),
-	)
+	const hasSpecificIdentity = hasSpecificCatalogIdentityPhrase(products, query)
+	const useNormalizedIdentityQuery =
+		!isBroadDraftChoiceQuery(normalizedQuery) || !hasSpecificIdentity
+	const broadChoiceQuery =
+		isBroadDraftChoiceQuery(query) ||
+		(isBroadDraftChoiceQuery(normalizedQuery) && !hasSpecificIdentity)
+	const phraseMatches = broadChoiceQuery
+		? []
+		: products.filter(
+				(product) =>
+					productIdentityPhraseMatchesDraftLine(product, query) ||
+					(useNormalizedIdentityQuery &&
+						productIdentityPhraseMatchesDraftLine(product, normalizedQuery)),
+			)
+	const directMatches = broadChoiceQuery
+		? []
+		: products.filter(
+				(product) =>
+					productIdentityMatchesDraftLine(product, query) ||
+					(useNormalizedIdentityQuery &&
+						productIdentityMatchesDraftLine(product, normalizedQuery)),
+			)
 	const candidates =
-		directMatches.length > 0
-			? directMatches
-			: products.filter(
-					(product) =>
-						productMatchesDraftLine(product, query) ||
-						productMatchesDraftLine(product, normalizedQuery),
-				)
-	return rankProductsForPlanning(
-		candidates,
+		phraseMatches.length > 0
+			? phraseMatches
+			: directMatches.length > 0
+				? directMatches
+				: products.filter(
+						(product) =>
+							productMatchesDraftLine(product, query, broadChoiceQuery) ||
+							productMatchesDraftLine(
+								product,
+								normalizedQuery,
+								broadChoiceQuery,
+							),
+					)
+	const rankingTerms = expandDraftProductIntentTermsWithCatalogAliases(
+		products,
 		[
 			...draftProductIntentTerms(query),
 			...draftProductIntentTerms(normalizedQuery),
 		],
-		limit,
+		[query, normalizedQuery],
 	)
+	return rankProductsForPlanning(candidates, rankingTerms, limit)
+}
+
+function productIdentityPhraseMatchesDraftLine(
+	product: PortalAiProduct,
+	query: string,
+): boolean {
+	const normalizedQuery = normalizeForMatch(query)
+	if (!normalizedQuery) return false
+	return catalogProductIdentityPhrases(product).some((phrase) =>
+		normalizedTextHasTerm(normalizedQuery, phrase),
+	)
+}
+
+function hasSpecificCatalogIdentityPhrase(
+	products: PortalAiProduct[],
+	query: string,
+): boolean {
+	const normalizedQuery = normalizeForMatch(query)
+	return products.some((product) =>
+		catalogProductIdentityPhrases(product).some(
+			(phrase) =>
+				!isBroadDraftChoiceQuery(phrase) &&
+				(normalizedTextHasTerm(normalizedQuery, phrase) ||
+					normalizedQuery.includes(phrase)),
+		),
+	)
+}
+
+function expandDraftProductIntentTermsWithCatalogAliases(
+	products: PortalAiProduct[],
+	terms: string[],
+	queries: string[],
+): string[] {
+	const normalizedTerms = new Set(
+		terms.map(normalizeForMatch).filter((term) => term.length > 1),
+	)
+	const normalizedQueries = new Set(
+		queries.map(normalizeForMatch).filter((query) => query.length > 1),
+	)
+	const expanded = new Set(normalizedTerms)
+	for (const product of products) {
+		const identityPhrases = catalogProductIdentityPhrases(product)
+		if (identityPhrases.some((phrase) => normalizedQueries.has(phrase))) {
+			for (const term of identityPhrases.flatMap((phrase) =>
+				phrase.split(' '),
+			)) {
+				if (term.length > 1) expanded.add(term)
+			}
+		}
+	}
+	return Array.from(expanded)
+}
+
+function catalogProductIdentityPhrases(product: PortalAiProduct): string[] {
+	return [product.name, product.name_ar ?? '', product.sku]
+		.map(normalizeForMatch)
+		.filter((term) => term.length > 1)
 }
 
 function productIdentityMatchesDraftLine(
@@ -6394,16 +6475,26 @@ function productMatchesDraftLine(
 	const terms = directOnly ? directTerms : draftProductIntentTerms(query)
 	if (terms.length === 0) return false
 	const searchable = normalizeForMatch(
-		[
-			product.name,
-			product.name_ar ?? '',
-			product.sku,
-			product.category,
-			product.subcategory ?? '',
-			product.subcategory_ar ?? '',
-			product.description ?? '',
-			product.description_ar ?? '',
-		].join(' '),
+		(directOnly
+			? [
+					product.name,
+					product.name_ar ?? '',
+					product.sku,
+					product.category,
+					product.subcategory ?? '',
+					product.subcategory_ar ?? '',
+				]
+			: [
+					product.name,
+					product.name_ar ?? '',
+					product.sku,
+					product.category,
+					product.subcategory ?? '',
+					product.subcategory_ar ?? '',
+					product.description ?? '',
+					product.description_ar ?? '',
+				]
+		).join(' '),
 	)
 	return terms.some((term) => term.length > 1 && searchable.includes(term))
 }
@@ -7366,10 +7457,14 @@ function productPlanningScore(
 	)
 	let score = isCustomerVisibleAvailable(product) ? 2 : 0
 	if (product.availability_status === 'out_of_stock') score -= 2
+	const exactNames = [product.name, product.name_ar ?? '', product.sku]
+		.map(normalizeForMatch)
+		.filter(Boolean)
 	for (const term of terms) {
 		if (term.length > 1 && searchable.includes(term)) {
 			score += term.length + 8
 		}
+		if (exactNames.includes(term)) score += 20
 	}
 	return score
 }

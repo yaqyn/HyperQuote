@@ -443,6 +443,27 @@ test('portal AI applies bare quantity additions to the single active draft line'
 	}
 })
 
+test('portal AI resolves Arabic and mixed-language product names to the same catalog products', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await sendPortalChat(page, 'عايز 400 أبلكاش, 40 خرسانة جاهزة')
+		await expectDraftLine(page, { name: 'Plywood', quantity: 400 })
+		await expectDraftLine(page, { name: 'Ready Mix', quantity: 40 })
+		await expectDraftLineCount(page, 2)
+
+		await sendPortalChat(page, 'add 20 أبلكاش')
+		await expectDraftLine(page, { name: 'Plywood', quantity: 420 })
+		await expectDraftLine(page, { name: 'Ready Mix', quantity: 40 })
+		await expectDraftLineCount(page, 2)
+	} finally {
+		await context.close()
+	}
+})
+
 async function runWorkbenchCase(page: Page, workbenchCase: WorkbenchCase) {
 	await sendPortalChat(page, workbenchCase.prompt)
 	for (const selection of workbenchCase.selections ?? []) {
