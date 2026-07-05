@@ -19,20 +19,29 @@ const expectedEmails = [
 	'driver@hyperquote.net',
 ]
 const expectedCategories = [
-	{ name: 'Tree', slug: 'tree' },
-	{ name: 'Steel', slug: 'steel' },
-	{ name: 'Cement', slug: 'cement' },
+	{ name: 'Cement Products', slug: 'cement' },
+	{ name: 'Steel Products', slug: 'steel' },
+	{ name: 'Wood Products', slug: 'timber' },
 ]
 const expectedProducts = [
-	{ category: 'tree', name: 'Wood' },
-	{ category: 'tree', name: 'Plywood' },
-	{ category: 'tree', name: 'Timber Beam' },
-	{ category: 'steel', name: 'Rebar' },
-	{ category: 'steel', name: 'Steel Mesh' },
-	{ category: 'steel', name: 'Steel Angle' },
-	{ category: 'cement', name: 'Cement' },
-	{ category: 'cement', name: 'White Cement' },
-	{ category: 'cement', name: 'Ready Mix' },
+	{ category: 'cement', name: 'Ezz Al Arab White Cement' },
+	{ category: 'cement', name: 'Modern White Cement' },
+	{ category: 'cement', name: 'Lafarge Portland Cement' },
+	{ category: 'cement', name: 'Suez Portland Cement' },
+	{ category: 'cement', name: 'Cemex Ready Mix Concrete C25' },
+	{ category: 'cement', name: 'Lafarge Ready Mix Concrete C30' },
+	{ category: 'steel', name: 'Ezz Rebar 12mm' },
+	{ category: 'steel', name: 'Beshay Rebar 16mm' },
+	{ category: 'steel', name: 'Egyptian Steel Mesh A142' },
+	{ category: 'steel', name: 'Ezz Welded Mesh A193' },
+	{ category: 'steel', name: 'Beshay IPE Steel Profile' },
+	{ category: 'steel', name: 'Suez Steel Angle Profile' },
+	{ category: 'timber', name: 'Swedish Pine Timber' },
+	{ category: 'timber', name: 'Romanian Whitewood Timber' },
+	{ category: 'timber', name: 'Marine Plywood 18mm' },
+	{ category: 'timber', name: 'Film Faced Plywood 18mm' },
+	{ category: 'timber', name: 'Red Formwork Board' },
+	{ category: 'timber', name: 'White Formwork Board' },
 ]
 
 main().catch((error) => {

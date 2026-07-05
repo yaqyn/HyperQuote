@@ -1,8 +1,14 @@
 import { EmptyState } from '@hyperquote/ui/feedback/EmptyState'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { AlertTriangle, ChevronsUpDown, SearchX } from 'lucide-react'
-import { motion } from 'motion/react'
-import { useCallback, useMemo } from 'react'
+import {
+	AlertTriangle,
+	ChevronsUpDown,
+	SearchX,
+	SlidersHorizontal,
+	X,
+} from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from 'react-aria-components/Button'
 import { Label } from 'react-aria-components/Label'
 import { ListBox, ListBoxItem } from 'react-aria-components/ListBox'
@@ -16,6 +22,7 @@ import {
 	SearchDropdown,
 	type SearchEntry,
 } from '../../../components/shared/SearchDropdown'
+import { useQuoteCart } from '../../../hooks/useQuoteCart'
 import {
 	getPublicCatalog,
 	type PublicCatalogResult,
@@ -125,9 +132,6 @@ function hierarchyLabelFor(
 		locale === 'ar'
 			? product.product_family_name_ar || product.product_family_name
 			: product.product_family_name,
-		locale === 'ar'
-			? product.product_type_name_ar || product.product_type_name
-			: product.product_type_name,
 	]).join(' / ')
 }
 
@@ -143,57 +147,36 @@ function uniqueLabelParts(parts: Array<string | null | undefined>) {
 	})
 }
 
-function familyLabels(
+function familyGroups(
 	catalogCategories: PublicCatalogResult['categories'],
 	selectedCategories: string[],
 	locale: 'ar' | 'en',
 ) {
-	return uniqueCatalogLabels(
+	if (selectedCategories.length === 0) return []
+	return uniqueCatalogGroups(
 		catalogCategories
-			.filter(
-				(category) =>
-					selectedCategories.length === 0 ||
-					selectedCategories.includes(category.slug),
-			)
+			.filter((category) => selectedCategories.includes(category.slug))
 			.flatMap((category) =>
 				category.productFamilies.map((family) => ({
 					slug: family.slug,
 					label:
 						locale === 'ar' && family.name_ar ? family.name_ar : family.name,
+					productTypes: family.productTypes.map((type) => ({
+						slug: type.slug,
+						label: locale === 'ar' && type.name_ar ? type.name_ar : type.name,
+					})),
 				})),
 			),
 	)
 }
 
-function typeLabels(
-	catalogCategories: PublicCatalogResult['categories'],
-	selectedCategories: string[],
-	selectedFamilies: string[],
-	locale: 'ar' | 'en',
+function uniqueCatalogGroups(
+	items: {
+		slug: string
+		label: string
+		productTypes: { slug: string; label: string }[]
+	}[],
 ) {
-	return uniqueCatalogLabels(
-		catalogCategories
-			.filter(
-				(category) =>
-					selectedCategories.length === 0 ||
-					selectedCategories.includes(category.slug),
-			)
-			.flatMap((category) => category.productFamilies)
-			.filter(
-				(family) =>
-					selectedFamilies.length === 0 ||
-					selectedFamilies.includes(family.slug),
-			)
-			.flatMap((family) =>
-				family.productTypes.map((type) => ({
-					slug: type.slug,
-					label: locale === 'ar' && type.name_ar ? type.name_ar : type.name,
-				})),
-			),
-	)
-}
-
-function uniqueCatalogLabels(items: { slug: string; label: string }[]) {
 	const seen = new Set<string>()
 	return items.filter((item) => {
 		if (seen.has(item.slug)) return false
@@ -270,6 +253,7 @@ function MarketPage() {
 	const data: PublicCatalogResult = Route.useLoaderData()
 	const search = Route.useSearch()
 	const navigate = useNavigate({ from: Route.fullPath })
+	const [catalogOpen, setCatalogOpen] = useState(false)
 
 	const categories = splitParam(search.category)
 	const productFamilies = splitParam(search.product_family)
@@ -309,12 +293,17 @@ function MarketPage() {
 		})
 	}
 
-	function toggleProductType(productType: string) {
-		const next = productTypes.includes(productType)
-			? productTypes.filter((item) => item !== productType)
-			: [...productTypes, productType]
-		nav({ product_type: next.length ? next.join(',') : undefined })
-	}
+	const productByTypeSlug = useMemo(
+		() =>
+			new Map(
+				data.items.flatMap((product) =>
+					product.product_type_slug
+						? [[product.product_type_slug, product]]
+						: [],
+				),
+			),
+		[data.items],
+	)
 
 	return (
 		<div className="min-h-screen pt-[72px] pb-12 md:pt-[88px]">
@@ -336,168 +325,135 @@ function MarketPage() {
 				</div>
 			</section>
 
-			{/* Category strip + sort */}
-			<section className="hidden border-y border-[var(--color-border)] py-3 sm:block">
-				<div className="mx-auto flex max-w-[1400px] flex-col items-center gap-3 overflow-hidden px-4 sm:px-6 lg:flex-row lg:px-12">
-					<div className="w-full min-w-0 lg:flex-1">
-						<div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-							{data.categories.map((category) => {
-								const isActive = categories.includes(category.slug)
-								const label =
-									locale === 'ar' && category.name_ar
-										? category.name_ar
-										: category.name || category.slug.replace(/_/g, ' ')
-								return (
-									<button
-										key={category.slug}
-										type="button"
-										onClick={() => toggleCategory(category.slug)}
-										className={`shrink-0 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors whitespace-nowrap sm:px-3.5 ${
-											isActive
-												? 'bg-[var(--color-text)] text-[var(--color-base)]'
-												: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-text)]/[0.04]'
-										}`}
-									>
-										{label}
-									</button>
-								)
-							})}
-							{familyLabels(data.categories, categories, locale).map(
-								(family) => (
-									<button
-										key={family.slug}
-										type="button"
-										onClick={() => toggleProductFamily(family.slug)}
-										className={`shrink-0 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors whitespace-nowrap sm:px-3.5 ${
-											productFamilies.includes(family.slug)
-												? 'bg-[var(--color-text)] text-[var(--color-base)]'
-												: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-text)]/[0.04]'
-										}`}
-									>
-										{family.label}
-									</button>
-								),
-							)}
-							{typeLabels(
-								data.categories,
-								categories,
-								productFamilies,
-								locale,
-							).map((type) => (
-								<button
-									key={type.slug}
-									type="button"
-									onClick={() => toggleProductType(type.slug)}
-									className={`shrink-0 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors whitespace-nowrap sm:px-3.5 ${
-										productTypes.includes(type.slug)
-											? 'bg-[var(--color-text)] text-[var(--color-base)]'
-											: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-text)]/[0.04]'
-									}`}
-								>
-									{type.label}
-								</button>
-							))}
-						</div>
-					</div>
-
-					{/* Sort */}
-					<div className="hidden shrink-0 items-center sm:flex">
-						<Select
-							selectedKey={search.sort || 'relevance'}
-							onSelectionChange={(key) =>
-								nav({
-									sort: key as
-										| 'relevance'
-										| 'name'
-										| 'category'
-										| 'availability',
-								})
-							}
-							aria-label={t('market.sortLabel')}
-						>
-							<Label className="sr-only">{t('market.sortLabel')}</Label>
-							<Button className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
-								<SelectValue />
-								<ChevronsUpDown
-									size={14}
-									className="opacity-40"
-									aria-hidden="true"
-								/>
-							</Button>
-							<Popover className="w-44 rounded-lg border border-[var(--color-text)]/[0.08] bg-[var(--color-base)] shadow-[0_16px_48px_rgba(0,0,0,0.1)] overflow-hidden z-50">
-								<ListBox className="p-1">
-									{SORT_OPTIONS.map((opt) => (
-										<ListBoxItem
-											key={opt.id}
-											id={opt.id}
-											className="px-3 py-2 text-[13px] rounded-md cursor-pointer text-[var(--color-text)] hover:bg-[var(--color-text)]/[0.03] data-[selected]:font-medium data-[selected]:text-[var(--color-primary)] outline-none data-[focused]:bg-[var(--color-text)]/[0.03]"
-										>
-											{t(opt.labelKey, { defaultValue: opt.id })}
-										</ListBoxItem>
-									))}
-								</ListBox>
-							</Popover>
-						</Select>
-					</div>
-				</div>
-			</section>
-
 			{/* Product grid */}
 			<section className="px-4 py-6 sm:px-6 sm:py-8 lg:px-12">
-				<div className="mx-auto max-w-[1400px]">
-					{data.items.length === 0 ? (
-						<EmptyState
-							icon={<SearchX size={48} />}
-							title={t('market.emptyTitle')}
-							description={t('market.emptyBody')}
-							action={
-								hasActiveFilters
-									? {
-											label: t('market.emptyCTA'),
-											onClick: () => navigate({ search: {} }),
-										}
-									: undefined
-							}
-							className="mt-8"
-						/>
-					) : (
-						<>
-							<div className="flex items-center justify-between mb-8">
-								<p className="text-[13px] text-[var(--color-text-subtle)]">
-									{t('market.resultCount', { count: data.total })}
-								</p>
-							</div>
-
-							<motion.div
-								initial={{ opacity: 0 }}
-								animate={{ opacity: 1 }}
-								transition={{ duration: 0.25, ease: 'easeOut' }}
-								className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3 lg:gap-x-6"
-							>
-								{data.items.map((item: PublicProduct) => (
-									<ProductCard
-										key={item.id}
-										product={item}
-										variant="grid"
-										categoryLabel={hierarchyLabelFor(
-											item,
-											data.categories,
-											locale,
-										)}
-									/>
-								))}
-							</motion.div>
-
-							<Pagination
-								total={data.total}
-								page={search.page || 1}
-								limit={24}
-								onPageChange={(page) => nav({ page })}
+				<div className="mx-auto grid max-w-[1400px] gap-8 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+					<HierarchySidebar
+						categories={data.categories}
+						locale={locale}
+						selectedCategories={categories}
+						selectedGroups={productFamilies}
+						productsByTypeSlug={productByTypeSlug}
+						onClear={() => navigate({ search: {} })}
+						onToggleCategory={toggleCategory}
+						onToggleGroup={toggleProductFamily}
+					/>
+					<div className="min-w-0">
+						<button
+							type="button"
+							onClick={() => setCatalogOpen(true)}
+							className="mb-5 flex h-11 w-full items-center justify-between rounded-sm border border-[#2563eb]/20 bg-[#2563eb]/[0.04] px-4 text-start text-[13px] font-semibold text-[#2563eb] transition-colors hover:bg-[#2563eb]/[0.08] lg:hidden"
+						>
+							<span className="inline-flex items-center gap-2">
+								<SlidersHorizontal size={16} strokeWidth={1.8} />
+								Catalog
+							</span>
+							<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.14em]">
+								Browse
+							</span>
+						</button>
+						{data.items.length === 0 ? (
+							<EmptyState
+								icon={<SearchX size={48} />}
+								title={t('market.emptyTitle')}
+								description={t('market.emptyBody')}
+								action={
+									hasActiveFilters
+										? {
+												label: t('market.emptyCTA'),
+												onClick: () => navigate({ search: {} }),
+											}
+										: undefined
+								}
+								className="mt-8"
 							/>
-						</>
-					)}
+						) : (
+							<>
+								<div className="flex items-center justify-between mb-8">
+									<p className="text-[13px] text-[var(--color-text-subtle)]">
+										{t('market.resultCount', { count: data.total })}
+									</p>
+									<Select
+										selectedKey={search.sort || 'relevance'}
+										onSelectionChange={(key) =>
+											nav({
+												sort: key as
+													| 'relevance'
+													| 'name'
+													| 'category'
+													| 'availability',
+											})
+										}
+										aria-label={t('market.sortLabel')}
+									>
+										<Label className="sr-only">{t('market.sortLabel')}</Label>
+										<Button className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]">
+											<SelectValue />
+											<ChevronsUpDown
+												size={14}
+												className="opacity-40"
+												aria-hidden="true"
+											/>
+										</Button>
+										<Popover className="z-50 w-44 overflow-hidden rounded-lg border border-[var(--color-text)]/[0.08] bg-[var(--color-base)] shadow-[0_16px_48px_rgba(0,0,0,0.1)]">
+											<ListBox className="p-1">
+												{SORT_OPTIONS.map((opt) => (
+													<ListBoxItem
+														key={opt.id}
+														id={opt.id}
+														className="cursor-pointer rounded-md px-3 py-2 text-[13px] text-[var(--color-text)] outline-none hover:bg-[var(--color-text)]/[0.03] data-[focused]:bg-[var(--color-text)]/[0.03] data-[selected]:font-medium data-[selected]:text-[var(--color-primary)]"
+													>
+														{t(opt.labelKey, { defaultValue: opt.id })}
+													</ListBoxItem>
+												))}
+											</ListBox>
+										</Popover>
+									</Select>
+								</div>
+
+								<motion.div
+									initial={{ opacity: 0 }}
+									animate={{ opacity: 1 }}
+									transition={{ duration: 0.25, ease: 'easeOut' }}
+									className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3 lg:gap-x-6"
+								>
+									{data.items.map((item: PublicProduct) => (
+										<ProductCard
+											key={item.id}
+											product={item}
+											variant="grid"
+											categoryLabel={hierarchyLabelFor(
+												item,
+												data.categories,
+												locale,
+											)}
+										/>
+									))}
+								</motion.div>
+
+								<Pagination
+									total={data.total}
+									page={search.page || 1}
+									limit={24}
+									onPageChange={(page) => nav({ page })}
+								/>
+							</>
+						)}
+					</div>
 				</div>
 			</section>
+			<MobileHierarchySheet
+				open={catalogOpen}
+				onClose={() => setCatalogOpen(false)}
+				categories={data.categories}
+				locale={locale}
+				selectedCategories={categories}
+				selectedGroups={productFamilies}
+				productsByTypeSlug={productByTypeSlug}
+				onClear={() => navigate({ search: {} })}
+				onToggleCategory={toggleCategory}
+				onToggleGroup={toggleProductFamily}
+			/>
 		</div>
 	)
 }
@@ -510,6 +466,426 @@ const MARKET_CARD_SKELETON_KEYS = Array.from(
 	{ length: 9 },
 	(_, i) => `market-card-skel-${i}`,
 )
+
+function HierarchySidebar({
+	categories,
+	locale,
+	selectedCategories,
+	selectedGroups,
+	productsByTypeSlug,
+	onClear,
+	onToggleCategory,
+	onToggleGroup,
+}: {
+	categories: PublicCatalogResult['categories']
+	locale: 'ar' | 'en'
+	selectedCategories: string[]
+	selectedGroups: string[]
+	productsByTypeSlug: Map<string, PublicProduct>
+	onClear: () => void
+	onToggleCategory: (slug: string) => void
+	onToggleGroup: (slug: string) => void
+}) {
+	return (
+		<aside className="hidden lg:sticky lg:top-28 lg:block">
+			<HierarchyPanelContent
+				categories={categories}
+				locale={locale}
+				selectedCategories={selectedCategories}
+				selectedGroups={selectedGroups}
+				productsByTypeSlug={productsByTypeSlug}
+				onClear={onClear}
+				onToggleCategory={onToggleCategory}
+				onToggleGroup={onToggleGroup}
+			/>
+		</aside>
+	)
+}
+
+function MobileHierarchySheet({
+	open,
+	onClose,
+	categories,
+	locale,
+	selectedCategories,
+	selectedGroups,
+	productsByTypeSlug,
+	onClear,
+	onToggleCategory,
+	onToggleGroup,
+}: {
+	open: boolean
+	onClose: () => void
+	categories: PublicCatalogResult['categories']
+	locale: 'ar' | 'en'
+	selectedCategories: string[]
+	selectedGroups: string[]
+	productsByTypeSlug: Map<string, PublicProduct>
+	onClear: () => void
+	onToggleCategory: (slug: string) => void
+	onToggleGroup: (slug: string) => void
+}) {
+	return (
+		<AnimatePresence>
+			{open && (
+				<motion.div
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					exit={{ opacity: 0 }}
+					className="fixed inset-0 z-50 bg-black/35 backdrop-blur-sm lg:hidden"
+				>
+					<button
+						type="button"
+						aria-label="Close catalog"
+						onClick={onClose}
+						className="absolute inset-0 h-full w-full cursor-default"
+					/>
+					<motion.div
+						initial={{ y: 32, opacity: 0 }}
+						animate={{ y: 0, opacity: 1 }}
+						exit={{ y: 32, opacity: 0 }}
+						transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+						className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-2xl border border-[var(--color-border)] bg-[var(--color-base)] p-5 shadow-[0_-24px_80px_rgba(0,0,0,0.18)]"
+					>
+						<div className="mb-4 flex items-center justify-between">
+							<p className="font-[family-name:var(--font-plex-mono)] text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+								Catalog
+							</p>
+							<button
+								type="button"
+								onClick={onClose}
+								className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-text-muted)] transition-colors hover:bg-[#2563eb]/[0.08] hover:text-[#2563eb]"
+								aria-label="Close catalog"
+							>
+								<X size={17} strokeWidth={1.8} />
+							</button>
+						</div>
+						<HierarchyPanelContent
+							categories={categories}
+							locale={locale}
+							selectedCategories={selectedCategories}
+							selectedGroups={selectedGroups}
+							productsByTypeSlug={productsByTypeSlug}
+							onClear={onClear}
+							onToggleCategory={onToggleCategory}
+							onToggleGroup={onToggleGroup}
+							compact
+						/>
+					</motion.div>
+				</motion.div>
+			)}
+		</AnimatePresence>
+	)
+}
+
+function HierarchyPanelContent({
+	categories,
+	locale,
+	selectedCategories,
+	selectedGroups,
+	productsByTypeSlug,
+	onClear,
+	onToggleCategory,
+	onToggleGroup,
+	compact = false,
+}: {
+	categories: PublicCatalogResult['categories']
+	locale: 'ar' | 'en'
+	selectedCategories: string[]
+	selectedGroups: string[]
+	productsByTypeSlug: Map<string, PublicProduct>
+	onClear: () => void
+	onToggleCategory: (slug: string) => void
+	onToggleGroup: (slug: string) => void
+	compact?: boolean
+}) {
+	const { t } = useTranslation('website')
+	const { items } = useQuoteCart()
+	const isAllActive =
+		selectedCategories.length === 0 && selectedGroups.length === 0
+	const selectedProductIds = useMemo(
+		() => new Set(items.map((item) => item.productId)),
+		[items],
+	)
+	const selectedProductSlugs = useMemo(
+		() => new Set(items.map((item) => item.slug)),
+		[items],
+	)
+	const productTypeHasQuantity = useCallback(
+		(typeSlug: string) => {
+			const product = productsByTypeSlug.get(typeSlug)
+			return (
+				selectedProductSlugs.has(typeSlug) ||
+				(product ? selectedProductIds.has(product.id) : false)
+			)
+		},
+		[productsByTypeSlug, selectedProductIds, selectedProductSlugs],
+	)
+
+	return (
+		<nav
+			aria-label={t('market.categoryLabel', { defaultValue: 'Catalog' })}
+			className={compact ? '' : 'border-e border-[var(--color-border)] pe-6'}
+		>
+			{!compact && (
+				<div className="mb-5 flex items-center justify-between gap-3">
+					<p className="font-[family-name:var(--font-plex-mono)] text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
+						Catalog
+					</p>
+					<button
+						type="button"
+						onClick={onClear}
+						className={`text-[12px] font-semibold transition-colors ${
+							isAllActive
+								? 'text-[#2563eb]'
+								: 'text-[var(--color-text-muted)] hover:text-[#2563eb]'
+						}`}
+					>
+						All
+					</button>
+				</div>
+			)}
+
+			<div className="space-y-1">
+				{categories.map((category) => {
+					const isActive = selectedCategories.includes(category.slug)
+					const containsQuantity = category.productFamilies.some((family) =>
+						family.productTypes.some((type) =>
+							productTypeHasQuantity(type.slug),
+						),
+					)
+					const label =
+						locale === 'ar' && category.name_ar
+							? category.name_ar
+							: category.name || category.slug.replace(/_/g, ' ')
+					return (
+						<div key={category.slug}>
+							<button
+								type="button"
+								onClick={() => onToggleCategory(category.slug)}
+								aria-expanded={isActive}
+								className={`flex min-h-10 w-full min-w-0 items-center justify-between gap-3 border-s-2 ps-3 text-start transition-colors ${
+									isActive
+										? 'border-[#2563eb]'
+										: 'border-transparent hover:border-[#2563eb]/35'
+								} ${
+									containsQuantity
+										? 'text-[#2563eb]'
+										: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+								}`}
+							>
+								<span className="min-w-0 truncate text-[14px] font-semibold">
+									{label}
+								</span>
+								<span className="font-[family-name:var(--font-plex-mono)] text-[10px] opacity-55">
+									{category.productFamilies.length}
+								</span>
+							</button>
+							<AnimatePresence initial={false}>
+								{isActive && (
+									<motion.div
+										initial={{ height: 0, opacity: 0, y: -4 }}
+										animate={{ height: 'auto', opacity: 1, y: 0 }}
+										exit={{ height: 0, opacity: 0, y: -4 }}
+										transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+										className="overflow-hidden"
+									>
+										<ProductGroupBrowser
+											groups={familyGroups([category], [category.slug], locale)}
+											productsByTypeSlug={productsByTypeSlug}
+											selectedGroups={selectedGroups}
+											onToggleGroup={onToggleGroup}
+										/>
+									</motion.div>
+								)}
+							</AnimatePresence>
+						</div>
+					)
+				})}
+			</div>
+		</nav>
+	)
+}
+
+function ProductGroupBrowser({
+	groups,
+	productsByTypeSlug,
+	selectedGroups,
+	onToggleGroup,
+}: {
+	groups: ReturnType<typeof familyGroups>
+	productsByTypeSlug: Map<string, PublicProduct>
+	selectedGroups: string[]
+	onToggleGroup: (slug: string) => void
+}) {
+	const { items } = useQuoteCart()
+	const selectedProductIds = useMemo(
+		() => new Set(items.map((item) => item.productId)),
+		[items],
+	)
+	const selectedProductSlugs = useMemo(
+		() => new Set(items.map((item) => item.slug)),
+		[items],
+	)
+	if (groups.length === 0) return null
+	return (
+		<div className="ms-5 mt-1 space-y-1 pb-2">
+			{groups.map((group) => {
+				const isExpanded = selectedGroups.includes(group.slug)
+				const containsQuantity = group.productTypes.some((type) => {
+					const product = productsByTypeSlug.get(type.slug)
+					return (
+						selectedProductSlugs.has(type.slug) ||
+						(product ? selectedProductIds.has(product.id) : false)
+					)
+				})
+				return (
+					<div key={group.slug}>
+						<button
+							type="button"
+							onClick={() => onToggleGroup(group.slug)}
+							aria-pressed={isExpanded}
+							aria-expanded={isExpanded}
+							className={`flex min-h-9 w-full min-w-0 items-center justify-between gap-2 text-start text-[13px] transition-colors ${
+								isExpanded ? 'font-semibold' : ''
+							} ${
+								containsQuantity
+									? 'text-[#2563eb]'
+									: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+							}`}
+						>
+							<span className="min-w-0 truncate">{group.label}</span>
+							<span className="font-[family-name:var(--font-plex-mono)] text-[10px] opacity-55">
+								{group.productTypes.length}
+							</span>
+						</button>
+						<AnimatePresence initial={false}>
+							{isExpanded && group.productTypes.length > 0 && (
+								<motion.div
+									initial={{ height: 0, opacity: 0, y: -4 }}
+									animate={{ height: 'auto', opacity: 1, y: 0 }}
+									exit={{ height: 0, opacity: 0, y: -4 }}
+									transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+									className="ms-4 mt-1 space-y-0.5 overflow-hidden border-s border-[#2563eb]/20 ps-3"
+								>
+									{group.productTypes.map((type) => (
+										<WebsiteHierarchyProductRow
+											key={type.slug}
+											label={type.label}
+											product={productsByTypeSlug.get(type.slug)}
+										/>
+									))}
+								</motion.div>
+							)}
+						</AnimatePresence>
+					</div>
+				)
+			})}
+		</div>
+	)
+}
+
+function WebsiteHierarchyProductRow({
+	label,
+	product,
+}: {
+	label: string
+	product?: PublicProduct
+}) {
+	const { add, updateQuantity, items } = useQuoteCart()
+	const [editing, setEditing] = useState(false)
+	const existing = product
+		? items.find((item) => item.productId === product.id)
+		: undefined
+	const [qty, setQty] = useState(String(existing?.quantity ?? 1))
+	const inputRef = useRef<HTMLInputElement>(null)
+
+	useEffect(() => {
+		if (editing) inputRef.current?.select()
+	}, [editing])
+
+	if (!product) {
+		return (
+			<div className="px-3 py-2 text-[13px] text-[var(--color-text-muted)]">
+				{label}
+			</div>
+		)
+	}
+	const purchasableProduct = product
+
+	function submit() {
+		const quantity = Math.max(1, Number.parseInt(qty, 10) || 1)
+		if (existing) {
+			updateQuantity(purchasableProduct.id, quantity)
+		} else {
+			add(
+				{
+					productId: purchasableProduct.id,
+					slug: purchasableProduct.slug,
+					name: purchasableProduct.name,
+					nameAr: purchasableProduct.name_ar,
+					category: purchasableProduct.category,
+					categoryName: purchasableProduct.category_name,
+					categoryNameAr: purchasableProduct.category_name_ar,
+					unitOfMeasure: purchasableProduct.unit_of_measure,
+					unitOfMeasureAr: purchasableProduct.unit_of_measure_ar,
+					imageUrl: purchasableProduct.image_urls?.[0] ?? null,
+				},
+				quantity,
+			)
+		}
+		setEditing(false)
+	}
+
+	if (editing) {
+		return (
+			<motion.div
+				initial={{ opacity: 0, x: -4 }}
+				animate={{ opacity: 1, x: 0 }}
+				transition={{ duration: 0.16, ease: 'easeOut' }}
+				className="flex min-w-0 items-center gap-2 rounded-sm bg-[#2563eb]/[0.06] px-2 py-1.5"
+			>
+				<span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#2563eb]">
+					{label}
+				</span>
+				<input
+					ref={inputRef}
+					value={qty}
+					onChange={(event) =>
+						setQty(event.target.value.replace(/[^0-9]/g, ''))
+					}
+					onKeyDown={(event) => {
+						if (event.key === 'Enter') submit()
+						if (event.key === 'Escape') setEditing(false)
+					}}
+					className="h-7 w-16 rounded-sm border border-[#2563eb]/30 bg-transparent text-center font-[family-name:var(--font-plex-mono)] text-[13px] text-[var(--color-text)] outline-none focus:border-[#2563eb]"
+				/>
+				<button
+					type="button"
+					onClick={submit}
+					className="h-7 rounded-sm bg-[#2563eb] px-2 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#1d4ed8]"
+				>
+					Add
+				</button>
+			</motion.div>
+		)
+	}
+
+	return (
+		<button
+			type="button"
+			onClick={() => setEditing(true)}
+			className={`flex min-h-9 w-full min-w-0 items-center justify-between gap-3 rounded-sm px-3 py-1.5 text-start text-[13px] transition-colors hover:bg-[#2563eb]/[0.06] hover:text-[#2563eb] ${
+				existing ? 'font-semibold text-[#2563eb]' : 'text-[var(--color-text)]'
+			}`}
+		>
+			<span className="min-w-0 truncate">{label}</span>
+			<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.14em] text-[#2563eb]">
+				{existing ? existing.quantity : '+'}
+			</span>
+		</button>
+	)
+}
 
 function MarketLoading() {
 	return (

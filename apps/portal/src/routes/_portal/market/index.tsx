@@ -9,16 +9,22 @@ import { useQuantityPopoverDismiss } from '@hyperquote/ui/market/QuantityPopover
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
-	Check,
-	ChevronDown,
 	Package,
 	Plus,
 	Search,
+	SlidersHorizontal,
 	Undo2,
 	X,
 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
-import { type RefObject, useEffect, useMemo, useRef, useState } from 'react'
+import {
+	type RefObject,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { DraftQuoteTrigger } from '../../../components/shared/DraftQuoteTrigger'
@@ -30,7 +36,6 @@ import {
 	type MarketCategory,
 	type MarketProduct,
 	type MarketProductFamily,
-	type MarketProductType,
 } from '../../../lib/server/market'
 import { useDraftQuoteStore } from '../../../stores/draft-quote'
 import { usePortalStore } from '../../../stores/portal'
@@ -52,6 +57,7 @@ function MarketGridPage() {
 	const isAr = i18n.language === 'ar'
 	const draftItemCount = useDraftQuoteStore((s) => s.items.length)
 	const setDraftQuoteOpen = usePortalStore((s) => s.setDraftQuoteOpen)
+	const [catalogOpen, setCatalogOpen] = useState(false)
 
 	const [searchQuery, setSearchQuery] = useState('')
 	const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -59,7 +65,6 @@ function MarketGridPage() {
 	const [selectedProductFamilies, setSelectedProductFamilies] = useState<
 		string[]
 	>([])
-	const [selectedProductTypes, setSelectedProductTypes] = useState<string[]>([])
 	const { data: categoryData } = useQuery({
 		queryKey: ['market-categories'],
 		queryFn: () => getMarketCategories(),
@@ -78,9 +83,6 @@ function MarketGridPage() {
 		selectedProductFamilies.length > 0
 			? selectedProductFamilies.join(',')
 			: undefined
-	const productTypeFilter =
-		selectedProductTypes.length > 0 ? selectedProductTypes.join(',') : undefined
-
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
 		useInfiniteQuery({
 			queryKey: [
@@ -88,7 +90,6 @@ function MarketGridPage() {
 				debouncedSearch,
 				categoryFilter,
 				productFamilyFilter,
-				productTypeFilter,
 			],
 			queryFn: async ({ pageParam = 1 }) =>
 				getMarketProducts({
@@ -96,7 +97,6 @@ function MarketGridPage() {
 						search: debouncedSearch || undefined,
 						category: categoryFilter || undefined,
 						productFamily: productFamilyFilter || undefined,
-						productType: productTypeFilter || undefined,
 						page: pageParam,
 						limit: 24,
 					},
@@ -110,6 +110,15 @@ function MarketGridPage() {
 		() => data?.pages.flatMap((page) => page.products) ?? [],
 		[data],
 	)
+	const productByType = useMemo(
+		() =>
+			new Map(
+				allProducts.flatMap((product) =>
+					product.productType ? [[product.productType, product]] : [],
+				),
+			),
+		[allProducts],
+	)
 	const totalProducts = data?.pages[0]?.total ?? allProducts.length
 	const formattedTotalProducts = isAr
 		? totalProducts.toLocaleString('ar-EG')
@@ -119,8 +128,7 @@ function MarketGridPage() {
 	})
 	const hasActiveFilters =
 		!!(debouncedSearch || selectedCategories.length) ||
-		selectedProductFamilies.length > 0 ||
-		selectedProductTypes.length > 0
+		selectedProductFamilies.length > 0
 
 	const sentinelRef = useRef<HTMLDivElement>(null)
 	useEffect(() => {
@@ -146,7 +154,6 @@ function MarketGridPage() {
 			prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
 		)
 		setSelectedProductFamilies([])
-		setSelectedProductTypes([])
 	}
 
 	function toggleProductFamily(productFamily: string) {
@@ -155,15 +162,6 @@ function MarketGridPage() {
 				? prev.filter((item) => item !== productFamily)
 				: [...prev, productFamily],
 		)
-		setSelectedProductTypes([])
-	}
-
-	function toggleProductType(productType: string) {
-		setSelectedProductTypes((prev) =>
-			prev.includes(productType)
-				? prev.filter((item) => item !== productType)
-				: [...prev, productType],
-		)
 	}
 
 	function clearFilters() {
@@ -171,7 +169,6 @@ function MarketGridPage() {
 		setDebouncedSearch('')
 		setSelectedCategories([])
 		setSelectedProductFamilies([])
-		setSelectedProductTypes([])
 	}
 
 	return (
@@ -185,71 +182,95 @@ function MarketGridPage() {
 				onOpenCart={() => setDraftQuoteOpen(true)}
 			/>
 
-			<CategoryStrip
-				categories={marketCategories}
-				selectedCategories={selectedCategories}
-				selectedProductFamilies={selectedProductFamilies}
-				selectedProductTypes={selectedProductTypes}
-				onToggleCategory={toggleCategory}
-				onToggleProductFamily={toggleProductFamily}
-				onToggleProductType={toggleProductType}
-				onClearAll={clearFilters}
-			/>
-
 			<section className="px-4 py-6 sm:px-6 sm:py-8 lg:px-12">
-				<div className="mx-auto w-full max-w-[1400px]">
-					{isLoading ? (
-						<GridSkeleton />
-					) : allProducts.length === 0 ? (
-						<EmptyState
-							onClear={hasActiveFilters ? clearFilters : undefined}
-							clearLabel={t('market.clearFilters')}
-							title={t('empty.market.title')}
-							body={t('empty.market.body')}
-						/>
-					) : (
-						<>
-							<div className="mb-6 flex items-center justify-between">
-								<p
-									className="text-[13px] text-[var(--p-text-muted)]"
-									style={{ fontVariantNumeric: 'tabular-nums' }}
+				<div className="mx-auto grid w-full max-w-[1400px] gap-8 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+					<CategoryStrip
+						categories={marketCategories}
+						productsByType={productByType}
+						selectedCategories={selectedCategories}
+						selectedProductFamilies={selectedProductFamilies}
+						onToggleCategory={toggleCategory}
+						onToggleProductFamily={toggleProductFamily}
+						onClearAll={clearFilters}
+					/>
+					<div className="min-w-0">
+						<button
+							type="button"
+							onClick={() => setCatalogOpen(true)}
+							className="mb-5 flex h-11 w-full items-center justify-between rounded-sm border border-[#2563eb]/20 bg-[#2563eb]/[0.06] px-4 text-start text-[13px] font-semibold text-[#2563eb] transition-colors hover:bg-[#2563eb]/[0.1] lg:hidden"
+						>
+							<span className="inline-flex items-center gap-2">
+								<SlidersHorizontal size={16} strokeWidth={1.8} />
+								Catalog
+							</span>
+							<span className="font-mono text-[10px] uppercase tracking-[0.14em]">
+								Browse
+							</span>
+						</button>
+						{isLoading ? (
+							<GridSkeleton />
+						) : allProducts.length === 0 ? (
+							<EmptyState
+								onClear={hasActiveFilters ? clearFilters : undefined}
+								clearLabel={t('market.clearFilters')}
+								title={t('empty.market.title')}
+								body={t('empty.market.body')}
+							/>
+						) : (
+							<>
+								<div className="mb-6 flex items-center justify-between">
+									<p
+										className="text-[13px] text-[var(--p-text-muted)]"
+										style={{ fontVariantNumeric: 'tabular-nums' }}
+									>
+										{resultCountText === 'market.resultCount'
+											? formattedTotalProducts
+											: resultCountText}
+									</p>
+								</div>
+
+								<motion.div
+									initial={false}
+									animate={{ opacity: 1 }}
+									transition={{ duration: 0.25, ease: 'easeOut' }}
+									className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3 lg:gap-x-6 xl:grid-cols-4"
 								>
-									{resultCountText === 'market.resultCount'
-										? formattedTotalProducts
-										: resultCountText}
-								</p>
-							</div>
+									{allProducts.map((product) => (
+										<ProductCard
+											key={product.id}
+											product={product}
+											onOpen={() =>
+												navigate({
+													to: '/market/$productSlug',
+													params: { productSlug: product.slug },
+												})
+											}
+										/>
+									))}
+								</motion.div>
 
-							<motion.div
-								initial={false}
-								animate={{ opacity: 1 }}
-								transition={{ duration: 0.25, ease: 'easeOut' }}
-								className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3 lg:gap-x-6 xl:grid-cols-4"
-							>
-								{allProducts.map((product) => (
-									<ProductCard
-										key={product.id}
-										product={product}
-										onOpen={() =>
-											navigate({
-												to: '/market/$productSlug',
-												params: { productSlug: product.slug },
-											})
-										}
-									/>
-								))}
-							</motion.div>
-
-							<div ref={sentinelRef} aria-hidden="true" className="h-1" />
-							{isFetchingNextPage && (
-								<p className="mt-12 text-center text-[13px] text-[var(--p-text-muted)]">
-									{t('market.loadingMore')}
-								</p>
-							)}
-						</>
-					)}
+								<div ref={sentinelRef} aria-hidden="true" className="h-1" />
+								{isFetchingNextPage && (
+									<p className="mt-12 text-center text-[13px] text-[var(--p-text-muted)]">
+										{t('market.loadingMore')}
+									</p>
+								)}
+							</>
+						)}
+					</div>
 				</div>
 			</section>
+			<MobileCategorySheet
+				open={catalogOpen}
+				onClose={() => setCatalogOpen(false)}
+				categories={marketCategories}
+				productsByType={productByType}
+				selectedCategories={selectedCategories}
+				selectedProductFamilies={selectedProductFamilies}
+				onToggleCategory={toggleCategory}
+				onToggleProductFamily={toggleProductFamily}
+				onClearAll={clearFilters}
+			/>
 		</div>
 	)
 }
@@ -344,31 +365,151 @@ function MarketHeader({
 
 function CategoryStrip({
 	categories,
+	productsByType,
 	selectedCategories,
 	selectedProductFamilies,
-	selectedProductTypes,
 	onToggleCategory,
 	onToggleProductFamily,
-	onToggleProductType,
 	onClearAll,
 }: {
 	categories: MarketCategory[]
+	productsByType: Map<string, MarketProduct>
 	selectedCategories: string[]
 	selectedProductFamilies: string[]
-	selectedProductTypes: string[]
 	onToggleCategory: (c: string) => void
 	onToggleProductFamily: (c: string) => void
-	onToggleProductType: (c: string) => void
 	onClearAll: () => void
+}) {
+	return (
+		<aside className="hidden lg:sticky lg:top-24 lg:block">
+			<CategoryPanelContent
+				categories={categories}
+				productsByType={productsByType}
+				selectedCategories={selectedCategories}
+				selectedProductFamilies={selectedProductFamilies}
+				onToggleCategory={onToggleCategory}
+				onToggleProductFamily={onToggleProductFamily}
+				onClearAll={onClearAll}
+			/>
+		</aside>
+	)
+}
+
+function MobileCategorySheet({
+	open,
+	onClose,
+	categories,
+	productsByType,
+	selectedCategories,
+	selectedProductFamilies,
+	onToggleCategory,
+	onToggleProductFamily,
+	onClearAll,
+}: {
+	open: boolean
+	onClose: () => void
+	categories: MarketCategory[]
+	productsByType: Map<string, MarketProduct>
+	selectedCategories: string[]
+	selectedProductFamilies: string[]
+	onToggleCategory: (c: string) => void
+	onToggleProductFamily: (c: string) => void
+	onClearAll: () => void
+}) {
+	return (
+		<AnimatePresence>
+			{open && (
+				<motion.div
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					exit={{ opacity: 0 }}
+					className="fixed inset-0 z-50 bg-black/35 backdrop-blur-sm lg:hidden"
+				>
+					<button
+						type="button"
+						aria-label="Close catalog"
+						onClick={onClose}
+						className="absolute inset-0 h-full w-full cursor-default"
+					/>
+					<motion.div
+						initial={{ y: 32, opacity: 0 }}
+						animate={{ y: 0, opacity: 1 }}
+						exit={{ y: 32, opacity: 0 }}
+						transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+						className="absolute inset-x-0 bottom-0 max-h-[82vh] overflow-y-auto rounded-t-2xl border border-[var(--p-border)] bg-[var(--p-bg)] p-5 shadow-[0_-24px_80px_rgba(0,0,0,0.22)]"
+					>
+						<div className="mb-4 flex items-center justify-between">
+							<p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--p-text-muted)]">
+								Catalog
+							</p>
+							<button
+								type="button"
+								onClick={onClose}
+								className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--p-text-muted)] transition-colors hover:bg-[#2563eb]/[0.08] hover:text-[#2563eb]"
+								aria-label="Close catalog"
+							>
+								<X size={17} strokeWidth={1.8} />
+							</button>
+						</div>
+						<CategoryPanelContent
+							categories={categories}
+							productsByType={productsByType}
+							selectedCategories={selectedCategories}
+							selectedProductFamilies={selectedProductFamilies}
+							onToggleCategory={onToggleCategory}
+							onToggleProductFamily={onToggleProductFamily}
+							onClearAll={onClearAll}
+							compact
+						/>
+					</motion.div>
+				</motion.div>
+			)}
+		</AnimatePresence>
+	)
+}
+
+function CategoryPanelContent({
+	categories,
+	productsByType,
+	selectedCategories,
+	selectedProductFamilies,
+	onToggleCategory,
+	onToggleProductFamily,
+	onClearAll,
+	compact = false,
+}: {
+	categories: MarketCategory[]
+	productsByType: Map<string, MarketProduct>
+	selectedCategories: string[]
+	selectedProductFamilies: string[]
+	onToggleCategory: (c: string) => void
+	onToggleProductFamily: (c: string) => void
+	onClearAll: () => void
+	compact?: boolean
 }) {
 	const { t, i18n } = useTranslation('portal')
 	const isAr = i18n.language === 'ar'
+	const { items } = useDraftQuoteStore()
 	const isAllActive =
-		selectedCategories.length === 0 &&
-		selectedProductFamilies.length === 0 &&
-		selectedProductTypes.length === 0
-	const [menuOpen, setMenuOpen] = useState(false)
-	const menuRef = useRef<HTMLDivElement>(null)
+		selectedCategories.length === 0 && selectedProductFamilies.length === 0
+	const selectedProductIds = useMemo(
+		() => new Set(items.map((item) => item.productId)),
+		[items],
+	)
+	const selectedProductSlugs = useMemo(
+		() => new Set(items.map((item) => item.slug)),
+		[items],
+	)
+	const productTypeHasQuantity = useCallback(
+		(typeSlug: string) => {
+			const product = productsByType.get(typeSlug)
+			return (
+				selectedProductSlugs.has(typeSlug) ||
+				(product ? selectedProductIds.has(product.id) : false)
+			)
+		},
+		[productsByType, selectedProductIds, selectedProductSlugs],
+	)
 	const categoryLabels = useMemo(
 		() =>
 			categories.map((category) => ({
@@ -376,188 +517,300 @@ function CategoryStrip({
 				label: isAr
 					? category.nameAr || category.name || category.slug
 					: category.name || category.slug,
+				count: category.productFamilies.length,
 			})),
 		[categories, isAr],
 	)
-	const visibleFamilies = useMemo(
-		() =>
-			categories
-				.filter(
-					(category) =>
-						selectedCategories.length === 0 ||
-						selectedCategories.includes(category.slug),
-				)
-				.flatMap((category) => category.productFamilies),
-		[categories, selectedCategories],
-	)
-	const visibleProductTypes = useMemo(
-		() =>
-			visibleFamilies
-				.filter(
-					(family) =>
-						selectedProductFamilies.length === 0 ||
-						selectedProductFamilies.includes(family.slug),
-				)
-				.flatMap((family) => family.productTypes),
-		[visibleFamilies, selectedProductFamilies],
-	)
-	const selectedLabel = isAllActive
-		? t('market.allEntries')
-		: categoryLabels
-				.filter((cat) => selectedCategories.includes(cat.id))
-				.map((cat) => cat.label)
-				.join(', ')
-
-	useEffect(() => {
-		if (!menuOpen) return
-
-		function handlePointerDown(event: PointerEvent) {
-			if (!menuRef.current?.contains(event.target as Node)) {
-				setMenuOpen(false)
-			}
-		}
-
-		function handleKeyDown(event: KeyboardEvent) {
-			if (event.key === 'Escape') setMenuOpen(false)
-		}
-
-		document.addEventListener('pointerdown', handlePointerDown)
-		document.addEventListener('keydown', handleKeyDown)
-		return () => {
-			document.removeEventListener('pointerdown', handlePointerDown)
-			document.removeEventListener('keydown', handleKeyDown)
-		}
-	}, [menuOpen])
 
 	return (
-		<section className="hidden shrink-0 border-y border-[var(--p-border)] py-3 sm:block">
-			<div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 lg:px-12">
-				<div ref={menuRef} className="relative lg:hidden">
+		<nav
+			aria-label={t('market.allEntries')}
+			className={compact ? '' : 'border-e border-[var(--p-border)] pe-6'}
+		>
+			{!compact && (
+				<div className="mb-5 flex items-center justify-between gap-3">
+					<p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--p-text-muted)]">
+						Catalog
+					</p>
 					<button
 						type="button"
-						onClick={() => setMenuOpen((open) => !open)}
-						aria-expanded={menuOpen}
-						aria-haspopup="menu"
-						className="flex h-12 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-4 text-start transition-colors hover:border-[var(--p-border-strong)]"
-					>
-						<span className="min-w-0 truncate text-[14px] font-medium text-[var(--p-text)]">
-							{selectedLabel}
-						</span>
-						<ChevronDown
-							size={17}
-							className={`shrink-0 text-[var(--p-text-muted)] transition-transform ${
-								menuOpen ? 'rotate-180' : ''
-							}`}
-						/>
-					</button>
-
-					<AnimatePresence>
-						{menuOpen && (
-							<motion.div
-								initial={{ opacity: 0, y: -4 }}
-								animate={{ opacity: 1, y: 0 }}
-								exit={{ opacity: 0, y: -4 }}
-								transition={{ duration: 0.16, ease: 'easeOut' }}
-								role="menu"
-								className="absolute inset-x-0 top-full z-30 mt-2 max-h-[min(60vh,360px)] overflow-y-auto rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-elevated)] p-2 shadow-2xl"
-							>
-								<CategoryMenuItem
-									active={isAllActive}
-									onClick={() => {
-										onClearAll()
-										setMenuOpen(false)
-									}}
-									label={t('market.allEntries')}
-								/>
-								{categoryLabels.map((cat) => (
-									<CategoryMenuItem
-										key={cat.id}
-										active={selectedCategories.includes(cat.id)}
-										onClick={() => onToggleCategory(cat.id)}
-										label={cat.label}
-									/>
-								))}
-							</motion.div>
-						)}
-					</AnimatePresence>
-				</div>
-
-				<div className="hidden flex-wrap items-center gap-2 lg:flex">
-					<CategoryChip
-						active={isAllActive}
 						onClick={onClearAll}
-						label={t('market.allEntries')}
-					/>
-					<HierarchyChipGroup
-						items={categoryLabels}
-						selected={selectedCategories}
-						onToggle={onToggleCategory}
-					/>
-					<HierarchyChipGroup
-						items={familyLabels(visibleFamilies, isAr)}
-						selected={selectedProductFamilies}
-						onToggle={onToggleProductFamily}
-					/>
-					<HierarchyChipGroup
-						items={typeLabels(visibleProductTypes, isAr)}
-						selected={selectedProductTypes}
-						onToggle={onToggleProductType}
-					/>
+						className={`text-[12px] font-semibold transition-colors ${
+							isAllActive
+								? 'text-[#2563eb]'
+								: 'text-[var(--p-text-muted)] hover:text-[#2563eb]'
+						}`}
+					>
+						{t('market.allEntries')}
+					</button>
 				</div>
+			)}
+
+			<div className="space-y-1">
+				{categoryLabels.map((category) => {
+					const sourceCategory = categories.find(
+						(item) => item.slug === category.id,
+					)
+					const isActive = selectedCategories.includes(category.id)
+					const containsQuantity =
+						sourceCategory?.productFamilies.some((family) =>
+							family.productTypes.some((type) =>
+								productTypeHasQuantity(type.slug),
+							),
+						) ?? false
+					return (
+						<div key={category.id}>
+							<button
+								type="button"
+								onClick={() => onToggleCategory(category.id)}
+								aria-expanded={isActive}
+								className={`flex min-h-10 w-full min-w-0 items-center justify-between gap-3 border-s-2 ps-3 text-start transition-colors ${
+									isActive
+										? 'border-[#2563eb]'
+										: 'border-transparent hover:border-[#2563eb]/35'
+								} ${
+									containsQuantity
+										? 'text-[#2563eb]'
+										: 'text-[var(--p-text-muted)] hover:text-[var(--p-text)]'
+								}`}
+							>
+								<span className="min-w-0 truncate text-[14px] font-semibold">
+									{category.label}
+								</span>
+								<span className="font-mono text-[10px] opacity-55">
+									{category.count}
+								</span>
+							</button>
+							<AnimatePresence initial={false}>
+								{isActive && sourceCategory && (
+									<motion.div
+										initial={{ height: 0, opacity: 0, y: -4 }}
+										animate={{ height: 'auto', opacity: 1, y: 0 }}
+										exit={{ height: 0, opacity: 0, y: -4 }}
+										transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+										className="overflow-hidden"
+									>
+										<ProductGroupBrowser
+											groups={familyLabels(
+												sourceCategory.productFamilies,
+												isAr,
+											)}
+											productsByType={productsByType}
+											selected={selectedProductFamilies}
+											onToggleGroup={onToggleProductFamily}
+										/>
+									</motion.div>
+								)}
+							</AnimatePresence>
+						</div>
+					)
+				})}
 			</div>
-		</section>
+		</nav>
 	)
 }
 
-function HierarchyChipGroup({
-	items,
+function ProductGroupBrowser({
+	groups,
+	productsByType,
 	selected,
-	onToggle,
+	onToggleGroup,
 }: {
-	items: { id: string; label: string }[]
+	groups: ReturnType<typeof familyLabels>
+	productsByType: Map<string, MarketProduct>
 	selected: string[]
-	onToggle: (id: string) => void
+	onToggleGroup: (id: string) => void
 }) {
-	if (items.length === 0) return null
+	const { items } = useDraftQuoteStore()
+	const selectedProductIds = useMemo(
+		() => new Set(items.map((item) => item.productId)),
+		[items],
+	)
+	const selectedProductSlugs = useMemo(
+		() => new Set(items.map((item) => item.slug)),
+		[items],
+	)
+	if (groups.length === 0) return null
 	return (
-		<>
-			{items.map((item) => (
-				<CategoryChip
-					key={item.id}
-					active={selected.includes(item.id)}
-					onClick={() => onToggle(item.id)}
-					label={item.label}
+		<div className="ms-5 mt-1 space-y-1 pb-2">
+			{groups.map((group) => {
+				const isExpanded = selected.includes(group.id)
+				const containsQuantity = group.productTypes.some((type) => {
+					const product = productsByType.get(type.id)
+					return (
+						selectedProductSlugs.has(type.id) ||
+						(product ? selectedProductIds.has(product.id) : false)
+					)
+				})
+				return (
+					<div key={group.id}>
+						<button
+							type="button"
+							onClick={() => onToggleGroup(group.id)}
+							aria-pressed={isExpanded}
+							aria-expanded={isExpanded}
+							className={`flex min-h-9 w-full min-w-0 items-center justify-between gap-2 text-start text-[13px] transition-colors ${
+								isExpanded ? 'font-semibold' : ''
+							} ${
+								containsQuantity
+									? 'text-[#2563eb]'
+									: 'text-[var(--p-text-muted)] hover:text-[var(--p-text)]'
+							}`}
+						>
+							<span className="min-w-0 truncate">{group.label}</span>
+							<span className="font-mono text-[10px] opacity-55">
+								{group.productTypes.length}
+							</span>
+						</button>
+						<AnimatePresence initial={false}>
+							{isExpanded && group.productTypes.length > 0 && (
+								<motion.div
+									initial={{ height: 0, opacity: 0, y: -4 }}
+									animate={{ height: 'auto', opacity: 1, y: 0 }}
+									exit={{ height: 0, opacity: 0, y: -4 }}
+									transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+									className="ms-4 mt-1 space-y-0.5 overflow-hidden border-s border-[#2563eb]/20 ps-3"
+								>
+									{group.productTypes.map((type) => (
+										<PortalHierarchyProductRow
+											key={type.id}
+											label={type.label}
+											product={productsByType.get(type.id)}
+										/>
+									))}
+								</motion.div>
+							)}
+						</AnimatePresence>
+					</div>
+				)
+			})}
+		</div>
+	)
+}
+
+function PortalHierarchyProductRow({
+	label,
+	product,
+}: {
+	label: string
+	product?: MarketProduct
+}) {
+	const { add, updateQuantity, items } = useDraftQuoteStore()
+	const [editing, setEditing] = useState(false)
+	const existing = product
+		? items.find((item) => item.productId === product.id)
+		: undefined
+	const [qty, setQty] = useState(String(existing?.quantity ?? 1))
+	const inputRef = useRef<HTMLInputElement>(null)
+
+	useEffect(() => {
+		if (editing) inputRef.current?.select()
+	}, [editing])
+
+	if (!product) {
+		return (
+			<div className="px-3 py-2 text-[13px] text-[var(--p-text-muted)]">
+				{label}
+			</div>
+		)
+	}
+	const purchasableProduct = product
+
+	function submit() {
+		const quantity = Math.max(1, Number.parseInt(qty, 10) || 1)
+		if (existing) {
+			updateQuantity(purchasableProduct.id, quantity)
+		} else {
+			add(
+				{
+					productId: purchasableProduct.id,
+					slug: purchasableProduct.slug,
+					name: purchasableProduct.name,
+					nameAr: purchasableProduct.nameAr,
+					category: purchasableProduct.category,
+					categoryName: purchasableProduct.categoryName,
+					categoryNameAr: purchasableProduct.categoryNameAr,
+					unitOfMeasure: purchasableProduct.unitOfMeasure,
+					unitOfMeasureAr: purchasableProduct.unitOfMeasureAr,
+					imageUrl: purchasableProduct.imageUrl,
+				},
+				quantity,
+			)
+		}
+		setEditing(false)
+	}
+
+	if (editing) {
+		return (
+			<motion.div
+				initial={{ opacity: 0, x: -4 }}
+				animate={{ opacity: 1, x: 0 }}
+				transition={{ duration: 0.16, ease: 'easeOut' }}
+				className="flex min-w-0 items-center gap-2 rounded-sm bg-[#2563eb]/[0.08] px-2 py-1.5"
+			>
+				<span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#2563eb]">
+					{label}
+				</span>
+				<input
+					ref={inputRef}
+					value={qty}
+					onChange={(event) =>
+						setQty(event.target.value.replace(/[^0-9]/g, ''))
+					}
+					onKeyDown={(event) => {
+						if (event.key === 'Enter') submit()
+						if (event.key === 'Escape') setEditing(false)
+					}}
+					className="h-7 w-16 rounded-sm border border-[#2563eb]/30 bg-transparent text-center font-mono text-[13px] text-[var(--p-text)] outline-none focus:border-[#2563eb]"
 				/>
-			))}
-		</>
+				<button
+					type="button"
+					onClick={submit}
+					className="h-7 rounded-sm bg-[#2563eb] px-2 font-mono text-[10px] uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#1d4ed8]"
+				>
+					Add
+				</button>
+			</motion.div>
+		)
+	}
+
+	return (
+		<button
+			type="button"
+			onClick={() => setEditing(true)}
+			className={`flex min-h-9 w-full min-w-0 items-center justify-between gap-3 rounded-sm px-3 py-1.5 text-start text-[13px] transition-colors hover:bg-[#2563eb]/[0.08] hover:text-[#2563eb] ${
+				existing ? 'font-semibold text-[#2563eb]' : 'text-[var(--p-text)]'
+			}`}
+		>
+			<span className="min-w-0 truncate">{label}</span>
+			<span className="font-mono text-[10px] uppercase tracking-[0.14em] text-[#2563eb]">
+				{existing ? existing.quantity : '+'}
+			</span>
+		</button>
 	)
 }
 
 function familyLabels(
 	families: MarketProductFamily[],
 	isAr: boolean,
-): { id: string; label: string }[] {
+): {
+	id: string
+	label: string
+	productTypes: { id: string; label: string }[]
+}[] {
 	return uniqueHierarchyLabels(
 		families.map((family) => ({
 			id: family.slug,
 			label: isAr ? family.nameAr || family.name : family.name,
+			productTypes: family.productTypes.map((type) => ({
+				id: type.slug,
+				label: isAr ? type.nameAr || type.name : type.name,
+			})),
 		})),
 	)
 }
 
-function typeLabels(
-	types: MarketProductType[],
-	isAr: boolean,
-): { id: string; label: string }[] {
-	return uniqueHierarchyLabels(
-		types.map((type) => ({
-			id: type.slug,
-			label: isAr ? type.nameAr || type.name : type.name,
-		})),
-	)
-}
-
-function uniqueHierarchyLabels(items: { id: string; label: string }[]) {
+function uniqueHierarchyLabels<TItem extends { id: string }>(items: TItem[]) {
 	const seen = new Set<string>()
 	return items.filter((item) => {
 		if (seen.has(item.id)) return false
@@ -582,61 +835,6 @@ function hierarchyPathLabel(
 	return compact.length > 0 ? compact.join(' / ') : fallback
 }
 
-function CategoryMenuItem({
-	active,
-	onClick,
-	label,
-}: {
-	active: boolean
-	onClick: () => void
-	label: string
-}) {
-	return (
-		<button
-			type="button"
-			role="menuitemcheckbox"
-			aria-checked={active}
-			onClick={onClick}
-			className="flex min-h-11 w-full min-w-0 items-center justify-between gap-3 rounded-lg px-3 text-start text-[14px] font-medium text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
-		>
-			<span className="min-w-0 truncate">{label}</span>
-			{active && (
-				<Check
-					size={16}
-					className="shrink-0 text-[var(--p-accent)]"
-					aria-hidden="true"
-				/>
-			)}
-		</button>
-	)
-}
-
-function CategoryChip({
-	active,
-	onClick,
-	label,
-}: {
-	active: boolean
-	onClick: () => void
-	label: string
-}) {
-	return (
-		<button
-			type="button"
-			onClick={onClick}
-			aria-pressed={active}
-			className={[
-				'shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors whitespace-nowrap',
-				active
-					? 'bg-[var(--p-accent)] text-[var(--p-accent-contrast)]'
-					: 'text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]',
-			].join(' ')}
-		>
-			{label}
-		</button>
-	)
-}
-
 // ---------------------------------------------------------------------------
 // Product card — compact catalog tile
 // ---------------------------------------------------------------------------
@@ -659,9 +857,6 @@ function ProductCard({
 			isAr && product.productFamilyNameAr
 				? product.productFamilyNameAr
 				: product.productFamilyName,
-			isAr && product.productTypeNameAr
-				? product.productTypeNameAr
-				: product.productTypeName,
 		],
 		product.category,
 	)
