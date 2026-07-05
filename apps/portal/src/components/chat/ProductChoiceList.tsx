@@ -40,7 +40,10 @@ export function ProductChoiceList({ data }: ProductChoiceListProps) {
 			: 'Choose product and quantity'
 
 	return (
-		<section className="mx-auto mt-3 w-full max-w-[680px] border border-[var(--p-rule)] bg-[var(--p-card)] px-3 py-3 shadow-[0_18px_55px_rgba(15,23,42,0.10)] sm:px-4 sm:py-4">
+		<section
+			data-product-choice-list
+			className="mx-auto mt-3 w-full max-w-[680px] border border-[var(--p-rule)] bg-[var(--p-card)] px-3 py-3 shadow-[0_18px_55px_rgba(15,23,42,0.10)] sm:px-4 sm:py-4"
+		>
 			<div className="mx-auto max-w-[540px] border-b border-[var(--p-rule)] pb-3 text-center">
 				<span className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--p-border)] bg-[var(--p-surface-subtle)] text-[var(--p-text)]">
 					<PackageSearch size={15} strokeWidth={1.8} />

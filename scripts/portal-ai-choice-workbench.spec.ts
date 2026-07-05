@@ -292,6 +292,51 @@ test('portal AI lets customers choose quantity before adding a product choice', 
 	}
 })
 
+test('portal AI asks before adding ambiguous follow-up materials to an active draft', async ({
+	browser,
+}) => {
+	test.setTimeout(240_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await sendPortalChat(page, 'hey, i want some wood')
+		await expectProductChoiceCard(page)
+		await page
+			.getByLabel(/quantity for wood/i)
+			.last()
+			.fill('500')
+		await page
+			.getByRole('button', { name: productChoiceButtonRegex('Plywood') })
+			.last()
+			.click()
+		await waitForPortalChatIdle(page)
+		await expectDraftLine(page, { name: 'Plywood', quantity: 500 })
+
+		await sendPortalChat(page, 'how about some cement')
+		await expectProductChoiceCard(page)
+		await expectDraftLine(page, { name: 'Plywood', quantity: 500 })
+		for (const productName of ['Cement', 'Ready Mix', 'White Cement']) {
+			await expectNoDraftLine(page, productName)
+		}
+
+		await page
+			.getByLabel(/quantity for cement/i)
+			.last()
+			.fill('301')
+		await page
+			.getByRole('button', { name: productChoiceButtonRegex('Cement') })
+			.last()
+			.click()
+		await waitForPortalChatIdle(page)
+		await expectDraftLine(page, { name: 'Plywood', quantity: 500 })
+		await expectDraftLine(page, { name: 'Cement', quantity: 301 })
+		await expectNoDraftLine(page, 'Ready Mix')
+		await expectNoDraftLine(page, 'White Cement')
+	} finally {
+		await context.close()
+	}
+})
+
 async function runWorkbenchCase(page: Page, workbenchCase: WorkbenchCase) {
 	await sendPortalChat(page, workbenchCase.prompt)
 	for (const selection of workbenchCase.selections ?? []) {
@@ -398,7 +443,7 @@ async function expectDraftLine(page: Page, expected: ExpectedDraftLine) {
 		({ name, quantity }) => {
 			const inputs = Array.from(
 				document.querySelectorAll<HTMLInputElement>('input[aria-label]'),
-			)
+			).filter((input) => !input.closest('[data-product-choice-list]'))
 			return inputs.some((input) => {
 				const label = input.getAttribute('aria-label') ?? ''
 				if (!label.toLowerCase().includes(name.toLowerCase())) return false
@@ -424,7 +469,7 @@ async function expectNoDraftLine(page: Page, name: string) {
 		(nameToFind) => {
 			const inputs = Array.from(
 				document.querySelectorAll<HTMLInputElement>('input[aria-label]'),
-			)
+			).filter((input) => !input.closest('[data-product-choice-list]'))
 			return inputs.every((input) => {
 				const label = input.getAttribute('aria-label') ?? ''
 				const rect = input.getBoundingClientRect()
@@ -448,17 +493,19 @@ async function expectDraftLineCount(page: Page, count: number) {
 		(expectedCount) => {
 			const visibleInputs = Array.from(
 				document.querySelectorAll<HTMLInputElement>('input[aria-label]'),
-			).filter((input) => {
-				const label = input.getAttribute('aria-label') ?? ''
-				const rect = input.getBoundingClientRect()
-				return (
-					label.toLowerCase().startsWith('quantity for ') &&
-					rect.width > 0 &&
-					rect.height > 0 &&
-					getComputedStyle(input).visibility !== 'hidden' &&
-					getComputedStyle(input).display !== 'none'
-				)
-			})
+			)
+				.filter((input) => !input.closest('[data-product-choice-list]'))
+				.filter((input) => {
+					const label = input.getAttribute('aria-label') ?? ''
+					const rect = input.getBoundingClientRect()
+					return (
+						label.toLowerCase().startsWith('quantity for ') &&
+						rect.width > 0 &&
+						rect.height > 0 &&
+						getComputedStyle(input).visibility !== 'hidden' &&
+						getComputedStyle(input).display !== 'none'
+					)
+				})
 			return visibleInputs.length === expectedCount
 		},
 		count,

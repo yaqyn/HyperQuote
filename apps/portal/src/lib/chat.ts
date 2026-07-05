@@ -764,12 +764,26 @@ function correctProductLineDraftRoute(
 		activeDraft &&
 		isActiveDraftAddLineFollowup(userText)
 	) {
+		const draftLines = route.draftLines?.length
+			? route.draftLines
+			: parsePortalDraftMaterialRequestLines(userText)
+		const pendingMaterial =
+			draftLines.length === 0 ? missingQuantityDraftMaterial(userText) : null
 		return {
 			...route,
 			action: 'draft_add_items',
-			draftLines: route.draftLines?.length
-				? route.draftLines
-				: parsePortalDraftMaterialRequestLines(userText),
+			draftLines:
+				draftLines.length > 0
+					? draftLines
+					: pendingMaterial
+						? [
+								{
+									query: pendingMaterial,
+									quantity: 1,
+									rawText: userText.trim(),
+								},
+							]
+						: draftLines,
 			searchQuery: route.searchQuery || userText,
 		}
 	}
@@ -782,7 +796,13 @@ function correctProductLineDraftRoute(
 					return {
 						...route,
 						action: 'draft_add_items',
-						itemQuery: pendingMaterial,
+						draftLines: [
+							{
+								query: pendingMaterial,
+								quantity: 1,
+								rawText: userText.trim(),
+							},
+						],
 						searchQuery: route.searchQuery || userText,
 					}
 				}
@@ -3735,18 +3755,21 @@ async function addItemsToTempDraft(
 ): Promise<DraftWriteContext> {
 	const locale = detectPortalAiLocale(userText)
 	const searchText = route.itemQuery || route.searchQuery || userText
-	const requestedLines =
+	let requestedLines =
 		route.draftLines && route.draftLines.length > 0
 			? route.draftLines
 			: parsePortalDraftMaterialRequestLines(searchText)
 	const currentItems = activeTempDraftItems(activeDraft)
-	if (requestedLines.length === 0 && asksToAddDraftLine(userText)) {
+	if (requestedLines.length === 0 && isActiveDraftAddLineFollowup(userText)) {
 		const pendingMaterial = missingQuantityDraftMaterial(searchText)
 		if (pendingMaterial) {
-			return {
-				items: currentItems,
-				message: `How much ${pendingMaterial} should I add?`,
-			}
+			requestedLines = [
+				{
+					query: pendingMaterial,
+					quantity: 1,
+					rawText: userText.trim(),
+				},
+			]
 		}
 	}
 	const resolvedItems =
@@ -4071,20 +4094,20 @@ async function addItemsToDraft(
 		}
 	}
 	const searchText = route.itemQuery || route.searchQuery || userText
-	const requestedLines =
+	let requestedLines =
 		route.draftLines && route.draftLines.length > 0
 			? route.draftLines
 			: parsePortalDraftMaterialRequestLines(searchText)
-	if (requestedLines.length === 0 && asksToAddDraftLine(userText)) {
+	if (requestedLines.length === 0 && isActiveDraftAddLineFollowup(userText)) {
 		const pendingMaterial = missingQuantityDraftMaterial(searchText)
 		if (pendingMaterial) {
-			return {
-				draftId: draft.id,
-				editRoute: `/orders/edit/${draft.id}`,
-				items: sortedQuoteRequestItems(draft).map(toDraftMaterialItem),
-				reference: draft.request_number,
-				message: `How much ${pendingMaterial} should I add to ${draft.request_number}?`,
-			}
+			requestedLines = [
+				{
+					query: pendingMaterial,
+					quantity: 1,
+					rawText: userText.trim(),
+				},
+			]
 		}
 	}
 	const resolvedItems =
