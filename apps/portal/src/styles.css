@@ -109,6 +109,10 @@ textarea,
 	--p-border-hint: rgba(37, 99, 235, 0.75);
 	--p-selection-bg: rgba(37, 99, 235, 0.16);
 	--p-selection-text: var(--p-text);
+	--p-brand-blue: #2563eb;
+	--p-brand-blue-hover: #1d4ed8;
+	--p-brand-blue-contrast: #ffffff;
+	--p-brand-blue-shadow: rgba(37, 99, 235, 0.28);
 
 	/* Shared shadows and marks */
 	--p-seal: #2563eb;
@@ -197,6 +201,10 @@ textarea,
 	--p-border-hint: rgba(255, 255, 255, 0.7);
 	--p-selection-bg: rgba(255, 255, 255, 0.2);
 	--p-selection-text: var(--p-text);
+	--p-brand-blue: #2563eb;
+	--p-brand-blue-hover: #1d4ed8;
+	--p-brand-blue-contrast: #ffffff;
+	--p-brand-blue-shadow: rgba(37, 99, 235, 0.34);
 
 	/* Shared shadows and marks */
 	--p-seal: #dedede;

@@ -209,6 +209,7 @@ export interface ProductChoiceListData {
 		pendingChoiceId: string
 		query: string
 		quantity: number
+		quantityRequired?: boolean
 		title: string
 	}[]
 	title: string

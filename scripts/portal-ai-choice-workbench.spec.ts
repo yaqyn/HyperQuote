@@ -276,15 +276,36 @@ test('portal AI lets customers choose quantity before adding a product choice', 
 		await sendPortalChat(page, 'hey, i want some cement')
 		await expectProductChoiceCard(page)
 		await expect(
-			page.getByText(/Set the quantity you want/i).last(),
+			page.getByText(/If you did not give a quantity/i).last(),
 		).toBeVisible({ timeout: 30_000 })
-		const quantityInput = page.getByLabel(/quantity for cement/i).last()
-		await expect(quantityInput).toBeVisible({ timeout: 30_000 })
-		await quantityInput.fill('301')
+		await expect(page.getByLabel(/quantity for cement/i)).toHaveCount(0)
 		await page
 			.getByRole('button', { name: productChoiceButtonRegex('Cement') })
 			.last()
 			.click()
+		const quantityInput = page.getByLabel(/quantity for cement/i).last()
+		await expect(quantityInput).toBeVisible({ timeout: 30_000 })
+		await expect(quantityInput).toBeFocused()
+		await quantityInput.fill('0')
+		await expect(page.getByLabel(/quantity for cement/i)).toHaveCount(0)
+		await expect(page.getByText('Draft materials')).toHaveCount(0, {
+			timeout: 3_000,
+		})
+		await expectProductChoiceCard(page)
+		await page
+			.getByRole('button', { name: productChoiceButtonRegex('Cement') })
+			.last()
+			.click()
+		const reopenedQuantityInput = page.getByLabel(/quantity for cement/i).last()
+		await expect(reopenedQuantityInput).toBeVisible({ timeout: 30_000 })
+		await reopenedQuantityInput.fill('')
+		await reopenedQuantityInput.press('Enter')
+		await expect(reopenedQuantityInput).toBeVisible({ timeout: 5_000 })
+		await expect(page.getByText('Draft materials')).toHaveCount(0, {
+			timeout: 3_000,
+		})
+		await reopenedQuantityInput.fill('301')
+		await reopenedQuantityInput.press('Enter')
 		await waitForPortalChatIdle(page)
 		await expectDraftLine(page, { name: 'Cement', quantity: 301 })
 	} finally {
@@ -301,15 +322,7 @@ test('portal AI asks before adding ambiguous follow-up materials to an active dr
 	try {
 		await sendPortalChat(page, 'hey, i want some wood')
 		await expectProductChoiceCard(page)
-		await page
-			.getByLabel(/quantity for wood/i)
-			.last()
-			.fill('500')
-		await page
-			.getByRole('button', { name: productChoiceButtonRegex('Plywood') })
-			.last()
-			.click()
-		await waitForPortalChatIdle(page)
+		await chooseProductWithQuantity(page, 'Plywood', /quantity for wood/i, 500)
 		await expectDraftLine(page, { name: 'Plywood', quantity: 500 })
 
 		await sendPortalChat(page, 'how about some cement')
@@ -319,19 +332,45 @@ test('portal AI asks before adding ambiguous follow-up materials to an active dr
 			await expectNoDraftLine(page, productName)
 		}
 
-		await page
-			.getByLabel(/quantity for cement/i)
-			.last()
-			.fill('301')
-		await page
-			.getByRole('button', { name: productChoiceButtonRegex('Cement') })
-			.last()
-			.click()
-		await waitForPortalChatIdle(page)
+		await chooseProductWithQuantity(page, 'Cement', /quantity for cement/i, 301)
 		await expectDraftLine(page, { name: 'Plywood', quantity: 500 })
 		await expectDraftLine(page, { name: 'Cement', quantity: 301 })
 		await expectNoDraftLine(page, 'Ready Mix')
 		await expectNoDraftLine(page, 'White Cement')
+	} finally {
+		await context.close()
+	}
+})
+
+test('portal AI product choices use a mobile bottom-sheet quantity flow', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env, {
+		height: 844,
+		width: 390,
+	})
+	try {
+		await sendPortalChat(page, 'yo, i need some cement, no number yet')
+		await expectProductChoiceCard(page)
+		const card = page.locator('[data-product-choice-list]').last()
+		const box = await card.boundingBox()
+		expect(box).not.toBeNull()
+		expect(box?.y).toBeGreaterThanOrEqual(844 * 0.32)
+		expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(844)
+
+		await page
+			.getByRole('button', { name: productChoiceButtonRegex('Cement') })
+			.last()
+			.click()
+		const quantityInput = page.getByLabel(/quantity for cement/i).last()
+		await expect(quantityInput).toBeVisible({ timeout: 30_000 })
+		await expect(quantityInput).toBeFocused()
+		await quantityInput.fill('12')
+		await quantityInput.press('Enter')
+		await waitForPortalChatIdle(page)
+		await expectDraftLine(page, { name: 'Cement', quantity: 12 })
 	} finally {
 		await context.close()
 	}
@@ -367,9 +406,13 @@ async function runWorkbenchCase(page: Page, workbenchCase: WorkbenchCase) {
 	}
 }
 
-async function openCustomerPortal(browser: Browser, env: LocalSupabaseEnv) {
+async function openCustomerPortal(
+	browser: Browser,
+	env: LocalSupabaseEnv,
+	viewport: { height: number; width: number } = { height: 1000, width: 1440 },
+) {
 	const context = await browser.newContext({
-		viewport: { height: 1000, width: 1440 },
+		viewport,
 	})
 	await context.addCookies(
 		await createAuthCookies(env, CUSTOMER, CUSTOMER_COOKIE, PORTAL_URL),
@@ -419,6 +462,27 @@ async function chooseProduct(page: Page, productName: string) {
 		.last()
 	await expect(button).toBeVisible({ timeout: 30_000 })
 	await button.click()
+	await waitForPortalChatIdle(page)
+}
+
+async function chooseProductWithQuantity(
+	page: Page,
+	productName: string,
+	quantityLabel: RegExp,
+	quantity: number,
+) {
+	await waitForPortalChatIdle(page)
+	await expectProductChoiceCard(page)
+	const button = page
+		.getByRole('button', { name: productChoiceButtonRegex(productName) })
+		.last()
+	await expect(button).toBeVisible({ timeout: 30_000 })
+	await button.click()
+	const input = page.getByLabel(quantityLabel).last()
+	await expect(input).toBeVisible({ timeout: 30_000 })
+	await expect(input).toBeFocused()
+	await input.fill(String(quantity))
+	await input.press('Enter')
 	await waitForPortalChatIdle(page)
 }
 

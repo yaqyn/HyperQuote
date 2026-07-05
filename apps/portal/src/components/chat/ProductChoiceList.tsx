@@ -1,5 +1,5 @@
-import { ArrowRight, Check, PackageSearch } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { ArrowRight, Check, PackageSearch, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
 import {
@@ -17,18 +17,6 @@ interface ProductChoiceListProps {
 export function ProductChoiceList({ data }: ProductChoiceListProps) {
 	const { t, i18n } = useTranslation('portal')
 	const isArabic = i18n.language === 'ar'
-	const initialQuantities = useMemo(
-		() =>
-			Object.fromEntries(
-				data.groups.map((group) => [
-					group.pendingChoiceId,
-					String(group.quantity),
-				]),
-			),
-		[data.groups],
-	)
-	const [quantities, setQuantities] =
-		useState<Record<string, string>>(initialQuantities)
 	const total = data.groups.length
 	const multipleChoices = total > 1
 	const stepLabel = multipleChoices
@@ -36,22 +24,22 @@ export function ProductChoiceList({ data }: ProductChoiceListProps) {
 			? `اختيار ${toArabicIndic('1')} من ${toArabicIndic(String(total))}`
 			: `Choice 1 of ${total}`
 		: isArabic
-			? 'اختار المنتج والكمية'
-			: 'Choose product and quantity'
+			? 'اختار المنتج المناسب'
+			: 'Choose the right product'
 
 	return (
 		<section
 			data-product-choice-list
-			className="mx-auto mt-3 w-full max-w-[680px] border border-[var(--p-rule)] bg-[var(--p-card)] px-3 py-3 shadow-[0_18px_55px_rgba(15,23,42,0.10)] sm:px-4 sm:py-4"
+			className="mx-auto mt-3 w-full max-w-[700px] rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-3 shadow-[0_18px_55px_rgba(15,23,42,0.10)] max-lg:fixed max-lg:inset-x-3 max-lg:bottom-3 max-lg:z-[120] max-lg:mt-0 max-lg:max-h-[56svh] max-lg:overflow-y-auto max-lg:px-3 max-lg:pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:px-4 sm:py-4 lg:rounded-2xl"
 		>
 			<div className="mx-auto max-w-[540px] border-b border-[var(--p-rule)] pb-3 text-center">
-				<span className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--p-border)] bg-[var(--p-surface-subtle)] text-[var(--p-text)]">
+				<span className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--p-brand-blue)] text-[var(--p-brand-blue-contrast)] shadow-[0_10px_28px_var(--p-brand-blue-shadow)]">
 					<PackageSearch size={15} strokeWidth={1.8} />
 				</span>
 				<p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--p-text-muted)]">
 					{stepLabel}
 				</p>
-				<h3 className="mt-1 text-[15px] font-semibold text-[var(--p-text)]">
+				<h3 className="mt-1 text-[16px] font-semibold text-[var(--p-text)]">
 					{data.title}
 				</h3>
 				<p className="mx-auto mt-1 max-w-[440px] text-[12px] leading-5 text-[var(--p-text-muted)]">
@@ -63,9 +51,9 @@ export function ProductChoiceList({ data }: ProductChoiceListProps) {
 				{data.groups.map((group) => (
 					<div
 						key={group.pendingChoiceId}
-						className="border border-[var(--p-rule)] bg-[var(--p-surface-subtle)] px-2.5 py-2.5 sm:px-3 sm:py-3"
+						className="rounded-xl border border-[var(--p-rule)] bg-[var(--p-surface-subtle)] px-2.5 py-2.5 sm:px-3 sm:py-3"
 					>
-						<div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px] sm:items-end">
+						<div className="min-w-0 text-center sm:text-start">
 							<div className="min-w-0">
 								<p className="text-[12px] font-semibold text-[var(--p-text)]">
 									{isArabic
@@ -73,34 +61,15 @@ export function ProductChoiceList({ data }: ProductChoiceListProps) {
 										: `Which ${group.query} should I add?`}
 								</p>
 								<p className="mt-1 text-[11px] leading-4 text-[var(--p-text-muted)]">
-									{isArabic
-										? 'عدّل الكمية ثم اختار المنتج المناسب.'
-										: 'Adjust the quantity, then pick the matching product.'}
+									{group.quantityRequired
+										? isArabic
+											? 'اضغط إضافة على المنتج المناسب، ثم اكتب الكمية.'
+											: 'Tap Add on the right product, then enter the quantity.'
+										: isArabic
+											? `سأستخدم الكمية التي كتبتها: ${toArabicIndic(String(group.quantity))}.`
+											: `I will use the quantity you gave: ${group.quantity}.`}
 								</p>
 							</div>
-							<label className="grid gap-1 text-[11px] font-semibold text-[var(--p-text-muted)]">
-								<span>{isArabic ? 'الكمية' : 'Quantity'}</span>
-								<input
-									type="number"
-									min="1"
-									step="1"
-									inputMode="numeric"
-									value={
-										quantities[group.pendingChoiceId] ?? String(group.quantity)
-									}
-									onChange={(event) => {
-										const value = event.currentTarget.value
-										setQuantities((current) => ({
-											...current,
-											[group.pendingChoiceId]: value,
-										}))
-									}}
-									className="h-10 w-full border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[14px] font-semibold text-[var(--p-text)] outline-none transition-colors focus:border-[var(--p-border-strong)]"
-									aria-label={t('quoteBuilder.quantityFor', {
-										name: group.query,
-									})}
-								/>
-							</label>
 						</div>
 						<div className="mt-3 grid gap-2">
 							{group.options.map((option) => {
@@ -133,6 +102,7 @@ export function ProductChoiceList({ data }: ProductChoiceListProps) {
 										</div>
 										<ProductChoiceButton
 											action={option.action}
+											defaultQuantity={group.quantity}
 											groupId={group.pendingChoiceId}
 											label={
 												multipleChoices
@@ -143,10 +113,11 @@ export function ProductChoiceList({ data }: ProductChoiceListProps) {
 														? `أضف ${name}`
 														: `Add ${name}`
 											}
-											quantityText={
-												quantities[group.pendingChoiceId] ??
-												String(group.quantity)
-											}
+											quantityRequired={Boolean(group.quantityRequired)}
+											quantityText={String(group.quantity)}
+											quantityLabel={t('quoteBuilder.quantityFor', {
+												name: group.query,
+											})}
 										/>
 									</div>
 								)
@@ -161,37 +132,144 @@ export function ProductChoiceList({ data }: ProductChoiceListProps) {
 
 function ProductChoiceButton({
 	action,
+	defaultQuantity,
 	groupId,
 	label,
+	quantityLabel,
+	quantityRequired,
 	quantityText,
 }: {
 	action: ActionButtonData
+	defaultQuantity: number
 	groupId: string
 	label: string
+	quantityLabel: string
+	quantityRequired: boolean
 	quantityText: string
 }) {
-	const quantity = Number.parseFloat(quantityText)
-	const validQuantity = Number.isFinite(quantity) && quantity > 0
-	const confirmedAction = validQuantity
-		? actionWithQuantity(action.action, groupId, quantity)
+	const [isEditingQuantity, setIsEditingQuantity] = useState(false)
+	const [draftQuantity, setDraftQuantity] = useState(String(defaultQuantity))
+	const [quantityError, setQuantityError] = useState(false)
+	const inputRef = useRef<HTMLInputElement | null>(null)
+	const buttonQuantity = Number.parseFloat(quantityText)
+	const validButtonQuantity =
+		Number.isFinite(buttonQuantity) && buttonQuantity > 0
+	const editableQuantity = Number.parseFloat(draftQuantity)
+	const validEditableQuantity =
+		Number.isFinite(editableQuantity) && editableQuantity > 0
+
+	useEffect(() => {
+		if (!isEditingQuantity) return
+		const handle = window.requestAnimationFrame(() => {
+			inputRef.current?.focus()
+			inputRef.current?.select()
+		})
+		return () => window.cancelAnimationFrame(handle)
+	}, [isEditingQuantity])
+
+	const dispatchConfirmedAction = (quantity: number) => {
+		const confirmedAction = actionWithQuantity(action.action, groupId, quantity)
+		if (!confirmedAction) return
+		window.dispatchEvent(
+			new CustomEvent(PORTAL_CHAT_RUN_COMMAND_EVENT, {
+				detail: {
+					action: confirmedAction,
+					message: label,
+					run: true,
+				},
+			}),
+		)
+	}
+
+	const cancelQuantityEditor = () => {
+		setIsEditingQuantity(false)
+		setDraftQuantity(String(defaultQuantity))
+		setQuantityError(false)
+	}
+
+	const commitQuantity = () => {
+		if (draftQuantity.trim() === '0') {
+			cancelQuantityEditor()
+			return
+		}
+		if (!validEditableQuantity) {
+			setQuantityError(true)
+			return
+		}
+		dispatchConfirmedAction(editableQuantity)
+	}
+
+	if (quantityRequired && isEditingQuantity) {
+		return (
+			<form
+				onSubmit={(event) => {
+					event.preventDefault()
+					commitQuantity()
+				}}
+				className={[
+					'grid min-h-11 grid-cols-[minmax(0,1fr)_44px] overflow-hidden rounded-xl border bg-[var(--p-card)] sm:w-[176px]',
+					quantityError
+						? 'border-[var(--color-danger)]'
+						: 'border-[var(--p-brand-blue)]',
+				].join(' ')}
+			>
+				<input
+					ref={inputRef}
+					type="text"
+					inputMode="decimal"
+					value={draftQuantity}
+					onChange={(event) => {
+						const value = event.currentTarget.value
+						if (value.trim() === '0') {
+							cancelQuantityEditor()
+							return
+						}
+						setDraftQuantity(value.replace(/[^\d.,]/g, '').replace(',', '.'))
+						setQuantityError(false)
+					}}
+					onFocus={(event) => event.currentTarget.select()}
+					onKeyDown={(event) => {
+						if (event.key === 'Escape') {
+							event.preventDefault()
+							cancelQuantityEditor()
+						}
+					}}
+					className="h-11 min-w-0 bg-transparent px-3 text-center font-mono text-[15px] font-semibold text-[var(--p-text)] outline-none [appearance:textfield] placeholder:text-[var(--p-text-faint)]"
+					aria-label={quantityLabel}
+				/>
+				<Button
+					type="submit"
+					className="flex h-11 items-center justify-center bg-[var(--p-brand-blue)] text-[var(--p-brand-blue-contrast)] transition-opacity hover:bg-[var(--p-brand-blue-hover)]"
+					aria-label={validEditableQuantity ? label : 'Cancel'}
+				>
+					{validEditableQuantity ? (
+						<Check size={15} strokeWidth={2} />
+					) : (
+						<X size={15} strokeWidth={2} />
+					)}
+				</Button>
+			</form>
+		)
+	}
+
+	const confirmedAction = validButtonQuantity
+		? actionWithQuantity(action.action, groupId, buttonQuantity)
 		: null
 
 	return (
 		<Button
-			isDisabled={!confirmedAction}
+			isDisabled={!quantityRequired && !confirmedAction}
 			onPress={() => {
+				if (quantityRequired) {
+					setDraftQuantity(String(defaultQuantity))
+					setQuantityError(false)
+					setIsEditingQuantity(true)
+					return
+				}
 				if (!confirmedAction) return
-				window.dispatchEvent(
-					new CustomEvent(PORTAL_CHAT_RUN_COMMAND_EVENT, {
-						detail: {
-							action: confirmedAction,
-							message: label,
-							run: true,
-						},
-					}),
-				)
+				dispatchConfirmedAction(buttonQuantity)
 			}}
-			className="inline-flex min-h-10 min-w-0 items-center justify-center gap-2 border border-[var(--p-border-strong)] bg-[var(--p-text)] px-3 text-[12px] font-semibold text-[var(--p-card)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+			className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl bg-[var(--p-brand-blue)] px-3 text-[12px] font-semibold text-[var(--p-brand-blue-contrast)] transition-colors hover:bg-[var(--p-brand-blue-hover)] disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[132px]"
 		>
 			<Check size={14} strokeWidth={2} />
 			<span className="truncate">{label}</span>

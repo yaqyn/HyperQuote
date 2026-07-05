@@ -6818,8 +6818,8 @@ function productChoiceListData(
 	return {
 		description:
 			context.locale === 'ar'
-				? `اكتب الكمية التي تريدها، ثم اختر المنتج المناسب. سأضيفه للمسودة بدون تخمين.${unavailableNote}`
-				: `Set the quantity you want, then choose the matching product. I will add it to the draft without guessing.${unavailableNote}`,
+				? `اختر المنتج المناسب. إذا لم تذكر الكمية، سأطلبها قبل الإضافة.${unavailableNote}`
+				: `Choose the matching product. If you did not give a quantity, I will ask before adding it.${unavailableNote}`,
 		groups: visibleGroups.map((group, groupIndex) => ({
 			options: group.options.map(({ product }) => ({
 				action: productChoiceAction(context, group, product),
@@ -6835,6 +6835,7 @@ function productChoiceListData(
 			pendingChoiceId: group.pendingChoiceId,
 			query: group.query,
 			quantity: group.quantity,
+			quantityRequired: productChoiceQuantityRequired(group),
 			title:
 				context.locale === 'ar'
 					? `اختيار ${groupIndex + 1} من ${total}`
@@ -6845,6 +6846,17 @@ function productChoiceListData(
 				? 'اختر المنتج الذي يناسب طلبك'
 				: 'Pick the product that matches your request',
 	}
+}
+
+function productChoiceQuantityRequired(
+	group: DraftProductChoiceGroup,
+): boolean {
+	const numericParts = group.rawText.match(/\d+(?:[,.]\d+)?/g) ?? []
+	if (numericParts.length === 0) return true
+	return !numericParts.some((part) => {
+		const value = Number.parseFloat(part.replace(/,/g, ''))
+		return Number.isFinite(value) && Math.abs(value - group.quantity) < 0.0001
+	})
 }
 
 function productChoiceAction(
