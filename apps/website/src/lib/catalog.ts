@@ -139,30 +139,43 @@ const PUBLIC_COLUMNS = [
 ].join(', ')
 
 function publicProductSearchFilter(search: string): string | null {
-	const term = search
-		.replace(/[,%*()]/g, ' ')
-		.replace(/\s+/g, ' ')
-		.trim()
-	if (!term) return null
-	const pattern = `*${term}*`
-	return [
-		`name.ilike.${pattern}`,
-		`name_ar.ilike.${pattern}`,
-		`sku.ilike.${pattern}`,
-		`category.ilike.${pattern}`,
-		`category_name.ilike.${pattern}`,
-		`category_name_ar.ilike.${pattern}`,
-		`subcategory.ilike.${pattern}`,
-		`subcategory_ar.ilike.${pattern}`,
-		`product_family_name.ilike.${pattern}`,
-		`product_family_name_ar.ilike.${pattern}`,
-		`product_type_name.ilike.${pattern}`,
-		`product_type_name_ar.ilike.${pattern}`,
-		`brand.ilike.${pattern}`,
-		`manufacturer.ilike.${pattern}`,
-		`description.ilike.${pattern}`,
-		`description_ar.ilike.${pattern}`,
-	].join(',')
+	const terms = search
+		.split(',')
+		.map((term) =>
+			term
+				.replace(/[%*()]/g, ' ')
+				.replace(/\s+/g, ' ')
+				.trim(),
+		)
+		.filter(Boolean)
+	if (terms.length === 0) return null
+	const fields = [
+		'name',
+		'name_ar',
+		'sku',
+		'category',
+		'category_slug',
+		'category_name',
+		'category_name_ar',
+		'subcategory',
+		'subcategory_ar',
+		'product_family_slug',
+		'product_family_name',
+		'product_family_name_ar',
+		'product_type_slug',
+		'product_type_name',
+		'product_type_name_ar',
+		'brand',
+		'manufacturer',
+		'description',
+		'description_ar',
+	]
+	return terms
+		.flatMap((term) => {
+			const pattern = `*${term}*`
+			return fields.map((field) => `${field}.ilike.${pattern}`)
+		})
+		.join(',')
 }
 
 function getSupabaseConfig() {

@@ -10,9 +10,10 @@ import {
 	useDocumentScrollLock,
 	useVisualViewportKeyboard,
 } from '@hyperquote/ui/viewport/keyboard'
+import { useSpeechInput } from '@hyperquote/ui/voice/useSpeechInput'
 import { useLocation, useMatches } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
-import { ArrowUp, Sparkles, Square, X } from 'lucide-react'
+import { ArrowUp, Mic, Sparkles, Square, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import {
 	type CSSProperties,
@@ -83,7 +84,7 @@ function MiniMessage({ message }: { message: ChatMessage }) {
 }
 
 export function FloatingAIButton() {
-	const { t } = useTranslation('portal')
+	const { t, i18n } = useTranslation('portal')
 	const matches = useMatches()
 	const location = useLocation()
 	const activeRole = usePortalStore((s) => s.activeRole)
@@ -102,6 +103,10 @@ export function FloatingAIButton() {
 	const [inputValue, setInputValue] = useState('')
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const inputRef = useRef<HTMLInputElement>(null)
+	const speech = useSpeechInput({
+		locale: i18n.language,
+		onTranscript: setInputValue,
+	})
 
 	const panelKeyboardStyle = useMemo<CSSProperties | undefined>(() => {
 		if (!keyboard.isOpen) return undefined
@@ -270,6 +275,27 @@ export function FloatingAIButton() {
 										disabled={chat.isLoading}
 										className="flex-1 h-11 rounded-xl border border-[var(--color-border)] bg-[var(--color-card)] px-3 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/10 transition-colors"
 									/>
+									{speech.isSupported && !chat.isLoading && (
+										<button
+											type="button"
+											onClick={() =>
+												speech.isListening ? speech.stop() : speech.start()
+											}
+											className="flex items-center justify-center w-9 h-9 rounded-full shrink-0 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)]"
+											aria-label={
+												speech.isListening
+													? 'Stop voice input'
+													: t('a11y.voiceInput')
+											}
+											aria-pressed={speech.isListening}
+										>
+											{speech.isListening ? (
+												<Square size={12} strokeWidth={1.8} />
+											) : (
+												<Mic size={15} strokeWidth={1.8} />
+											)}
+										</button>
+									)}
 									{chat.isLoading ? (
 										<button
 											type="button"

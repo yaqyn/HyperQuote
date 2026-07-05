@@ -1,4 +1,5 @@
-import { ArrowUp } from 'lucide-react'
+import { useSpeechInput } from '@hyperquote/ui/voice/useSpeechInput'
+import { ArrowUp, Mic, Square } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -20,6 +21,13 @@ export function ChatInput({
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 	const isArabic = i18n.language === 'ar'
 	const inputDir = value.trim() ? 'auto' : isArabic ? 'rtl' : 'ltr'
+	const speech = useSpeechInput({
+		locale: i18n.language,
+		onTranscript: (text) => {
+			setValue(text)
+			requestAnimationFrame(handleInput)
+		},
+	})
 
 	const handleSubmit = useCallback(async () => {
 		const trimmed = value.trim()
@@ -78,6 +86,28 @@ export function ChatInput({
 					aria-label={t('chat.inputPlaceholder')}
 					className="min-h-[24px] max-h-[120px] flex-1 resize-none border-0 bg-transparent text-[15px] leading-[1.5] outline-none placeholder:opacity-30"
 				/>
+				{speech.isSupported && (
+					<button
+						type="button"
+						onClick={() =>
+							speech.isListening ? speech.stop() : speech.start()
+						}
+						disabled={isLoading}
+						aria-label={
+							speech.isListening
+								? 'Stop voice input'
+								: t('a11y.voiceInput', { defaultValue: 'Voice input' })
+						}
+						aria-pressed={speech.isListening}
+						className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-primary)]/10 hover:text-[var(--color-primary)] disabled:opacity-30"
+					>
+						{speech.isListening ? (
+							<Square size={12} strokeWidth={1.8} />
+						) : (
+							<Mic size={15} strokeWidth={1.8} />
+						)}
+					</button>
+				)}
 				<button
 					type="button"
 					disabled={!hasText || isLoading}

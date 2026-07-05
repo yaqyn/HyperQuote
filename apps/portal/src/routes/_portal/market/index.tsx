@@ -6,13 +6,16 @@
  */
 
 import { useQuantityPopoverDismiss } from '@hyperquote/ui/market/QuantityPopover'
+import { useSpeechInput } from '@hyperquote/ui/voice/useSpeechInput'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import {
+	Mic,
 	Package,
 	Plus,
 	Search,
 	SlidersHorizontal,
+	Square,
 	Undo2,
 	X,
 } from 'lucide-react'
@@ -171,6 +174,11 @@ function MarketGridPage() {
 		setSelectedProductFamilies([])
 	}
 
+	function clearCatalogFilters() {
+		setSelectedCategories([])
+		setSelectedProductFamilies([])
+	}
+
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-x-hidden overflow-y-auto bg-[var(--p-bg)]">
 			<MarketHeader
@@ -191,13 +199,13 @@ function MarketGridPage() {
 						selectedProductFamilies={selectedProductFamilies}
 						onToggleCategory={toggleCategory}
 						onToggleProductFamily={toggleProductFamily}
-						onClearAll={clearFilters}
+						onClearAll={clearCatalogFilters}
 					/>
 					<div className="min-w-0">
 						<button
 							type="button"
 							onClick={() => setCatalogOpen(true)}
-							className="mb-5 flex h-11 w-full items-center justify-between rounded-sm border border-[#2563eb]/20 bg-[#2563eb]/[0.06] px-4 text-start text-[13px] font-semibold text-[#2563eb] transition-colors hover:bg-[#2563eb]/[0.1] lg:hidden"
+							className="mb-5 flex h-11 w-full items-center justify-between rounded-sm border border-[var(--p-border)] bg-[var(--p-card)] px-4 text-start text-[13px] font-semibold text-[var(--p-text)] transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] lg:hidden"
 						>
 							<span className="inline-flex items-center gap-2">
 								<SlidersHorizontal size={16} strokeWidth={1.8} />
@@ -269,7 +277,7 @@ function MarketGridPage() {
 				selectedProductFamilies={selectedProductFamilies}
 				onToggleCategory={toggleCategory}
 				onToggleProductFamily={toggleProductFamily}
-				onClearAll={clearFilters}
+				onClearAll={clearCatalogFilters}
 			/>
 		</div>
 	)
@@ -296,6 +304,72 @@ function MarketHeader({
 }) {
 	const { t } = useTranslation('portal')
 	const inputRef = useRef<HTMLInputElement>(null)
+	const [draftValue, setDraftValue] = useState('')
+	const tokens = useMemo(
+		() =>
+			value
+				.split(',')
+				.slice(0, -1)
+				.map((token) => token.trim())
+				.filter(Boolean),
+		[value],
+	)
+	const hasSearchValue = value.trim().length > 0
+	const speech = useSpeechInput({
+		locale: isAr ? 'ar' : 'en',
+		onTranscript: (text) => {
+			setDraftValue(text)
+			onChange(text)
+		},
+	})
+
+	useEffect(() => {
+		const parts = value.split(',')
+		setDraftValue(parts.at(-1)?.trimStart() ?? '')
+	}, [value])
+
+	function commitDraft(nextDraft: string) {
+		if (!nextDraft.includes(',')) {
+			setDraftValue(nextDraft)
+			onChange([...tokens, nextDraft.trim()].filter(Boolean).join(', '))
+			return
+		}
+		const parts = nextDraft.split(',')
+		const completed = parts
+			.slice(0, -1)
+			.map((part) => part.trim())
+			.filter(Boolean)
+		const nextTokens = [...tokens, ...completed]
+		const tail = parts.at(-1)?.trimStart() ?? ''
+		setDraftValue(tail)
+		onChange(
+			tail.trim()
+				? [...nextTokens, tail.trim()].join(', ')
+				: nextTokens.length > 0
+					? `${nextTokens.join(', ')},`
+					: '',
+		)
+	}
+
+	function removeToken(index: number) {
+		const nextTokens = tokens.filter((_, tokenIndex) => tokenIndex !== index)
+		const nextDraft = draftValue.trim()
+		onChange(
+			nextDraft
+				? [...nextTokens, nextDraft].join(', ')
+				: nextTokens.length > 0
+					? `${nextTokens.join(', ')},`
+					: '',
+		)
+		inputRef.current?.focus()
+	}
+
+	function clearSearch() {
+		setDraftValue('')
+		onChange('')
+		inputRef.current?.focus()
+	}
+
 	useEffect(() => {
 		function onKey(e: KeyboardEvent) {
 			if (e.key === '/' && document.activeElement?.tagName !== 'INPUT') {
@@ -312,37 +386,119 @@ function MarketHeader({
 			<div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4">
 				<PortalTitleRow title={t('sidebar.nav.market')} />
 				<div className="mx-auto flex w-full max-w-[620px] items-center justify-center gap-3">
-					<div className="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-4 transition-colors focus-within:border-[var(--p-border-strong)]">
+					<div className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-4 transition-colors focus-within:border-[var(--p-border-strong)]">
 						<Search
 							size={17}
 							strokeWidth={1.7}
 							className="shrink-0 text-[var(--p-text-muted)]"
 						/>
-						<input
-							ref={inputRef}
-							value={value}
-							onChange={(e) => onChange(e.target.value)}
-							placeholder={placeholder}
-							type="search"
-							autoComplete="off"
-							spellCheck={false}
-							className="min-w-0 flex-1 bg-transparent text-[16px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)]"
-						/>
-
-						{value ? (
+						<div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+							{tokens.map((token, index) => (
+								<span
+									key={token}
+									className="inline-flex h-7 max-w-[150px] shrink-0 items-center gap-1.5 rounded-full border border-[#2563eb]/20 bg-[#2563eb]/[0.08] ps-2.5 pe-1 text-[12px] font-semibold text-[#2563eb]"
+								>
+									<span className="min-w-0 truncate">{token}</span>
+									<button
+										type="button"
+										onClick={() => removeToken(index)}
+										className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-[#2563eb]/10"
+										aria-label={`Remove ${token}`}
+									>
+										<X size={11} strokeWidth={2} />
+									</button>
+								</span>
+							))}
+							<input
+								ref={inputRef}
+								value={draftValue}
+								onChange={(e) => commitDraft(e.target.value)}
+								onKeyDown={(event) => {
+									if (
+										(event.ctrlKey || event.metaKey) &&
+										event.key.toLowerCase() === 'c'
+									) {
+										const selectedText =
+											inputRef.current &&
+											inputRef.current.selectionStart !==
+												inputRef.current.selectionEnd
+										if (!selectedText && hasSearchValue) {
+											event.preventDefault()
+											clearSearch()
+										}
+										return
+									}
+									if (event.key === ',') {
+										event.preventDefault()
+										const nextToken = draftValue.trim()
+										if (nextToken) {
+											onChange(`${[...tokens, nextToken].join(', ')},`)
+											setDraftValue('')
+										}
+										return
+									}
+									if (
+										event.key === 'Backspace' &&
+										!draftValue &&
+										tokens.length > 0
+									) {
+										event.preventDefault()
+										const nextTokens = tokens.slice(0, -1)
+										onChange(
+											nextTokens.length > 0 ? `${nextTokens.join(', ')},` : '',
+										)
+									}
+								}}
+								placeholder={tokens.length > 0 ? '' : placeholder}
+								type="search"
+								autoComplete="off"
+								spellCheck={false}
+								className="min-w-[120px] flex-1 bg-transparent text-[16px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)]"
+								aria-describedby="portal-market-token-status"
+							/>
+						</div>
+						<span
+							id="portal-market-token-status"
+							className="sr-only"
+							aria-live="polite"
+						>
+							{tokens.length > 0
+								? `${tokens.length} search ${tokens.length === 1 ? 'term' : 'terms'} selected. Press Backspace in the empty field to remove the last term.`
+								: 'No search terms selected.'}
+						</span>
+						{speech.isSupported && (
 							<button
 								type="button"
-								onClick={() => onChange('')}
-								className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--p-text-faint)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-								aria-label={t('market.clearSearch')}
+								onClick={() =>
+									speech.isListening ? speech.stop() : speech.start()
+								}
+								className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-accent-dim)] hover:text-[#2563eb]"
+								aria-label={
+									speech.isListening ? 'Stop voice search' : 'Voice search'
+								}
+								aria-pressed={speech.isListening}
 							>
-								<X size={15} strokeWidth={1.7} />
+								{speech.isListening ? (
+									<Square size={12} strokeWidth={1.8} />
+								) : (
+									<Mic size={15} strokeWidth={1.8} />
+								)}
 							</button>
-						) : (
-							<kbd className="hidden rounded border border-[var(--p-border)] px-1.5 py-0.5 font-mono text-[10px] tracking-[0.12em] text-[var(--p-text-faint)] sm:inline-block">
-								/
-							</kbd>
 						)}
+
+						<button
+							type="button"
+							onClick={clearSearch}
+							disabled={!hasSearchValue}
+							tabIndex={hasSearchValue ? 0 : -1}
+							className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--p-text-faint)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] ${
+								hasSearchValue ? 'opacity-100' : 'pointer-events-none opacity-0'
+							}`}
+							aria-label={t('market.clearSearch')}
+							aria-hidden={!hasSearchValue}
+						>
+							<X size={15} strokeWidth={1.7} />
+						</button>
 					</div>
 
 					{draftItemCount > 0 && (
@@ -416,6 +572,8 @@ function MobileCategorySheet({
 	onToggleProductFamily: (c: string) => void
 	onClearAll: () => void
 }) {
+	const { t } = useTranslation('portal')
+
 	return (
 		<AnimatePresence>
 			{open && (
@@ -442,14 +600,26 @@ function MobileCategorySheet({
 							<p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--p-text-muted)]">
 								Catalog
 							</p>
-							<button
-								type="button"
-								onClick={onClose}
-								className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--p-text-muted)] transition-colors hover:bg-[#2563eb]/[0.08] hover:text-[#2563eb]"
-								aria-label="Close catalog"
-							>
-								<X size={17} strokeWidth={1.8} />
-							</button>
+							<div className="flex items-center gap-1">
+								{selectedCategories.length > 0 ||
+								selectedProductFamilies.length > 0 ? (
+									<button
+										type="button"
+										onClick={onClearAll}
+										className="h-9 px-2 text-[12px] font-semibold text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)]"
+									>
+										{t('market.clearFilters')}
+									</button>
+								) : null}
+								<button
+									type="button"
+									onClick={onClose}
+									className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+									aria-label="Close catalog"
+								>
+									<X size={17} strokeWidth={1.8} />
+								</button>
+							</div>
 						</div>
 						<CategoryPanelContent
 							categories={categories}
@@ -532,17 +702,15 @@ function CategoryPanelContent({
 					<p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--p-text-muted)]">
 						Catalog
 					</p>
-					<button
-						type="button"
-						onClick={onClearAll}
-						className={`text-[12px] font-semibold transition-colors ${
-							isAllActive
-								? 'text-[#2563eb]'
-								: 'text-[var(--p-text-muted)] hover:text-[#2563eb]'
-						}`}
-					>
-						{t('market.allEntries')}
-					</button>
+					{!isAllActive && (
+						<button
+							type="button"
+							onClick={onClearAll}
+							className="text-[12px] font-semibold text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)]"
+						>
+							{t('market.clearFilters')}
+						</button>
+					)}
 				</div>
 			)}
 
@@ -749,7 +917,13 @@ function PortalHierarchyProductRow({
 				className="flex min-w-0 items-center gap-2 rounded-sm bg-[#2563eb]/[0.08] px-2 py-1.5"
 			>
 				<span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#2563eb]">
-					{label}
+					<button
+						type="button"
+						onClick={() => setEditing(false)}
+						className="min-w-0 truncate text-start transition-colors hover:text-[#1d4ed8]"
+					>
+						{label}
+					</button>
 				</span>
 				<input
 					ref={inputRef}

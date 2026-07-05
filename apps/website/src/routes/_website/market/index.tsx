@@ -191,14 +191,39 @@ function MarketSearch({
 	items: catalogItems,
 	categories,
 	onSearch,
+	initialQuery,
 }: {
 	items: PublicProduct[]
 	categories: Array<{ slug: string; name: string; name_ar: string }>
 	onSearch: (q: string) => void
+	initialQuery?: string
 }) {
 	const { t, i18n } = useTranslation('website')
 	const navigate = useNavigate({ from: Route.fullPath })
 	const locale = i18n.language === 'ar' ? 'ar' : 'en'
+	const [liveQuery, setLiveQuery] = useState(initialQuery ?? '')
+	const onSearchRef = useRef(onSearch)
+	const initialQueryRef = useRef(initialQuery ?? '')
+
+	useEffect(() => {
+		const nextInitialQuery = initialQuery ?? ''
+		if (initialQueryRef.current === nextInitialQuery) {
+			return
+		}
+		initialQueryRef.current = nextInitialQuery
+		setLiveQuery(nextInitialQuery)
+	}, [initialQuery])
+
+	useEffect(() => {
+		onSearchRef.current = onSearch
+	}, [onSearch])
+
+	useEffect(() => {
+		const timer = window.setTimeout(() => {
+			onSearchRef.current(liveQuery.trim())
+		}, 250)
+		return () => window.clearTimeout(timer)
+	}, [liveQuery])
 
 	const searchItems: SearchEntry[] = useMemo(
 		() =>
@@ -236,7 +261,12 @@ function MarketSearch({
 			placeholder={t('market.searchPlaceholder')}
 			askLyonLabel={t('market.search', { defaultValue: 'Search' })}
 			onSelect={handleSelect}
-			onAskLyon={onSearch}
+			onQueryChange={setLiveQuery}
+			enableVoice
+			voiceLocale={i18n.language}
+			initialQuery={initialQuery}
+			enterKeyBehavior="close"
+			tokenizeOnComma
 			maxResults={6}
 			idPrefix="market-search"
 		/>
@@ -268,6 +298,14 @@ function MarketPage() {
 		priceTiers.length
 	)
 
+	const handleMarketSearch = useCallback(
+		(q: string) =>
+			navigate({
+				search: { ...search, q: q || undefined, page: 1 },
+			}),
+		[navigate, search],
+	)
+
 	function nav(overrides: Partial<typeof search>) {
 		navigate({ search: { ...search, ...overrides, page: overrides.page ?? 1 } })
 	}
@@ -289,6 +327,14 @@ function MarketPage() {
 			: [...productFamilies, productFamily]
 		nav({
 			product_family: next.length ? next.join(',') : undefined,
+			product_type: undefined,
+		})
+	}
+
+	function clearCatalogFilters() {
+		nav({
+			category: undefined,
+			product_family: undefined,
 			product_type: undefined,
 		})
 	}
@@ -318,7 +364,8 @@ function MarketPage() {
 							<MarketSearch
 								items={data.items}
 								categories={data.categories}
-								onSearch={(q) => nav({ q: q || undefined })}
+								initialQuery={search.q}
+								onSearch={handleMarketSearch}
 							/>
 						</div>
 					</div>
@@ -334,7 +381,7 @@ function MarketPage() {
 						selectedCategories={categories}
 						selectedGroups={productFamilies}
 						productsByTypeSlug={productByTypeSlug}
-						onClear={() => navigate({ search: {} })}
+						onClear={clearCatalogFilters}
 						onToggleCategory={toggleCategory}
 						onToggleGroup={toggleProductFamily}
 					/>
@@ -342,7 +389,7 @@ function MarketPage() {
 						<button
 							type="button"
 							onClick={() => setCatalogOpen(true)}
-							className="mb-5 flex h-11 w-full items-center justify-between rounded-sm border border-[#2563eb]/20 bg-[#2563eb]/[0.04] px-4 text-start text-[13px] font-semibold text-[#2563eb] transition-colors hover:bg-[#2563eb]/[0.08] lg:hidden"
+							className="mb-5 flex h-11 w-full items-center justify-between rounded-sm border border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-start text-[13px] font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--color-text)]/20 hover:bg-[var(--color-text)]/[0.04] lg:hidden"
 						>
 							<span className="inline-flex items-center gap-2">
 								<SlidersHorizontal size={16} strokeWidth={1.8} />
@@ -450,7 +497,7 @@ function MarketPage() {
 				selectedCategories={categories}
 				selectedGroups={productFamilies}
 				productsByTypeSlug={productByTypeSlug}
-				onClear={() => navigate({ search: {} })}
+				onClear={clearCatalogFilters}
 				onToggleCategory={toggleCategory}
 				onToggleGroup={toggleProductFamily}
 			/>
@@ -551,14 +598,25 @@ function MobileHierarchySheet({
 							<p className="font-[family-name:var(--font-plex-mono)] text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
 								Catalog
 							</p>
-							<button
-								type="button"
-								onClick={onClose}
-								className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-text-muted)] transition-colors hover:bg-[#2563eb]/[0.08] hover:text-[#2563eb]"
-								aria-label="Close catalog"
-							>
-								<X size={17} strokeWidth={1.8} />
-							</button>
+							<div className="flex items-center gap-1">
+								{selectedCategories.length > 0 || selectedGroups.length > 0 ? (
+									<button
+										type="button"
+										onClick={onClear}
+										className="h-9 px-2 text-[12px] font-semibold text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+									>
+										Clear
+									</button>
+								) : null}
+								<button
+									type="button"
+									onClick={onClose}
+									className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-text)]/[0.06] hover:text-[var(--color-text)]"
+									aria-label="Close catalog"
+								>
+									<X size={17} strokeWidth={1.8} />
+								</button>
+							</div>
 						</div>
 						<HierarchyPanelContent
 							categories={categories}
@@ -632,17 +690,15 @@ function HierarchyPanelContent({
 					<p className="font-[family-name:var(--font-plex-mono)] text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
 						Catalog
 					</p>
-					<button
-						type="button"
-						onClick={onClear}
-						className={`text-[12px] font-semibold transition-colors ${
-							isAllActive
-								? 'text-[#2563eb]'
-								: 'text-[var(--color-text-muted)] hover:text-[#2563eb]'
-						}`}
-					>
-						All
-					</button>
+					{!isAllActive && (
+						<button
+							type="button"
+							onClick={onClear}
+							className="text-[12px] font-semibold text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+						>
+							{t('market.clearFilters', { defaultValue: 'Clear' })}
+						</button>
+					)}
 				</div>
 			)}
 
@@ -846,7 +902,13 @@ function WebsiteHierarchyProductRow({
 				className="flex min-w-0 items-center gap-2 rounded-sm bg-[#2563eb]/[0.06] px-2 py-1.5"
 			>
 				<span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#2563eb]">
-					{label}
+					<button
+						type="button"
+						onClick={() => setEditing(false)}
+						className="min-w-0 truncate text-start transition-colors hover:text-[#1d4ed8]"
+					>
+						{label}
+					</button>
 				</span>
 				<input
 					ref={inputRef}

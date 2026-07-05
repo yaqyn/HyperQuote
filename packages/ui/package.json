@@ -23,7 +23,8 @@
 		"./selection/SelectionCopyToolbar": "./src/selection/SelectionCopyToolbar.tsx",
 		"./text/markdown": "./src/text/markdown.ts",
 		"./utils/cn": "./src/utils/cn.ts",
-		"./viewport/keyboard": "./src/viewport/keyboard.ts"
+		"./viewport/keyboard": "./src/viewport/keyboard.ts",
+		"./voice/useSpeechInput": "./src/voice/useSpeechInput.ts"
 	},
 	"dependencies": {
 		"@hyperquote/i18n": "workspace:*",
