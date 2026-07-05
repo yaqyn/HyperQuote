@@ -967,6 +967,7 @@
 		"reportGenerated": "تم إنشاؤه {{date}}",
 		"reportDetails": "تفاصيل التقرير",
 		"reportSubmitted": "تم الإرسال",
+		"reportSales": "المبيعات",
 		"reportConfirmed": "تم التأكيد",
 		"reportProcessing": "قيد المعالجة",
 		"reportPayment": "الدفع",

@@ -450,7 +450,7 @@ const REPORT_STAGE_LABEL_KEYS: Record<
 	dispatch: 'tracking.reportDispatch',
 	finance: 'tracking.reportPayment',
 	inventory: 'tracking.reportProcessing',
-	sales: 'tracking.reportConfirmed',
+	sales: 'tracking.reportSales',
 	submitted: 'tracking.reportSubmitted',
 	stopped: 'tracking.reportStopped',
 	warehouse: 'tracking.reportProcessing',

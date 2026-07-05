@@ -316,6 +316,7 @@
 		"reportGenerated": "Generated {{date}}",
 		"reportDetails": "Report details",
 		"reportSubmitted": "Submitted",
+		"reportSales": "Sales",
 		"reportConfirmed": "Confirmed",
 		"reportProcessing": "Processing",
 		"reportPayment": "Payment",

@@ -258,6 +258,7 @@ interface QuoteRequestDetailRow {
 	status: string
 	urgency: string
 	created_at: string
+	updated_at: string | null
 	submitted_at: string | null
 	delivery_date: string | null
 	notes: string | null
@@ -582,7 +583,7 @@ function pendingPortalStages(
 	return currentIndex === -1 ? order : order.slice(currentIndex + 1)
 }
 
-function buildOrderReport({
+export function buildOrderReport({
 	delivery,
 	documents,
 	items,
@@ -605,14 +606,14 @@ function buildOrderReport({
 }): LifecycleOrderReport {
 	const linkedOrder = quoteRequest ? firstRelation(quoteRequest.orders) : null
 	const latestVersion = versions[0] ?? null
+	const hasLinkedOrder = linkedOrder !== null
 	const address = quoteRequest
 		? formatPortalAddress(firstRelation(quoteRequest.customer_addresses))
 		: null
 	const project = quoteRequest ? firstRelation(quoteRequest.projects) : null
 	const stopReason = orderReportStopReason(quoteRequest, linkedOrder)
 	const stopped = stopReason !== null
-	const hasProcessing =
-		reservations.length > 0 || loadingTask !== null || Boolean(linkedOrder)
+	const hasProcessing = reservations.length > 0 || loadingTask !== null
 	const hasDelivered =
 		order.status === 'delivered' ||
 		Boolean(linkedOrder?.delivered_at) ||
@@ -670,6 +671,16 @@ function buildOrderReport({
 		}),
 	]
 	if (latestVersion || linkedOrder) {
+		const salesTitle = hasLinkedOrder
+			? stopped
+				? 'Order was confirmed before stop'
+				: 'Order confirmed'
+			: 'Sales evaluated'
+		const salesSummary = hasLinkedOrder
+			? stopped
+				? 'A commercial order record existed before the workflow stopped.'
+				: 'Evaluation and confirmed commercial record.'
+			: 'Sales evaluated the request before the workflow stopped.'
 		steps.push(
 			reportStep({
 				actor: null,
@@ -693,9 +704,9 @@ function buildOrderReport({
 				specialCase: null,
 				stage: 'sales',
 				status: 'completed',
-				summary: 'Evaluation and confirmed commercial record.',
+				summary: salesSummary,
 				timestamp: latestVersion?.created_at ?? linkedOrder?.created_at ?? null,
-				title: 'Order confirmed',
+				title: salesTitle,
 			}),
 		)
 	}
@@ -861,7 +872,11 @@ function buildOrderReport({
 				stage: 'stopped',
 				status: 'stopped',
 				summary: 'Canceled or rejected workflow stop.',
-				timestamp: linkedOrder?.updated_at ?? quoteRequest?.created_at ?? null,
+				timestamp:
+					linkedOrder?.updated_at ??
+					quoteRequest?.updated_at ??
+					quoteRequest?.created_at ??
+					null,
 				title: 'Order stopped',
 			}),
 		)
@@ -1136,6 +1151,7 @@ const quoteRequestDetailSelect = `
 	status,
 	urgency,
 	created_at,
+	updated_at,
 	submitted_at,
 	delivery_date,
 	notes,
