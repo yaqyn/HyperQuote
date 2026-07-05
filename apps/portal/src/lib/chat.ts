@@ -202,7 +202,7 @@ type QuoteRequestItemInput = Parameters<
 	typeof insertQuoteRequestItems
 >[2][number]
 
-interface PortalAiProduct {
+export interface PortalAiProduct {
 	availability_status: string
 	category: string
 	description: string | null
@@ -5984,7 +5984,7 @@ function draftMaterialItemFromProduct(
 	}
 }
 
-function rankProductsForDraftLine(
+export function rankProductsForDraftLine(
 	products: PortalAiProduct[],
 	query: string,
 	limit: number,
@@ -5992,8 +5992,8 @@ function rankProductsForDraftLine(
 	const normalizedQuery = productSearchTerm(query) || query
 	const directMatches = products.filter(
 		(product) =>
-			productMatchesDraftLine(product, query, true) ||
-			productMatchesDraftLine(product, normalizedQuery, true),
+			productIdentityMatchesDraftLine(product, query) ||
+			productIdentityMatchesDraftLine(product, normalizedQuery),
 	)
 	const candidates =
 		directMatches.length > 0
@@ -6011,6 +6011,27 @@ function rankProductsForDraftLine(
 		],
 		limit,
 	)
+}
+
+function productIdentityMatchesDraftLine(
+	product: PortalAiProduct,
+	query: string,
+): boolean {
+	const terms = normalizeForMatch(query)
+		.split(' ')
+		.filter((term) => term.length > 2)
+	if (terms.length === 0) return false
+	const searchable = normalizeForMatch(
+		[
+			product.name,
+			product.name_ar ?? '',
+			product.sku,
+			product.category,
+			product.subcategory ?? '',
+			product.subcategory_ar ?? '',
+		].join(' '),
+	)
+	return terms.some((term) => searchable.includes(term))
 }
 
 function draftLineChoiceFallbackMessage(

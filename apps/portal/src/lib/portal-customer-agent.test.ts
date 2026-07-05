@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { type PortalAiProduct, rankProductsForDraftLine } from './chat'
 import {
 	isLocalPortalChatCommand,
 	PORTAL_CHAT_COMMANDS,
@@ -20,6 +21,29 @@ import {
 import { editableDraftDescriptorFromText } from './portal-draft-targeting'
 
 describe('portal customer AI agent', () => {
+	const product = (
+		input: Partial<PortalAiProduct> & Pick<PortalAiProduct, 'name'>,
+	): PortalAiProduct => ({
+		availability_status: 'available',
+		category: 'cement',
+		description: null,
+		description_ar: null,
+		id: input.name.toLowerCase().replace(/\s+/g, '-'),
+		image_urls: [],
+		name_ar: null,
+		price_range_max: null,
+		price_range_min: null,
+		sku: input.name.toLowerCase().replace(/\s+/g, '-'),
+		slug: input.name.toLowerCase().replace(/\s+/g, '-'),
+		specifications: null,
+		specifications_ar: null,
+		subcategory: null,
+		subcategory_ar: null,
+		unit_of_measure: 'bag',
+		unit_of_measure_ar: 'bag',
+		...input,
+	})
+
 	it('keeps friendly chat conversational', () => {
 		expect(fallbackPortalCustomerToolRequest('hey, how are you?').action).toBe(
 			'chat',
@@ -278,6 +302,96 @@ describe('portal customer AI agent', () => {
 				unitHint: undefined,
 			},
 		])
+		expect(
+			parsePortalDraftMaterialRequestLines('301 cement. make it fast :D'),
+		).toEqual([
+			{
+				query: 'cement',
+				quantity: 301,
+				rawText: '301 cement. make it fast :D',
+				unitHint: undefined,
+			},
+		])
+	})
+
+	it('keeps unrelated products out of noisy draft product choices', () => {
+		const catalog = [
+			product({
+				category: 'cement',
+				description: 'Standard cement bags for reinforced steel projects.',
+				name: 'Cement',
+				subcategory: 'cement',
+			}),
+			product({
+				category: 'cement',
+				description: 'Ready mix concrete delivered around steel mesh.',
+				name: 'Ready Mix',
+				subcategory: 'concrete',
+				unit_of_measure: 'm3',
+			}),
+			product({
+				category: 'steel',
+				description: 'Used in reinforced cement structures.',
+				name: 'Rebar',
+				subcategory: 'rebar',
+				unit_of_measure: 'ton',
+			}),
+			product({
+				category: 'steel',
+				description: 'Steel angle profiles for timber formwork.',
+				name: 'Steel Angle',
+				subcategory: 'profiles',
+				unit_of_measure: 'piece',
+			}),
+			product({
+				category: 'steel',
+				description: 'Welded mesh for concrete and cement pours.',
+				name: 'Steel Mesh',
+				subcategory: 'mesh',
+				unit_of_measure: 'sheet',
+			}),
+			product({
+				category: 'tree',
+				description: 'Plywood sheets for concrete formwork.',
+				name: 'Plywood',
+				subcategory: 'sheets',
+				unit_of_measure: 'sheet',
+			}),
+			product({
+				category: 'tree',
+				description: 'Timber beams near cement work.',
+				name: 'Timber Beam',
+				subcategory: 'beams',
+				unit_of_measure: 'piece',
+			}),
+			product({
+				category: 'tree',
+				description: 'General construction wood around steel frames.',
+				name: 'Wood',
+				subcategory: 'wood',
+				unit_of_measure: 'piece',
+			}),
+			product({
+				category: 'cement',
+				description: 'White cement finishing near timber and steel.',
+				name: 'White Cement',
+				subcategory: 'cement',
+			}),
+		]
+
+		for (const [query, expectedNames] of [
+			['cement. make it fast :D', ['Cement', 'Ready Mix', 'White Cement']],
+			['steel. rush this please', ['Rebar', 'Steel Angle', 'Steel Mesh']],
+			['wood. urgent if possible', ['Plywood', 'Wood']],
+			['timber. move quick', ['Timber Beam']],
+			['concrete. asap', ['Ready Mix']],
+		] as const) {
+			const matches = rankProductsForDraftLine(catalog, query, 4)
+			expect(
+				matches.map((match) => match.name),
+				query,
+			).toEqual(expectedNames)
+		}
 	})
 
 	it('cleans active-draft reference tails from parsed material lines', () => {

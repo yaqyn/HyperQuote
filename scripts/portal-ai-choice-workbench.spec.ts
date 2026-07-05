@@ -195,6 +195,79 @@ test('portal AI product-choice workbench survives one 10-prompt pre-production s
 	expect(failures).toEqual([])
 })
 
+test('portal AI product choices keep noisy material requests inside the right family', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	for (const materialCase of [
+		{
+			absent: [
+				'Rebar',
+				'Steel Angle',
+				'Steel Mesh',
+				'Plywood',
+				'Timber Beam',
+				'Wood',
+			],
+			present: ['Cement', 'Ready Mix', 'White Cement'],
+			prompt: '301 cement. make it fast :D',
+		},
+		{
+			absent: [
+				'Cement',
+				'Ready Mix',
+				'White Cement',
+				'Plywood',
+				'Timber Beam',
+				'Wood',
+			],
+			present: ['Rebar', 'Steel Angle', 'Steel Mesh'],
+			prompt: '222 steel. rush please',
+		},
+		{
+			absent: [
+				'Cement',
+				'Ready Mix',
+				'White Cement',
+				'Rebar',
+				'Steel Angle',
+				'Steel Mesh',
+			],
+			present: ['Plywood', 'Wood'],
+			prompt: '333 wood. urgent if possible',
+		},
+	]) {
+		const { context, page } = await openCustomerPortal(browser, env)
+		try {
+			await sendPortalChat(page, materialCase.prompt)
+
+			await expect(page.getByText(/Product choices/i).last()).toBeVisible({
+				timeout: 30_000,
+			})
+			for (const productName of materialCase.present) {
+				await expect(
+					page
+						.getByRole('button', {
+							name: new RegExp(`^${escapeRegex(productName)}$`),
+						})
+						.last(),
+				).toBeVisible({ timeout: 30_000 })
+			}
+			for (const productName of materialCase.absent) {
+				await expect(
+					page.getByRole('button', {
+						name: new RegExp(`^${escapeRegex(productName)}$`),
+					}),
+					materialCase.prompt,
+				).toHaveCount(0)
+			}
+		} finally {
+			await context.close()
+		}
+	}
+})
+
 async function runWorkbenchCase(page: Page, workbenchCase: WorkbenchCase) {
 	await sendPortalChat(page, workbenchCase.prompt)
 	for (const selection of workbenchCase.selections ?? []) {

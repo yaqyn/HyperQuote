@@ -1187,6 +1187,7 @@ function draftRequestSegments(userMessage: string): string[] {
 
 function cleanMaterialLineQuery(value: string): string {
 	return value
+		.split(/[.?!]+/u)[0]
 		.replace(
 			/\b(?:for|to|into)\s+(?:a|an|the|my|our)?\s*(?:draft|quote|rfq|order|project|site)\b.*$/i,
 			'',
