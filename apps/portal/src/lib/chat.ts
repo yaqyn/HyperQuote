@@ -1172,7 +1172,7 @@ async function repairActiveDraftChatRoute(
 	if (!(await isAIEnabled())) return route
 	const prompt = `${LYON_PORTAL}
 
-The customer has an active draft open in the draft desk.
+The customer has an active draft open.
 Decide whether the latest user message is asking to inspect or modify that active draft.
 Use any human language naturally. Return JSON only.
 
@@ -2379,7 +2379,7 @@ function toolAnswerStyleInstructions(
 		case 'delivery_list':
 			return 'Deliveries: summarize active customer-visible deliveries only, using live driver place labels instead of coordinates.'
 		case 'products':
-			return 'Products: use real visible products and only Available/Unavailable status. Ask before drafting unless explicitly requested.'
+			return 'Products: use the supplied products and only Available/Unavailable status. Ask before drafting unless explicitly requested.'
 		case 'addresses':
 			return 'Addresses: list saved delivery addresses and identify the default.'
 		case 'projects':
@@ -2462,15 +2462,15 @@ function commandToolAnswer(
 		case '/new-draft':
 			return [
 				'## New Draft',
-				'Start a fresh quote drawer or move into the chat draft desk.',
+				'Start a fresh draft or open the draft panel.',
 			].join('\n')
 		case '/cart':
 		case '/open-cart':
 			return [
 				'## Cart',
 				commandName === '/open-cart'
-					? 'Opened the live quote drawer in the portal UI.'
-					: 'Your live quote drawer is stored in this browser. Use the cart button below to open it.',
+					? 'Opened your cart.'
+					: 'Your cart is saved in this browser. Use the cart button below to open it.',
 			].join('\n')
 		case '/orders':
 			if (result.context.type !== 'orders') return fallbackText
@@ -2646,7 +2646,7 @@ function orderDetailCommandAnswer(
 		'',
 		'### Items',
 		order.items.length === 0
-			? 'No material lines are saved.'
+			? 'No items are saved.'
 			: [
 					'| Product | Qty | Unit | Status |',
 					'| --- | ---: | --- | --- |',
@@ -2996,7 +2996,7 @@ function productFallbackAnswer(
 	if (context.products.length === 0) {
 		return isArabic
 			? 'مش لاقي منتج منشور مناسب في الكتالوج حاليًا. قلّي المادة الأساسية أو المقاس المطلوب وأدور تاني.'
-			: 'I could not find a matching published product in the catalog. Tell me the main material or size and I will search again.'
+			: 'I could not find a matching product. Tell me the material, size, or product name and I will check again.'
 	}
 	const rows = context.products.map((product) => {
 		const name =
@@ -3011,8 +3011,8 @@ function productFallbackAnswer(
 	const visibleCountText =
 		context.products.length === context.totalVisibleProducts
 			? isArabic
-				? `${context.products.length} منتج ظاهر`
-				: `${context.products.length} visible product${context.products.length === 1 ? '' : 's'}`
+				? `${context.products.length} منتج`
+				: `${context.products.length} product${context.products.length === 1 ? '' : 's'}`
 			: isArabic
 				? `${context.products.length} من ${context.totalVisibleProducts}`
 				: `${context.products.length} of ${context.totalVisibleProducts}`
@@ -3020,13 +3020,13 @@ function productFallbackAnswer(
 		unavailableCount > 0
 			? isArabic
 				? 'المنتجات غير المتاحة للعلم فقط ولن أضيفها لمسودة. تحب أضيف المنتجات المتاحة لمسودة تراجعها؟'
-				: 'Unavailable products are for visibility only and will not be added to a draft. Want me to add the available items to a draft?'
+				: 'Some products are currently unavailable, so I will not add those to a draft. I can prepare a draft with the available products when you are ready.'
 			: isArabic
-				? 'كل المنتجات الظاهرة متاحة للطلب. تحب أضيف أي منها لمسودة تراجعها؟'
-				: 'All visible products are available to order. Want me to add any of them to a draft?'
+				? 'كل هذه المنتجات متاحة للطلب. تحب أضيف أي منها لمسودة تراجعها؟'
+				: 'All of these are available to order. I can add any of them to a draft when you are ready.'
 	if (isArabic) {
 		return [
-			`دي منتجات حقيقية من الكتالوج (${visibleCountText}):`,
+			`هذه المنتجات المتاحة الآن (${visibleCountText}):`,
 			'',
 			'| المنتج | الحالة | الوحدة | السعر |',
 			'| --- | --- | --- | --- |',
@@ -3036,7 +3036,7 @@ function productFallbackAnswer(
 		].join('\n')
 	}
 	return [
-		`Here are ${visibleCountText} from the live catalog:`,
+		`Here is what is available right now (${visibleCountText}):`,
 		'',
 		'| Product | Status | Unit | Price |',
 		'| --- | --- | --- | --- |',
@@ -3408,7 +3408,7 @@ function accountHealthIssues(
 		)
 	}
 	if (drafts.some((draft) => draft.items.some((item) => !item.orderable))) {
-		issues.push('At least one editable draft has unavailable material lines.')
+		issues.push('At least one editable draft includes unavailable items.')
 	}
 	return issues
 }
@@ -3605,7 +3605,7 @@ async function createDraftFromPlan(
 			message:
 				visibleMatches.products.length > 0
 					? `I found catalog matches, but none are available to add right now: ${visibleMatches.products.map((product) => `${product.name} (${availabilityLabel(product, detectPortalAiLocale(userText))})`).join(', ')}. I did not create a draft.`
-					: 'I could not find an available catalog product to add. I did not create a draft.',
+					: 'I could not find a product I can add to a draft. I left the draft unchanged.',
 		}
 	}
 	if (resolvedDraftItems.some((item) => !item.productId)) {
@@ -3630,7 +3630,7 @@ async function createDraftFromPlan(
 
 	return {
 		items: resolvedDraftItems,
-		message: `I prepared a temporary draft with ${resolvedDraftItems.length} material line${resolvedDraftItems.length === 1 ? '' : 's'}. Save it from the draft desk when you want to keep it.${unavailableNote}`,
+		message: `I prepared a draft with ${resolvedDraftItems.length} item${resolvedDraftItems.length === 1 ? '' : 's'}. You can review and save it when you are ready.${unavailableNote}`,
 		tempDraft,
 	}
 }
@@ -3721,7 +3721,7 @@ async function addItemsToTempDraft(
 		if (pendingMaterial) {
 			return {
 				items: currentItems,
-				message: `How much ${pendingMaterial} should I add to the draft desk?`,
+				message: `How much ${pendingMaterial} should I add?`,
 			}
 		}
 	}
@@ -3754,14 +3754,14 @@ async function addItemsToTempDraft(
 	if (items.length === 0 || items.some((item) => !item.productId)) {
 		return {
 			items: currentItems,
-			message: 'I could not find a currently available catalog product to add.',
+			message: 'I could not find an available product to add.',
 			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
 		}
 	}
 	const nextItems = [...currentItems, ...items]
 	return {
 		items: nextItems,
-		message: `I added ${items.length} material line${items.length === 1 ? '' : 's'} to the draft desk.${unavailableDraftLineNote(unavailableQueries, locale)}`,
+		message: `I added ${items.length} item${items.length === 1 ? '' : 's'} to the draft.${unavailableDraftLineNote(unavailableQueries, locale)}`,
 		tempDraft: activeTempDraftPayload(activeDraft, nextItems),
 	}
 }
@@ -3790,7 +3790,7 @@ async function updateTempDraftItems(
 	if (action === 'clear_items') {
 		return {
 			items: [],
-			message: 'I cleared all material lines from the draft desk.',
+			message: 'I cleared the draft.',
 			tempDraft: activeTempDraftPayload(activeDraft, []),
 		}
 	}
@@ -3810,7 +3810,7 @@ async function updateTempDraftItems(
 		const nextItems = currentItems.filter((_, index) => index !== target)
 		return {
 			items: nextItems,
-			message: `I removed ${currentItems[target]?.name ?? 'that line'} from the draft desk.`,
+			message: `I removed ${currentItems[target]?.name ?? 'that item'} from the draft.`,
 			tempDraft: activeTempDraftPayload(activeDraft, nextItems),
 		}
 	}
@@ -3828,7 +3828,7 @@ async function updateTempDraftItems(
 	if (!quantity) {
 		return {
 			items: currentItems,
-			message: 'Tell me the new quantity for that draft line.',
+			message: 'Tell me the new quantity for that item.',
 			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
 		}
 	}
@@ -3861,7 +3861,7 @@ function findActiveTempDraftItemTarget(
 	itemQuery: string | undefined,
 	previousQuantity: number | undefined,
 ): number | string {
-	if (items.length === 0) return 'That draft has no material lines to edit.'
+	if (items.length === 0) return 'That draft has no items to edit.'
 	const normalizedQuery = normalizeForMatch(itemQuery ?? '')
 	const queryTokens = normalizedQuery
 		.split(' ')
@@ -3887,7 +3887,7 @@ function findActiveTempDraftItemTarget(
 		)
 	if (quantityMatches.length === 1) return quantityMatches[0]?.index ?? 0
 	if (items.length === 1) return 0
-	return `Which draft line should I edit? This draft has ${items.map((item) => `${item.qty} ${item.unit} ${item.name}`).join(', ')}.`
+	return `Which item should I edit? This draft has ${items.map((item) => `${item.qty} ${item.unit} ${item.name}`).join(', ')}.`
 }
 
 function normalizeDraftQuantity(value: number): number | null {
@@ -3948,14 +3948,14 @@ async function duplicateOrderToDraft(
 	if (sourceItems.length === 0) {
 		return {
 			message:
-				'I found the source record, but it has no material lines to copy into a draft.',
+				'I found the source record, but it has no items to copy into a draft.',
 		}
 	}
 	const items = sourceItems.map(toDraftMaterialItem)
 	if (items.some((item) => !item.productId)) {
 		return {
 			message:
-				'I found the source record, but it contains text-only or unmatched material lines. I did not create a new draft because Portal AI drafts must use real orderable catalog products.',
+				'I found the source record, but some items are not linked to orderable products. I left the draft unchanged.',
 		}
 	}
 
@@ -4100,7 +4100,7 @@ async function addItemsToDraft(
 			editRoute: `/orders/edit/${draft.id}`,
 			items: sortedQuoteRequestItems(draft).map(toDraftMaterialItem),
 			reference: draft.request_number,
-			message: 'I could not find a currently available catalog product to add.',
+			message: 'I could not find an available product to add.',
 		}
 	}
 
@@ -4159,7 +4159,7 @@ async function addItemsToDraft(
 		editRoute: `/orders/edit/${draft.id}`,
 		items: materialItems,
 		reference: draft.request_number,
-		message: `I added ${items.length} material line${items.length === 1 ? '' : 's'} to ${draft.request_number}.${unavailableDraftLineNote(unavailableQueries, locale)}`,
+		message: `I added ${items.length} item${items.length === 1 ? '' : 's'} to ${draft.request_number}.${unavailableDraftLineNote(unavailableQueries, locale)}`,
 	}
 }
 
@@ -4195,7 +4195,7 @@ async function replaceDraftItem(
 			editRoute: `/orders/edit/${draft.id}`,
 			items: [],
 			reference: draft.request_number,
-			message: 'That draft has no material lines to replace.',
+			message: 'That draft has no items to replace.',
 		}
 	}
 	const target = findDraftItemTarget(
@@ -4210,8 +4210,7 @@ async function replaceDraftItem(
 			editRoute: `/orders/edit/${draft.id}`,
 			items: currentItems.map(toDraftMaterialItem),
 			reference: draft.request_number,
-			message:
-				target.message ?? 'I could not identify which draft line to replace.',
+			message: target.message ?? 'I could not identify which item to replace.',
 		}
 	}
 	const replacementText = route.replacementQuery || route.itemQuery || ''
@@ -4221,8 +4220,7 @@ async function replaceDraftItem(
 			editRoute: `/orders/edit/${draft.id}`,
 			items: currentItems.map(toDraftMaterialItem),
 			reference: draft.request_number,
-			message:
-				'Tell me what available catalog product should replace that line.',
+			message: 'Tell me which available product should replace that item.',
 		}
 	}
 	const products = await findOrderableProductsForDraft(
@@ -4250,8 +4248,7 @@ async function replaceDraftItem(
 			editRoute: `/orders/edit/${draft.id}`,
 			items: currentItems.map(toDraftMaterialItem),
 			reference: draft.request_number,
-			message:
-				'I could not find a currently available catalog product for the replacement.',
+			message: 'I could not find an available replacement product.',
 		}
 	}
 	const quantity = route.quantity ?? target.item.quantity
@@ -4319,7 +4316,7 @@ async function replaceTempDraftItem(
 	if (currentItems.length === 0) {
 		return {
 			items: [],
-			message: 'That draft has no material lines to replace.',
+			message: 'That draft has no items to replace.',
 			tempDraft: activeTempDraftPayload(activeDraft, []),
 		}
 	}
@@ -4339,8 +4336,7 @@ async function replaceTempDraftItem(
 	if (!replacementText) {
 		return {
 			items: currentItems,
-			message:
-				'Tell me what available catalog product should replace that line.',
+			message: 'Tell me which available product should replace that item.',
 			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
 		}
 	}
@@ -4366,8 +4362,7 @@ async function replaceTempDraftItem(
 	if (!replacement?.productId) {
 		return {
 			items: currentItems,
-			message:
-				'I could not find a currently available catalog product for the replacement.',
+			message: 'I could not find an available replacement product.',
 			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
 		}
 	}
@@ -4381,7 +4376,7 @@ async function replaceTempDraftItem(
 	)
 	return {
 		items: nextItems,
-		message: `I replaced ${previous?.name ?? 'that line'} with ${nextItem.name} in the draft desk.`,
+		message: `I replaced ${previous?.name ?? 'that item'} with ${nextItem.name} in the draft.`,
 		tempDraft: activeTempDraftPayload(activeDraft, nextItems),
 	}
 }
@@ -4500,10 +4495,12 @@ async function validateDraftContext(
 	const materialItems = sortedQuoteRequestItems(draft).map(toDraftMaterialItem)
 	const unavailableItems = materialItems.filter((item) => !item.orderable)
 	const issues: string[] = []
-	if (materialItems.length === 0) issues.push('No material lines are saved.')
+	if (materialItems.length === 0) issues.push('No items are saved.')
 	if (unavailableItems.length > 0) {
 		issues.push(
-			`${unavailableItems.length} material line${unavailableItems.length === 1 ? '' : 's'} is unavailable.`,
+			unavailableItems.length === 1
+				? '1 item is unavailable.'
+				: `${unavailableItems.length} items are unavailable.`,
 		)
 	}
 	if (!draft.delivery_address_id) issues.push('Delivery address is not set.')
@@ -4665,7 +4662,7 @@ async function updateDraftItems(
 			editRoute: `/orders/edit/${draft.id}`,
 			items: [],
 			reference: draft.request_number,
-			message: `I cleared all material lines from ${draft.request_number}.`,
+			message: `I cleared all items from ${draft.request_number}.`,
 		}
 	}
 
@@ -4676,7 +4673,7 @@ async function updateDraftItems(
 			items: [],
 			reference: draft.request_number,
 			message:
-				'That draft has no material lines to edit. Tell me what catalog product to add and I can create a new draft line from available products.',
+				'That draft has no items to edit. Tell me what product to add and I can help build it again.',
 		}
 	}
 
@@ -4702,7 +4699,7 @@ async function updateDraftItems(
 			editRoute: `/orders/edit/${draft.id}`,
 			items: currentItems.map(toDraftMaterialItem),
 			reference: draft.request_number,
-			message: 'I could not identify which draft line to edit.',
+			message: 'I could not identify which item to edit.',
 		}
 	}
 
@@ -4761,7 +4758,7 @@ async function updateDraftItems(
 				items: currentItems.map(toDraftMaterialItem),
 				reference: draft.request_number,
 				message:
-					'Tell me the new quantity for that draft line, for example "set Wood to 340 pieces".',
+					'Tell me the new quantity for that item, for example "set Wood to 340 pieces".',
 			}
 		}
 		const { error } = await supabase
@@ -4805,7 +4802,7 @@ async function updateDraftItems(
 			items: currentItems.map(toDraftMaterialItem),
 			reference: draft.request_number,
 			message:
-				'Tell me the note to save on that draft line, for example `set the Wood line note to exterior grade`.',
+				'Tell me the note to save on that item, for example `add exterior grade to Wood`.',
 		}
 	}
 	const { error } = await supabase
@@ -4969,7 +4966,7 @@ async function cleanupDrafts(
 			return {
 				kept: drafts.map((draft) => draft.request_number),
 				message:
-					'I did not merge the drafts because at least one material line is text-only or unmatched. Portal AI merge drafts must keep real orderable catalog product links.',
+					'I did not merge the drafts because at least one item is not linked to an orderable product. I left the drafts unchanged.',
 			}
 		}
 		const locale = detectPortalAiLocale(route.searchQuery)
@@ -5239,7 +5236,7 @@ function findDraftItemTarget(
 	if (items.length === 1) return { item: items[0] }
 
 	return {
-		message: `Which draft line should I edit? This draft has ${draftItemChoices(items)}.`,
+		message: `Which item should I edit? This draft has ${draftItemChoices(items)}.`,
 	}
 }
 
@@ -5337,7 +5334,7 @@ async function editableDraftLineOrderabilityMessage(
 			error instanceof Error &&
 			error.message === QUOTE_REQUEST_ITEM_PRODUCT_NOT_ORDERABLE
 		) {
-			return `I will not edit ${draftItemDisplayName(item)} because it is not backed by a currently orderable catalog product. I can remove that line or clear the draft instead.`
+			return `I cannot edit ${draftItemDisplayName(item)} because it is not available to order right now. I can remove it or clear the draft instead.`
 		}
 		throw error
 	}
@@ -5601,7 +5598,7 @@ async function buildDraftItemsFromRequestedLines(
 					message:
 						locale === 'ar'
 							? `المنتج المختار مش متاح للطلب حالياً. ماعملتش مسودة.`
-							: `The selected catalog product is not available to order right now. I did not create a draft.`,
+							: `That product is not available to order right now. I did not create a draft.`,
 				}
 			}
 			items.push(draftMaterialItemFromProduct(product, line.quantity))
@@ -5681,7 +5678,7 @@ async function buildDraftItemsFromRequestedLines(
 			message:
 				locale === 'ar'
 					? `مش لاقي منتج متاح باسم ${unavailable}. ماعملتش مسودة.`
-					: `I could not find an available catalog product for ${unavailable}. I did not create a draft.`,
+					: `I could not find an available product for ${unavailable}. I did not create a draft.`,
 		}
 	}
 	return items
@@ -6038,8 +6035,8 @@ function draftLineChoiceFallbackMessage(
 		.join('\n')
 	const unavailableNote = unavailableDraftLineNote(unavailableQueries, locale)
 	return locale === 'ar'
-		? `لقيت أكتر من اختيار لـ ${query}. اختار من كروت المنتجات:\n${choices}${unavailableNote}`
-		: `I found multiple ${query} options. Choose from the product cards:\n${choices}${unavailableNote}`
+		? `لقيت أكتر من اختيار لـ ${query}. اختار المنتج المناسب:\n${choices}${unavailableNote}`
+		: `I found a few options for ${query}. Choose the one you want:\n${choices}${unavailableNote}`
 }
 
 function draftProductChoiceFallbackMessage(
@@ -6059,8 +6056,8 @@ function draftProductChoiceFallbackMessage(
 	}
 	const unavailableNote = unavailableDraftLineNote(unavailableQueries, locale)
 	return locale === 'ar'
-		? `لقيت أكتر من اختيار في ${groups.length} بنود. اختار المنتج المناسب لكل بند.${unavailableNote}`
-		: `I found multiple options for ${groups.length} material lines. Pick the right product for each line.${unavailableNote}`
+		? `لقيت اختيارات متعددة لـ ${groups.length} بنود. اختار المنتج المناسب لكل بند.${unavailableNote}`
+		: `I found options for ${groups.length} items. Choose the right product for each one.${unavailableNote}`
 }
 
 function unavailableDraftLineNote(
@@ -6074,7 +6071,7 @@ function unavailableDraftLineNote(
 	const list = uniqueQueries.join(', ')
 	return locale === 'ar'
 		? ` لم أضف: ${list} لأنه غير موجود كمنتج متاح.`
-		: ` I did not add: ${list} because I could not find an available catalog product.`
+		: ` I did not add: ${list} because I could not find an available product.`
 }
 
 function mergeUnavailableDraftQueries(
@@ -6414,7 +6411,7 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 				actionButtonEvent({
 					event: 'open_draft_panel',
 					icon: 'draft',
-					label: 'Chat draft desk',
+					label: 'Open drafts',
 					labelAr: 'مكتب المسودات',
 				}),
 				actionButtonEvent({
@@ -6753,8 +6750,8 @@ function productChoiceListData(
 	return {
 		description:
 			context.locale === 'ar'
-				? `اختار منتج من الكتالوج لكل بند عشان أجهز المسودة بدون تخمين.${unavailableNote}`
-				: `Choose the catalog product for each line so I can draft it without guessing.${unavailableNote}`,
+				? `اختار المنتج المناسب لكل بند عشان أجهز المسودة بدقة.${unavailableNote}`
+				: `Choose the right product for each item so I can prepare the draft accurately.${unavailableNote}`,
 		groups: visibleGroups.map((group, groupIndex) => ({
 			options: group.options.map(({ product }) => ({
 				action: productChoiceAction(context, group, product),
