@@ -271,6 +271,44 @@ describe('draft quote cart recovery', () => {
 		expect(memory.getState().items).toHaveLength(1)
 		expect(memory.getState().items[0]?.productId).toBe(keptProductId)
 	})
+
+	it('applies a newer empty remote cart instead of restoring stale local items', async () => {
+		const productId = '22222222-2222-4222-8222-222222222222'
+		const memory = createMemoryQuoteCartStore({
+			globalNote: 'old note',
+			items: [cartItem({ productId, quantity: 2 })],
+		})
+		let saves = 0
+		const controller = createQuoteCartSync({
+			adapter: {
+				load: async () => ({
+					globalNote: '',
+					items: [],
+					updatedAt: '2026-05-23T10:02:00.000Z',
+					version: 3,
+				}),
+				save: async (snapshot) => {
+					saves += 1
+					return {
+						...snapshot,
+						updatedAt: '2026-05-23T10:03:00.000Z',
+						version: 4,
+					}
+				},
+			},
+			broadcast: false,
+			intervalMs: 60_000,
+			source: 'website',
+			store: memory.store,
+		})
+
+		await controller.pull()
+		controller.stop()
+
+		expect(saves).toBe(0)
+		expect(memory.getState().globalNote).toBe('')
+		expect(memory.getState().items).toEqual([])
+	})
 })
 
 function cartItem(input: {

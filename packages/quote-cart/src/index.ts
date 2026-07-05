@@ -293,14 +293,6 @@ export function createQuoteCartSync(
 			}
 			return
 		}
-		if (
-			!quoteCartSnapshotHasContent(remote) &&
-			quoteCartSnapshotHasContent(localSnapshot)
-		) {
-			lastRemoteUpdatedAt = remote.updatedAt
-			await saveRemote(localSnapshot)
-			return
-		}
 		if (remote.updatedAt === lastRemoteUpdatedAt) return
 		lastRemoteUpdatedAt = remote.updatedAt
 		const remoteFingerprint = getQuoteCartFingerprint(

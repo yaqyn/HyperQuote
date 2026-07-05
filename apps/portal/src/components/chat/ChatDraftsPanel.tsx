@@ -1,3 +1,4 @@
+import { applyQuoteCartSnapshot } from '@hyperquote/quote-cart'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
 	AlertTriangle,
@@ -23,7 +24,14 @@ import {
 	motion,
 	useReducedMotion,
 } from 'motion/react'
-import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import {
+	type ReactNode,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import {
 	type ActiveChatDraftContext,
@@ -500,6 +508,12 @@ export function ChatDraftsPanel({
 	const isAr = i18n.language === 'ar'
 	const shouldReduceMotion = useReducedMotion()
 	const addCartItem = useDraftQuoteStore((s) => s.add)
+	const cartItems = useDraftQuoteStore((s) => s.items)
+	const cartGlobalNote = useDraftQuoteStore((s) => s.globalNote)
+	const clearCart = useDraftQuoteStore((s) => s.clear)
+	const removeCartItem = useDraftQuoteStore((s) => s.remove)
+	const setCartGlobalNote = useDraftQuoteStore((s) => s.setGlobalNote)
+	const updateCartQuantity = useDraftQuoteStore((s) => s.updateQuantity)
 	const setDraftQuoteOpen = usePortalStore((s) => s.setDraftQuoteOpen)
 	const defaultDraftName = getDefaultDraftName(
 		t('market.defaultDraftName'),
@@ -609,7 +623,7 @@ export function ChatDraftsPanel({
 					search: productSearch.trim() || undefined,
 				},
 			}),
-		enabled: editor !== null,
+		enabled: editor !== null || productMenuOpen,
 		staleTime: 60_000,
 	})
 	const products =
@@ -675,13 +689,33 @@ export function ChatDraftsPanel({
 	)
 	const activeDraftTitle = editor
 		? editor.name.trim() || editor.reference || t('market.defaultDraftName')
-		: t('orders.selectDraft', 'Select draft')
+		: t('market.cart')
 	const activeDraftMeta = editor
 		? `${t('orders.items', { count: editor.items.length })} · ${formatDraftDate(editor.date, isAr)}`
-		: t('orders.noDraftSelected', 'No draft selected')
+		: t('market.cartItemCount', { count: cartItems.length })
 	const activeDraftContext = useMemo(
-		() => (editor ? activeDraftContextFromEditor(editor) : null),
-		[editor],
+		() =>
+			editor
+				? activeDraftContextFromEditor(editor)
+				: {
+						dirty: cartItems.length > 0 || cartGlobalNote.trim().length > 0,
+						id: null,
+						items: cartItems.slice(0, 40).map((item, index) => ({
+							lineId: `cart:${index}:${item.productId}`,
+							orderable: true,
+							productId: item.productId,
+							productName: item.name,
+							productNameAr: item.nameAr,
+							quantity: item.quantity,
+							unitOfMeasure: item.unitOfMeasure,
+							unitOfMeasureAr: item.unitOfMeasureAr,
+						})),
+						name: t('market.cart'),
+						notes: cartGlobalNote.trim().slice(0, 600),
+						reference: null,
+						sessionKey: 'cart',
+					},
+		[cartGlobalNote, cartItems, editor, t],
 	)
 
 	useEffect(() => {
@@ -694,6 +728,36 @@ export function ChatDraftsPanel({
 		reportedDraftRef.current = false
 		onActiveDraftChange?.(null)
 	}, [activeDraftContext, onActiveDraftChange])
+
+	const applyTempDraftToCart = useCallback((draft: ChatTempDraftData) => {
+		applyQuoteCartSnapshot(useDraftQuoteStore, {
+			globalNote: draft.notes,
+			items: draft.items.map((item) => ({
+				category: item.category,
+				categoryName: item.category,
+				categoryNameAr: item.category,
+				imageUrl: item.imageUrl,
+				name: item.productName,
+				nameAr: item.productNameAr,
+				note: '',
+				productId: item.productId,
+				quantity: item.quantity,
+				slug: item.productId,
+				unitOfMeasure: item.unitOfMeasure,
+				unitOfMeasureAr: item.unitOfMeasureAr,
+			})),
+		})
+		writePersistedDraftWorkspace(null)
+		setActiveDraftKey(null)
+		setActionsMenuOpen(false)
+		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
+		setConfirmDeleteId(null)
+		setDraftMenuOpen(false)
+		setEditor(null)
+		setProductSearch('')
+		setSubmitError(null)
+	}, [])
 
 	useEffect(() => {
 		if (
@@ -741,6 +805,10 @@ export function ChatDraftsPanel({
 			const detail = (event as CustomEvent<PortalChatOpenDraftEventDetail>)
 				.detail
 			if (detail?.tempDraft) {
+				if (detail.tempDraft.sessionKey === 'cart') {
+					applyTempDraftToCart(detail.tempDraft)
+					return
+				}
 				const nextEditor = createEditorFromTempDraft(detail.tempDraft)
 				writePersistedDraftWorkspace({
 					activeDraftKey: NEW_DRAFT_KEY,
@@ -772,7 +840,7 @@ export function ChatDraftsPanel({
 		return () => {
 			window.removeEventListener(PORTAL_CHAT_OPEN_DRAFT_EVENT, handleOpenDraft)
 		}
-	}, [queryClient])
+	}, [applyTempDraftToCart, queryClient])
 
 	useEffect(() => {
 		if (!requestedDraftId) return
@@ -1047,6 +1115,10 @@ export function ChatDraftsPanel({
 		if (product.availabilityStatus === 'out_of_stock') return
 		setConfirmCartAddOpen(false)
 		setConfirmSubmitOpen(false)
+		if (!editor) {
+			addCartProduct(product)
+			return
+		}
 		setEditor((current) => {
 			if (!current) return current
 			const existingIndex = current.items.findIndex(
@@ -1068,6 +1140,47 @@ export function ChatDraftsPanel({
 				items: [...current.items, productToOrderItem(product)],
 			}
 		})
+	}
+
+	function addCartProduct(product: MarketProduct) {
+		addCartItem(
+			{
+				category: product.category,
+				categoryName: product.categoryName,
+				categoryNameAr: product.categoryNameAr,
+				imageUrl: product.imageUrl,
+				name: product.name,
+				nameAr: product.nameAr,
+				productId: product.id,
+				slug: product.slug,
+				unitOfMeasure: product.unitOfMeasure,
+				unitOfMeasureAr: product.unitOfMeasureAr,
+			},
+			1,
+		)
+	}
+
+	function showCartWorkspace() {
+		writePersistedDraftWorkspace(null)
+		setActiveDraftKey(null)
+		setActionsMenuOpen(false)
+		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
+		setConfirmDeleteId(null)
+		setDraftMenuOpen(false)
+		setEditor(null)
+		setProductSearch('')
+		setSubmitError(null)
+	}
+
+	function clearCartWorkspace() {
+		clearCart()
+		setActionsMenuOpen(false)
+		setConfirmCartAddOpen(false)
+		setConfirmSubmitOpen(false)
+		setProductMenuOpen(false)
+		setProductSearch('')
+		toast.success(t('market.cartCleared', 'Cart cleared.'))
 	}
 
 	function addEditorToCart() {
@@ -1205,10 +1318,16 @@ export function ChatDraftsPanel({
 					<div className="flex shrink-0 items-center gap-1">
 						<motion.button
 							type="button"
-							onClick={clearEditorWorkspace}
-							disabled={!editor}
+							onClick={editor ? clearEditorWorkspace : clearCartWorkspace}
+							disabled={
+								!editor && cartItems.length === 0 && !cartGlobalNote.trim()
+							}
 							className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--p-border)] text-[#B3261E] transition-colors hover:bg-[#B3261E]/10 disabled:pointer-events-none disabled:opacity-40 dark:text-[#FF6B61] dark:hover:bg-[#FF6B61]/10"
-							aria-label={t('orders.deleteClear', 'Delete / Clear')}
+							aria-label={
+								editor
+									? t('orders.deleteClear', 'Delete / Clear')
+									: t('market.clearCart')
+							}
 							whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
 						>
 							<Trash2 size={16} strokeWidth={1.8} />
@@ -1282,6 +1401,31 @@ export function ChatDraftsPanel({
 								</label>
 
 								<div className="mt-2 space-y-1">
+									<button
+										type="button"
+										onClick={showCartWorkspace}
+										className={`flex h-12 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start transition-colors ${
+											editor
+												? 'text-[var(--p-text)] hover:bg-[var(--p-hover)]'
+												: 'bg-[var(--p-accent-dim)] text-[var(--p-accent)]'
+										}`}
+									>
+										<ShoppingCart
+											size={14}
+											strokeWidth={1.7}
+											className="shrink-0"
+										/>
+										<span className="min-w-0 flex-1">
+											<span className="block truncate text-[12px] font-semibold">
+												{t('market.cart')}
+											</span>
+											<span className="block truncate text-[10px] text-[var(--p-text-muted)]">
+												{t('market.cartItemCount', {
+													count: cartItems.length,
+												})}
+											</span>
+										</span>
+									</button>
 									{isLoading ? (
 										showDraftMenuLoading ? (
 											<MenuLoadingState
@@ -1528,27 +1672,248 @@ export function ChatDraftsPanel({
 						</motion.div>
 					) : (
 						<motion.div
-							key="draft-empty"
-							className="flex min-h-full flex-col items-center justify-center text-center"
+							key="cart-workspace"
+							className="space-y-4"
 							{...chatFadeMotion(shouldReduceMotion)}
 						>
-							<FilePenLine
-								size={28}
-								strokeWidth={1.5}
-								className="mb-3 text-[var(--p-text-faint)]"
-							/>
-							<p className="text-[14px] font-semibold text-[var(--p-text)]">
-								{t('orders.noDraftSelected', 'No draft selected')}
-							</p>
-							<motion.button
-								type="button"
-								onClick={startNewDraft}
-								className="mt-4 flex h-10 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-4 text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90"
-								whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
-							>
-								<Plus size={15} strokeWidth={1.7} />
-								{t('orders.newDraft')}
-							</motion.button>
+							<label className="block">
+								<span className="mb-1.5 flex items-center justify-between gap-2 text-[11px] font-semibold text-[var(--p-text-muted)]">
+									<span>{t('market.cartNotesLabel')}</span>
+									{cartGlobalNote.trim() && (
+										<CopyButton text={cartGlobalNote.trim()} />
+									)}
+								</span>
+								<textarea
+									value={cartGlobalNote}
+									onChange={(event) =>
+										setCartGlobalNote(event.currentTarget.value)
+									}
+									rows={3}
+									placeholder={t('market.cartNotesPlaceholder')}
+									className="min-h-20 w-full resize-none rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-5 text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+								/>
+							</label>
+
+							<div>
+								<div className="mb-2 flex items-center justify-between gap-2">
+									<p className="text-[12px] font-semibold text-[var(--p-text)]">
+										{t('market.cartItemCount', { count: cartItems.length })}
+									</p>
+									<button
+										type="button"
+										onClick={() => setDraftQuoteOpen(true)}
+										className="text-[12px] font-semibold text-[var(--p-text-muted)] transition-colors hover:text-[var(--p-text)]"
+									>
+										{t('market.openCart')}
+									</button>
+								</div>
+
+								{cartItems.length === 0 ? (
+									<div className="flex min-h-28 flex-col items-center justify-center rounded-xl border border-dashed border-[var(--p-border)] px-4 text-center">
+										<ShoppingCart
+											size={22}
+											strokeWidth={1.5}
+											className="mb-2 text-[var(--p-text-faint)]"
+										/>
+										<p className="text-[12px] text-[var(--p-text-muted)]">
+											{t('market.cartEmptyBody')}
+										</p>
+									</div>
+								) : (
+									<div className="space-y-2">
+										<AnimatePresence initial={false}>
+											{cartItems.map((item) => {
+												const itemName =
+													isAr && item.nameAr ? item.nameAr : item.name
+												const unitLabel =
+													isAr && item.unitOfMeasureAr
+														? item.unitOfMeasureAr
+														: item.unitOfMeasure
+												return (
+													<motion.div
+														key={item.productId}
+														className="rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3"
+														{...chatRevealMotion(shouldReduceMotion)}
+													>
+														<div className="flex min-w-0 items-center gap-3">
+															{item.imageUrl ? (
+																<img
+																	src={item.imageUrl}
+																	alt=""
+																	loading="lazy"
+																	decoding="async"
+																	className="h-10 w-10 shrink-0 rounded-lg bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)]"
+																/>
+															) : (
+																<div
+																	aria-hidden="true"
+																	className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--p-surface)] text-[var(--p-text-faint)] ring-1 ring-inset ring-[var(--p-border)]"
+																>
+																	<Package size={14} />
+																</div>
+															)}
+															<div className="min-w-0 flex-1">
+																<p className="truncate text-[13px] font-semibold text-[var(--p-text)]">
+																	{itemName}
+																</p>
+																<p className="mt-0.5 truncate text-[11px] text-[var(--p-text-muted)]">
+																	{isAr && item.categoryNameAr
+																		? item.categoryNameAr
+																		: item.categoryName}
+																</p>
+															</div>
+															<label className="flex h-9 w-[112px] shrink-0 items-center justify-end gap-2">
+																<span className="sr-only">
+																	{t('market.quantity')}
+																</span>
+																<input
+																	type="number"
+																	inputMode="numeric"
+																	min={0}
+																	value={item.quantity}
+																	onChange={(event) => {
+																		const rawValue =
+																			event.currentTarget.value.trim()
+																		if (rawValue === '') {
+																			updateCartQuantity(item.productId, 0)
+																			return
+																		}
+																		const next = Number.parseInt(rawValue, 10)
+																		if (Number.isFinite(next) && next >= 0) {
+																			updateCartQuantity(item.productId, next)
+																		}
+																	}}
+																	className="h-full min-w-0 flex-1 bg-transparent text-end font-mono text-[14px] font-semibold text-[var(--p-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+																	style={{
+																		fontVariantNumeric: 'tabular-nums',
+																	}}
+																/>
+																<span className="min-w-0 truncate text-[11px] text-[var(--p-text-muted)]">
+																	{unitLabel}
+																</span>
+															</label>
+															<button
+																type="button"
+																onClick={() => removeCartItem(item.productId)}
+																className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-error)]"
+																aria-label={t('market.removeItem')}
+															>
+																<X size={14} strokeWidth={1.8} />
+															</button>
+														</div>
+													</motion.div>
+												)
+											})}
+										</AnimatePresence>
+									</div>
+								)}
+							</div>
+
+							<div ref={productMenuRef} className="relative">
+								<motion.button
+									type="button"
+									onClick={() => setProductMenuOpen((open) => !open)}
+									aria-expanded={productMenuOpen}
+									aria-haspopup="menu"
+									className="flex h-10 w-full min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-start transition-colors hover:border-[var(--p-border-strong)]"
+									whileTap={shouldReduceMotion ? undefined : { scale: 0.99 }}
+								>
+									<span className="flex min-w-0 items-center gap-2">
+										<Search
+											size={15}
+											strokeWidth={1.7}
+											className="shrink-0 text-[var(--p-text-muted)]"
+										/>
+										<span className="truncate text-[12px] font-semibold text-[var(--p-text)]">
+											{t('orders.searchProducts')}
+										</span>
+									</span>
+									<ChevronDown
+										size={15}
+										strokeWidth={1.8}
+										className={`shrink-0 text-[var(--p-text-muted)] transition-transform ${
+											productMenuOpen ? 'rotate-180' : ''
+										}`}
+									/>
+								</motion.button>
+
+								<AnimatePresence initial={false}>
+									{productMenuOpen && (
+										<motion.div
+											key="cart-product-menu"
+											role="menu"
+											className="mt-2 overflow-hidden rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-2"
+											{...chatMenuMotion(shouldReduceMotion, 'top')}
+										>
+											<label className="flex h-9 items-center gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-bg)] px-2 transition-colors focus-within:border-[var(--p-border-strong)]">
+												<Search
+													size={14}
+													strokeWidth={1.7}
+													className="shrink-0 text-[var(--p-text-muted)]"
+												/>
+												<input
+													value={productSearch}
+													onChange={(event) =>
+														setProductSearch(event.currentTarget.value)
+													}
+													placeholder={t('orders.searchProducts')}
+													className="min-w-0 flex-1 bg-transparent text-[12px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)]"
+													type="search"
+												/>
+											</label>
+											<div className="mt-2 max-h-72 touch-pan-y space-y-2 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
+												{productSearchFailed ? (
+													<p className="py-3 text-center text-[12px] text-[var(--p-error)]">
+														{t('orders.error')}
+													</p>
+												) : isProductLoading ? (
+													showProductMenuLoading ? (
+														<MenuLoadingState
+															label={t('common.loading', 'Loading...')}
+															size="comfortable"
+														/>
+													) : (
+														<div className="min-h-24" aria-hidden="true" />
+													)
+												) : products.length === 0 ? (
+													<p className="py-3 text-center text-[12px] text-[var(--p-text-muted)]">
+														{t('orders.noProducts')}
+													</p>
+												) : (
+													products.map((product) => (
+														<ProductResult
+															key={product.id}
+															product={product}
+															isAr={isAr}
+															onAdd={() => {
+																addProduct(product)
+																setProductMenuOpen(false)
+															}}
+														/>
+													))
+												)}
+											</div>
+										</motion.div>
+									)}
+								</AnimatePresence>
+							</div>
+							<div className="grid grid-cols-2 gap-2">
+								<button
+									type="button"
+									onClick={() => setDraftQuoteOpen(true)}
+									className="flex h-10 items-center justify-center rounded-xl border border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
+								>
+									{t('market.openCart')}
+								</button>
+								<button
+									type="button"
+									onClick={clearCartWorkspace}
+									disabled={cartItems.length === 0 && !cartGlobalNote.trim()}
+									className="flex h-10 items-center justify-center rounded-xl border border-[#B3261E]/20 text-[12px] font-semibold text-[#B3261E] transition-colors hover:bg-[#B3261E]/10 disabled:pointer-events-none disabled:opacity-45 dark:text-[#FF6B61] dark:hover:bg-[#FF6B61]/10"
+								>
+									{t('market.clearCart')}
+								</button>
+							</div>
 						</motion.div>
 					)}
 				</AnimatePresence>

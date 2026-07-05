@@ -3943,6 +3943,10 @@ function activeTempDraftPayload(
 	)
 }
 
+function activeTempDraftLabel(activeDraft: ActiveChatDraftContext): string {
+	return activeDraft.sessionKey === 'cart' ? 'cart' : 'draft'
+}
+
 async function addItemsToTempDraft(
 	supabase: AuthedSupabase,
 	route: PortalCustomerToolRequest,
@@ -3950,6 +3954,7 @@ async function addItemsToTempDraft(
 	activeDraft: ActiveChatDraftContext,
 ): Promise<DraftWriteContext> {
 	const locale = detectPortalAiLocale(userText)
+	const workspaceLabel = activeTempDraftLabel(activeDraft)
 	const searchText = route.itemQuery || route.searchQuery || userText
 	let requestedLines =
 		route.draftLines && route.draftLines.length > 0
@@ -4010,7 +4015,7 @@ async function addItemsToTempDraft(
 	const nextItems = mergeDraftMaterialItems(currentItems, items)
 	return {
 		items: nextItems,
-		message: `I added ${items.length} item${items.length === 1 ? '' : 's'} to the draft.${unavailableDraftLineNote(unavailableQueries, locale)}`,
+		message: `I added ${items.length} item${items.length === 1 ? '' : 's'} to the ${workspaceLabel}.${unavailableDraftLineNote(unavailableQueries, locale)}`,
 		tempDraft: activeTempDraftPayload(activeDraft, nextItems),
 	}
 }
@@ -4052,6 +4057,7 @@ async function updateTempDraftItems(
 	userText: string,
 	activeDraft: ActiveChatDraftContext,
 ): Promise<DraftWriteContext> {
+	const workspaceLabel = activeTempDraftLabel(activeDraft)
 	const inferred =
 		inferActiveDraftItemEdit(userText) ??
 		inferDraftItemEdit(userText) ??
@@ -4062,15 +4068,14 @@ async function updateTempDraftItems(
 	if (!action) {
 		return {
 			items: currentItems,
-			message:
-				'Tell me exactly what to change in the draft, for example "set Wood to 340 pieces", "remove Wood", or "clear the draft".',
+			message: `Tell me exactly what to change in the ${workspaceLabel}, for example "set Wood to 340 pieces", "remove Wood", or "clear the ${workspaceLabel}".`,
 			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
 		}
 	}
 	if (action === 'clear_items') {
 		return {
 			items: [],
-			message: 'I cleared the draft.',
+			message: `I cleared the ${workspaceLabel}.`,
 			tempDraft: activeTempDraftPayload(activeDraft, []),
 		}
 	}
@@ -4090,7 +4095,7 @@ async function updateTempDraftItems(
 		const nextItems = currentItems.filter((_, index) => index !== target)
 		return {
 			items: nextItems,
-			message: `I removed ${currentItems[target]?.name ?? 'that item'} from the draft.`,
+			message: `I removed ${currentItems[target]?.name ?? 'that item'} from the ${workspaceLabel}.`,
 			tempDraft: activeTempDraftPayload(activeDraft, nextItems),
 		}
 	}
@@ -4098,7 +4103,9 @@ async function updateTempDraftItems(
 		return {
 			items: currentItems,
 			message:
-				'Draft desk line notes are saved with the draft form. Use the draft note field for now.',
+				workspaceLabel === 'cart'
+					? 'Use the cart note field for cart-level notes for now.'
+					: 'Draft desk line notes are saved with the draft form. Use the draft note field for now.',
 			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
 		}
 	}
@@ -4131,7 +4138,7 @@ async function updateTempDraftItems(
 	)
 	return {
 		items: nextItems,
-		message: `I set ${currentItems[target]?.name ?? 'that line'} to ${quantity}.`,
+		message: `I set ${currentItems[target]?.name ?? 'that line'} to ${quantity} in the ${workspaceLabel}.`,
 		tempDraft: activeTempDraftPayload(activeDraft, nextItems),
 	}
 }
@@ -4629,11 +4636,12 @@ async function replaceTempDraftItem(
 	userText: string,
 	activeDraft: ActiveChatDraftContext,
 ): Promise<DraftWriteContext> {
+	const workspaceLabel = activeTempDraftLabel(activeDraft)
 	const currentItems = activeTempDraftItems(activeDraft)
 	if (currentItems.length === 0) {
 		return {
 			items: [],
-			message: 'That draft has no items to replace.',
+			message: `That ${workspaceLabel} has no items to replace.`,
 			tempDraft: activeTempDraftPayload(activeDraft, []),
 		}
 	}
@@ -4653,7 +4661,7 @@ async function replaceTempDraftItem(
 	if (!replacementText) {
 		return {
 			items: currentItems,
-			message: 'Tell me which available product should replace that item.',
+			message: `Tell me which available product should replace that ${workspaceLabel} item.`,
 			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
 		}
 	}
@@ -4693,7 +4701,7 @@ async function replaceTempDraftItem(
 	)
 	return {
 		items: nextItems,
-		message: `I replaced ${previous?.name ?? 'that item'} with ${nextItem.name} in the draft.`,
+		message: `I replaced ${previous?.name ?? 'that item'} with ${nextItem.name} in the ${workspaceLabel}.`,
 		tempDraft: activeTempDraftPayload(activeDraft, nextItems),
 	}
 }

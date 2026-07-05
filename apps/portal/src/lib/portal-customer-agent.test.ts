@@ -1394,7 +1394,7 @@ describe('portal customer AI agent', () => {
 			},
 		)
 
-		expect(prompt).toContain('Current draft desk')
+		expect(prompt).toContain('Current cart / draft desk')
 		expect(prompt).toContain('11111111-1111-4111-8111-111111111111')
 		expect(prompt).toContain('use that draft id as target_reference')
 	})

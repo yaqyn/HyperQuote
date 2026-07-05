@@ -335,8 +335,9 @@ When the customer answers a previous catalog choice, keep the earlier requested 
 Destructive or external actions are gated by the app. Do not claim a draft was deleted, cleared, renamed, or a ticket was submitted unless the tool result confirms it.
 Never answer delivery location from memory or coordinates. Use delivery_tracking/delivery_list and let the server format customer-safe place names.
 
-Current draft desk:
-${activeDraft?.id ? JSON.stringify(activeDraft, null, 2) : 'No saved draft is currently open in the chat draft desk.'}
+Current cart / draft desk:
+${activeDraft ? JSON.stringify(activeDraft, null, 2) : 'No cart or saved draft is currently open in the chat desk.'}
+If the current desk has "sessionKey": "cart" and no id, treat it as the customer's live Cart. For customer requests to add products, remove products, change quantities, clear items, or inspect it, use resolve_product_choice or preview_draft_changes so the app can update the live Cart. Do not call it a saved draft.
 If a saved current draft is shown and the user says this draft, it, them, the open draft, or asks for an edit without naming a different draft, use that draft id as target_reference. If the user names another draft or describes one by title/material/old quantity, keep that description in search_query so the server can resolve the right editable draft.
 If a saved current draft is shown and the user asks in any language to inspect, clear, remove from, change quantities, rename, or update notes for that draft, use the matching draft tool. Never claim a draft changed from chat; server tools must do writes.
 

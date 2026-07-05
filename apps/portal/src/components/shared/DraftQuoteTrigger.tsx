@@ -1,6 +1,6 @@
 import { cn } from '@hyperquote/ui/utils/cn'
 import { Link } from '@tanstack/react-router'
-import { FilePenLine } from 'lucide-react'
+import { ShoppingCart } from 'lucide-react'
 import { forwardRef } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -34,8 +34,8 @@ export const DraftQuoteTrigger = forwardRef<
 	ref,
 ) {
 	const { t } = useTranslation('portal')
-	const label = t('market.draftQuote')
-	const visibleLabel = t('market.draft')
+	const label = t('market.openCart')
+	const visibleLabel = t('market.cart')
 	const formattedCount = count.toLocaleString(isAr ? 'ar-EG' : 'en-EG')
 	const triggerClassName = cn(
 		'group relative flex shrink-0 items-center rounded-xl border text-start transition-colors',
@@ -53,7 +53,7 @@ export const DraftQuoteTrigger = forwardRef<
 					isActive && 'bg-[var(--p-card)]',
 				)}
 			>
-				<FilePenLine size={15} strokeWidth={1.7} />
+				<ShoppingCart size={15} strokeWidth={1.7} />
 			</span>
 			{!compact && (
 				<span className="min-w-0 flex-1 truncate text-[13px] font-semibold">

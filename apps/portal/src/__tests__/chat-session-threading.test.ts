@@ -139,7 +139,9 @@ describe('portal chat session threading', () => {
 
 		expect(draftPanelSource).toContain('createEditorFromTempDraft')
 		expect(draftPanelSource).toContain('detail?.tempDraft')
-		expect(draftPanelSource).toContain('onClick={clearEditorWorkspace}')
+		expect(draftPanelSource).toContain(
+			'onClick={editor ? clearEditorWorkspace : clearCartWorkspace}',
+		)
 		expect(draftPanelSource).toContain('onClick={saveCurrentEditor}')
 	})
 

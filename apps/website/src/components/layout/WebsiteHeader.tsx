@@ -1375,6 +1375,27 @@ function CartSubmit({
 						)}
 					</motion.button>
 				</div>
+				<motion.button
+					type="button"
+					onClick={() => {
+						clear()
+						setSubmitConfirmOpen(false)
+						setDraftNameEntryOpen(false)
+						setNotesOpen(false)
+						setSavedDraftId(null)
+						setSavedDraftFingerprint(null)
+					}}
+					disabled={loadingAction !== null || items.length === 0}
+					className="mt-2 flex h-9 w-full items-center justify-center rounded-lg border border-[#B3261E]/20 text-[12px] font-semibold text-[#B3261E] transition-colors hover:bg-[#B3261E]/10 disabled:pointer-events-none disabled:opacity-45 dark:text-[#FF6B61] dark:hover:bg-[#FF6B61]/10"
+					whileTap={
+						shouldReduceMotion || loadingAction !== null
+							? undefined
+							: { scale: 0.985 }
+					}
+					transition={cartTransition(shouldReduceMotion, 0.16)}
+				>
+					{t('cart.clearCart')}
+				</motion.button>
 				{error && (
 					<p className="mt-2 text-center text-[11px] text-[var(--color-error)]">
 						{error}
