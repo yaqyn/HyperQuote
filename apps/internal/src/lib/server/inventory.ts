@@ -38,6 +38,20 @@ function bufferCost(raw: number): number {
 	return Math.round(raw * (1 + PROCUREMENT_BUFFER) * 100) / 100
 }
 
+function hierarchyPathLabel(parts: Array<string | null | undefined>) {
+	const labels: string[] = []
+	const seen = new Set<string>()
+	for (const part of parts) {
+		const label = part?.trim()
+		if (!label) continue
+		const normalized = label.toLowerCase()
+		if (seen.has(normalized)) continue
+		seen.add(normalized)
+		labels.push(label)
+	}
+	return labels.join(' / ')
+}
+
 const priceProofSchema = z.object({
 	kind: z.literal('document'),
 	fileName: z.string().trim().min(1),
@@ -104,6 +118,8 @@ export interface InventoryProductView {
 	name_ar: string
 	sku: string
 	unit: string
+	categoryPath: string
+	categoryPathAr: string
 	subcategory: string
 	specifications: JsonObject
 	brand: string | null
@@ -140,6 +156,12 @@ interface SupabaseInventoryProductRow {
 	name: string
 	name_ar: string
 	category: string
+	category_name: string | null
+	category_name_ar: string | null
+	product_family_name: string | null
+	product_family_name_ar: string | null
+	product_type_name: string | null
+	product_type_name_ar: string | null
 	subcategory: string | null
 	specifications: JsonObject | null
 	brand: string | null
@@ -521,9 +543,9 @@ async function getSupabaseInventoryOverview() {
 	const auth = await getInternalSupabaseClient()
 
 	const { data: productRows, error: productError } = await auth.client
-		.from('products')
+		.from('catalog_product_hierarchy')
 		.select(
-			'id, slug, sku, name, name_ar, category, subcategory, specifications, brand, unit_of_measure, weight_kg, price_range_min, price_range_max, availability_status, image_urls, updated_at',
+			'id, slug, sku, name, name_ar, category, category_name, category_name_ar, product_family_name, product_family_name_ar, product_type_name, product_type_name_ar, subcategory, specifications, brand, unit_of_measure, weight_kg, price_range_min, price_range_max, availability_status, image_urls, updated_at',
 		)
 		.eq('is_active', true)
 	if (productError) throw new Error(productError.message)
@@ -652,6 +674,16 @@ async function getSupabaseInventoryOverview() {
 			new Date(0).toISOString()
 		const { level, priceStatus } = productFreshnessFor(lastUpdatedAt)
 		const broad = getBroadCategory(product.category)
+		const categoryPath = hierarchyPathLabel([
+			product.category_name ?? product.category,
+			product.product_family_name,
+			product.product_type_name,
+		])
+		const categoryPathAr = hierarchyPathLabel([
+			product.category_name_ar ?? product.category_name ?? product.category,
+			product.product_family_name_ar ?? product.product_family_name,
+			product.product_type_name_ar ?? product.product_type_name,
+		])
 		const isUrgent = priceStatus === 'outdated' || pending.length > 0
 		return {
 			slug: product.slug,
@@ -659,7 +691,10 @@ async function getSupabaseInventoryOverview() {
 			name_ar: product.name_ar,
 			sku: product.sku,
 			unit: product.unit_of_measure,
-			subcategory: product.subcategory ?? product.category,
+			categoryPath,
+			categoryPathAr,
+			subcategory:
+				product.product_type_name ?? product.subcategory ?? product.category,
 			specifications: toJsonObject(product.specifications ?? {}),
 			brand: product.brand,
 			image: product.image_urls?.[0] ?? '',
@@ -738,9 +773,9 @@ async function getSupabaseInventoryProductDetail(slug: string) {
 	const auth = await getInternalSupabaseClient()
 
 	const { data: productData, error: productError } = await auth.client
-		.from('products')
+		.from('catalog_product_hierarchy')
 		.select(
-			'id, slug, sku, name, name_ar, description, description_ar, category, subcategory, brand, manufacturer, specifications, unit_of_measure, weight_kg, tags, price_range_min, price_range_max, image_urls, updated_at',
+			'id, slug, sku, name, name_ar, description, description_ar, category, category_name, category_name_ar, product_family_name, product_family_name_ar, product_type_name, product_type_name_ar, subcategory, brand, manufacturer, specifications, unit_of_measure, weight_kg, tags, price_range_min, price_range_max, image_urls, updated_at',
 		)
 		.eq('slug', slug)
 		.maybeSingle()
@@ -807,6 +842,16 @@ async function getSupabaseInventoryProductDetail(slug: string) {
 	const rawCost = primary?.rawCost ?? fallbackRawCost
 
 	const broad = getBroadCategory(product.category)
+	const categoryPath = hierarchyPathLabel([
+		product.category_name ?? product.category,
+		product.product_family_name,
+		product.product_type_name,
+	])
+	const categoryPathAr = hierarchyPathLabel([
+		product.category_name_ar ?? product.category_name ?? product.category,
+		product.product_family_name_ar ?? product.product_family_name,
+		product.product_type_name_ar ?? product.product_type_name,
+	])
 	return {
 		productId: product.id,
 		slug: product.slug,
@@ -822,6 +867,8 @@ async function getSupabaseInventoryProductDetail(slug: string) {
 		weight_kg: product.weight_kg,
 		tags: product.tags ?? [],
 		broadCategory: broad,
+		categoryPath,
+		categoryPathAr,
 		image: product.image_urls?.[0] ?? '',
 		pendingRequests: (
 			(requestRows ?? []) as unknown as SupabasePriceRequestRow[]

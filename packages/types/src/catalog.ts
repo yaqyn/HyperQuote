@@ -74,8 +74,17 @@ export interface CatalogProduct {
 	description: string
 	description_ar: string
 	category: string
+	category_slug?: string
+	category_name?: string
+	category_name_ar?: string
 	subcategory: string
 	subcategory_ar: string
+	product_family_slug?: string
+	product_family_name?: string
+	product_family_name_ar?: string
+	product_type_slug?: string
+	product_type_name?: string
+	product_type_name_ar?: string
 	brand: string | null
 	manufacturer: string
 	specifications: Record<string, unknown>

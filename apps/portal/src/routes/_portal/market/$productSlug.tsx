@@ -66,10 +66,20 @@ function ProductDetailPage() {
 
 	const productName = isAr ? product.nameAr : product.name
 	const description = isAr ? product.descriptionAr : product.description
-	const categoryLabel =
-		isAr && product.categoryNameAr
-			? product.categoryNameAr
-			: product.categoryName
+	const categoryLabel = hierarchyPathLabel(
+		[
+			isAr && product.categoryNameAr
+				? product.categoryNameAr
+				: product.categoryName,
+			isAr && product.productFamilyNameAr
+				? product.productFamilyNameAr
+				: product.productFamilyName,
+			isAr && product.productTypeNameAr
+				? product.productTypeNameAr
+				: product.productTypeName,
+		],
+		product.category,
+	)
 	const unitLabel =
 		isAr && product.unitOfMeasureAr
 			? product.unitOfMeasureAr
@@ -314,10 +324,30 @@ interface ActionProduct {
 	category: string
 	categoryName: string
 	categoryNameAr: string
+	productFamilyName?: string
+	productFamilyNameAr?: string
+	productTypeName?: string
+	productTypeNameAr?: string
 	unitOfMeasure: string
 	unitOfMeasureAr: string
 	imageUrl: string
 	availabilityStatus: string
+}
+
+function hierarchyPathLabel(
+	parts: Array<string | null | undefined>,
+	fallback: string,
+) {
+	const seen = new Set<string>()
+	const compact = parts.flatMap((part) => {
+		const normalized = part?.trim()
+		if (!normalized) return []
+		const key = normalized.toLowerCase()
+		if (seen.has(key)) return []
+		seen.add(key)
+		return [normalized]
+	})
+	return compact.length > 0 ? compact.join(' / ') : fallback
 }
 
 function RecordAction({
@@ -338,6 +368,18 @@ function RecordAction({
 		i18n.language === 'ar' && product.unitOfMeasureAr
 			? product.unitOfMeasureAr
 			: product.unitOfMeasure
+	const productCategoryName = hierarchyPathLabel(
+		[product.categoryName, product.productFamilyName, product.productTypeName],
+		product.category,
+	)
+	const productCategoryNameAr = hierarchyPathLabel(
+		[
+			product.categoryNameAr,
+			product.productFamilyNameAr,
+			product.productTypeNameAr,
+		],
+		productCategoryName,
+	)
 	const shellClass = isBar
 		? 'w-full'
 		: 'rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4 sm:p-5 lg:p-6'
@@ -373,8 +415,8 @@ function RecordAction({
 					name: product.name,
 					nameAr: product.nameAr,
 					category: product.category,
-					categoryName: product.categoryName,
-					categoryNameAr: product.categoryNameAr,
+					categoryName: productCategoryName,
+					categoryNameAr: productCategoryNameAr,
 					unitOfMeasure: product.unitOfMeasure,
 					unitOfMeasureAr: product.unitOfMeasureAr,
 					imageUrl: product.imageUrl,

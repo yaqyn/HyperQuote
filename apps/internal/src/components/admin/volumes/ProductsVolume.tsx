@@ -247,7 +247,11 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 			mobileRole: 'detail',
 			render: (r) => (
 				<span className="break-words text-[var(--color-text-muted)]">
-					{r.category}
+					{hierarchyPathLabel([
+						r.category_name ?? r.category,
+						r.product_family_name,
+						r.product_type_name ?? r.subcategory,
+					])}
 				</span>
 			),
 		},
@@ -459,4 +463,18 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 			)}
 		</VolumeWorkspace>
 	)
+}
+
+function hierarchyPathLabel(parts: Array<string | null | undefined>) {
+	const labels: string[] = []
+	const seen = new Set<string>()
+	for (const part of parts) {
+		const label = part?.trim()
+		if (!label) continue
+		const normalized = label.toLowerCase()
+		if (seen.has(normalized)) continue
+		seen.add(normalized)
+		labels.push(label)
+	}
+	return labels.join(' / ')
 }

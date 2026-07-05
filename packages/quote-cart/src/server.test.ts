@@ -12,6 +12,8 @@ const PRODUCT_ID = '11111111-1111-4111-8111-111111111111'
 const product: CustomerQuoteCartProductRow = {
 	availability_status: 'available',
 	category: 'steel',
+	category_name: 'Steel Products',
+	category_name_ar: 'Steel Products AR',
 	id: PRODUCT_ID,
 	image_urls: ['https://assets.hyperquote.test/steel.jpg'],
 	is_active: true,

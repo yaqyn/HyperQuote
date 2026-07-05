@@ -19,6 +19,7 @@ export interface StockProductView {
 	unit: string
 	image: string
 	broadCategory: BroadCategory
+	categoryPath: string
 	subcategory: string
 	/** Physical on-hand qty including reserved. */
 	stockLevel: number
@@ -79,6 +80,9 @@ interface SupabaseStockProductRow {
 	sku: string
 	name: string
 	category: string
+	category_name: string | null
+	product_family_name: string | null
+	product_type_name: string | null
 	subcategory: string | null
 	unit_of_measure: string
 	price_range_min: number | null
@@ -141,6 +145,20 @@ function statusFor(
 	if (lowThreshold > 0 && level < lowThreshold) return 'critical'
 	if (goodThreshold > 0 && level < goodThreshold) return 'low'
 	return 'healthy'
+}
+
+function hierarchyPathLabel(parts: Array<string | null | undefined>) {
+	const labels: string[] = []
+	const seen = new Set<string>()
+	for (const part of parts) {
+		const label = part?.trim()
+		if (!label) continue
+		const normalized = label.toLowerCase()
+		if (seen.has(normalized)) continue
+		seen.add(normalized)
+		labels.push(label)
+	}
+	return labels.join(' / ')
 }
 
 function chunkArray<T>(values: T[], size: number): T[][] {
@@ -255,7 +273,13 @@ function buildSupabaseStockView({
 		unit: product.unit_of_measure,
 		image: product.image_urls?.[0] ?? '',
 		broadCategory: broad,
-		subcategory: product.subcategory ?? product.category,
+		categoryPath: hierarchyPathLabel([
+			product.category_name ?? product.category,
+			product.product_family_name,
+			product.product_type_name,
+		]),
+		subcategory:
+			product.product_type_name ?? product.subcategory ?? product.category,
 		stockLevel,
 		reservedLevel,
 		availableLevel,
@@ -280,9 +304,9 @@ async function getSupabaseStockOverview() {
 	const auth = await getInternalSupabaseClient()
 
 	const { data: productRows, error: productError } = await auth.client
-		.from('products')
+		.from('catalog_product_hierarchy')
 		.select(
-			'id, slug, sku, name, category, subcategory, unit_of_measure, price_range_min, price_range_max, image_urls',
+			'id, slug, sku, name, category, category_name, product_family_name, product_type_name, subcategory, unit_of_measure, price_range_min, price_range_max, image_urls',
 		)
 		.eq('is_active', true)
 		.eq('is_stockable', true)
@@ -477,9 +501,9 @@ async function getSupabaseRefillProductDetail(slug: string) {
 	const auth = await getInternalSupabaseClient()
 
 	const { data: productData, error: productError } = await auth.client
-		.from('products')
+		.from('catalog_product_hierarchy')
 		.select(
-			'id, slug, sku, name, category, unit_of_measure, price_range_min, price_range_max',
+			'id, slug, sku, name, category, category_name, product_family_name, product_type_name, unit_of_measure, price_range_min, price_range_max',
 		)
 		.eq('slug', slug)
 		.eq('is_active', true)

@@ -180,6 +180,14 @@ interface SupabaseProductRow {
 	description: string | null
 	description_ar: string | null
 	category: string
+	category_name?: string | null
+	category_name_ar?: string | null
+	product_family_slug?: string | null
+	product_family_name?: string | null
+	product_family_name_ar?: string | null
+	product_type_slug?: string | null
+	product_type_name?: string | null
+	product_type_name_ar?: string | null
 	subcategory: string | null
 	subcategory_ar: string | null
 	brand: string | null
@@ -383,6 +391,8 @@ interface SupabaseAdminTruckRow {
 
 const PRODUCT_COLUMNS =
 	'id, slug, sku, name, name_ar, description, description_ar, category, subcategory, subcategory_ar, brand, manufacturer, specifications, specifications_ar, unit_of_measure, unit_of_measure_ar, weight_kg, price_range_min, price_range_max, price_tier, availability_status, image_urls, tags, is_stockable, is_active'
+const PRODUCT_HIERARCHY_COLUMNS =
+	'id, slug, sku, name, name_ar, description, description_ar, category, category_name, category_name_ar, product_family_slug, product_family_name, product_family_name_ar, product_type_slug, product_type_name, product_type_name_ar, subcategory, subcategory_ar, brand, manufacturer, specifications, specifications_ar, unit_of_measure, unit_of_measure_ar, weight_kg, price_range_min, price_range_max, price_tier, availability_status, image_urls, tags, is_stockable, is_active'
 const CATEGORY_COLUMNS =
 	'id, slug, name, name_ar, description, description_ar, image_url, parent_id, is_active, parent:parent_id(slug)'
 const EMPLOYEE_COLUMNS =
@@ -508,6 +518,15 @@ function supabaseProductToAdmin(
 		description: row.description ?? '',
 		description_ar: row.description_ar ?? '',
 		category: row.category,
+		category_slug: row.category,
+		category_name: row.category_name ?? row.category,
+		category_name_ar: row.category_name_ar ?? row.category_name ?? row.category,
+		product_family_slug: row.product_family_slug ?? undefined,
+		product_family_name: row.product_family_name ?? undefined,
+		product_family_name_ar: row.product_family_name_ar ?? undefined,
+		product_type_slug: row.product_type_slug ?? undefined,
+		product_type_name: row.product_type_name ?? undefined,
+		product_type_name_ar: row.product_type_name_ar ?? undefined,
 		subcategory: row.subcategory ?? '',
 		subcategory_ar: row.subcategory_ar ?? '',
 		brand: row.brand,
@@ -2380,8 +2399,8 @@ export const adminListProducts = createServerFn({ method: 'GET' }).handler(
 		const service = await getInternalSupabaseAdminClient()
 
 		const { data, error } = await auth.client
-			.from('products')
-			.select(PRODUCT_COLUMNS)
+			.from('catalog_product_hierarchy')
+			.select(PRODUCT_HIERARCHY_COLUMNS)
 			.order('name', { ascending: true })
 		if (error) throw new Error(error.message)
 		const rows = (data ?? []) as unknown as SupabaseProductRow[]

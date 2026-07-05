@@ -16,6 +16,14 @@ export interface CatalogProduct {
 	specification: string
 	unit: string
 	category: string
+	categoryName?: string | null
+	categoryNameAr?: string | null
+	productFamily?: string | null
+	productFamilyName?: string | null
+	productFamilyNameAr?: string | null
+	productType?: string | null
+	productTypeName?: string | null
+	productTypeNameAr?: string | null
 	supplierCost: number
 	freshness: 'fresh' | 'aging' | 'stale' | 'missing'
 	priceStatus: 'updated' | 'outdated'
@@ -66,7 +74,8 @@ export function ProductSearchMenu({
 	const categoryCounts = useMemo(() => {
 		const counts = new Map<string, number>()
 		for (const product of products) {
-			counts.set(product.category, (counts.get(product.category) ?? 0) + 1)
+			const label = categoryLabelFor(product)
+			counts.set(label, (counts.get(label) ?? 0) + 1)
 		}
 		return counts
 	}, [products])
@@ -200,14 +209,18 @@ export function ProductSearchMenu({
 			{(search) => {
 				const query = search.toLowerCase().trim()
 				const filtered = products.filter((product) => {
-					if (activeCategory && product.category !== activeCategory)
-						return false
+					const categoryLabel = categoryLabelFor(product)
+					if (activeCategory && categoryLabel !== activeCategory) return false
 					if (!query) return true
 					return (
 						product.name.toLowerCase().includes(query) ||
 						product.specification.toLowerCase().includes(query) ||
 						product.supplierName.toLowerCase().includes(query) ||
-						product.category.toLowerCase().includes(query)
+						product.category.toLowerCase().includes(query) ||
+						categoryLabel.toLowerCase().includes(query) ||
+						(product.productFamilyName?.toLowerCase().includes(query) ??
+							false) ||
+						(product.productTypeName?.toLowerCase().includes(query) ?? false)
 					)
 				})
 
@@ -283,6 +296,7 @@ function ProductPickerRow({
 	const statusLabel = hasPrice ? null : 'missing price'
 	const inputId = `catalog-qty-${product.id}`
 	const inputRef = useRef<HTMLInputElement | null>(null)
+	const categoryLabel = categoryLabelFor(product)
 
 	useEffect(() => {
 		if (!isEditing) return
@@ -331,6 +345,8 @@ function ProductPickerRow({
 							letterSpacing: '0',
 						}}
 					>
+						<span>{categoryLabel}</span>
+						<span className="mx-2 text-[var(--color-text-muted)]">/</span>
 						<span className="font-[family-name:var(--font-plex-mono)] tabular-nums">
 							{hasPrice
 								? `${product.supplierCost.toLocaleString('en-EG', {
@@ -627,4 +643,26 @@ function EmptyState({ label }: { label: string }) {
 
 function formatCategory(category: string): string {
 	return category.replace(/_/g, ' ').toLowerCase()
+}
+
+function categoryLabelFor(product: CatalogProduct) {
+	return hierarchyPathLabel([
+		product.categoryName ?? product.category,
+		product.productFamilyName,
+		product.productTypeName ?? product.specification,
+	])
+}
+
+function hierarchyPathLabel(parts: Array<string | null | undefined>) {
+	const labels: string[] = []
+	const seen = new Set<string>()
+	for (const part of parts) {
+		const label = part?.trim()
+		if (!label) continue
+		const normalized = label.toLowerCase()
+		if (seen.has(normalized)) continue
+		seen.add(normalized)
+		labels.push(label)
+	}
+	return labels.join(' / ')
 }

@@ -48,6 +48,8 @@ export interface CustomerQuoteCartRow {
 export interface CustomerQuoteCartProductRow {
 	availability_status: string
 	category: string
+	category_name: string | null
+	category_name_ar: string | null
 	id: string
 	image_urls: string[] | null
 	is_active: boolean
@@ -136,7 +138,7 @@ interface CustomerQuoteCartsTable {
 
 export interface CustomerQuoteCartDatabaseClient {
 	from: {
-		(table: 'products'): CustomerQuoteCartProductsTable
+		(table: 'catalog_product_hierarchy'): CustomerQuoteCartProductsTable
 		(table: 'customer_quote_carts'): CustomerQuoteCartsTable
 	}
 }
@@ -151,9 +153,9 @@ export function createCustomerQuoteCartStore(
 	return {
 		async listOrderableProducts(productIds) {
 			const { data, error } = await db
-				.from('products')
+				.from('catalog_product_hierarchy')
 				.select(
-					'id, slug, name, name_ar, category, unit_of_measure, unit_of_measure_ar, image_urls, is_active, availability_status',
+					'id, slug, name, name_ar, category, category_name, category_name_ar, unit_of_measure, unit_of_measure_ar, image_urls, is_active, availability_status',
 				)
 				.in('id', productIds)
 				.eq('is_active', true)
@@ -289,9 +291,14 @@ function toCartItem(
 ): QuoteCartItem {
 	return {
 		category: product.category,
-		categoryName: item.categoryName || product.category,
+		categoryName:
+			item.categoryName || product.category_name || product.category,
 		categoryNameAr:
-			item.categoryNameAr || item.categoryName || product.category,
+			item.categoryNameAr ||
+			item.categoryName ||
+			product.category_name_ar ||
+			product.category_name ||
+			product.category,
 		imageUrl: product.image_urls?.[0] ?? item.imageUrl,
 		name: product.name,
 		nameAr: product.name_ar || item.nameAr || product.name,

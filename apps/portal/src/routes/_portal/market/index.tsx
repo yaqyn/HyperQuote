@@ -29,6 +29,8 @@ import {
 	getMarketProducts,
 	type MarketCategory,
 	type MarketProduct,
+	type MarketProductFamily,
+	type MarketProductType,
 } from '../../../lib/server/market'
 import { useDraftQuoteStore } from '../../../stores/draft-quote'
 import { usePortalStore } from '../../../stores/portal'
@@ -54,6 +56,10 @@ function MarketGridPage() {
 	const [searchQuery, setSearchQuery] = useState('')
 	const [debouncedSearch, setDebouncedSearch] = useState('')
 	const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+	const [selectedProductFamilies, setSelectedProductFamilies] = useState<
+		string[]
+	>([])
+	const [selectedProductTypes, setSelectedProductTypes] = useState<string[]>([])
 	const { data: categoryData } = useQuery({
 		queryKey: ['market-categories'],
 		queryFn: () => getMarketCategories(),
@@ -68,15 +74,29 @@ function MarketGridPage() {
 
 	const categoryFilter =
 		selectedCategories.length > 0 ? selectedCategories.join(',') : undefined
+	const productFamilyFilter =
+		selectedProductFamilies.length > 0
+			? selectedProductFamilies.join(',')
+			: undefined
+	const productTypeFilter =
+		selectedProductTypes.length > 0 ? selectedProductTypes.join(',') : undefined
 
 	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
 		useInfiniteQuery({
-			queryKey: ['market-products', debouncedSearch, categoryFilter],
+			queryKey: [
+				'market-products',
+				debouncedSearch,
+				categoryFilter,
+				productFamilyFilter,
+				productTypeFilter,
+			],
 			queryFn: async ({ pageParam = 1 }) =>
 				getMarketProducts({
 					data: {
 						search: debouncedSearch || undefined,
 						category: categoryFilter || undefined,
+						productFamily: productFamilyFilter || undefined,
+						productType: productTypeFilter || undefined,
 						page: pageParam,
 						limit: 24,
 					},
@@ -97,7 +117,10 @@ function MarketGridPage() {
 	const resultCountText = t('market.resultCount', {
 		count: formattedTotalProducts,
 	})
-	const hasActiveFilters = !!(debouncedSearch || selectedCategories.length)
+	const hasActiveFilters =
+		!!(debouncedSearch || selectedCategories.length) ||
+		selectedProductFamilies.length > 0 ||
+		selectedProductTypes.length > 0
 
 	const sentinelRef = useRef<HTMLDivElement>(null)
 	useEffect(() => {
@@ -122,12 +145,33 @@ function MarketGridPage() {
 		setSelectedCategories((prev) =>
 			prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
 		)
+		setSelectedProductFamilies([])
+		setSelectedProductTypes([])
+	}
+
+	function toggleProductFamily(productFamily: string) {
+		setSelectedProductFamilies((prev) =>
+			prev.includes(productFamily)
+				? prev.filter((item) => item !== productFamily)
+				: [...prev, productFamily],
+		)
+		setSelectedProductTypes([])
+	}
+
+	function toggleProductType(productType: string) {
+		setSelectedProductTypes((prev) =>
+			prev.includes(productType)
+				? prev.filter((item) => item !== productType)
+				: [...prev, productType],
+		)
 	}
 
 	function clearFilters() {
 		setSearchQuery('')
 		setDebouncedSearch('')
 		setSelectedCategories([])
+		setSelectedProductFamilies([])
+		setSelectedProductTypes([])
 	}
 
 	return (
@@ -143,8 +187,12 @@ function MarketGridPage() {
 
 			<CategoryStrip
 				categories={marketCategories}
-				selected={selectedCategories}
-				onToggle={toggleCategory}
+				selectedCategories={selectedCategories}
+				selectedProductFamilies={selectedProductFamilies}
+				selectedProductTypes={selectedProductTypes}
+				onToggleCategory={toggleCategory}
+				onToggleProductFamily={toggleProductFamily}
+				onToggleProductType={toggleProductType}
 				onClearAll={clearFilters}
 			/>
 
@@ -296,18 +344,29 @@ function MarketHeader({
 
 function CategoryStrip({
 	categories,
-	selected,
-	onToggle,
+	selectedCategories,
+	selectedProductFamilies,
+	selectedProductTypes,
+	onToggleCategory,
+	onToggleProductFamily,
+	onToggleProductType,
 	onClearAll,
 }: {
 	categories: MarketCategory[]
-	selected: string[]
-	onToggle: (c: string) => void
+	selectedCategories: string[]
+	selectedProductFamilies: string[]
+	selectedProductTypes: string[]
+	onToggleCategory: (c: string) => void
+	onToggleProductFamily: (c: string) => void
+	onToggleProductType: (c: string) => void
 	onClearAll: () => void
 }) {
 	const { t, i18n } = useTranslation('portal')
 	const isAr = i18n.language === 'ar'
-	const isAllActive = selected.length === 0
+	const isAllActive =
+		selectedCategories.length === 0 &&
+		selectedProductFamilies.length === 0 &&
+		selectedProductTypes.length === 0
 	const [menuOpen, setMenuOpen] = useState(false)
 	const menuRef = useRef<HTMLDivElement>(null)
 	const categoryLabels = useMemo(
@@ -320,10 +379,32 @@ function CategoryStrip({
 			})),
 		[categories, isAr],
 	)
+	const visibleFamilies = useMemo(
+		() =>
+			categories
+				.filter(
+					(category) =>
+						selectedCategories.length === 0 ||
+						selectedCategories.includes(category.slug),
+				)
+				.flatMap((category) => category.productFamilies),
+		[categories, selectedCategories],
+	)
+	const visibleProductTypes = useMemo(
+		() =>
+			visibleFamilies
+				.filter(
+					(family) =>
+						selectedProductFamilies.length === 0 ||
+						selectedProductFamilies.includes(family.slug),
+				)
+				.flatMap((family) => family.productTypes),
+		[visibleFamilies, selectedProductFamilies],
+	)
 	const selectedLabel = isAllActive
 		? t('market.allEntries')
 		: categoryLabels
-				.filter((cat) => selected.includes(cat.id))
+				.filter((cat) => selectedCategories.includes(cat.id))
 				.map((cat) => cat.label)
 				.join(', ')
 
@@ -391,8 +472,8 @@ function CategoryStrip({
 								{categoryLabels.map((cat) => (
 									<CategoryMenuItem
 										key={cat.id}
-										active={selected.includes(cat.id)}
-										onClick={() => onToggle(cat.id)}
+										active={selectedCategories.includes(cat.id)}
+										onClick={() => onToggleCategory(cat.id)}
 										label={cat.label}
 									/>
 								))}
@@ -407,18 +488,98 @@ function CategoryStrip({
 						onClick={onClearAll}
 						label={t('market.allEntries')}
 					/>
-					{categoryLabels.map((cat) => (
-						<CategoryChip
-							key={cat.id}
-							active={selected.includes(cat.id)}
-							onClick={() => onToggle(cat.id)}
-							label={cat.label}
-						/>
-					))}
+					<HierarchyChipGroup
+						items={categoryLabels}
+						selected={selectedCategories}
+						onToggle={onToggleCategory}
+					/>
+					<HierarchyChipGroup
+						items={familyLabels(visibleFamilies, isAr)}
+						selected={selectedProductFamilies}
+						onToggle={onToggleProductFamily}
+					/>
+					<HierarchyChipGroup
+						items={typeLabels(visibleProductTypes, isAr)}
+						selected={selectedProductTypes}
+						onToggle={onToggleProductType}
+					/>
 				</div>
 			</div>
 		</section>
 	)
+}
+
+function HierarchyChipGroup({
+	items,
+	selected,
+	onToggle,
+}: {
+	items: { id: string; label: string }[]
+	selected: string[]
+	onToggle: (id: string) => void
+}) {
+	if (items.length === 0) return null
+	return (
+		<>
+			{items.map((item) => (
+				<CategoryChip
+					key={item.id}
+					active={selected.includes(item.id)}
+					onClick={() => onToggle(item.id)}
+					label={item.label}
+				/>
+			))}
+		</>
+	)
+}
+
+function familyLabels(
+	families: MarketProductFamily[],
+	isAr: boolean,
+): { id: string; label: string }[] {
+	return uniqueHierarchyLabels(
+		families.map((family) => ({
+			id: family.slug,
+			label: isAr ? family.nameAr || family.name : family.name,
+		})),
+	)
+}
+
+function typeLabels(
+	types: MarketProductType[],
+	isAr: boolean,
+): { id: string; label: string }[] {
+	return uniqueHierarchyLabels(
+		types.map((type) => ({
+			id: type.slug,
+			label: isAr ? type.nameAr || type.name : type.name,
+		})),
+	)
+}
+
+function uniqueHierarchyLabels(items: { id: string; label: string }[]) {
+	const seen = new Set<string>()
+	return items.filter((item) => {
+		if (seen.has(item.id)) return false
+		seen.add(item.id)
+		return true
+	})
+}
+
+function hierarchyPathLabel(
+	parts: Array<string | null | undefined>,
+	fallback: string,
+) {
+	const seen = new Set<string>()
+	const compact = parts.flatMap((part) => {
+		const normalized = part?.trim()
+		if (!normalized) return []
+		const key = normalized.toLowerCase()
+		if (seen.has(key)) return []
+		seen.add(key)
+		return [normalized]
+	})
+	return compact.length > 0 ? compact.join(' / ') : fallback
 }
 
 function CategoryMenuItem({
@@ -490,10 +651,20 @@ function ProductCard({
 	const { t, i18n } = useTranslation('portal')
 	const isAr = i18n.language === 'ar'
 	const name = isAr ? product.nameAr : product.name
-	const categoryLabel =
-		isAr && product.categoryNameAr
-			? product.categoryNameAr
-			: product.categoryName
+	const categoryLabel = hierarchyPathLabel(
+		[
+			isAr && product.categoryNameAr
+				? product.categoryNameAr
+				: product.categoryName,
+			isAr && product.productFamilyNameAr
+				? product.productFamilyNameAr
+				: product.productFamilyName,
+			isAr && product.productTypeNameAr
+				? product.productTypeNameAr
+				: product.productTypeName,
+		],
+		product.category,
+	)
 	const unitLabel =
 		isAr && product.unitOfMeasureAr
 			? product.unitOfMeasureAr

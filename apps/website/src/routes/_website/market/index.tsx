@@ -31,6 +31,8 @@ import { websiteHead } from '../../../lib/seo'
 const marketSearchSchema = z.object({
 	q: z.string().optional(),
 	category: z.string().optional(),
+	product_family: z.string().optional(),
+	product_type: z.string().optional(),
 	availability: z.enum(['available', 'low_stock']).optional(),
 	price_tier: z.string().optional(),
 	sort: z
@@ -61,6 +63,8 @@ export const Route = createFileRoute('/_website/market/')({
 			return await getPublicCatalog({
 				data: {
 					category: splitParam(deps.category),
+					productFamily: splitParam(deps.product_family),
+					productType: splitParam(deps.product_type),
 					availability: deps.availability || 'all',
 					priceTier: parsePriceTiers(deps.price_tier),
 					search: deps.q,
@@ -111,6 +115,93 @@ function categoryLabelFor(
 	return locale === 'ar' && category.name_ar ? category.name_ar : category.name
 }
 
+function hierarchyLabelFor(
+	product: PublicProduct,
+	categories: Array<{ slug: string; name: string; name_ar: string }>,
+	locale: 'ar' | 'en',
+) {
+	return uniqueLabelParts([
+		categoryLabelFor(product.category, categories, locale),
+		locale === 'ar'
+			? product.product_family_name_ar || product.product_family_name
+			: product.product_family_name,
+		locale === 'ar'
+			? product.product_type_name_ar || product.product_type_name
+			: product.product_type_name,
+	]).join(' / ')
+}
+
+function uniqueLabelParts(parts: Array<string | null | undefined>) {
+	const seen = new Set<string>()
+	return parts.flatMap((part) => {
+		const normalized = part?.trim()
+		if (!normalized) return []
+		const key = normalized.toLowerCase()
+		if (seen.has(key)) return []
+		seen.add(key)
+		return [normalized]
+	})
+}
+
+function familyLabels(
+	catalogCategories: PublicCatalogResult['categories'],
+	selectedCategories: string[],
+	locale: 'ar' | 'en',
+) {
+	return uniqueCatalogLabels(
+		catalogCategories
+			.filter(
+				(category) =>
+					selectedCategories.length === 0 ||
+					selectedCategories.includes(category.slug),
+			)
+			.flatMap((category) =>
+				category.productFamilies.map((family) => ({
+					slug: family.slug,
+					label:
+						locale === 'ar' && family.name_ar ? family.name_ar : family.name,
+				})),
+			),
+	)
+}
+
+function typeLabels(
+	catalogCategories: PublicCatalogResult['categories'],
+	selectedCategories: string[],
+	selectedFamilies: string[],
+	locale: 'ar' | 'en',
+) {
+	return uniqueCatalogLabels(
+		catalogCategories
+			.filter(
+				(category) =>
+					selectedCategories.length === 0 ||
+					selectedCategories.includes(category.slug),
+			)
+			.flatMap((category) => category.productFamilies)
+			.filter(
+				(family) =>
+					selectedFamilies.length === 0 ||
+					selectedFamilies.includes(family.slug),
+			)
+			.flatMap((family) =>
+				family.productTypes.map((type) => ({
+					slug: type.slug,
+					label: locale === 'ar' && type.name_ar ? type.name_ar : type.name,
+				})),
+			),
+	)
+}
+
+function uniqueCatalogLabels(items: { slug: string; label: string }[]) {
+	const seen = new Set<string>()
+	return items.filter((item) => {
+		if (seen.has(item.slug)) return false
+		seen.add(item.slug)
+		return true
+	})
+}
+
 // ── Market Search ──
 
 function MarketSearch({
@@ -130,7 +221,7 @@ function MarketSearch({
 		() =>
 			catalogItems.map((p) => {
 				const name = locale === 'ar' ? p.name_ar || p.name : p.name
-				const category = categoryLabelFor(p.category, categories, locale)
+				const category = hierarchyLabelFor(p, categories, locale)
 				const unit = unitLabelFor(p, locale)
 				const description =
 					(locale === 'ar' ? p.description_ar : p.description) ?? ''
@@ -181,10 +272,14 @@ function MarketPage() {
 	const navigate = useNavigate({ from: Route.fullPath })
 
 	const categories = splitParam(search.category)
+	const productFamilies = splitParam(search.product_family)
+	const productTypes = splitParam(search.product_type)
 	const priceTiers = splitParam(search.price_tier)
 	const hasActiveFilters = !!(
 		search.q ||
 		categories.length ||
+		productFamilies.length ||
+		productTypes.length ||
 		search.availability ||
 		priceTiers.length
 	)
@@ -197,7 +292,28 @@ function MarketPage() {
 		const next = categories.includes(cat)
 			? categories.filter((c) => c !== cat)
 			: [...categories, cat]
-		nav({ category: next.length ? next.join(',') : undefined })
+		nav({
+			category: next.length ? next.join(',') : undefined,
+			product_family: undefined,
+			product_type: undefined,
+		})
+	}
+
+	function toggleProductFamily(productFamily: string) {
+		const next = productFamilies.includes(productFamily)
+			? productFamilies.filter((item) => item !== productFamily)
+			: [...productFamilies, productFamily]
+		nav({
+			product_family: next.length ? next.join(',') : undefined,
+			product_type: undefined,
+		})
+	}
+
+	function toggleProductType(productType: string) {
+		const next = productTypes.includes(productType)
+			? productTypes.filter((item) => item !== productType)
+			: [...productTypes, productType]
+		nav({ product_type: next.length ? next.join(',') : undefined })
 	}
 
 	return (
@@ -246,6 +362,41 @@ function MarketPage() {
 									</button>
 								)
 							})}
+							{familyLabels(data.categories, categories, locale).map(
+								(family) => (
+									<button
+										key={family.slug}
+										type="button"
+										onClick={() => toggleProductFamily(family.slug)}
+										className={`shrink-0 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors whitespace-nowrap sm:px-3.5 ${
+											productFamilies.includes(family.slug)
+												? 'bg-[var(--color-text)] text-[var(--color-base)]'
+												: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-text)]/[0.04]'
+										}`}
+									>
+										{family.label}
+									</button>
+								),
+							)}
+							{typeLabels(
+								data.categories,
+								categories,
+								productFamilies,
+								locale,
+							).map((type) => (
+								<button
+									key={type.slug}
+									type="button"
+									onClick={() => toggleProductType(type.slug)}
+									className={`shrink-0 rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors whitespace-nowrap sm:px-3.5 ${
+										productTypes.includes(type.slug)
+											? 'bg-[var(--color-text)] text-[var(--color-base)]'
+											: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-text)]/[0.04]'
+									}`}
+								>
+									{type.label}
+								</button>
+							))}
 						</div>
 					</div>
 
@@ -328,8 +479,8 @@ function MarketPage() {
 										key={item.id}
 										product={item}
 										variant="grid"
-										categoryLabel={categoryLabelFor(
-											item.category,
+										categoryLabel={hierarchyLabelFor(
+											item,
 											data.categories,
 											locale,
 										)}

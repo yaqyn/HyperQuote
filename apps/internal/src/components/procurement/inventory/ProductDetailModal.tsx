@@ -357,6 +357,7 @@ function PricePanelHeader({
 		brand: string | null
 		weight_kg: number | null
 		broadCategory: string
+		categoryPath?: string
 		image: string
 		currentRawCost: number
 		currentSupplierCost: number
@@ -412,6 +413,11 @@ function PricePanelHeader({
 							</>
 						)}
 					</p>
+					{data.categoryPath && (
+						<p className="mt-1 min-w-0 truncate font-[family-name:var(--font-archivo)] text-[11px] text-[var(--ink-mid)]">
+							{data.categoryPath}
+						</p>
+					)}
 				</div>
 			</div>
 

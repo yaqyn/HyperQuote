@@ -102,6 +102,8 @@ const OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE = 24
 const OPEN_ENDED_DRAFT_ITEM_COUNT = 3
 const PRODUCT_CATALOG_CONTEXT_LIMIT = 160
 const PRODUCT_CATALOG_ROUTE_MATCH_LIMIT = 2500
+const PORTAL_AI_PRODUCT_SELECT =
+	'id, sku, slug, name, name_ar, category, category_name, category_name_ar, product_family_slug, product_family_name, product_family_name_ar, product_type_slug, product_type_name, product_type_name_ar, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar'
 const WEBSITE_URL = (
 	import.meta.env.VITE_WEBSITE_URL ?? 'https://www.hyperquote.net'
 ).replace(/\/+$/, '')
@@ -206,6 +208,8 @@ type QuoteRequestItemInput = Parameters<
 export interface PortalAiProduct {
 	availability_status: string
 	category: string
+	category_name?: string | null
+	category_name_ar?: string | null
 	description: string | null
 	description_ar: string | null
 	id: string
@@ -214,6 +218,12 @@ export interface PortalAiProduct {
 	name_ar: string | null
 	price_range_max: number | null
 	price_range_min: number | null
+	product_family_slug?: string | null
+	product_family_name?: string | null
+	product_family_name_ar?: string | null
+	product_type_slug?: string | null
+	product_type_name?: string | null
+	product_type_name_ar?: string | null
 	sku: string
 	slug: string
 	specifications: Record<string, unknown> | null
@@ -755,7 +765,7 @@ function toAgentCatalogSnapshot(
 	return {
 		catalogComplete: catalog.catalogComplete,
 		products: catalog.products.map((product) => ({
-			category: product.category,
+			category: catalogHierarchyPath(product, 'en'),
 			name: product.name,
 			nameAr: product.name_ar,
 			priceRange: formatPriceRange(product, 'en'),
@@ -3682,11 +3692,8 @@ async function loadVisibleProductCatalog(
 	limit: number,
 ): Promise<ProductCatalogResult> {
 	const { data, error, count } = await supabase
-		.from('products')
-		.select(
-			'id, sku, slug, name, name_ar, category, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar',
-			{ count: 'exact' },
-		)
+		.from('catalog_product_hierarchy')
+		.select(PORTAL_AI_PRODUCT_SELECT, { count: 'exact' })
 		.eq('is_active', true)
 		.neq('availability_status', 'hidden')
 		.order('name', { ascending: true })
@@ -3710,10 +3717,8 @@ async function findOrderableProductsForDraft(
 	const intentTerms = draftProductIntentTerms(userText)
 	if (intentTerms.length > 0 || openEndedSelection) {
 		let builder = supabase
-			.from('products')
-			.select(
-				'id, sku, slug, name, name_ar, category, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar',
-			)
+			.from('catalog_product_hierarchy')
+			.select(PORTAL_AI_PRODUCT_SELECT)
 			.eq('is_active', true)
 			.neq('availability_status', 'hidden')
 			.neq('availability_status', 'out_of_stock')
@@ -3744,10 +3749,8 @@ async function findOrderableProductsForDraft(
 		: productSearchTerm(searchText?.trim() || userText)
 	const limit = openEndedSelection ? OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE : 8
 	let builder = supabase
-		.from('products')
-		.select(
-			'id, sku, slug, name, name_ar, category, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar',
-		)
+		.from('catalog_product_hierarchy')
+		.select(PORTAL_AI_PRODUCT_SELECT)
 		.eq('is_active', true)
 		.neq('availability_status', 'hidden')
 		.neq('availability_status', 'out_of_stock')
@@ -3777,10 +3780,8 @@ async function loadOrderableDraftProductPool(
 	supabase: AuthedSupabase,
 ): Promise<PortalAiProduct[]> {
 	const { data, error } = await supabase
-		.from('products')
-		.select(
-			'id, sku, slug, name, name_ar, category, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar',
-		)
+		.from('catalog_product_hierarchy')
+		.select(PORTAL_AI_PRODUCT_SELECT)
 		.eq('is_active', true)
 		.neq('availability_status', 'hidden')
 		.neq('availability_status', 'out_of_stock')
@@ -6006,10 +6007,8 @@ async function findOrderableDraftProductById(
 	productId: string,
 ): Promise<PortalAiProduct | null> {
 	const { data, error } = await supabase
-		.from('products')
-		.select(
-			'id, sku, slug, name, name_ar, category, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar',
-		)
+		.from('catalog_product_hierarchy')
+		.select(PORTAL_AI_PRODUCT_SELECT)
 		.eq('id', productId)
 		.eq('is_active', true)
 		.neq('availability_status', 'hidden')
@@ -6226,6 +6225,12 @@ function catalogNameTokens(product: PortalAiProduct): string[] {
 		product.name,
 		product.name_ar ?? '',
 		product.category,
+		product.category_name ?? '',
+		product.category_name_ar ?? '',
+		product.product_family_name ?? '',
+		product.product_family_name_ar ?? '',
+		product.product_type_name ?? '',
+		product.product_type_name_ar ?? '',
 		product.subcategory ?? '',
 		product.subcategory_ar ?? '',
 	]
@@ -6288,6 +6293,12 @@ function catalogMeaningText(product: PortalAiProduct): string {
 			product.name,
 			product.name_ar ?? '',
 			product.category,
+			product.category_name ?? '',
+			product.category_name_ar ?? '',
+			product.product_family_name ?? '',
+			product.product_family_name_ar ?? '',
+			product.product_type_name ?? '',
+			product.product_type_name_ar ?? '',
 			product.subcategory ?? '',
 			product.subcategory_ar ?? '',
 			product.description ?? '',
@@ -6296,12 +6307,42 @@ function catalogMeaningText(product: PortalAiProduct): string {
 	)
 }
 
+function catalogHierarchyPath(product: PortalAiProduct, locale: 'ar' | 'en') {
+	return hierarchyPathLabel(
+		locale === 'ar'
+			? [
+					product.category_name_ar ?? product.category_name ?? product.category,
+					product.product_family_name_ar ?? product.product_family_name,
+					product.product_type_name_ar ?? product.product_type_name,
+				]
+			: [
+					product.category_name ?? product.category,
+					product.product_family_name,
+					product.product_type_name,
+				],
+	)
+}
+
+function hierarchyPathLabel(parts: Array<string | null | undefined>) {
+	const labels: string[] = []
+	const seen = new Set<string>()
+	for (const part of parts) {
+		const label = part?.trim()
+		if (!label) continue
+		const normalized = label.toLowerCase()
+		if (seen.has(normalized)) continue
+		seen.add(normalized)
+		labels.push(label)
+	}
+	return labels.join(' / ')
+}
+
 function draftMaterialItemFromProduct(
 	product: PortalAiProduct,
 	quantity: number,
 ): DraftMaterialItem {
 	return {
-		category: product.category,
+		category: catalogHierarchyPath(product, 'en'),
 		imageUrl: product.image_urls?.[0] ?? '',
 		name: product.name,
 		nameAr: product.name_ar ?? product.name,
@@ -6417,7 +6458,13 @@ function expandDraftProductIntentTermsWithCatalogAliases(
 }
 
 function catalogProductIdentityPhrases(product: PortalAiProduct): string[] {
-	return [product.name, product.name_ar ?? '', product.sku]
+	return [
+		product.name,
+		product.name_ar ?? '',
+		product.sku,
+		product.product_type_name ?? '',
+		product.product_type_name_ar ?? '',
+	]
 		.map(normalizeForMatch)
 		.filter((term) => term.length > 1)
 }
@@ -6436,6 +6483,12 @@ function productIdentityMatchesDraftLine(
 			product.name_ar ?? '',
 			product.sku,
 			product.category,
+			product.category_name ?? '',
+			product.category_name_ar ?? '',
+			product.product_family_name ?? '',
+			product.product_family_name_ar ?? '',
+			product.product_type_name ?? '',
+			product.product_type_name_ar ?? '',
 			product.subcategory ?? '',
 			product.subcategory_ar ?? '',
 		].join(' '),
@@ -7195,12 +7248,17 @@ function productChoiceListData(
 		groups: visibleGroups.map((group, groupIndex) => ({
 			options: group.options.map(({ product }) => ({
 				action: productChoiceAction(context, group, product),
-				category: product.category,
+				category: catalogHierarchyPath(product, context.locale),
 				name: product.name,
 				nameAr: product.name_ar ?? product.name,
 				priceRange: formatPriceRange(product, context.locale),
 				productId: product.id,
-				subcategory: product.subcategory ?? undefined,
+				subcategory:
+					(context.locale === 'ar'
+						? product.product_type_name_ar
+						: product.product_type_name) ??
+					product.subcategory ??
+					undefined,
 				unit: product.unit_of_measure,
 				unitAr: product.unit_of_measure_ar,
 			})),
@@ -7459,6 +7517,12 @@ function publicProductSearchFilter(search: string): string | null {
 		`name_ar.ilike.${pattern}`,
 		`sku.ilike.${pattern}`,
 		`category.ilike.${pattern}`,
+		`category_name.ilike.${pattern}`,
+		`category_name_ar.ilike.${pattern}`,
+		`product_family_name.ilike.${pattern}`,
+		`product_family_name_ar.ilike.${pattern}`,
+		`product_type_name.ilike.${pattern}`,
+		`product_type_name_ar.ilike.${pattern}`,
 		`subcategory.ilike.${pattern}`,
 		`subcategory_ar.ilike.${pattern}`,
 		`brand.ilike.${pattern}`,

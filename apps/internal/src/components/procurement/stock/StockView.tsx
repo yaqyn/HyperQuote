@@ -62,7 +62,7 @@ export function StockView() {
 			data.products,
 			activeCategory,
 			search,
-			(product) => [product.primarySupplierName],
+			(product) => [product.primarySupplierName, product.categoryPath],
 		)
 		return [...list].sort((a, b) => {
 			if (STATUS_WEIGHT[a.status] !== STATUS_WEIGHT[b.status]) {
@@ -188,6 +188,9 @@ function StockPlate({
 				<h3 className="min-w-0 break-words font-[family-name:var(--font-archivo)] text-[15px] font-semibold leading-5 text-[var(--ink)]">
 					{product.name}
 				</h3>
+				<p className="mt-1 min-w-0 truncate font-[family-name:var(--font-archivo)] text-[11px] text-[var(--ink-mid)]">
+					{product.categoryPath}
+				</p>
 
 				<div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
 					<div className="min-w-0">

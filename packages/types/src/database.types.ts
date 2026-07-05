@@ -285,6 +285,13 @@ export type Database = {
 						foreignKeyName: 'categories_parent_id_fkey'
 						columns: ['parent_id']
 						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['category_id']
+					},
+					{
+						foreignKeyName: 'categories_parent_id_fkey'
+						columns: ['parent_id']
+						isOneToOne: false
 						referencedRelation: 'categories'
 						referencedColumns: ['id']
 					},
@@ -2142,6 +2149,13 @@ export type Database = {
 						foreignKeyName: 'inventory_damage_lots_product_id_fkey'
 						columns: ['product_id']
 						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'inventory_damage_lots_product_id_fkey'
+						columns: ['product_id']
+						isOneToOne: false
 						referencedRelation: 'ceo_inventory_summary'
 						referencedColumns: ['product_id']
 					},
@@ -2349,6 +2363,13 @@ export type Database = {
 						foreignKeyName: 'inventory_reservations_product_id_fkey'
 						columns: ['product_id']
 						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'inventory_reservations_product_id_fkey'
+						columns: ['product_id']
+						isOneToOne: false
 						referencedRelation: 'ceo_inventory_summary'
 						referencedColumns: ['product_id']
 					},
@@ -2393,6 +2414,13 @@ export type Database = {
 					updated_at?: string
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'inventory_stock_product_id_fkey'
+						columns: ['product_id']
+						isOneToOne: true
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'inventory_stock_product_id_fkey'
 						columns: ['product_id']
@@ -2770,6 +2798,13 @@ export type Database = {
 						foreignKeyName: 'price_update_requests_product_id_fkey'
 						columns: ['product_id']
 						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'price_update_requests_product_id_fkey'
+						columns: ['product_id']
+						isOneToOne: false
 						referencedRelation: 'ceo_inventory_summary'
 						referencedColumns: ['product_id']
 					},
@@ -2852,6 +2887,13 @@ export type Database = {
 					updated_by_employee_id?: string | null
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'price_updates_product_id_fkey'
+						columns: ['product_id']
+						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'price_updates_product_id_fkey'
 						columns: ['product_id']
@@ -2956,6 +2998,120 @@ export type Database = {
 					},
 				]
 			}
+			product_families: {
+				Row: {
+					category_id: string
+					created_at: string
+					description: string
+					description_ar: string
+					id: string
+					image_url: string | null
+					is_active: boolean
+					name: string
+					name_ar: string
+					slug: string
+					updated_at: string
+				}
+				Insert: {
+					category_id: string
+					created_at?: string
+					description?: string
+					description_ar?: string
+					id?: string
+					image_url?: string | null
+					is_active?: boolean
+					name: string
+					name_ar: string
+					slug: string
+					updated_at?: string
+				}
+				Update: {
+					category_id?: string
+					created_at?: string
+					description?: string
+					description_ar?: string
+					id?: string
+					image_url?: string | null
+					is_active?: boolean
+					name?: string
+					name_ar?: string
+					slug?: string
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'product_families_category_id_fkey'
+						columns: ['category_id']
+						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['category_id']
+					},
+					{
+						foreignKeyName: 'product_families_category_id_fkey'
+						columns: ['category_id']
+						isOneToOne: false
+						referencedRelation: 'categories'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			product_types: {
+				Row: {
+					created_at: string
+					description: string
+					description_ar: string
+					id: string
+					image_url: string | null
+					is_active: boolean
+					name: string
+					name_ar: string
+					product_family_id: string
+					slug: string
+					updated_at: string
+				}
+				Insert: {
+					created_at?: string
+					description?: string
+					description_ar?: string
+					id?: string
+					image_url?: string | null
+					is_active?: boolean
+					name: string
+					name_ar: string
+					product_family_id: string
+					slug: string
+					updated_at?: string
+				}
+				Update: {
+					created_at?: string
+					description?: string
+					description_ar?: string
+					id?: string
+					image_url?: string | null
+					is_active?: boolean
+					name?: string
+					name_ar?: string
+					product_family_id?: string
+					slug?: string
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'product_types_product_family_id_fkey'
+						columns: ['product_family_id']
+						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['product_family_id']
+					},
+					{
+						foreignKeyName: 'product_types_product_family_id_fkey'
+						columns: ['product_family_id']
+						isOneToOne: false
+						referencedRelation: 'product_families'
+						referencedColumns: ['id']
+					},
+				]
+			}
 			products: {
 				Row: {
 					availability_status: Database['public']['Enums']['catalog_availability_status']
@@ -2974,6 +3130,7 @@ export type Database = {
 					price_range_max: number | null
 					price_range_min: number | null
 					price_tier: Database['public']['Enums']['price_tier'] | null
+					product_type_id: string | null
 					search_vector: unknown
 					sku: string
 					slug: string
@@ -3004,6 +3161,7 @@ export type Database = {
 					price_range_max?: number | null
 					price_range_min?: number | null
 					price_tier?: Database['public']['Enums']['price_tier'] | null
+					product_type_id?: string | null
 					search_vector?: unknown
 					sku: string
 					slug: string
@@ -3034,6 +3192,7 @@ export type Database = {
 					price_range_max?: number | null
 					price_range_min?: number | null
 					price_tier?: Database['public']['Enums']['price_tier'] | null
+					product_type_id?: string | null
 					search_vector?: unknown
 					sku?: string
 					slug?: string
@@ -3047,7 +3206,22 @@ export type Database = {
 					updated_at?: string
 					weight_kg?: number | null
 				}
-				Relationships: []
+				Relationships: [
+					{
+						foreignKeyName: 'products_product_type_id_fkey'
+						columns: ['product_type_id']
+						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['product_type_id']
+					},
+					{
+						foreignKeyName: 'products_product_type_id_fkey'
+						columns: ['product_type_id']
+						isOneToOne: false
+						referencedRelation: 'product_types'
+						referencedColumns: ['id']
+					},
+				]
 			}
 			profiles: {
 				Row: {
@@ -3312,6 +3486,13 @@ export type Database = {
 						foreignKeyName: 'quote_items_product_id_fkey'
 						columns: ['product_id']
 						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'quote_items_product_id_fkey'
+						columns: ['product_id']
+						isOneToOne: false
 						referencedRelation: 'ceo_inventory_summary'
 						referencedColumns: ['product_id']
 					},
@@ -3394,6 +3575,13 @@ export type Database = {
 					unit_of_measure_ar?: string
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'quote_request_items_product_id_fkey'
+						columns: ['product_id']
+						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'quote_request_items_product_id_fkey'
 						columns: ['product_id']
@@ -3737,6 +3925,13 @@ export type Database = {
 						foreignKeyName: 'receiving_task_items_product_id_fkey'
 						columns: ['product_id']
 						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'receiving_task_items_product_id_fkey'
+						columns: ['product_id']
+						isOneToOne: false
 						referencedRelation: 'ceo_inventory_summary'
 						referencedColumns: ['product_id']
 					},
@@ -3894,6 +4089,13 @@ export type Database = {
 					updated_at?: string
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'refill_requests_product_id_fkey'
+						columns: ['product_id']
+						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['id']
+					},
 					{
 						foreignKeyName: 'refill_requests_product_id_fkey'
 						columns: ['product_id']
@@ -4168,6 +4370,13 @@ export type Database = {
 						foreignKeyName: 'supplier_product_links_product_id_fkey'
 						columns: ['product_id']
 						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'supplier_product_links_product_id_fkey'
+						columns: ['product_id']
+						isOneToOne: false
 						referencedRelation: 'ceo_inventory_summary'
 						referencedColumns: ['product_id']
 					},
@@ -4224,7 +4433,21 @@ export type Database = {
 						foreignKeyName: 'supplier_specialties_category_slug_fkey'
 						columns: ['category_slug']
 						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
+						referencedColumns: ['category_slug']
+					},
+					{
+						foreignKeyName: 'supplier_specialties_category_slug_fkey'
+						columns: ['category_slug']
+						isOneToOne: false
 						referencedRelation: 'categories'
+						referencedColumns: ['slug']
+					},
+					{
+						foreignKeyName: 'supplier_specialties_product_slug_fkey'
+						columns: ['product_slug']
+						isOneToOne: false
+						referencedRelation: 'catalog_product_hierarchy'
 						referencedColumns: ['slug']
 					},
 					{
@@ -5024,6 +5247,60 @@ export type Database = {
 			}
 		}
 		Views: {
+			catalog_product_hierarchy: {
+				Row: {
+					availability_status:
+						| Database['public']['Enums']['catalog_availability_status']
+						| null
+					brand: string | null
+					category: string | null
+					category_description: string | null
+					category_description_ar: string | null
+					category_id: string | null
+					category_image_url: string | null
+					category_name: string | null
+					category_name_ar: string | null
+					category_slug: string | null
+					description: string | null
+					description_ar: string | null
+					id: string | null
+					image_urls: string[] | null
+					is_active: boolean | null
+					is_stockable: boolean | null
+					manufacturer: string | null
+					name: string | null
+					name_ar: string | null
+					price_range_max: number | null
+					price_range_min: number | null
+					price_tier: Database['public']['Enums']['price_tier'] | null
+					product_family_description: string | null
+					product_family_description_ar: string | null
+					product_family_id: string | null
+					product_family_image_url: string | null
+					product_family_name: string | null
+					product_family_name_ar: string | null
+					product_family_slug: string | null
+					product_type_description: string | null
+					product_type_description_ar: string | null
+					product_type_id: string | null
+					product_type_image_url: string | null
+					product_type_name: string | null
+					product_type_name_ar: string | null
+					product_type_slug: string | null
+					sku: string | null
+					slug: string | null
+					specifications: Json | null
+					specifications_ar: Json | null
+					subcategory: string | null
+					subcategory_ar: string | null
+					tags: string[] | null
+					unit_of_measure: string | null
+					unit_of_measure_ar: string | null
+					updated_at: string | null
+					weight_kg: number | null
+				}
+				Relationships: []
+			}
 			ceo_activity_summary: {
 				Row: {
 					action: string | null
@@ -7293,6 +7570,7 @@ export type Database = {
 					price_range_max: number | null
 					price_range_min: number | null
 					price_tier: Database['public']['Enums']['price_tier'] | null
+					product_type_id: string | null
 					search_vector: unknown
 					sku: string
 					slug: string
@@ -9551,6 +9829,7 @@ export type Database = {
 					price_range_max: number | null
 					price_range_min: number | null
 					price_tier: Database['public']['Enums']['price_tier'] | null
+					product_type_id: string | null
 					search_vector: unknown
 					sku: string
 					slug: string

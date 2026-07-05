@@ -121,6 +121,34 @@ function categoryLabelFor(
 	return locale === 'ar' && category.name_ar ? category.name_ar : category.name
 }
 
+function hierarchyLabelFor(
+	product: PublicProduct,
+	categories: PublicCategory[],
+	locale: 'ar' | 'en',
+) {
+	return uniqueLabelParts([
+		categoryLabelFor(product.category, categories, locale),
+		locale === 'ar'
+			? product.product_family_name_ar || product.product_family_name
+			: product.product_family_name,
+		locale === 'ar'
+			? product.product_type_name_ar || product.product_type_name
+			: product.product_type_name,
+	]).join(' / ')
+}
+
+function uniqueLabelParts(parts: Array<string | null | undefined>) {
+	const seen = new Set<string>()
+	return parts.flatMap((part) => {
+		const normalized = part?.trim()
+		if (!normalized) return []
+		const key = normalized.toLowerCase()
+		if (seen.has(key)) return []
+		seen.add(key)
+		return [normalized]
+	})
+}
+
 // --------------------------------------------------------------------------
 
 function ProductDetailPage() {
@@ -161,7 +189,7 @@ function ProductDetailPage() {
 		t,
 		unitLabel,
 	)
-	const categoryLabel = categoryLabelFor(product.category, categories, locale)
+	const categoryLabel = hierarchyLabelFor(product, categories, locale)
 	const availStatus = product.availability_status ?? 'out_of_stock'
 	const isAvailable = availStatus !== 'out_of_stock'
 	const availDot = isAvailable

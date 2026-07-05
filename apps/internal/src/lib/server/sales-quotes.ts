@@ -203,6 +203,14 @@ interface SupabaseQuoteBuilderProductRow {
 	slug: string
 	name: string
 	category: string
+	category_name: string | null
+	category_name_ar: string | null
+	product_family_slug: string | null
+	product_family_name: string | null
+	product_family_name_ar: string | null
+	product_type_slug: string | null
+	product_type_name: string | null
+	product_type_name_ar: string | null
 	subcategory: string | null
 	unit_of_measure: string
 	price_range_min: number | null
@@ -674,12 +682,20 @@ async function savedQuoteProductsBySlug(
 	)
 	if (slugs.length === 0) return new Map()
 	const { data, error } = await auth.client
-		.from('products')
+		.from('catalog_product_hierarchy')
 		.select(`
 			id,
 			slug,
 			name,
 			category,
+			category_name,
+			category_name_ar,
+			product_family_slug,
+			product_family_name,
+			product_family_name_ar,
+			product_type_slug,
+			product_type_name,
+			product_type_name_ar,
 			subcategory,
 			unit_of_measure,
 			price_range_min,
@@ -1299,12 +1315,20 @@ export const getProductCatalog = createServerFn({ method: 'POST' })
 	.handler(async () => {
 		const auth = await getInternalSupabaseClient()
 		const { data: products, error } = await auth.client
-			.from('products')
+			.from('catalog_product_hierarchy')
 			.select(`
 					id,
 					slug,
 					name,
 					category,
+					category_name,
+					category_name_ar,
+					product_family_slug,
+					product_family_name,
+					product_family_name_ar,
+					product_type_slug,
+					product_type_name,
+					product_type_name_ar,
 					subcategory,
 					unit_of_measure,
 					price_range_min,
@@ -1332,9 +1356,20 @@ export const getProductCatalog = createServerFn({ method: 'POST' })
 						id: product.id,
 						slug: product.slug,
 						name: product.name,
-						specification: product.subcategory?.replace(/_/g, ' ') ?? '',
+						specification:
+							product.product_type_name ??
+							product.subcategory?.replace(/_/g, ' ') ??
+							'',
 						unit: product.unit_of_measure,
 						category: product.category,
+						categoryName: product.category_name ?? product.category,
+						categoryNameAr: product.category_name_ar ?? product.category,
+						productFamily: product.product_family_slug,
+						productFamilyName: product.product_family_name,
+						productFamilyNameAr: product.product_family_name_ar,
+						productType: product.product_type_slug,
+						productTypeName: product.product_type_name,
+						productTypeNameAr: product.product_type_name_ar,
 						supplierCost: price.supplierCost,
 						freshness: price.freshness,
 						priceStatus: price.priceStatus,

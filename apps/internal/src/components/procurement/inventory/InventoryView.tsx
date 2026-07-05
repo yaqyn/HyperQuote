@@ -80,7 +80,12 @@ export function InventoryView() {
 			data.products,
 			activeCategory,
 			search,
-			(product) => [product.supplierName, ...(product.allSupplierNames ?? [])],
+			(product) => [
+				product.categoryPath,
+				product.categoryPathAr,
+				product.supplierName,
+				...(product.allSupplierNames ?? []),
+			],
 		)
 		return [...list].sort((a, b) => {
 			const aNeedsAttention =
@@ -286,6 +291,15 @@ function PriceEntry({
 					>
 						{product.name}
 					</h3>
+					<p
+						className={`mt-1 min-w-0 truncate font-[family-name:var(--font-archivo)] text-[11px] ${
+							hasSalesPriceRequest
+								? 'text-red-700/80 dark:text-red-300/80'
+								: 'text-[var(--ink-mid)]'
+						}`}
+					>
+						{product.categoryPath}
+					</p>
 					<p
 						className={`mt-1 min-w-0 truncate font-[family-name:var(--font-archivo)] text-[11px] ${
 							hasSalesPriceRequest

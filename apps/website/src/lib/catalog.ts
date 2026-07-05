@@ -30,6 +30,8 @@ export interface PublicProduct
 
 const catalogInput = z.object({
 	category: z.array(z.string()).optional(),
+	productFamily: z.array(z.string()).optional(),
+	productType: z.array(z.string()).optional(),
 	availability: z.enum(['all', 'available', 'low_stock']).optional(),
 	priceTier: z.array(z.enum(['budget', 'mid_range', 'premium'])).optional(),
 	search: z.string().optional(),
@@ -73,6 +75,20 @@ interface PublicCategory {
 	description: string
 	description_ar: string
 	imageUrl: string | null
+	productFamilies: PublicProductFamily[]
+}
+
+interface PublicProductFamily {
+	slug: string
+	name: string
+	name_ar: string
+	productTypes: PublicProductType[]
+}
+
+interface PublicProductType {
+	slug: string
+	name: string
+	name_ar: string
 }
 
 export interface PublicCatalogResult {
@@ -95,8 +111,17 @@ const PUBLIC_COLUMNS = [
 	'description',
 	'description_ar',
 	'category',
+	'category_slug',
+	'category_name',
+	'category_name_ar',
 	'subcategory',
 	'subcategory_ar',
+	'product_family_slug',
+	'product_family_name',
+	'product_family_name_ar',
+	'product_type_slug',
+	'product_type_name',
+	'product_type_name_ar',
 	'brand',
 	'manufacturer',
 	'specifications',
@@ -125,8 +150,14 @@ function publicProductSearchFilter(search: string): string | null {
 		`name_ar.ilike.${pattern}`,
 		`sku.ilike.${pattern}`,
 		`category.ilike.${pattern}`,
+		`category_name.ilike.${pattern}`,
+		`category_name_ar.ilike.${pattern}`,
 		`subcategory.ilike.${pattern}`,
 		`subcategory_ar.ilike.${pattern}`,
+		`product_family_name.ilike.${pattern}`,
+		`product_family_name_ar.ilike.${pattern}`,
+		`product_type_name.ilike.${pattern}`,
+		`product_type_name_ar.ilike.${pattern}`,
 		`brand.ilike.${pattern}`,
 		`manufacturer.ilike.${pattern}`,
 		`description.ilike.${pattern}`,
@@ -185,6 +216,53 @@ function withCategoryImageFallback(
 	} as unknown as PublicProduct
 }
 
+function publicFamiliesByCategory(rows: unknown[]) {
+	const byCategory = new Map<string, Map<string, PublicProductFamily>>()
+	for (const row of rows as Array<Record<string, string | null>>) {
+		const categorySlug = row.category_slug
+		const familySlug = row.product_family_slug
+		const typeSlug = row.product_type_slug
+		if (!categorySlug || !familySlug || !typeSlug) continue
+		let families = byCategory.get(categorySlug)
+		if (!families) {
+			families = new Map()
+			byCategory.set(categorySlug, families)
+		}
+		let family = families.get(familySlug)
+		if (!family) {
+			family = {
+				slug: familySlug,
+				name: row.product_family_name ?? familySlug,
+				name_ar:
+					row.product_family_name_ar ?? row.product_family_name ?? familySlug,
+				productTypes: [],
+			}
+			families.set(familySlug, family)
+		}
+		if (!family.productTypes.some((type) => type.slug === typeSlug)) {
+			family.productTypes.push({
+				slug: typeSlug,
+				name: row.product_type_name ?? typeSlug,
+				name_ar: row.product_type_name_ar ?? row.product_type_name ?? typeSlug,
+			})
+		}
+	}
+
+	return new Map(
+		[...byCategory].map(([categorySlug, families]) => [
+			categorySlug,
+			[...families.values()]
+				.map((family) => ({
+					...family,
+					productTypes: [...family.productTypes].sort((left, right) =>
+						left.name.localeCompare(right.name),
+					),
+				}))
+				.sort((left, right) => left.name.localeCompare(right.name)),
+		]),
+	)
+}
+
 export const getPublicMarketPreviewCategories = createServerFn({
 	method: 'POST',
 })
@@ -216,11 +294,11 @@ export const getPublicMarketPreviewCategories = createServerFn({
 
 		if (slugs.length > 0) {
 			const { data: productRows, error: productError } = await client
-				.from('products')
-				.select('category, image_urls')
+				.from('catalog_product_hierarchy')
+				.select('category, category_slug, image_urls')
 				.eq('is_active', true)
 				.neq('availability_status', 'hidden')
-				.in('category', slugs)
+				.in('category_slug', slugs)
 				.order('name', { ascending: true })
 				.limit(slugs.length * 12)
 
@@ -241,15 +319,15 @@ export const getPublicMarketPreviewCategories = createServerFn({
 
 			for (const product of productRows ?? []) {
 				if (
-					typeof product.category !== 'string' ||
-					imageByCategory.has(product.category)
+					typeof product.category_slug !== 'string' ||
+					imageByCategory.has(product.category_slug)
 				) {
 					continue
 				}
 				const imageUrl = Array.isArray(product.image_urls)
 					? product.image_urls.find((url) => typeof url === 'string' && url)
 					: null
-				if (imageUrl) imageByCategory.set(product.category, imageUrl)
+				if (imageUrl) imageByCategory.set(product.category_slug, imageUrl)
 			}
 		}
 
@@ -280,13 +358,19 @@ export const getPublicCatalog = createServerFn({ method: 'POST' })
 			.order('name', { ascending: true })
 
 		let query = client
-			.from('products')
+			.from('catalog_product_hierarchy')
 			.select(PUBLIC_COLUMNS, { count: 'exact' })
 			.eq('is_active', true)
 			.neq('availability_status', 'hidden')
 
 		const categories = input.category ?? []
-		if (categories.length) query = query.in('category', categories)
+		if (categories.length) query = query.in('category_slug', categories)
+		const productFamilies = input.productFamily ?? []
+		if (productFamilies.length) {
+			query = query.in('product_family_slug', productFamilies)
+		}
+		const productTypes = input.productType ?? []
+		if (productTypes.length) query = query.in('product_type_slug', productTypes)
 		if (input.availability && input.availability !== 'all') {
 			query = query.neq('availability_status', 'out_of_stock')
 		}
@@ -301,7 +385,7 @@ export const getPublicCatalog = createServerFn({ method: 'POST' })
 				query = query.order('name')
 				break
 			case 'category':
-				query = query.order('category')
+				query = query.order('category_name')
 				break
 			case 'availability':
 				query = query.order('availability_status')
@@ -311,12 +395,22 @@ export const getPublicCatalog = createServerFn({ method: 'POST' })
 		const offset = (input.page - 1) * input.limit
 		query = query.range(offset, offset + input.limit - 1)
 
-		const [productResult, categoryResult] = await Promise.all([
+		const hierarchyQuery = client
+			.from('catalog_product_hierarchy')
+			.select(
+				'category_slug, product_family_slug, product_family_name, product_family_name_ar, product_type_slug, product_type_name, product_type_name_ar',
+			)
+			.eq('is_active', true)
+			.neq('availability_status', 'hidden')
+
+		const [productResult, categoryResult, hierarchyResult] = await Promise.all([
 			query,
 			categoriesQuery,
+			hierarchyQuery,
 		])
 		const { data, error, count } = productResult
 		const categoryRows = categoryResult.error ? [] : categoryResult.data
+		const hierarchyRows = hierarchyResult.error ? [] : hierarchyResult.data
 
 		if (error) {
 			logWebsiteServerError(
@@ -331,9 +425,16 @@ export const getPublicCatalog = createServerFn({ method: 'POST' })
 				categoryResult.error,
 			)
 		}
+		if (hierarchyResult.error) {
+			logWebsiteServerError(
+				'website.catalog.categories.supabase_error',
+				hierarchyResult.error,
+			)
+		}
 		const categoriesBySlug = publicCategoryMap(
 			(categoryRows ?? []) as PublicCategoryRow[],
 		)
+		const familiesByCategory = publicFamiliesByCategory(hierarchyRows ?? [])
 
 		// Supabase row shape matches PublicProduct — PUBLIC_COLUMNS is the guard.
 		return {
@@ -344,6 +445,7 @@ export const getPublicCatalog = createServerFn({ method: 'POST' })
 				description: category.description ?? '',
 				description_ar: category.description_ar ?? '',
 				imageUrl: category.image_url ?? null,
+				productFamilies: familiesByCategory.get(category.slug) ?? [],
 			})),
 			items: ((data ?? []) as unknown as Record<string, unknown>[]).map(
 				(product) => withCategoryImageFallback(product, categoriesBySlug),
@@ -363,7 +465,7 @@ export const getProductBySlug = createServerFn({ method: 'POST' })
 		const client = await getWebsiteCatalogClient()
 
 		const { data, error } = await client
-			.from('products')
+			.from('catalog_product_hierarchy')
 			.select(PUBLIC_COLUMNS)
 			.eq('slug', input.slug)
 			.eq('is_active', true)
@@ -383,7 +485,11 @@ export const getProductBySlug = createServerFn({ method: 'POST' })
 		const productImage = firstImageUrl(product.image_urls)
 		if (productImage) return product as unknown as PublicProduct
 		const categorySlug =
-			typeof product.category === 'string' ? product.category : null
+			typeof product.category_slug === 'string'
+				? product.category_slug
+				: typeof product.category === 'string'
+					? product.category
+					: null
 		if (!categorySlug) return withCategoryImageFallback(product, new Map())
 
 		const { data: category, error: categoryError } = await client

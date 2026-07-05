@@ -26,6 +26,12 @@ export interface MarketProduct {
 	category: string
 	categoryName: string
 	categoryNameAr: string
+	productFamily: string
+	productFamilyName: string
+	productFamilyNameAr: string
+	productType: string
+	productTypeName: string
+	productTypeNameAr: string
 	subcategory: string
 	subcategoryAr: string
 	unitOfMeasure: string
@@ -45,6 +51,20 @@ export interface MarketCategory {
 	description: string
 	descriptionAr: string
 	imageUrl: string
+	productFamilies: MarketProductFamily[]
+}
+
+export interface MarketProductFamily {
+	slug: string
+	name: string
+	nameAr: string
+	productTypes: MarketProductType[]
+}
+
+export interface MarketProductType {
+	slug: string
+	name: string
+	nameAr: string
 }
 
 interface MarketProductsResponse {
@@ -60,6 +80,8 @@ interface MarketCategoriesResponse {
 const getMarketProductsInput = z.object({
 	search: z.string().optional(),
 	category: z.string().optional(),
+	productFamily: z.string().optional(),
+	productType: z.string().optional(),
 	page: z.number().int().min(1).default(1),
 	limit: z.number().int().min(1).max(50).default(20),
 })
@@ -117,9 +139,9 @@ export const getMarketProducts = createServerFn({ method: 'POST' })
 		const { supabase } = await getAuthenticatedSupabase()
 
 		let query = supabase
-			.from('products')
+			.from('catalog_product_hierarchy')
 			.select(
-				'id, slug, name, name_ar, description, description_ar, category, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, weight_kg, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar',
+				'id, slug, name, name_ar, description, description_ar, category, category_slug, category_name, category_name_ar, category_image_url, product_family_slug, product_family_name, product_family_name_ar, product_type_slug, product_type_name, product_type_name_ar, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, weight_kg, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar',
 				{ count: 'exact' },
 			)
 			.eq('is_active', true)
@@ -137,7 +159,19 @@ export const getMarketProducts = createServerFn({ method: 'POST' })
 			const categories = input.category
 				.split(',')
 				.map((category) => category.trim())
-			query = query.in('category', categories)
+			query = query.in('category_slug', categories)
+		}
+		if (input.productFamily) {
+			const productFamilies = input.productFamily
+				.split(',')
+				.map((productFamily) => productFamily.trim())
+			query = query.in('product_family_slug', productFamilies)
+		}
+		if (input.productType) {
+			const productTypes = input.productType
+				.split(',')
+				.map((productType) => productType.trim())
+			query = query.in('product_type_slug', productTypes)
 		}
 
 		const start = (page - 1) * limit
@@ -166,7 +200,9 @@ export const getMarketProducts = createServerFn({ method: 'POST' })
 		return {
 			products: (data ?? []).map((product): MarketProduct => {
 				const category = product.category
-				const categoryRow = categoriesBySlug.get(category)
+				const categoryRow = categoriesBySlug.get(
+					product.category_slug ?? category,
+				)
 				return {
 					id: product.id,
 					slug: product.slug,
@@ -175,8 +211,30 @@ export const getMarketProducts = createServerFn({ method: 'POST' })
 					description: product.description ?? '',
 					descriptionAr: product.description_ar ?? '',
 					category,
-					categoryName: categoryRow?.name ?? category,
-					categoryNameAr: categoryRow?.name_ar ?? categoryRow?.name ?? category,
+					categoryName: product.category_name ?? categoryRow?.name ?? category,
+					categoryNameAr:
+						product.category_name_ar ??
+						product.category_name ??
+						categoryRow?.name_ar ??
+						categoryRow?.name ??
+						category,
+					productFamily: product.product_family_slug ?? category,
+					productFamilyName:
+						product.product_family_name ?? product.category_name ?? category,
+					productFamilyNameAr:
+						product.product_family_name_ar ??
+						product.product_family_name ??
+						product.category_name_ar ??
+						category,
+					productType:
+						product.product_type_slug ?? product.subcategory ?? category,
+					productTypeName:
+						product.product_type_name ?? product.subcategory ?? category,
+					productTypeNameAr:
+						product.product_type_name_ar ??
+						product.product_type_name ??
+						product.subcategory_ar ??
+						category,
 					subcategory: product.subcategory ?? '',
 					subcategoryAr: product.subcategory_ar ?? product.subcategory ?? '',
 					unitOfMeasure: product.unit_of_measure,
@@ -189,7 +247,10 @@ export const getMarketProducts = createServerFn({ method: 'POST' })
 							? 'out_of_stock'
 							: product.availability_status,
 					imageUrl:
-						firstImageUrl(product.image_urls) || categoryRow?.image_url || '',
+						firstImageUrl(product.image_urls) ||
+						product.category_image_url ||
+						categoryRow?.image_url ||
+						'',
 					specs: specsFrom(product.specifications, product.specifications_ar),
 				}
 			}),
@@ -210,6 +271,46 @@ export const getMarketCategories = createServerFn({
 
 	if (error) throw new Error(error.message)
 
+	const { data: hierarchyRows, error: hierarchyError } = await supabase
+		.from('catalog_product_hierarchy')
+		.select(
+			'category_slug, product_family_slug, product_family_name, product_family_name_ar, product_type_slug, product_type_name, product_type_name_ar',
+		)
+		.eq('is_active', true)
+		.neq('availability_status', 'hidden')
+	if (hierarchyError) throw new Error(hierarchyError.message)
+
+	const familiesByCategory = new Map<string, Map<string, MarketProductFamily>>()
+	for (const row of hierarchyRows ?? []) {
+		const categorySlug = row.category_slug
+		const familySlug = row.product_family_slug
+		const typeSlug = row.product_type_slug
+		if (!categorySlug || !familySlug || !typeSlug) continue
+		let families = familiesByCategory.get(categorySlug)
+		if (!families) {
+			families = new Map()
+			familiesByCategory.set(categorySlug, families)
+		}
+		let family = families.get(familySlug)
+		if (!family) {
+			family = {
+				slug: familySlug,
+				name: row.product_family_name ?? familySlug,
+				nameAr:
+					row.product_family_name_ar ?? row.product_family_name ?? familySlug,
+				productTypes: [],
+			}
+			families.set(familySlug, family)
+		}
+		if (!family.productTypes.some((type) => type.slug === typeSlug)) {
+			family.productTypes.push({
+				slug: typeSlug,
+				name: row.product_type_name ?? typeSlug,
+				nameAr: row.product_type_name_ar ?? row.product_type_name ?? typeSlug,
+			})
+		}
+	}
+
 	return {
 		categories: (data ?? []).map(
 			(category): MarketCategory => ({
@@ -219,6 +320,16 @@ export const getMarketCategories = createServerFn({
 				description: category.description ?? '',
 				descriptionAr: category.description_ar ?? '',
 				imageUrl: category.image_url ?? '',
+				productFamilies: [
+					...(familiesByCategory.get(category.slug)?.values() ?? []),
+				]
+					.map((family) => ({
+						...family,
+						productTypes: [...family.productTypes].sort((left, right) =>
+							left.name.localeCompare(right.name),
+						),
+					}))
+					.sort((left, right) => left.name.localeCompare(right.name)),
 			}),
 		),
 	}

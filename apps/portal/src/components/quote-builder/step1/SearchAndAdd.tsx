@@ -200,10 +200,20 @@ function ProductSearchOption({
 	onSelect: () => void
 }) {
 	const name = isAr && product.nameAr ? product.nameAr : product.name
-	const categoryLabel =
-		isAr && product.categoryNameAr
-			? product.categoryNameAr
-			: product.categoryName
+	const categoryLabel = hierarchyPathLabel(
+		[
+			isAr && product.categoryNameAr
+				? product.categoryNameAr
+				: product.categoryName,
+			isAr && product.productFamilyNameAr
+				? product.productFamilyNameAr
+				: product.productFamilyName,
+			isAr && product.productTypeNameAr
+				? product.productTypeNameAr
+				: product.productTypeName,
+		],
+		product.category,
+	)
 
 	return (
 		<button
@@ -239,4 +249,20 @@ function ProductSearchOption({
 			</div>
 		</button>
 	)
+}
+
+function hierarchyPathLabel(
+	parts: Array<string | null | undefined>,
+	fallback: string,
+) {
+	const seen = new Set<string>()
+	const compact = parts.flatMap((part) => {
+		const normalized = part?.trim()
+		if (!normalized) return []
+		const key = normalized.toLowerCase()
+		if (seen.has(key)) return []
+		seen.add(key)
+		return [normalized]
+	})
+	return compact.length > 0 ? compact.join(' / ') : fallback
 }

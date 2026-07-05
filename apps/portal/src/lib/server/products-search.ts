@@ -20,8 +20,18 @@ const PUBLIC_COLUMNS = [
 	'name',
 	'name_ar',
 	'category',
+	'category_slug',
+	'category_name',
+	'category_name_ar',
+	'category_image_url',
 	'subcategory',
 	'subcategory_ar',
+	'product_family_slug',
+	'product_family_name',
+	'product_family_name_ar',
+	'product_type_slug',
+	'product_type_name',
+	'product_type_name_ar',
 	'unit_of_measure',
 	'unit_of_measure_ar',
 	'price_range_min',
@@ -45,6 +55,12 @@ export interface ProductSearchResult {
 	category: string
 	categoryName: string
 	categoryNameAr: string
+	productFamily: string
+	productFamilyName: string
+	productFamilyNameAr: string
+	productType: string
+	productTypeName: string
+	productTypeNameAr: string
 	subcategory: string
 	subcategoryAr: string
 	unitOfMeasure: string
@@ -73,15 +89,8 @@ const getProductCatalogInput = z.object({
 // Helper
 // ============================================================================
 
-function mapProduct(
-	p: Record<string, unknown>,
-	categoriesBySlug: Map<
-		string,
-		{ image_url: string | null; name: string; name_ar: string | null }
-	>,
-): ProductSearchResult {
+function mapProduct(p: Record<string, unknown>): ProductSearchResult {
 	const category = p.category as string
-	const categoryRow = categoriesBySlug.get(category)
 	const imageUrls = (p.image_urls as string[] | null) ?? []
 	const firstProductImage = imageUrls.find(
 		(url) => typeof url === 'string' && url.trim(),
@@ -93,8 +102,37 @@ function mapProduct(
 		name: p.name as string,
 		nameAr: p.name_ar as string,
 		category,
-		categoryName: categoryRow?.name ?? category,
-		categoryNameAr: categoryRow?.name_ar ?? categoryRow?.name ?? category,
+		categoryName: (p.category_name as string | null) ?? category,
+		categoryNameAr:
+			(p.category_name_ar as string | null) ??
+			(p.category_name as string | null) ??
+			category,
+		productFamily:
+			(p.product_family_slug as string | null) ??
+			(p.category_slug as string | null) ??
+			category,
+		productFamilyName:
+			(p.product_family_name as string | null) ??
+			(p.category_name as string | null) ??
+			category,
+		productFamilyNameAr:
+			(p.product_family_name_ar as string | null) ??
+			(p.product_family_name as string | null) ??
+			(p.category_name_ar as string | null) ??
+			category,
+		productType:
+			(p.product_type_slug as string | null) ??
+			(p.subcategory as string | null) ??
+			category,
+		productTypeName:
+			(p.product_type_name as string | null) ??
+			(p.subcategory as string | null) ??
+			category,
+		productTypeNameAr:
+			(p.product_type_name_ar as string | null) ??
+			(p.product_type_name as string | null) ??
+			(p.subcategory_ar as string | null) ??
+			category,
 		subcategory: (p.subcategory as string | null) ?? '',
 		subcategoryAr:
 			(p.subcategory_ar as string | null) ??
@@ -107,39 +145,10 @@ function mapProduct(
 		availabilityStatus: p.availability_status as string,
 		imageUrls: firstProductImage
 			? imageUrls
-			: categoryRow?.image_url
-				? [categoryRow.image_url]
+			: typeof p.category_image_url === 'string' && p.category_image_url
+				? [p.category_image_url]
 				: [],
 	}
-}
-
-// ============================================================================
-
-async function getCategoriesBySlug(
-	supabase: Awaited<ReturnType<typeof getAuthenticatedSupabase>>['supabase'],
-) {
-	const { data, error } = await supabase
-		.from('categories')
-		.select('slug, name, name_ar, image_url')
-		.eq('is_active', true)
-	if (error) throw new Error(error.message)
-	return new Map(
-		(
-			(data ?? []) as Array<{
-				slug: string
-				name: string
-				name_ar: string | null
-				image_url: string | null
-			}>
-		).map((category) => [
-			category.slug,
-			{
-				image_url: category.image_url,
-				name: category.name,
-				name_ar: category.name_ar,
-			},
-		]),
-	)
 }
 
 // ============================================================================
@@ -154,20 +163,17 @@ export const searchProducts = createServerFn({ method: 'POST' })
 		const { supabase } = await getAuthenticatedSupabase()
 		const searchFilter = publicProductSearchFilter(input.query)
 
-		const [{ data, error }, categoriesBySlug] = await Promise.all([
-			(searchFilter
-				? supabase
-						.from('products')
-						.select(PUBLIC_COLUMNS_SELECT)
-						.or(searchFilter)
-				: supabase.from('products').select(PUBLIC_COLUMNS_SELECT)
-			)
-				.eq('is_active', true)
-				.neq('availability_status', 'hidden')
-				.neq('availability_status', 'out_of_stock')
-				.limit(limit),
-			getCategoriesBySlug(supabase),
-		])
+		const { data, error } = await (searchFilter
+			? supabase
+					.from('catalog_product_hierarchy')
+					.select(PUBLIC_COLUMNS_SELECT)
+					.or(searchFilter)
+			: supabase.from('catalog_product_hierarchy').select(PUBLIC_COLUMNS_SELECT)
+		)
+			.eq('is_active', true)
+			.neq('availability_status', 'hidden')
+			.neq('availability_status', 'out_of_stock')
+			.limit(limit)
 
 		if (error) throw new Error(error.message)
 
@@ -175,7 +181,7 @@ export const searchProducts = createServerFn({ method: 'POST' })
 		// `Record<string, unknown>[]` — safe to map here because mapProduct
 		// only reads keys that are guaranteed by PUBLIC_COLUMNS.
 		return ((data as unknown as Record<string, unknown>[] | null) ?? []).map(
-			(product) => mapProduct(product, categoriesBySlug),
+			mapProduct,
 		)
 	})
 
@@ -191,21 +197,18 @@ export const getProductCatalog = createServerFn({ method: 'POST' })
 
 		const { supabase } = await getAuthenticatedSupabase()
 
-		const [{ data, error }, categoriesBySlug] = await Promise.all([
-			supabase
-				.from('products')
-				.select(PUBLIC_COLUMNS_SELECT)
-				.eq('is_active', true)
-				.neq('availability_status', 'hidden')
-				.neq('availability_status', 'out_of_stock')
-				.order('name')
-				.range(offset, offset + limit - 1),
-			getCategoriesBySlug(supabase),
-		])
+		const { data, error } = await supabase
+			.from('catalog_product_hierarchy')
+			.select(PUBLIC_COLUMNS_SELECT)
+			.eq('is_active', true)
+			.neq('availability_status', 'hidden')
+			.neq('availability_status', 'out_of_stock')
+			.order('name')
+			.range(offset, offset + limit - 1)
 
 		if (error) throw new Error(error.message)
 
 		return ((data as unknown as Record<string, unknown>[] | null) ?? []).map(
-			(product) => mapProduct(product, categoriesBySlug),
+			mapProduct,
 		)
 	})
