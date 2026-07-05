@@ -40,8 +40,9 @@ const STRESS_SESSION_CASES: WorkbenchCase[] = [
 	{
 		expectNoDraft: true,
 		expectNotText:
-			/Standard Freight Quote|Express Air Quote|Customs Brokerage/i,
-		expectText: /Cement|Plywood|Ready Mix|Rebar|Steel Mesh|Timber Beam/i,
+			/Standard Freight Quote|Express Air Quote|Customs Brokerage|six are the only|only six/i,
+		expectText:
+			/Cement[\s\S]*Plywood[\s\S]*Ready Mix[\s\S]*Rebar[\s\S]*Steel Angle[\s\S]*Steel Mesh[\s\S]*Timber Beam[\s\S]*White Cement[\s\S]*Wood/i,
 		prompt:
 			"boss mode, what do u have in products rn? quick catalog dump, don't freestyle",
 	},
@@ -233,6 +234,11 @@ async function openCustomerPortal(browser: Browser, env: LocalSupabaseEnv) {
 	)
 	const page = await context.newPage()
 	await page.goto(PORTAL_URL, { waitUntil: 'domcontentloaded' })
+	await page.evaluate(() => {
+		window.localStorage.removeItem('hq-portal-chat')
+		window.sessionStorage.removeItem('hq-portal-chat-draft-workspace:v1')
+	})
+	await page.reload({ waitUntil: 'domcontentloaded' })
 	await waitForHydration(page)
 	if (/\/login/.test(page.url())) {
 		await signInWithEmailPassword(page)

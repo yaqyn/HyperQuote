@@ -1602,11 +1602,16 @@ async function executePortalCustomerToolRequest(
 			}
 		}
 		case 'product_search': {
-			const catalog = await findPublishedProducts(
-				supabase,
-				route.searchQuery || userText,
-				PRODUCT_CATALOG_RESULT_COUNT,
-			)
+			const catalog = isBroadCatalogReadRequest(userText)
+				? await loadVisibleProductCatalog(
+						supabase,
+						PRODUCT_CATALOG_CONTEXT_LIMIT,
+					)
+				: await findPublishedProducts(
+						supabase,
+						route.searchQuery || userText,
+						PRODUCT_CATALOG_RESULT_COUNT,
+					)
 			return {
 				context: {
 					catalogComplete: catalog.catalogComplete,
@@ -2993,32 +2998,51 @@ function productFallbackAnswer(
 			? 'مش لاقي منتج منشور مناسب في الكتالوج حاليًا. قلّي المادة الأساسية أو المقاس المطلوب وأدور تاني.'
 			: 'I could not find a matching published product in the catalog. Tell me the main material or size and I will search again.'
 	}
-	const rows = context.products.slice(0, 6).map((product) => {
+	const rows = context.products.map((product) => {
 		const name =
 			isArabic && product.name_ar
 				? `${product.name_ar} / ${product.name}`
 				: `${product.name}${product.name_ar ? ` / ${product.name_ar}` : ''}`
 		return `| ${markdownTableCell(name)} | ${availabilityLabel(product, context.locale)} | ${markdownTableCell(unitLabel(product, context.locale))} | ${markdownTableCell(formatPriceRange(product, context.locale))} |`
 	})
+	const unavailableCount = context.products.filter(
+		(product) => !isCustomerVisibleAvailable(product),
+	).length
+	const visibleCountText =
+		context.products.length === context.totalVisibleProducts
+			? isArabic
+				? `${context.products.length} منتج ظاهر`
+				: `${context.products.length} visible product${context.products.length === 1 ? '' : 's'}`
+			: isArabic
+				? `${context.products.length} من ${context.totalVisibleProducts}`
+				: `${context.products.length} of ${context.totalVisibleProducts}`
+	const availabilityNote =
+		unavailableCount > 0
+			? isArabic
+				? 'المنتجات غير المتاحة للعلم فقط ولن أضيفها لمسودة. تحب أضيف المنتجات المتاحة لمسودة تراجعها؟'
+				: 'Unavailable products are for visibility only and will not be added to a draft. Want me to add the available items to a draft?'
+			: isArabic
+				? 'كل المنتجات الظاهرة متاحة للطلب. تحب أضيف أي منها لمسودة تراجعها؟'
+				: 'All visible products are available to order. Want me to add any of them to a draft?'
 	if (isArabic) {
 		return [
-			`دي اختيارات حقيقية من الكتالوج (${context.products.length} من ${context.totalVisibleProducts}):`,
+			`دي منتجات حقيقية من الكتالوج (${visibleCountText}):`,
 			'',
 			'| المنتج | الحالة | الوحدة | السعر |',
 			'| --- | --- | --- | --- |',
 			...rows,
 			'',
-			'المنتجات غير المتاحة للعلم فقط ولن أضيفها لمسودة. تحب أضيف المنتجات المتاحة لمسودة تراجعها؟',
+			availabilityNote,
 		].join('\n')
 	}
 	return [
-		`Here are ${context.products.length} real catalog-backed product${context.products.length === 1 ? '' : 's'} out of ${context.totalVisibleProducts}:`,
+		`Here are ${visibleCountText} from the live catalog:`,
 		'',
 		'| Product | Status | Unit | Price |',
 		'| --- | --- | --- | --- |',
 		...rows,
 		'',
-		'Unavailable products are for visibility only and will not be added to a draft. Want me to add the available items to a draft?',
+		availabilityNote,
 	].join('\n')
 }
 
