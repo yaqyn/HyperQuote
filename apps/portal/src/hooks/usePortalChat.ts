@@ -503,14 +503,13 @@ export function usePortalChat({
 			previousKey === 'default' &&
 			conversationKey.startsWith('draft:temp:')
 		) {
-			setMessages(
-				activeRole,
-				storedMessagesFromUiMessages(
-					chatMessagesRef.current,
-					richContentByMessageIdRef.current,
-				),
-				previousKey,
+			const currentMessages = storedMessagesFromUiMessages(
+				chatMessagesRef.current,
+				richContentByMessageIdRef.current,
 			)
+			if (currentMessages.length > 0) {
+				setMessages(activeRole, currentMessages, previousKey)
+			}
 			moveStoreThread(activeRole, previousKey, conversationKey)
 		}
 	}, [
@@ -540,6 +539,24 @@ export function usePortalChat({
 				: conversationKey === 'default'
 					? storedMessagesForRole(activeRole)
 					: []
+		if (
+			storedMessages.length === 0 &&
+			conversationKey.startsWith('draft:temp:') &&
+			chatMessagesRef.current.length > 0
+		) {
+			const currentMessages = storedMessagesFromUiMessages(
+				chatMessagesRef.current,
+				richContentByMessageIdRef.current,
+			)
+			setMessages(activeRole, currentMessages, conversationKey)
+			lastPersistedChatFingerprintRef.current = uiMessagesFingerprint(
+				chatMessagesRef.current,
+			)
+			loadedRoleRef.current = activeRole
+			loadedConversationKeyRef.current = conversationKey
+			setIsHistoryReady(true)
+			return
+		}
 		const storedFingerprint = storedMessagesFingerprint(storedMessages)
 		const currentFingerprint = uiMessagesFingerprint(chatMessagesRef.current)
 		richContentByMessageIdRef.current =
@@ -555,7 +572,13 @@ export function usePortalChat({
 		lastPersistedChatFingerprintRef.current = currentFingerprint
 		chat.setMessages(storedMessages.map(uiMessageFromStoredMessage))
 		setIsHistoryReady(true)
-	}, [activeRole, chat.setMessages, conversationKey, isChatStoreHydrated])
+	}, [
+		activeRole,
+		chat.setMessages,
+		conversationKey,
+		isChatStoreHydrated,
+		setMessages,
+	])
 
 	// Sync messages to the durable Zustand thread for the active chat context.
 	useEffect(() => {

@@ -41,4 +41,17 @@ describe('chat drafts panel state', () => {
 		expect(submittedResetBranch).toContain('setEditor(null)')
 		expect(submittedResetBranch).not.toContain('createNewEditor')
 	})
+
+	it('persists the active draft workspace across chat panel remounts', () => {
+		const source = readRepoFile(
+			'apps/portal/src/components/chat/ChatDraftsPanel.tsx',
+		)
+
+		expect(source).toContain('CHAT_DRAFT_WORKSPACE_STORAGE_KEY')
+		expect(source).toContain('readPersistedDraftWorkspace')
+		expect(source).toContain('restoredWorkspace?.activeDraftKey ?? null')
+		expect(source).toContain('restoredWorkspace?.editor ?? null')
+		expect(source).toContain('writePersistedDraftWorkspace({')
+		expect(source).toContain('writePersistedDraftWorkspace(null)')
+	})
 })

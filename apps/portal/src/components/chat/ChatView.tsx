@@ -48,7 +48,7 @@ export function ChatView({ locale }: ChatViewProps) {
 	const handleActiveDraftChange = useCallback(
 		(draft: ActiveChatDraftContext | null) => {
 			setActiveDraft(draft)
-			setChatThreadKey(draft?.id ? (draft.sessionKey ?? 'default') : 'default')
+			setChatThreadKey(draft?.sessionKey ?? 'default')
 		},
 		[],
 	)

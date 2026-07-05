@@ -95,7 +95,7 @@ describe('portal chat session threading', () => {
 
 		expect(chatViewSource).toContain('conversationKey: chatThreadKey')
 		expect(chatViewSource).toContain(
-			"draft?.id ? (draft.sessionKey ?? 'default') : 'default'",
+			"setChatThreadKey(draft?.sessionKey ?? 'default')",
 		)
 		expect(chatViewSource).toContain("setChatThreadKey('default')")
 		expect(chatViewSource).toContain('setDraftSelectionResetToken')
@@ -109,6 +109,8 @@ describe('portal chat session threading', () => {
 		)
 		expect(draftPanelSource).toMatch(/sessionKey: `draft:\$\{order\.id\}`/)
 		expect(draftPanelSource).toContain('resetSelectionToken?: number')
+		expect(draftPanelSource).toContain('readPersistedDraftWorkspace')
+		expect(draftPanelSource).toContain('writePersistedDraftWorkspace')
 		expect(draftPanelSource).toContain('setActiveDraftKey(null)')
 		expect(draftPanelSource).toContain('setEditor(null)')
 	})
@@ -141,12 +143,27 @@ describe('portal chat session threading', () => {
 		expect(draftPanelSource).toContain('onClick={saveCurrentEditor}')
 	})
 
-	it('abandons unsaved temp chat threads when returning to the default page', () => {
+	it('moves temp draft chat threads between default, temp, and saved draft keys', () => {
 		const hookSource = readRepoFile('apps/portal/src/hooks/usePortalChat.ts')
+		const chatViewSource = readRepoFile(
+			'apps/portal/src/components/chat/ChatView.tsx',
+		)
 
 		expect(hookSource).toContain("previousKey.startsWith('draft:temp:')")
 		expect(hookSource).toContain("conversationKey === 'default'")
 		expect(hookSource).toContain('clearStoreActive(activeRole, previousKey)')
+		expect(hookSource).toContain("previousKey === 'default'")
+		expect(hookSource).toContain("conversationKey.startsWith('draft:temp:')")
+		expect(hookSource).toContain(
+			'moveStoreThread(activeRole, previousKey, conversationKey)',
+		)
+		expect(hookSource).toContain('currentMessages.length > 0')
+		expect(hookSource).toContain(
+			"storedMessages.length === 0 &&\n\t\t\tconversationKey.startsWith('draft:temp:')",
+		)
+		expect(chatViewSource).toContain(
+			"setChatThreadKey(draft?.sessionKey ?? 'default')",
+		)
 		expect(hookSource).toContain('onNewSession?.()')
 	})
 

@@ -68,7 +68,13 @@ interface DraftEditorState {
 
 const NEW_DRAFT_KEY = '__new_draft__'
 const CHAT_DRAFT_EASE = cubicBezier(0.22, 1, 0.36, 1)
+const CHAT_DRAFT_WORKSPACE_STORAGE_KEY = 'hq-portal-chat-draft-workspace:v1'
 const SUBMITTED_RESET_DELAY_MS = 1800
+
+interface PersistedDraftWorkspace {
+	activeDraftKey: string
+	editor: DraftEditorState
+}
 
 function chatRevealMotion(shouldReduceMotion: boolean | null) {
 	return {
@@ -161,6 +167,153 @@ function editorFingerprint(editor: Omit<DraftEditorState, 'baseFingerprint'>) {
 
 function dirtyEditor(editor: DraftEditorState): boolean {
 	return editorFingerprint(editor) !== editor.baseFingerprint
+}
+
+function draftWorkspaceStorage(): Storage | null {
+	if (typeof window === 'undefined') return null
+	try {
+		return window.sessionStorage
+	} catch {
+		return null
+	}
+}
+
+function readStringField(
+	value: Record<string, unknown>,
+	key: string,
+): string | null {
+	return typeof value[key] === 'string' ? value[key] : null
+}
+
+function readNullableStringField(
+	value: Record<string, unknown>,
+	key: string,
+): string | null | undefined {
+	if (value[key] === null) return null
+	return typeof value[key] === 'string' ? value[key] : undefined
+}
+
+function readPersistedOrderItem(value: unknown): OrderItem | null {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+	const item = value as Record<string, unknown>
+	const productId = readStringField(item, 'productId')
+	const productName = readStringField(item, 'productName')
+	const productNameAr = readStringField(item, 'productNameAr')
+	const unitOfMeasure = readStringField(item, 'unitOfMeasure')
+	const unitOfMeasureAr = readStringField(item, 'unitOfMeasureAr')
+	const quantity = item.quantity
+	if (
+		!productId ||
+		!productName ||
+		!productNameAr ||
+		!unitOfMeasure ||
+		!unitOfMeasureAr ||
+		typeof quantity !== 'number' ||
+		!Number.isFinite(quantity) ||
+		quantity <= 0
+	) {
+		return null
+	}
+	const category = readStringField(item, 'category')
+	const catalogProductId = readNullableStringField(item, 'catalogProductId')
+	const imageUrl = readStringField(item, 'imageUrl')
+	const availabilityStatus = readStringField(item, 'availabilityStatus')
+	return {
+		availabilityStatus: availabilityStatus ?? 'available',
+		catalogProductId: catalogProductId ?? productId,
+		category: category ?? 'catalog',
+		imageUrl: imageUrl ?? '',
+		isOrderable: item.isOrderable !== false,
+		isUnmatched: item.isUnmatched === true,
+		productId,
+		productName,
+		productNameAr,
+		quantity,
+		unitOfMeasure,
+		unitOfMeasureAr,
+	}
+}
+
+function readPersistedDraftWorkspace(): PersistedDraftWorkspace | null {
+	const storage = draftWorkspaceStorage()
+	if (!storage) return null
+	try {
+		const raw = storage.getItem(CHAT_DRAFT_WORKSPACE_STORAGE_KEY)
+		if (!raw) return null
+		const parsed: unknown = JSON.parse(raw)
+		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+			return null
+		}
+		const workspace = parsed as Record<string, unknown>
+		const activeDraftKey = readStringField(workspace, 'activeDraftKey')
+		const rawEditor = workspace.editor
+		if (
+			!activeDraftKey ||
+			!rawEditor ||
+			typeof rawEditor !== 'object' ||
+			Array.isArray(rawEditor)
+		) {
+			return null
+		}
+		const editorValue = rawEditor as Record<string, unknown>
+		const date = readStringField(editorValue, 'date')
+		const id = readNullableStringField(editorValue, 'id')
+		const name = readStringField(editorValue, 'name')
+		const notes = readStringField(editorValue, 'notes')
+		const reference = readNullableStringField(editorValue, 'reference')
+		const sessionKey = readStringField(editorValue, 'sessionKey')
+		const rawItems = editorValue.items
+		if (
+			!date ||
+			id === undefined ||
+			name === null ||
+			notes === null ||
+			reference === undefined ||
+			!sessionKey ||
+			!Array.isArray(rawItems)
+		) {
+			return null
+		}
+		const items = rawItems.flatMap((item) => {
+			const restored = readPersistedOrderItem(item)
+			return restored ? [restored] : []
+		})
+		if (items.length !== rawItems.length) return null
+		const editor = {
+			date,
+			id,
+			items,
+			name,
+			notes,
+			reference,
+			sessionKey,
+		}
+		return {
+			activeDraftKey,
+			editor: {
+				...editor,
+				baseFingerprint: editorFingerprint(editor),
+			},
+		}
+	} catch {
+		return null
+	}
+}
+
+function writePersistedDraftWorkspace(
+	workspace: PersistedDraftWorkspace | null,
+) {
+	const storage = draftWorkspaceStorage()
+	if (!storage) return
+	try {
+		if (!workspace) {
+			storage.removeItem(CHAT_DRAFT_WORKSPACE_STORAGE_KEY)
+			return
+		}
+		storage.setItem(CHAT_DRAFT_WORKSPACE_STORAGE_KEY, JSON.stringify(workspace))
+	} catch {
+		// Browser storage is best-effort; live component state remains authoritative.
+	}
 }
 
 function itemWithoutNotes(item: OrderItem): OrderItem {
@@ -358,14 +511,19 @@ export function ChatDraftsPanel({
 	const productMenuRef = useRef<HTMLDivElement>(null)
 	const reportedDraftRef = useRef(false)
 	const resetSelectionTokenRef = useRef(resetSelectionToken)
-	const [activeDraftKey, setActiveDraftKey] = useState<string | null>(null)
+	const [restoredWorkspace] = useState(() => readPersistedDraftWorkspace())
+	const [activeDraftKey, setActiveDraftKey] = useState<string | null>(
+		restoredWorkspace?.activeDraftKey ?? null,
+	)
 	const [actionsMenuOpen, setActionsMenuOpen] = useState(false)
 	const [confirmCartAddOpen, setConfirmCartAddOpen] = useState(false)
 	const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false)
 	const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 	const [draftMenuOpen, setDraftMenuOpen] = useState(false)
 	const [draftSearch, setDraftSearch] = useState('')
-	const [editor, setEditor] = useState<DraftEditorState | null>(null)
+	const [editor, setEditor] = useState<DraftEditorState | null>(
+		restoredWorkspace?.editor ?? null,
+	)
 	const [productMenuOpen, setProductMenuOpen] = useState(false)
 	const [productSearch, setProductSearch] = useState('')
 	const [requestedDraftId, setRequestedDraftId] = useState<string | null>(null)
@@ -389,6 +547,7 @@ export function ChatDraftsPanel({
 		if (resetSelectionTokenRef.current === resetSelectionToken) return
 		resetSelectionTokenRef.current = resetSelectionToken
 		if (resetSelectionToken < 0) return
+		writePersistedDraftWorkspace(null)
 		reportedDraftRef.current = false
 		setActiveDraftKey(null)
 		setActionsMenuOpen(false)
@@ -402,6 +561,17 @@ export function ChatDraftsPanel({
 		setSubmitError(null)
 		onActiveDraftChange?.(null)
 	}, [onActiveDraftChange, resetSelectionToken])
+
+	useEffect(() => {
+		if (!editor) {
+			writePersistedDraftWorkspace(null)
+			return
+		}
+		writePersistedDraftWorkspace({
+			activeDraftKey: activeDraftKey ?? editor.id ?? NEW_DRAFT_KEY,
+			editor,
+		})
+	}, [activeDraftKey, editor])
 
 	const savedDrafts = useMemo(
 		() => data?.orders.filter((order) => order.type === 'saved') ?? [],
@@ -539,6 +709,7 @@ export function ChatDraftsPanel({
 		const serverDraft = savedDrafts.find((draft) => draft.id === activeDraftKey)
 		if (!serverDraft) {
 			if (!knownSavedDraftIdsRef.current.has(activeDraftKey)) return
+			writePersistedDraftWorkspace(null)
 			setActiveDraftKey(null)
 			setActionsMenuOpen(false)
 			setConfirmCartAddOpen(false)
@@ -570,12 +741,17 @@ export function ChatDraftsPanel({
 			const detail = (event as CustomEvent<PortalChatOpenDraftEventDetail>)
 				.detail
 			if (detail?.tempDraft) {
+				const nextEditor = createEditorFromTempDraft(detail.tempDraft)
+				writePersistedDraftWorkspace({
+					activeDraftKey: NEW_DRAFT_KEY,
+					editor: nextEditor,
+				})
 				setActiveDraftKey(NEW_DRAFT_KEY)
 				setConfirmCartAddOpen(false)
 				setConfirmSubmitOpen(false)
 				setConfirmDeleteId(null)
 				setDraftMenuOpen(false)
-				setEditor(createEditorFromTempDraft(detail.tempDraft))
+				setEditor(nextEditor)
 				setProductSearch('')
 				setSubmitError(null)
 				return
@@ -604,12 +780,17 @@ export function ChatDraftsPanel({
 			(candidate) => candidate.id === requestedDraftId,
 		)
 		if (!draft) return
+		const nextEditor = createEditorFromOrder(draft)
+		writePersistedDraftWorkspace({
+			activeDraftKey: draft.id,
+			editor: nextEditor,
+		})
 		setActiveDraftKey(draft.id)
 		setConfirmCartAddOpen(false)
 		setConfirmSubmitOpen(false)
 		setConfirmDeleteId(null)
 		setDraftMenuOpen(false)
-		setEditor(createEditorFromOrder(draft))
+		setEditor(nextEditor)
 		setProductSearch('')
 		setSubmitError(null)
 		setRequestedDraftId(null)
@@ -690,10 +871,15 @@ export function ChatDraftsPanel({
 			setActiveDraftKey(result.draftId)
 			setConfirmCartAddOpen(false)
 			setConfirmSubmitOpen(false)
-			setEditor({
+			const nextEditor = {
 				...savedEditor,
 				baseFingerprint: editorFingerprint(savedEditor),
+			}
+			writePersistedDraftWorkspace({
+				activeDraftKey: result.draftId,
+				editor: nextEditor,
 			})
+			setEditor(nextEditor)
 			queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
 			toast.success(t('orders.savedAsDraft', { ref: result.reference }))
 		},
@@ -724,6 +910,7 @@ export function ChatDraftsPanel({
 			setProductMenuOpen(false)
 			setSubmitError(null)
 			setSubmittedReference(result.reference)
+			writePersistedDraftWorkspace(null)
 			queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
 			toast.success(t('market.submitSuccessToast', { ref: result.reference }))
 			onSubmitted?.(result.reference)
@@ -747,6 +934,7 @@ export function ChatDraftsPanel({
 		},
 		onSuccess: (_result, draft) => {
 			onDraftThreadClear?.(draft.sessionKey)
+			writePersistedDraftWorkspace(null)
 			setActionsMenuOpen(false)
 			setConfirmCartAddOpen(false)
 			setConfirmSubmitOpen(false)
@@ -766,24 +954,34 @@ export function ChatDraftsPanel({
 	})
 
 	function selectDraft(draft: Order) {
+		const nextEditor = createEditorFromOrder(draft)
+		writePersistedDraftWorkspace({
+			activeDraftKey: draft.id,
+			editor: nextEditor,
+		})
 		setActiveDraftKey(draft.id)
 		setConfirmCartAddOpen(false)
 		setConfirmSubmitOpen(false)
 		setConfirmDeleteId(null)
 		setDraftMenuOpen(false)
-		setEditor(createEditorFromOrder(draft))
+		setEditor(nextEditor)
 		setProductSearch('')
 		setSubmitError(null)
 	}
 
 	function startNewDraft() {
+		const nextEditor = createNewEditor(defaultDraftName)
+		writePersistedDraftWorkspace({
+			activeDraftKey: NEW_DRAFT_KEY,
+			editor: nextEditor,
+		})
 		setActiveDraftKey(NEW_DRAFT_KEY)
 		setActionsMenuOpen(false)
 		setConfirmCartAddOpen(false)
 		setConfirmSubmitOpen(false)
 		setConfirmDeleteId(null)
 		setDraftMenuOpen(false)
-		setEditor(createNewEditor(defaultDraftName))
+		setEditor(nextEditor)
 		setProductMenuOpen(false)
 		setProductSearch('')
 		setSubmitError(null)
@@ -797,6 +995,7 @@ export function ChatDraftsPanel({
 
 	function clearEditorWorkspace() {
 		if (editor) onDraftThreadClear?.(editor.sessionKey)
+		writePersistedDraftWorkspace(null)
 		setActiveDraftKey(null)
 		setActionsMenuOpen(false)
 		setConfirmCartAddOpen(false)
@@ -934,12 +1133,17 @@ export function ChatDraftsPanel({
 			reference: null,
 			sessionKey: `draft:temp:${crypto.randomUUID()}`,
 		}
-		setActiveDraftKey(NEW_DRAFT_KEY)
-		setConfirmDeleteId(null)
-		setEditor({
+		const nextEditor = {
 			...duplicate,
 			baseFingerprint: editorFingerprint(duplicate),
+		}
+		writePersistedDraftWorkspace({
+			activeDraftKey: NEW_DRAFT_KEY,
+			editor: nextEditor,
 		})
+		setActiveDraftKey(NEW_DRAFT_KEY)
+		setConfirmDeleteId(null)
+		setEditor(nextEditor)
 	}
 
 	function promptEditor(intent: 'notes' | 'review') {
