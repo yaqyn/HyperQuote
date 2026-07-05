@@ -3878,12 +3878,43 @@ async function addItemsToTempDraft(
 			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
 		}
 	}
-	const nextItems = [...currentItems, ...items]
+	const nextItems = mergeDraftMaterialItems(currentItems, items)
 	return {
 		items: nextItems,
 		message: `I added ${items.length} item${items.length === 1 ? '' : 's'} to the draft.${unavailableDraftLineNote(unavailableQueries, locale)}`,
 		tempDraft: activeTempDraftPayload(activeDraft, nextItems),
 	}
+}
+
+function mergeDraftMaterialItems(
+	currentItems: DraftMaterialItem[],
+	addedItems: DraftMaterialItem[],
+): DraftMaterialItem[] {
+	const merged = currentItems.map((item) => ({ ...item }))
+	const indexByProductId = new Map<string, number>()
+	for (const [index, item] of merged.entries()) {
+		if (item.productId) indexByProductId.set(item.productId, index)
+	}
+	for (const item of addedItems) {
+		const existingIndex = item.productId
+			? indexByProductId.get(item.productId)
+			: undefined
+		if (existingIndex !== undefined) {
+			const existing = merged[existingIndex]
+			if (!existing) continue
+			merged[existingIndex] = {
+				...existing,
+				notes: existing.notes || item.notes,
+				orderable: existing.orderable ?? item.orderable,
+				qty: existing.qty + item.qty,
+			}
+			continue
+		}
+		const nextIndex = merged.length
+		merged.push({ ...item })
+		if (item.productId) indexByProductId.set(item.productId, nextIndex)
+	}
+	return merged
 }
 
 async function updateTempDraftItems(
@@ -4231,7 +4262,29 @@ async function addItemsToDraft(
 	}
 
 	const currentItems = sortedQuoteRequestItems(draft)
-	const draftItemInputs = items.map((item, index) => ({
+	const currentMaterialItems = currentItems.map(toDraftMaterialItem)
+	const existingRowsByProductId = new Map(
+		currentItems.flatMap((item) =>
+			item.product_id ? [[item.product_id, item] as const] : [],
+		),
+	)
+	const existingQuantityUpdates = new Map<string, number>()
+	const insertItems: DraftMaterialItem[] = []
+	for (const item of items) {
+		const existingRow = item.productId
+			? existingRowsByProductId.get(item.productId)
+			: undefined
+		if (existingRow) {
+			existingQuantityUpdates.set(
+				existingRow.id,
+				(existingQuantityUpdates.get(existingRow.id) ?? existingRow.quantity) +
+					item.qty,
+			)
+			continue
+		}
+		insertItems.push(item)
+	}
+	const draftItemInputs = insertItems.map((item, index) => ({
 		customerDescription: item.name,
 		isUnmatched: false,
 		matchConfidence: 0.85,
@@ -4263,11 +4316,20 @@ async function addItemsToDraft(
 		}
 		throw error
 	}
-	await insertQuoteRequestItems(supabase, draft.id, draftItemInputs, {
-		requireOrderableProductLinks: true,
-	})
+	if (draftItemInputs.length > 0) {
+		await insertQuoteRequestItems(supabase, draft.id, draftItemInputs, {
+			requireOrderableProductLinks: true,
+		})
+	}
+	for (const [itemId, quantity] of existingQuantityUpdates) {
+		const { error } = await supabase
+			.from('quote_request_items')
+			.update({ quantity })
+			.eq('id', itemId)
+		if (error) throw new Error(error.message)
+	}
 
-	const materialItems = [...currentItems.map(toDraftMaterialItem), ...items]
+	const materialItems = mergeDraftMaterialItems(currentMaterialItems, items)
 	await refreshDraftCopyAfterItemEdit(
 		supabase,
 		customerId,

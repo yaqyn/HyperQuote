@@ -399,6 +399,27 @@ test('portal AI treats no-quantity material requests as product choices', async 
 	}
 })
 
+test('portal AI merges repeated catalog products in the active draft', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await sendPortalChat(page, 'give me 400 plywood and 40 ready mix')
+		await expectDraftLine(page, { name: 'Plywood', quantity: 400 })
+		await expectDraftLine(page, { name: 'Ready Mix', quantity: 40 })
+		await expectDraftLineCount(page, 2)
+
+		await sendPortalChat(page, 'add 20 plywood')
+		await expectDraftLine(page, { name: 'Plywood', quantity: 420 })
+		await expectDraftLine(page, { name: 'Ready Mix', quantity: 40 })
+		await expectDraftLineCount(page, 2)
+	} finally {
+		await context.close()
+	}
+})
+
 async function runWorkbenchCase(page: Page, workbenchCase: WorkbenchCase) {
 	await sendPortalChat(page, workbenchCase.prompt)
 	for (const selection of workbenchCase.selections ?? []) {
