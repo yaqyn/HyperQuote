@@ -787,6 +787,21 @@ function correctProductLineDraftRoute(
 					}
 				}
 			}
+			const pendingMaterial = missingQuantityDraftMaterial(userText)
+			if (pendingMaterial && asksForProductHelp(userText)) {
+				return {
+					...route,
+					action: 'create_draft_from_plan',
+					draftLines: [
+						{
+							query: pendingMaterial,
+							quantity: 1,
+							rawText: userText.trim(),
+						},
+					],
+					searchQuery: route.searchQuery || userText,
+				}
+			}
 			return route
 		}
 		if (activeDraft && isActiveDraftAddLineFollowup(userText)) {
@@ -831,6 +846,15 @@ function correctProductLineDraftRoute(
 
 function asksToAddDraftLine(userText: string): boolean {
 	return /\b(?:add|append|include|put)\b/i.test(userText)
+}
+
+function asksForProductHelp(userText: string): boolean {
+	const normalized = normalizeForMatch(userText)
+	return (
+		/\b(?:want|need|looking for|after|some|quote|draft|get|order|take|grab|hook me up|send me|prepare)\b/i.test(
+			normalized,
+		) || /عايز|عاوزه|محتاج|هات|ضيف|اطلب|جهز/.test(userText)
+	)
 }
 
 function isActiveDraftAddLineFollowup(userText: string): boolean {
@@ -6057,7 +6081,7 @@ function draftLineChoiceFallbackMessage(
 	const unavailableNote = unavailableDraftLineNote(unavailableQueries, locale)
 	return locale === 'ar'
 		? `لقيت أكتر من اختيار لـ ${query}. اختار المنتج المناسب:\n${choices}${unavailableNote}`
-		: `I found a few options for ${query}. Choose the one you want:\n${choices}${unavailableNote}`
+		: `I found a few ${query} options. Pick the one you want and set the quantity before adding it:\n${choices}${unavailableNote}`
 }
 
 function draftProductChoiceFallbackMessage(
@@ -6078,7 +6102,7 @@ function draftProductChoiceFallbackMessage(
 	const unavailableNote = unavailableDraftLineNote(unavailableQueries, locale)
 	return locale === 'ar'
 		? `لقيت اختيارات متعددة لـ ${groups.length} بنود. اختار المنتج المناسب لكل بند.${unavailableNote}`
-		: `I found options for ${groups.length} items. Choose the right product for each one.${unavailableNote}`
+		: `I found options for ${groups.length} items. Pick the right product and quantity for each one.${unavailableNote}`
 }
 
 function unavailableDraftLineNote(
@@ -6771,8 +6795,8 @@ function productChoiceListData(
 	return {
 		description:
 			context.locale === 'ar'
-				? `اختار المنتج المناسب لكل بند عشان أجهز المسودة بدقة.${unavailableNote}`
-				: `Choose the right product for each item so I can prepare the draft accurately.${unavailableNote}`,
+				? `اكتب الكمية التي تريدها، ثم اختر المنتج المناسب. سأضيفه للمسودة بدون تخمين.${unavailableNote}`
+				: `Set the quantity you want, then choose the matching product. I will add it to the draft without guessing.${unavailableNote}`,
 		groups: visibleGroups.map((group, groupIndex) => ({
 			options: group.options.map(({ product }) => ({
 				action: productChoiceAction(context, group, product),
@@ -6790,10 +6814,13 @@ function productChoiceListData(
 			quantity: group.quantity,
 			title:
 				context.locale === 'ar'
-					? `اختيار ${groupIndex + 1}/${total}: ${group.quantity} ${group.query}`
-					: `Choice ${groupIndex + 1}/${total}: ${group.quantity} ${group.query}`,
+					? `اختيار ${groupIndex + 1} من ${total}`
+					: `Choice ${groupIndex + 1} of ${total}`,
 		})),
-		title: context.locale === 'ar' ? 'اختيارات المنتج' : 'Product choices',
+		title:
+			context.locale === 'ar'
+				? 'اختر المنتج الذي يناسب طلبك'
+				: 'Pick the product that matches your request',
 	}
 }
 

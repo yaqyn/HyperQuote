@@ -320,7 +320,7 @@ Tools:
 - product_search, compare_products, recommend_materials: catalog search, comparison, or material planning. Ask before writing plans to drafts.
 - address_list, project_list, account_health: customer-owned account context.
 - draft_detail, draft_validate, order_activity: inspect customer-owned records.
-- resolve_product_choice: customer buy intent or draft-create/catalog-selection. Include draft_lines for every requested product line. Keep the original wording, quantity, unit hint, and pending choice id when applicable. Server writes only real Available product IDs.
+- resolve_product_choice: customer buy intent or draft-create/catalog-selection. Include draft_lines for every requested product line. If the customer names a product but gives no quantity, set quantity to 1 so the app can show product choices with an editable quantity. Keep the original wording, quantity, unit hint, and pending choice id when applicable. Server writes only real Available product IDs.
 - read_draft, validate_draft: inspect the active or named editable draft.
 - preview_draft_changes: use for draft edits that may need confirmation or clarification.
 - save_confirmed_draft_changes: use only when the app sends a confirmed action payload.

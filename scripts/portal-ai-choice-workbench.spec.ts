@@ -242,14 +242,12 @@ test('portal AI product choices keep noisy material requests inside the right fa
 		try {
 			await sendPortalChat(page, materialCase.prompt)
 
-			await expect(page.getByText(/Product choices/i).last()).toBeVisible({
-				timeout: 30_000,
-			})
+			await expectProductChoiceCard(page)
 			for (const productName of materialCase.present) {
 				await expect(
 					page
 						.getByRole('button', {
-							name: new RegExp(`^${escapeRegex(productName)}$`),
+							name: productChoiceButtonRegex(productName),
 						})
 						.last(),
 				).toBeVisible({ timeout: 30_000 })
@@ -257,7 +255,7 @@ test('portal AI product choices keep noisy material requests inside the right fa
 			for (const productName of materialCase.absent) {
 				await expect(
 					page.getByRole('button', {
-						name: new RegExp(`^${escapeRegex(productName)}$`),
+						name: productChoiceButtonRegex(productName),
 					}),
 					materialCase.prompt,
 				).toHaveCount(0)
@@ -265,6 +263,32 @@ test('portal AI product choices keep noisy material requests inside the right fa
 		} finally {
 			await context.close()
 		}
+	}
+})
+
+test('portal AI lets customers choose quantity before adding a product choice', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await sendPortalChat(page, 'hey, i want some cement')
+		await expectProductChoiceCard(page)
+		await expect(
+			page.getByText(/Set the quantity you want/i).last(),
+		).toBeVisible({ timeout: 30_000 })
+		const quantityInput = page.getByLabel(/quantity for cement/i).last()
+		await expect(quantityInput).toBeVisible({ timeout: 30_000 })
+		await quantityInput.fill('301')
+		await page
+			.getByRole('button', { name: productChoiceButtonRegex('Cement') })
+			.last()
+			.click()
+		await waitForPortalChatIdle(page)
+		await expectDraftLine(page, { name: 'Cement', quantity: 301 })
+	} finally {
+		await context.close()
 	}
 })
 
@@ -344,15 +368,26 @@ async function sendPortalChat(page: Page, text: string) {
 
 async function chooseProduct(page: Page, productName: string) {
 	await waitForPortalChatIdle(page)
-	await expect(page.getByText(/Product choices/i).last()).toBeVisible({
-		timeout: 30_000,
-	})
+	await expectProductChoiceCard(page)
 	const button = page
-		.getByRole('button', { name: new RegExp(`^${escapeRegex(productName)}$`) })
+		.getByRole('button', { name: productChoiceButtonRegex(productName) })
 		.last()
 	await expect(button).toBeVisible({ timeout: 30_000 })
 	await button.click()
 	await waitForPortalChatIdle(page)
+}
+
+async function expectProductChoiceCard(page: Page) {
+	await expect(
+		page.getByText(/Pick the product that matches your request/i).last(),
+	).toBeVisible({ timeout: 30_000 })
+}
+
+function productChoiceButtonRegex(productName: string): RegExp {
+	return new RegExp(
+		`^(?:(?:Add|Use)\\s+|Next:\\s*)?${escapeRegex(productName)}$`,
+		'i',
+	)
 }
 
 async function expectDraftLine(page: Page, expected: ExpectedDraftLine) {
@@ -469,9 +504,9 @@ async function expectNoDraft(page: Page) {
 	await expect(page.getByText('Draft materials')).toHaveCount(0, {
 		timeout: 3_000,
 	})
-	await expect(page.getByText(/Product choices/i)).toHaveCount(0, {
-		timeout: 3_000,
-	})
+	await expect(
+		page.getByText(/Pick the product that matches your request/i),
+	).toHaveCount(0, { timeout: 3_000 })
 }
 
 async function waitForPortalChatIdle(page: Page) {

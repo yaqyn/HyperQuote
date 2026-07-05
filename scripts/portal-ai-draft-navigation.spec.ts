@@ -101,11 +101,18 @@ async function sendPortalChat(page: Page, text: string) {
 
 async function chooseProduct(page: Page, productName: string) {
 	await waitForPortalChatIdle(page)
-	await expect(page.getByText(/Product choices/i).last()).toBeVisible({
+	await expect(
+		page.getByText(/Pick the product that matches your request/i).last(),
+	).toBeVisible({
 		timeout: 30_000,
 	})
 	const button = page
-		.getByRole('button', { name: new RegExp(`^${escapeRegex(productName)}$`) })
+		.getByRole('button', {
+			name: new RegExp(
+				`^(?:(?:Add|Use)\\s+|Next:\\s*)?${escapeRegex(productName)}$`,
+				'i',
+			),
+		})
 		.last()
 	await expect(button).toBeVisible({ timeout: 30_000 })
 	await button.click()
