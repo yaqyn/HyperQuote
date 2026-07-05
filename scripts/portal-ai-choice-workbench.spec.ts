@@ -342,7 +342,7 @@ test('portal AI asks before adding ambiguous follow-up materials to an active dr
 	}
 })
 
-test('portal AI product choices use a mobile bottom-sheet quantity flow', async ({
+test('portal AI product choices use a centered mobile quantity flow', async ({
 	browser,
 }) => {
 	test.setTimeout(180_000)
@@ -357,7 +357,9 @@ test('portal AI product choices use a mobile bottom-sheet quantity flow', async 
 		const card = page.locator('[data-product-choice-list]').last()
 		const box = await card.boundingBox()
 		expect(box).not.toBeNull()
-		expect(box?.y).toBeGreaterThanOrEqual(844 * 0.32)
+		const cardCenter = (box?.y ?? 0) + (box?.height ?? 0) / 2
+		expect(Math.abs(cardCenter - 844 / 2)).toBeLessThanOrEqual(96)
+		expect(box?.y).toBeGreaterThanOrEqual(0)
 		expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(844)
 
 		await page
