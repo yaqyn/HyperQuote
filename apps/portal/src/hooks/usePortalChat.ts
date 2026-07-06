@@ -707,8 +707,7 @@ export function usePortalChat({
 					])
 					return
 				}
-				onNewSession?.()
-				if (!onNewSession) clear()
+				clear()
 				return
 			}
 			setIsResponsePending(true)
@@ -716,7 +715,7 @@ export function usePortalChat({
 				setIsResponsePending(false)
 			})
 		},
-		[chat.sendMessage, chat.setMessages, clear, onNewSession],
+		[chat.sendMessage, chat.setMessages, clear],
 	)
 
 	const isLoading = chat.isLoading || isResponsePending

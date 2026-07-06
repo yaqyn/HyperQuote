@@ -21,13 +21,18 @@ export function ProductChoiceList({ data }: ProductChoiceListProps) {
 	const [isLeaving, setIsLeaving] = useState(false)
 	const total = data.groups.length
 	const multipleChoices = total > 1
+	const firstGroupKind = data.groups[0]?.choiceKind
 	const stepLabel = multipleChoices
 		? isArabic
 			? `اختيار ${toArabicIndic('1')} من ${toArabicIndic(String(total))}`
 			: `Choice 1 of ${total}`
-		: isArabic
-			? 'اختار المنتج المناسب'
-			: 'Choose the right product'
+		: firstGroupKind === 'hierarchy'
+			? isArabic
+				? 'اختار المجموعة'
+				: 'Choose the group'
+			: isArabic
+				? 'اختار المنتج المناسب'
+				: 'Choose the right product'
 	const itemTransition = shouldReduceMotion
 		? { duration: 0 }
 		: { duration: 0.22, ease: [0.22, 1, 0.36, 1] as const }
@@ -124,18 +129,26 @@ export function ProductChoiceList({ data }: ProductChoiceListProps) {
 									<div className="min-w-0 text-center sm:text-start">
 										<div className="min-w-0">
 											<p className="text-[12px] font-semibold text-[var(--p-text)]">
-												{isArabic
-													? `أي نوع ${group.query} تحب؟`
-													: `Which ${group.query} should I add?`}
+												{group.choiceKind === 'hierarchy'
+													? isArabic
+														? `نبدأ منين في ${group.query}؟`
+														: `Where should we start under ${group.query}?`
+													: isArabic
+														? `أي نوع ${group.query} تحب؟`
+														: `Which ${group.query} should I add?`}
 											</p>
 											<p className="mt-1 text-[11px] leading-4 text-[var(--p-text-muted)]">
-												{group.quantityRequired
+												{group.choiceKind === 'hierarchy'
 													? isArabic
-														? 'اضغط إضافة على المنتج المناسب، ثم اكتب الكمية.'
-														: 'Tap Add on the right product, then enter the quantity.'
-													: isArabic
-														? `سأستخدم الكمية التي كتبتها: ${toArabicIndic(String(group.quantity))}.`
-														: `I will use the quantity you gave: ${group.quantity}.`}
+														? 'اختار مجموعة، وبعدها هاعرض المنتجات النهائية.'
+														: 'Pick a group, then I will show the final products.'
+													: group.quantityRequired
+														? isArabic
+															? 'اضغط إضافة على المنتج المناسب، ثم اكتب الكمية.'
+															: 'Tap Add on the right product, then enter the quantity.'
+														: isArabic
+															? `سأستخدم الكمية التي كتبتها: ${toArabicIndic(String(group.quantity))}.`
+															: `I will use the quantity you gave: ${group.quantity}.`}
 											</p>
 										</div>
 									</div>
@@ -187,13 +200,17 @@ export function ProductChoiceList({ data }: ProductChoiceListProps) {
 														defaultQuantity={group.quantity}
 														groupId={group.pendingChoiceId}
 														label={
-															multipleChoices
+															group.choiceKind === 'hierarchy'
 																? isArabic
-																	? `التالي: ${name}`
-																	: `Next: ${name}`
-																: isArabic
-																	? `أضف ${name}`
-																	: `Add ${name}`
+																	? `افتح ${name}`
+																	: `Open ${name}`
+																: multipleChoices
+																	? isArabic
+																		? `التالي: ${name}`
+																		: `Next: ${name}`
+																	: isArabic
+																		? `أضف ${name}`
+																		: `Add ${name}`
 														}
 														quantityRequired={Boolean(group.quantityRequired)}
 														quantityText={String(group.quantity)}

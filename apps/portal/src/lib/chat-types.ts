@@ -195,6 +195,7 @@ export interface MaterialListData {
 export interface ProductChoiceListData {
 	description: string
 	groups: {
+		choiceKind?: 'hierarchy' | 'product'
 		options: {
 			action: ActionButtonData
 			category: string

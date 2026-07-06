@@ -729,35 +729,41 @@ export function ChatDraftsPanel({
 		onActiveDraftChange?.(null)
 	}, [activeDraftContext, onActiveDraftChange])
 
-	const applyTempDraftToCart = useCallback((draft: ChatTempDraftData) => {
-		applyQuoteCartSnapshot(useDraftQuoteStore, {
-			globalNote: draft.notes,
-			items: draft.items.map((item) => ({
-				category: item.category,
-				categoryName: item.category,
-				categoryNameAr: item.category,
-				imageUrl: item.imageUrl,
-				name: item.productName,
-				nameAr: item.productNameAr,
-				note: '',
-				productId: item.productId,
-				quantity: item.quantity,
-				slug: item.productId,
-				unitOfMeasure: item.unitOfMeasure,
-				unitOfMeasureAr: item.unitOfMeasureAr,
-			})),
-		})
-		writePersistedDraftWorkspace(null)
-		setActiveDraftKey(null)
-		setActionsMenuOpen(false)
-		setConfirmCartAddOpen(false)
-		setConfirmSubmitOpen(false)
-		setConfirmDeleteId(null)
-		setDraftMenuOpen(false)
-		setEditor(null)
-		setProductSearch('')
-		setSubmitError(null)
-	}, [])
+	const applyTempDraftToCart = useCallback(
+		(draft: ChatTempDraftData) => {
+			applyQuoteCartSnapshot(useDraftQuoteStore, {
+				globalNote: draft.notes,
+				items: draft.items.map((item) => ({
+					category: item.category,
+					categoryName: item.category,
+					categoryNameAr: item.category,
+					imageUrl: item.imageUrl,
+					name: item.productName,
+					nameAr: item.productNameAr,
+					note: '',
+					productId: item.productId,
+					quantity: item.quantity,
+					slug: item.productId,
+					unitOfMeasure: item.unitOfMeasure,
+					unitOfMeasureAr: item.unitOfMeasureAr,
+				})),
+			})
+			writePersistedDraftWorkspace(null)
+			setActiveDraftKey(null)
+			setActionsMenuOpen(false)
+			setConfirmCartAddOpen(false)
+			setConfirmSubmitOpen(false)
+			setConfirmDeleteId(null)
+			setDraftMenuOpen(false)
+			setEditor(null)
+			setProductSearch('')
+			setSubmitError(null)
+			if (draft.items.length === 0 && !draft.notes.trim()) {
+				onDraftThreadClear?.('cart')
+			}
+		},
+		[onDraftThreadClear],
+	)
 
 	useEffect(() => {
 		if (
@@ -1175,6 +1181,7 @@ export function ChatDraftsPanel({
 
 	function clearCartWorkspace() {
 		clearCart()
+		onDraftThreadClear?.('cart')
 		setActionsMenuOpen(false)
 		setConfirmCartAddOpen(false)
 		setConfirmSubmitOpen(false)

@@ -17,7 +17,8 @@ describe('chat drafts panel state', () => {
 		)
 
 		expect(source).not.toContain('savedDrafts[0]')
-		expect(source).toContain("t('orders.noDraftSelected', 'No draft selected')")
+		expect(source).toContain("sessionKey: 'cart'")
+		expect(source).toContain("t('market.cart')")
 	})
 
 	it('returns passive resets to the unselected draft workspace', () => {

@@ -85,7 +85,7 @@ describe('portal chat session threading', () => {
 		)
 	})
 
-	it('wires New Page to the default chat and draft-panel reset', () => {
+	it('wires New Page to clear the current chat without clearing the cart desk', () => {
 		const chatViewSource = readRepoFile(
 			'apps/portal/src/components/chat/ChatView.tsx',
 		)
@@ -97,12 +97,17 @@ describe('portal chat session threading', () => {
 		expect(chatViewSource).toContain(
 			"setChatThreadKey(draft?.sessionKey ?? 'default')",
 		)
-		expect(chatViewSource).toContain("setChatThreadKey('default')")
-		expect(chatViewSource).toContain('setDraftSelectionResetToken')
+		expect(chatViewSource).toContain(
+			'const handleNewPage = useCallback(() => {',
+		)
+		expect(chatViewSource).toContain('chat.clear()')
+		expect(chatViewSource).toContain("if (chatThreadKey === 'cart') return")
 		expect(chatViewSource).toContain(
 			'resetSelectionToken={draftSelectionResetToken}',
 		)
-		expect(chatViewSource).toContain('onNewSession: handleNewPage')
+		expect(chatViewSource).toContain(
+			'onNewSession: handleClearedActiveDraftThread',
+		)
 
 		expect(draftPanelSource).toMatch(
 			/sessionKey: `draft:temp:\$\{crypto\.randomUUID\(\)\}`/,
@@ -166,7 +171,7 @@ describe('portal chat session threading', () => {
 		expect(chatViewSource).toContain(
 			"setChatThreadKey(draft?.sessionKey ?? 'default')",
 		)
-		expect(hookSource).toContain('onNewSession?.()')
+		expect(hookSource).toContain('clear()')
 	})
 
 	it('clears a draft chat thread when the draft desk clears or deletes that draft', () => {
@@ -186,6 +191,7 @@ describe('portal chat session threading', () => {
 		expect(draftPanelSource).toContain(
 			'onDraftThreadClear?.(editor.sessionKey)',
 		)
+		expect(draftPanelSource).toContain("onDraftThreadClear?.('cart')")
 	})
 
 	it('clears draft chat threads after server-side draft clear or delete actions', () => {

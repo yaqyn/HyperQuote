@@ -36,8 +36,6 @@ export function ChatView({ locale }: ChatViewProps) {
 		null,
 	)
 	const [chatThreadKey, setChatThreadKey] = useState('default')
-	const [clearDefaultChatRequested, setClearDefaultChatRequested] =
-		useState(false)
 	const [draftSelectionResetToken, setDraftSelectionResetToken] = useState(0)
 	const keyboard = useVisualViewportKeyboard()
 	const [draftPanelInitiallyLoading, setDraftPanelInitiallyLoading] =
@@ -58,17 +56,20 @@ export function ChatView({ locale }: ChatViewProps) {
 	const closeDraftPanel = useCallback(() => {
 		setDraftPanelOpen(false)
 	}, [])
-	const handleNewPage = useCallback(() => {
+	const handleClearedActiveDraftThread = useCallback(() => {
+		if (chatThreadKey === 'cart') return
 		setActiveDraft(null)
 		setChatThreadKey('default')
 		setDraftSelectionResetToken((value) => value + 1)
-		setClearDefaultChatRequested(true)
-	}, [])
+	}, [chatThreadKey])
 	const chat = usePortalChat({
 		activeDraft,
 		conversationKey: chatThreadKey,
-		onNewSession: handleNewPage,
+		onNewSession: handleClearedActiveDraftThread,
 	})
+	const handleNewPage = useCallback(() => {
+		chat.clear()
+	}, [chat])
 
 	const realMessages = useMemo(
 		() =>
@@ -135,12 +136,6 @@ export function ChatView({ locale }: ChatViewProps) {
 		if (!introReady || !introMinimumElapsed) return
 		setIntroVisible(false)
 	}, [introMinimumElapsed, introReady])
-
-	useEffect(() => {
-		if (!clearDefaultChatRequested || chatThreadKey !== 'default') return
-		chat.clear()
-		setClearDefaultChatRequested(false)
-	}, [chat, chatThreadKey, clearDefaultChatRequested])
 
 	return (
 		<div

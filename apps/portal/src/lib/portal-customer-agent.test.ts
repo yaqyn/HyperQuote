@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { type PortalAiProduct, rankProductsForDraftLine } from './chat'
+import {
+	hierarchyChoiceNodesForDraftProducts,
+	hierarchyChoiceNodesForDraftQuery,
+	type PortalAiProduct,
+	rankProductsForDraftLine,
+} from './chat'
 import {
 	isLocalPortalChatCommand,
 	PORTAL_CHAT_COMMANDS,
@@ -414,6 +419,103 @@ describe('portal customer AI agent', () => {
 				query,
 			).toEqual(expectedNames)
 		}
+	})
+
+	it('groups broad hierarchy choices before final products', () => {
+		const woodCatalog = [
+			product({
+				category: 'timber',
+				category_name: 'Wood Products',
+				name: 'Red Formwork Board',
+				product_family_name: 'Formwork Boards',
+				product_family_name_ar: 'ألواح شدة',
+				product_family_slug: 'timber-formwork-boards',
+				product_type_name: 'Red Formwork Board',
+				subcategory: 'formwork-boards',
+			}),
+			product({
+				category: 'timber',
+				category_name: 'Wood Products',
+				name: 'White Formwork Board',
+				product_family_name: 'Formwork Boards',
+				product_family_name_ar: 'ألواح شدة',
+				product_family_slug: 'timber-formwork-boards',
+				product_type_name: 'White Formwork Board',
+				subcategory: 'formwork-boards',
+			}),
+			product({
+				category: 'timber',
+				category_name: 'Wood Products',
+				name: 'Film Faced Plywood 18mm',
+				product_family_name: 'Plywood',
+				product_family_name_ar: 'أبلكاش',
+				product_family_slug: 'timber-plywood',
+				product_type_name: 'Film Faced Plywood 18mm',
+				subcategory: 'plywood',
+			}),
+			product({
+				category: 'timber',
+				category_name: 'Wood Products',
+				name: 'Marine Plywood 18mm',
+				product_family_name: 'Plywood',
+				product_family_name_ar: 'أبلكاش',
+				product_family_slug: 'timber-plywood',
+				product_type_name: 'Marine Plywood 18mm',
+				subcategory: 'plywood',
+			}),
+			product({
+				category: 'timber',
+				category_name: 'Wood Products',
+				name: 'Romanian Whitewood Timber',
+				product_family_name: 'Structural Timber',
+				product_family_name_ar: 'خشب إنشائي',
+				product_family_slug: 'timber-structural-timber',
+				product_type_name: 'Romanian Whitewood Timber',
+				subcategory: 'structural-timber',
+			}),
+			product({
+				category: 'timber',
+				category_name: 'Wood Products',
+				name: 'Swedish Pine Timber',
+				product_family_name: 'Structural Timber',
+				product_family_name_ar: 'خشب إنشائي',
+				product_family_slug: 'timber-structural-timber',
+				product_type_name: 'Swedish Pine Timber',
+				subcategory: 'structural-timber',
+			}),
+		]
+
+		expect(
+			hierarchyChoiceNodesForDraftProducts(woodCatalog).map(
+				(node) => node.name,
+			),
+		).toEqual(['Formwork Boards', 'Plywood', 'Structural Timber'])
+		expect(
+			hierarchyChoiceNodesForDraftQuery(
+				[
+					...woodCatalog,
+					product({
+						category: 'steel',
+						category_name: 'Steel Products',
+						name: 'Egyptian Steel Rebar 12mm',
+						product_family_name: 'Rebar',
+						product_family_slug: 'steel-rebar',
+						product_type_name: 'Egyptian Steel Rebar 12mm',
+						subcategory: 'rebar',
+					}),
+					product({
+						category: 'cement',
+						category_name: 'Cement Products',
+						name: 'Modern White Cement',
+						product_family_name: 'White Cement',
+						product_family_slug: 'cement-white-cement',
+						product_type_name: 'Modern White Cement',
+						subcategory: 'white-cement',
+					}),
+				],
+				'wood',
+			).map((node) => node.name),
+		).toEqual(['Formwork Boards', 'Plywood', 'Structural Timber'])
 	})
 
 	it('cleans active-draft reference tails from parsed material lines', () => {

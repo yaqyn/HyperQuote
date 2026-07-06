@@ -431,10 +431,25 @@ interface PendingActionContext {
 }
 
 interface DraftProductChoiceOption {
-	product: PortalAiProduct
+	node?: DraftHierarchyChoiceNode
+	product?: PortalAiProduct
+}
+
+interface DraftHierarchyChoiceNode {
+	category: string
+	id: string
+	name: string
+	nameAr: string
+	priceRange: string
+	productCount: number
+	query: string
+	subcategory?: string
+	unit: string
+	unitAr: string
 }
 
 interface DraftProductChoiceGroup {
+	choiceKind?: 'hierarchy' | 'product'
 	options: DraftProductChoiceOption[]
 	pendingChoiceId: string
 	query: string
@@ -5934,10 +5949,13 @@ async function buildDraftItemsFromRequestedLines(
 		const products = broadChoiceQuery
 			? await loadOrderableDraftProductPool(supabase)
 			: await findOrderableProductsForDraft(supabase, line.query, line.query)
+		const candidateProducts = broadChoiceQuery
+			? productsMatchingDraftHierarchyQuery(products, line.query)
+			: products
 		const requiresQuantity = draftLineRequiresQuantity(line)
 		const exactMatch = broadChoiceQuery
 			? null
-			: exactProductMatchForDraftLine(products, line.query)
+			: exactProductMatchForDraftLine(candidateProducts, line.query)
 		if (exactMatch && !requiresQuantity) {
 			items.push(draftMaterialItemFromProduct(exactMatch, line.quantity))
 			resolvedLines.push(
@@ -5947,7 +5965,7 @@ async function buildDraftItemsFromRequestedLines(
 		}
 		const fuzzyMatch = broadChoiceQuery
 			? null
-			: fuzzyCatalogMatchForDraftLine(products, line.query)
+			: fuzzyCatalogMatchForDraftLine(candidateProducts, line.query)
 		if (fuzzyMatch && !requiresQuantity) {
 			items.push(draftMaterialItemFromProduct(fuzzyMatch, line.quantity))
 			resolvedLines.push(
@@ -5955,7 +5973,15 @@ async function buildDraftItemsFromRequestedLines(
 			)
 			continue
 		}
-		const matches = rankProductsForDraftLine(products, line.query, 4)
+		const hierarchyGroup = draftHierarchyChoiceGroupFromLine(
+			line,
+			candidateProducts,
+		)
+		if (hierarchyGroup && broadChoiceQuery) {
+			choiceGroups.push(hierarchyGroup)
+			continue
+		}
+		const matches = rankProductsForDraftLine(candidateProducts, line.query, 4)
 		if (matches.length === 0) {
 			unavailableQueries.push(line.query)
 			continue
@@ -6056,6 +6082,7 @@ function draftProductChoiceGroupFromLine(
 	products: PortalAiProduct[],
 ): DraftProductChoiceGroup {
 	return {
+		choiceKind: 'product',
 		options: products.map((product) => ({ product })),
 		pendingChoiceId:
 			line.pendingChoiceId ??
@@ -6065,6 +6092,139 @@ function draftProductChoiceGroupFromLine(
 		rawText: line.rawText,
 		unitHint: line.unitHint,
 	}
+}
+
+function draftHierarchyChoiceGroupFromLine(
+	line: ReturnType<typeof parsePortalDraftMaterialRequestLines>[number],
+	products: PortalAiProduct[],
+): DraftProductChoiceGroup | null {
+	const nodes = hierarchyChoiceNodesForDraftProducts(products)
+	if (nodes.length <= 1) return null
+	return {
+		choiceKind: 'hierarchy',
+		options: nodes.map((node) => ({ node })),
+		pendingChoiceId:
+			line.pendingChoiceId ??
+			`choice:${normalizeForMatch(line.query)}:${line.quantity}`,
+		query: line.query,
+		quantity: line.quantity,
+		rawText: line.rawText,
+		unitHint: line.unitHint,
+	}
+}
+
+function productsMatchingDraftHierarchyQuery(
+	products: PortalAiProduct[],
+	query: string,
+): PortalAiProduct[] {
+	const terms = new Set(
+		[query, productSearchTerm(query), ...draftProductIntentTerms(query)]
+			.map(normalizeForMatch)
+			.filter((term) => term.length > 1),
+	)
+	if (terms.size === 0) return products
+	const hierarchyMatches = products.filter((product) => {
+		const hierarchyText = catalogHierarchySearchText(product)
+		return Array.from(terms).some((term) =>
+			normalizedTextHasTerm(hierarchyText, term),
+		)
+	})
+	if (hierarchyMatches.length > 0) return hierarchyMatches
+	return rankProductsForDraftLine(products, query, products.length)
+}
+
+function catalogHierarchySearchText(product: PortalAiProduct): string {
+	return normalizeForMatch(
+		[
+			product.category,
+			product.category_name ?? '',
+			product.category_name_ar ?? '',
+			product.product_family_name ?? '',
+			product.product_family_name_ar ?? '',
+			product.product_type_name ?? '',
+			product.product_type_name_ar ?? '',
+			product.subcategory ?? '',
+			product.subcategory_ar ?? '',
+		].join(' '),
+	)
+}
+
+export function hierarchyChoiceNodesForDraftProducts(
+	products: PortalAiProduct[],
+): DraftHierarchyChoiceNode[] {
+	const groups = new Map<
+		string,
+		{ firstProduct: PortalAiProduct; products: PortalAiProduct[] }
+	>()
+	for (const product of products) {
+		const key =
+			product.product_family_slug ??
+			normalizeForMatch(
+				product.product_family_name ?? product.subcategory ?? '',
+			)
+		if (!key) continue
+		const existing = groups.get(key)
+		if (existing) {
+			existing.products.push(product)
+			continue
+		}
+		groups.set(key, { firstProduct: product, products: [product] })
+	}
+
+	return Array.from(groups.entries())
+		.map(([id, group]) => {
+			const product = group.firstProduct
+			const name =
+				product.product_family_name ??
+				product.subcategory ??
+				product.category_name ??
+				product.category
+			const nameAr =
+				product.product_family_name_ar ??
+				product.product_family_name ??
+				product.subcategory_ar ??
+				product.subcategory ??
+				name
+			return {
+				category: catalogHierarchyPath(product, 'en'),
+				id: `family:${id}`,
+				name,
+				nameAr,
+				priceRange: formatHierarchyChoicePriceRange(group.products),
+				productCount: group.products.length,
+				query: name,
+				subcategory: `${group.products.length} product${group.products.length === 1 ? '' : 's'}`,
+				unit: group.products[0]?.unit_of_measure ?? 'unit',
+				unitAr: group.products[0]?.unit_of_measure_ar ?? 'وحدة',
+			}
+		})
+		.sort((left, right) => {
+			const countDelta = right.productCount - left.productCount
+			if (countDelta !== 0) return countDelta
+			return left.name.localeCompare(right.name)
+		})
+}
+
+export function hierarchyChoiceNodesForDraftQuery(
+	products: PortalAiProduct[],
+	query: string,
+): DraftHierarchyChoiceNode[] {
+	return hierarchyChoiceNodesForDraftProducts(
+		productsMatchingDraftHierarchyQuery(products, query),
+	)
+}
+
+function formatHierarchyChoicePriceRange(products: PortalAiProduct[]): string {
+	const min = products
+		.map((product) => product.price_range_min)
+		.filter((value): value is number => typeof value === 'number')
+	const max = products
+		.map((product) => product.price_range_max)
+		.filter((value): value is number => typeof value === 'number')
+	if (min.length === 0 && max.length === 0) return ''
+	const low = min.length > 0 ? Math.min(...min) : Math.min(...max)
+	const high = max.length > 0 ? Math.max(...max) : Math.max(...min)
+	return `${Math.round(low).toLocaleString('en-EG')} - ${Math.round(high).toLocaleString('en-EG')} EGP`
 }
 
 function draftProductChoiceResolution(
@@ -6505,29 +6665,53 @@ function productIdentityMatchesDraftLine(
 }
 
 function draftLineChoiceFallbackMessage(
-	query: string,
-	products: PortalAiProduct[],
+	group: DraftProductChoiceGroup,
 	locale: 'ar' | 'en',
 	unavailableQueries: string[] = [],
 ): string {
-	const choices = products
-		.map((product, index) => {
-			const price = formatPriceRange(product, locale)
-			const detail = [
-				product.name,
-				product.subcategory,
-				product.unit_of_measure,
-				price,
-			]
-				.filter(Boolean)
-				.join(' - ')
+	const choices = group.options
+		.map((option, index) => {
+			const detail = draftProductChoiceFallbackDetail(option, locale)
 			return `${index + 1}. ${detail}`
 		})
 		.join('\n')
 	const unavailableNote = unavailableDraftLineNote(unavailableQueries, locale)
+	if (group.choiceKind === 'hierarchy') {
+		return locale === 'ar'
+			? `لقيت أكتر من مجموعة لـ ${group.query}. اختار المجموعة المناسبة:\n${choices}${unavailableNote}`
+			: `I found a few ${group.query} groups. Pick the group you want, then I will show the final products:\n${choices}${unavailableNote}`
+	}
 	return locale === 'ar'
-		? `لقيت أكتر من اختيار لـ ${query}. اختار المنتج المناسب:\n${choices}${unavailableNote}`
-		: `I found a few ${query} options. Pick the one you want and set the quantity before adding it:\n${choices}${unavailableNote}`
+		? `لقيت أكتر من اختيار لـ ${group.query}. اختار المنتج المناسب:\n${choices}${unavailableNote}`
+		: `I found a few ${group.query} options. Pick the one you want and set the quantity before adding it:\n${choices}${unavailableNote}`
+}
+
+function draftProductChoiceFallbackDetail(
+	option: DraftProductChoiceOption,
+	locale: 'ar' | 'en',
+): string {
+	if (option.node) {
+		return [
+			locale === 'ar' ? option.node.nameAr : option.node.name,
+			option.node.subcategory,
+			option.node.priceRange,
+		]
+			.filter(Boolean)
+			.join(' - ')
+	}
+	const product = option.product
+	if (!product) return ''
+	const price = formatPriceRange(product, locale)
+	return [
+		locale === 'ar' ? (product.name_ar ?? product.name) : product.name,
+		locale === 'ar'
+			? (product.product_type_name_ar ?? product.subcategory_ar)
+			: (product.product_type_name ?? product.subcategory),
+		locale === 'ar' ? product.unit_of_measure_ar : product.unit_of_measure,
+		price,
+	]
+		.filter(Boolean)
+		.join(' - ')
 }
 
 function draftProductChoiceFallbackMessage(
@@ -6538,12 +6722,7 @@ function draftProductChoiceFallbackMessage(
 	if (groups.length === 1) {
 		const group = groups[0]
 		if (!group) return locale === 'ar' ? 'اختار المنتج.' : 'Pick a product.'
-		return draftLineChoiceFallbackMessage(
-			group.query,
-			group.options.map((option) => option.product),
-			locale,
-			unavailableQueries,
-		)
+		return draftLineChoiceFallbackMessage(group, locale, unavailableQueries)
 	}
 	const unavailableNote = unavailableDraftLineNote(unavailableQueries, locale)
 	return locale === 'ar'
@@ -7254,22 +7433,10 @@ function productChoiceListData(
 				? `اختر المنتج المناسب. إذا لم تذكر الكمية، سأطلبها قبل الإضافة.${unavailableNote}`
 				: `Choose the matching product. If you did not give a quantity, I will ask before adding it.${unavailableNote}`,
 		groups: visibleGroups.map((group, groupIndex) => ({
-			options: group.options.map(({ product }) => ({
-				action: productChoiceAction(context, group, product),
-				category: catalogHierarchyPath(product, context.locale),
-				name: product.name,
-				nameAr: product.name_ar ?? product.name,
-				priceRange: formatPriceRange(product, context.locale),
-				productId: product.id,
-				subcategory:
-					(context.locale === 'ar'
-						? product.product_type_name_ar
-						: product.product_type_name) ??
-					product.subcategory ??
-					undefined,
-				unit: product.unit_of_measure,
-				unitAr: product.unit_of_measure_ar,
-			})),
+			choiceKind: group.choiceKind,
+			options: group.options.map((option) =>
+				productChoiceListOption(context, group, option),
+			),
 			pendingChoiceId: group.pendingChoiceId,
 			query: group.query,
 			quantity: group.quantity,
@@ -7286,9 +7453,50 @@ function productChoiceListData(
 	}
 }
 
+function productChoiceListOption(
+	context: DraftProductChoiceContext,
+	group: DraftProductChoiceGroup,
+	option: DraftProductChoiceOption,
+): ProductChoiceListData['groups'][number]['options'][number] {
+	if (option.node) {
+		return {
+			action: productChoiceAction(context, group, option),
+			category: option.node.category,
+			name: option.node.name,
+			nameAr: option.node.nameAr,
+			priceRange: option.node.priceRange,
+			productId: option.node.id,
+			subcategory: option.node.subcategory,
+			unit: option.node.unit,
+			unitAr: option.node.unitAr,
+		}
+	}
+	const product = option.product
+	if (!product) {
+		throw new Error('Product choice option is missing a product')
+	}
+	return {
+		action: productChoiceAction(context, group, option),
+		category: catalogHierarchyPath(product, context.locale),
+		name: product.name,
+		nameAr: product.name_ar ?? product.name,
+		priceRange: formatPriceRange(product, context.locale),
+		productId: product.id,
+		subcategory:
+			(context.locale === 'ar'
+				? product.product_type_name_ar
+				: product.product_type_name) ??
+			product.subcategory ??
+			undefined,
+		unit: product.unit_of_measure,
+		unitAr: product.unit_of_measure_ar,
+	}
+}
+
 function productChoiceQuantityRequired(
 	group: DraftProductChoiceGroup,
 ): boolean {
+	if (group.choiceKind === 'hierarchy') return false
 	const numericParts = group.rawText.match(/\d+(?:[,.]\d+)?/g) ?? []
 	if (numericParts.length === 0) return true
 	return !numericParts.some((part) => {
@@ -7300,19 +7508,23 @@ function productChoiceQuantityRequired(
 function productChoiceAction(
 	context: DraftProductChoiceContext,
 	group: DraftProductChoiceGroup,
-	product: PortalAiProduct,
+	option: DraftProductChoiceOption,
 ): ActionButtonData {
+	const product = option.product
+	const node = option.node
+	const label = product?.name ?? node?.name ?? group.query
+	const labelAr = product?.name_ar ?? node?.nameAr ?? label
 	return {
 		action: {
 			action: context.action,
-			draftLines: productChoiceActionDraftLines(context, group, product),
-			searchQuery: product.name,
+			draftLines: productChoiceActionDraftLines(context, group, option),
+			searchQuery: product?.name ?? node?.query ?? label,
 			targetReference: context.targetReference,
 			unavailableQueries: context.unavailableQueries,
 		},
 		icon: 'market',
-		label: product.name,
-		labelAr: product.name_ar ?? product.name,
+		label,
+		labelAr,
 		runCommand: true,
 	}
 }
@@ -7320,14 +7532,18 @@ function productChoiceAction(
 function productChoiceActionDraftLines(
 	context: DraftProductChoiceContext,
 	selectedGroup: DraftProductChoiceGroup,
-	selectedProduct: PortalAiProduct,
+	selectedOption: DraftProductChoiceOption,
 ): PortalConfirmedDraftLinePayload[] {
+	const selectedProduct = selectedOption.product
+	const selectedNode = selectedOption.node
+	const selectedQuery =
+		selectedProduct?.name ?? selectedNode?.query ?? selectedGroup.query
 	return [
 		...context.baseLines,
 		{
 			pendingChoiceId: selectedGroup.pendingChoiceId,
-			productId: selectedProduct.id,
-			query: selectedProduct.name,
+			productId: selectedProduct?.id,
+			query: selectedQuery,
 			quantity: selectedGroup.quantity,
 			rawText: selectedGroup.rawText,
 			unitHint: selectedGroup.unitHint,
