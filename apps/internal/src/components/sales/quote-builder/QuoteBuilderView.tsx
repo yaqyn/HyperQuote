@@ -62,7 +62,6 @@ import {
 	SALES_MARGIN_TARGET_COLOR,
 } from '../marginPalette'
 import { CallRFQDialog } from '../rfq/CallRFQDialog'
-import { CancelRFQDialog } from '../rfq/CancelRFQDialog'
 import { DeclineRFQDialog } from '../rfq/DeclineRFQDialog'
 import {
 	type ApprovalSignatureState,
@@ -3084,7 +3083,6 @@ export function QuoteBuilderView({
 	const canEditCustomerFields = !isFromRfq
 	const [currentStep, setCurrentStep] = useState(isFromRfq ? 2 : 1)
 	const [declineOpen, setDeclineOpen] = useState(false)
-	const [cancelOpen, setCancelOpen] = useState(false)
 	const [callDialogOpen, setCallDialogOpen] = useState(false)
 	const [itemEditIndex, setItemEditIndex] = useState<number | null>(null)
 	const [mapOpen, setMapOpen] = useState(false)
@@ -4121,13 +4119,6 @@ export function QuoteBuilderView({
 							<Undo2 size={15} strokeWidth={2.2} aria-hidden="true" />
 						</QuoteChromeAction>
 						<QuoteChromeAction
-							ariaLabel="Cancel quote"
-							onClick={() => setCancelOpen(true)}
-							tone="danger"
-						>
-							<X size={15} strokeWidth={2.2} aria-hidden="true" />
-						</QuoteChromeAction>
-						<QuoteChromeAction
 							ariaLabel="Save for later"
 							onClick={handleSaveForLater}
 						>
@@ -4992,15 +4983,6 @@ export function QuoteBuilderView({
 				isOpen={declineOpen}
 				onClose={() => setDeclineOpen(false)}
 				onDeclined={() => {
-					if (onCompleted) void onCompleted(rfqId)
-					else onBack?.()
-				}}
-			/>
-			<CancelRFQDialog
-				rfqId={rfqId}
-				isOpen={cancelOpen}
-				onClose={() => setCancelOpen(false)}
-				onCanceled={() => {
 					if (onCompleted) void onCompleted(rfqId)
 					else onBack?.()
 				}}
