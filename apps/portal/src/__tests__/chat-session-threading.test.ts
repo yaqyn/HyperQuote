@@ -150,6 +150,26 @@ describe('portal chat session threading', () => {
 		expect(draftPanelSource).toContain('onClick={saveCurrentEditor}')
 	})
 
+	it('preserves selected cart context through server response generation', () => {
+		const chatSource = readRepoFile('apps/portal/src/lib/chat.ts')
+
+		expect(chatSource).toContain('sessionKey: z.string().max(180).optional()')
+		expect(chatSource).toContain(
+			'const chunks = await renderPortalCustomerResponse(',
+		)
+		expect(chatSource).toContain('result,\n\t\t\tactiveDraft,')
+		expect(chatSource).toContain('buildPortalChatAnswerPrompt(activeDraft)')
+		expect(chatSource).toContain(
+			'buildPortalToolAnswerPrompt(result.context, activeDraft)',
+		)
+		expect(chatSource).toMatch(
+			/Current selected cart \/ draft desk \(\$\{workspaceLabel\}\)/,
+		)
+		expect(chatSource).toContain(
+			'Never say you cannot view it when this context is present.',
+		)
+	})
+
 	it('moves temp draft chat threads between default, temp, and saved draft keys', () => {
 		const hookSource = readRepoFile('apps/portal/src/hooks/usePortalChat.ts')
 		const chatViewSource = readRepoFile(

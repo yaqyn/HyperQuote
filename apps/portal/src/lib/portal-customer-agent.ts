@@ -115,6 +115,7 @@ export interface PortalCustomerActiveDraftSnapshot {
 	name: string | null
 	notes: string
 	reference: string | null
+	sessionKey?: string
 }
 
 export function portalCustomerToolDefinitions(): ChatToolDefinition[] {
@@ -337,9 +338,9 @@ Never answer delivery location from memory or coordinates. Use delivery_tracking
 
 Current cart / draft desk:
 ${activeDraft ? JSON.stringify(activeDraft, null, 2) : 'No cart or saved draft is currently open in the chat desk.'}
-If the current desk has "sessionKey": "cart" and no id, treat it as the customer's live Cart. For customer requests to add products, remove products, change quantities, clear items, or inspect it, use resolve_product_choice or preview_draft_changes so the app can update the live Cart. Do not call it a saved draft.
+If the current desk has "sessionKey": "cart" and no id, treat it as the customer's live Cart. If the customer asks what is in it, what they already selected, or wants planning advice based on it, answer directly from this Current cart / draft desk JSON. Never say you cannot view the selected Cart when this context is present. For customer requests to add products, remove products, change quantities, or clear items, use resolve_product_choice or preview_draft_changes so the app can update the live Cart. Do not call it a saved draft.
 If a saved current draft is shown and the user says this draft, it, them, the open draft, or asks for an edit without naming a different draft, use that draft id as target_reference. If the user names another draft or describes one by title/material/old quantity, keep that description in search_query so the server can resolve the right editable draft.
-If a saved current draft is shown and the user asks in any language to inspect, clear, remove from, change quantities, rename, or update notes for that draft, use the matching draft tool. Never claim a draft changed from chat; server tools must do writes.
+If a saved current draft is shown and the user asks in any language to inspect it or plan around it, answer directly from this Current cart / draft desk JSON. If they ask to clear, remove from, change quantities, rename, or update notes for that draft, use the matching draft tool. Never claim a draft changed from chat; server tools must do writes.
 
 Do not invent products. Customers may use only product names. English and Arabic names in the catalog describe the same product identity; treat name and nameAr as aliases for one product, and keep the user's language in draft_lines.query. Never ask for SKU, product code, size, or specifications. For a buy request, extract each requested product phrase exactly as the customer meant it into draft_lines.query; do not replace it with a broader synonym or category. Let the server match the live catalog. If one requested product name has multiple real catalog variations, present the available choices as numbered options and let the customer choose by number, letter, "the second one", "cheapest", "biggest", or natural wording.
 

@@ -1501,6 +1501,42 @@ describe('portal customer AI agent', () => {
 		expect(prompt).toContain('use that draft id as target_reference')
 	})
 
+	it('tells the agent to inspect and plan from the selected live cart context', () => {
+		const prompt = buildPortalCustomerAgentPrompt(
+			{
+				catalogComplete: true,
+				products: [],
+				totalVisibleProducts: 0,
+			},
+			{
+				dirty: true,
+				id: null,
+				items: [
+					{
+						lineId: 'cart:0:11111111-1111-4111-8111-111111111111',
+						orderable: true,
+						productId: '11111111-1111-4111-8111-111111111111',
+						productName: 'Film Faced Plywood 18mm',
+						quantity: 12,
+						unitOfMeasure: 'sheet',
+					},
+				],
+				name: 'Cart',
+				notes: 'Villa formwork.',
+				reference: null,
+				sessionKey: 'cart',
+			},
+		)
+
+		expect(prompt).toContain('"sessionKey": "cart"')
+		expect(prompt).toContain("customer's live Cart")
+		expect(prompt).toContain(
+			'answer directly from this Current cart / draft desk JSON',
+		)
+		expect(prompt).toContain('Never say you cannot view the selected Cart')
+		expect(prompt).toContain('planning advice based on it')
+	})
+
 	it('describes profile as account info in the model tool registry', () => {
 		const prompt = buildPortalCustomerAgentPrompt({
 			catalogComplete: true,

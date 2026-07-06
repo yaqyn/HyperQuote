@@ -134,6 +134,7 @@ const activeDraftInput = z
 		name: z.string().max(160).nullable(),
 		notes: z.string().max(600),
 		reference: z.string().max(80).nullable(),
+		sessionKey: z.string().max(180).optional(),
 	})
 	.nullable()
 	.optional()
@@ -636,7 +637,11 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 			supportIdentity,
 			activeDraft,
 		)
-		const chunks = await renderPortalCustomerResponse(modelMessages, result)
+		const chunks = await renderPortalCustomerResponse(
+			modelMessages,
+			result,
+			activeDraft,
+		)
 
 		await recordPortalAiAudit(
 			supabase,
@@ -2506,6 +2511,7 @@ function confirmationButton(
 async function renderPortalCustomerResponse(
 	modelMessages: ChatMessageInput[],
 	result: PortalToolResult,
+	activeDraft: ActiveChatDraftContext | null,
 ): Promise<StreamChunk[]> {
 	const customEvents = richEventsForToolResult(result)
 
@@ -2525,7 +2531,11 @@ async function renderPortalCustomerResponse(
 			return textOnlyChunks(result.context.message, customEvents)
 		}
 		if (await isAIEnabled()) {
-			return streamWithCustomEvents(modelMessages, LYON_PORTAL, customEvents)
+			return streamWithCustomEvents(
+				modelMessages,
+				buildPortalChatAnswerPrompt(activeDraft),
+				customEvents,
+			)
 		}
 		return textOnlyChunks(fallbackText, customEvents)
 	}
@@ -2567,7 +2577,7 @@ async function renderPortalCustomerResponse(
 	try {
 		const answer = await completeChat(
 			modelMessages,
-			buildPortalToolAnswerPrompt(result.context),
+			buildPortalToolAnswerPrompt(result.context, activeDraft),
 			{ temperature: 0.2 },
 		)
 		return textOnlyChunks(answer.trim() || fallbackText, customEvents)
@@ -2607,11 +2617,24 @@ function appendDocsSources(
 	return `${answer.trim()}\n\n${locale === 'ar' ? 'المصادر' : 'Sources'}: ${sources}`
 }
 
+function buildPortalChatAnswerPrompt(
+	activeDraft: ActiveChatDraftContext | null,
+): string {
+	return `${LYON_PORTAL}
+
+${activeDraftAnswerContext(activeDraft)}
+
+Answer in the user's language. Use the selected cart or draft as real context for project planning, quantity reasoning, and follow-up suggestions.
+If the user asks what is in the selected cart or draft, answer directly from the provided context. Never say you cannot view it when this context is present.
+Do not expose raw IDs. Ask one short question only when the selected context is missing the detail needed to continue.`
+}
+
 function buildPortalToolAnswerPrompt(
 	context: Exclude<
 		PortalToolContext,
 		{ type: 'chat' | 'pending_action' | 'public_docs' | 'refusal' }
 	>,
+	activeDraft: ActiveChatDraftContext | null,
 ): string {
 	return `${LYON_PORTAL}
 
@@ -2621,8 +2644,40 @@ Do not expose raw IDs or internal fields. If something is missing, ask one short
 Use markdown tables only when they make records or line items easier to scan.
 ${toolAnswerStyleInstructions(context)}
 
+${activeDraftAnswerContext(activeDraft)}
+
 Portal tool result:
 ${safeJson(context)}`
+}
+
+function activeDraftAnswerContext(
+	activeDraft: ActiveChatDraftContext | null,
+): string {
+	if (!activeDraft) {
+		return 'Current selected cart / draft desk: none selected.'
+	}
+	const workspaceLabel =
+		activeDraft.sessionKey === 'cart' && !activeDraft.id
+			? 'live Cart'
+			: activeDraft.id
+				? 'saved draft'
+				: 'temporary draft'
+	return `Current selected cart / draft desk (${workspaceLabel}):
+${safeJson({
+	dirty: activeDraft.dirty,
+	items: activeDraft.items.map((item) => ({
+		name: item.productName,
+		nameAr: item.productNameAr,
+		orderable: item.orderable,
+		quantity: item.quantity,
+		unit: item.unitOfMeasure,
+		unitAr: item.unitOfMeasureAr,
+	})),
+	name: activeDraft.name,
+	notes: activeDraft.notes,
+	reference: activeDraft.reference,
+	sessionKey: activeDraft.sessionKey,
+})}`
 }
 
 function toolAnswerStyleInstructions(
