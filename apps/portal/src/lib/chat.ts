@@ -112,6 +112,7 @@ const SUPPORT_EMAIL =
 const SUPPORT_PHONE_E164 = import.meta.env.VITE_SUPPORT_PHONE_E164 ?? ''
 const PRODUCT_CATALOG_RESULT_COUNT = 12
 const SALES_QUOTE_ADDRESS_LABEL = 'Sales quote site'
+const LEGACY_DEFAULT_LOCATION_CLIENT_ID = 'legacy-default'
 
 const activeDraftInput = z
 	.object({
@@ -278,6 +279,7 @@ interface QuoteRequestItemRow {
 	notes: string | null
 	product_id: string | null
 	product_name_ar: string
+	quote_request_location_id: string | null
 	quantity: number
 	sort_order: number
 	unit_of_measure: string
@@ -3530,6 +3532,7 @@ async function loadCustomerOrders(
 			),
 			quote_request_items (
 				id,
+				quote_request_location_id,
 				product_id,
 				customer_description,
 				product_name_ar,
@@ -4261,6 +4264,10 @@ async function insertStrictCatalogDraftItems(
 ): Promise<string | null> {
 	try {
 		await insertQuoteRequestItems(supabase, draftId, items, {
+			quoteRequestLocationId: await ensureDraftDefaultLocationId(
+				supabase,
+				draftId,
+			),
 			requireOrderableProductLinks: true,
 		})
 		return null
@@ -4280,6 +4287,48 @@ async function insertStrictCatalogDraftItems(
 		}
 		throw error
 	}
+}
+
+async function ensureDraftDefaultLocationId(
+	supabase: AuthedSupabase,
+	draftId: string,
+): Promise<string> {
+	const { data: existingLocation, error: existingError } = await supabase
+		.from('quote_request_locations')
+		.select('id')
+		.eq('quote_request_id', draftId)
+		.order('sort_order', { ascending: true })
+		.limit(1)
+		.maybeSingle()
+	if (existingError) throw new Error(existingError.message)
+	if (existingLocation?.id) return existingLocation.id
+
+	const { data: draft, error: draftError } = await supabase
+		.from('quote_requests')
+		.select(
+			'delivery_address_id, delivery_date, delivery_hour, delivery_period',
+		)
+		.eq('id', draftId)
+		.maybeSingle()
+	if (draftError) throw new Error(draftError.message)
+
+	const { data: insertedLocation, error: insertError } = await supabase
+		.from('quote_request_locations')
+		.insert({
+			quote_request_id: draftId,
+			client_id: LEGACY_DEFAULT_LOCATION_CLIENT_ID,
+			sort_order: 0,
+			address_id: draft?.delivery_address_id ?? null,
+			delivery_date: draft?.delivery_date ?? null,
+			delivery_hour: draft?.delivery_hour ?? null,
+			delivery_period: draft?.delivery_period ?? null,
+		})
+		.select('id')
+		.single()
+	if (insertError || !insertedLocation) {
+		throw new Error(insertError?.message ?? 'Failed to create draft location')
+	}
+	return insertedLocation.id
 }
 
 async function duplicateOrderToDraft(
@@ -4524,6 +4573,10 @@ async function addItemsToDraft(
 	}
 	if (draftItemInputs.length > 0) {
 		await insertQuoteRequestItems(supabase, draft.id, draftItemInputs, {
+			quoteRequestLocationId: await ensureDraftDefaultLocationId(
+				supabase,
+				draft.id,
+			),
 			requireOrderableProductLinks: true,
 		})
 	}
@@ -4667,6 +4720,9 @@ async function replaceDraftItem(
 		.eq('quote_request_id', draft.id)
 	if (deleteError) throw new Error(deleteError.message)
 	await insertQuoteRequestItems(supabase, draft.id, [replacementInput], {
+		quoteRequestLocationId:
+			target.item.quote_request_location_id ??
+			(await ensureDraftDefaultLocationId(supabase, draft.id)),
 		requireOrderableProductLinks: true,
 	})
 
@@ -5777,6 +5833,7 @@ async function loadQuoteRequestRows(
 			),
 			quote_request_items (
 				id,
+				quote_request_location_id,
 				product_id,
 				customer_description,
 				product_name_ar,

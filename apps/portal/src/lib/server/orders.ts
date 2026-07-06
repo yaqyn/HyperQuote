@@ -22,7 +22,10 @@ import {
 	loadCategoryImageMap,
 	mapOrderStatus,
 } from './order-utils'
-import { insertQuoteRequestItems } from './quote-request-items'
+import {
+	type QuoteRequestLocationInput,
+	replaceQuoteRequestLocationsAndItems,
+} from './quote-request-locations'
 
 interface ProductRow {
 	availability_status: string
@@ -36,6 +39,7 @@ interface ProductRow {
 
 interface QuoteRequestItemRow {
 	id: string
+	quote_request_location_id: string | null
 	product_id: string | null
 	customer_description: string
 	product_name_ar: string
@@ -47,6 +51,23 @@ interface QuoteRequestItemRow {
 	sort_order: number
 	is_unmatched: boolean
 	products: ProductRow | ProductRow[] | null
+}
+
+interface QuoteRequestLocationRow {
+	id: string
+	client_id: string | null
+	sort_order: number
+	address_id: string | null
+	delivery_date: string | null
+	delivery_hour: number | null
+	delivery_period: 'AM' | 'PM' | null
+}
+
+interface QuoteRequestAssociateRow {
+	name: string
+	country_code: string
+	number: string
+	sort_order: number
 }
 
 interface LinkedOrderRow {
@@ -69,8 +90,12 @@ interface QuoteRequestRow {
 	project_id: string | null
 	delivery_address_id: string | null
 	delivery_date: string | null
+	delivery_hour: number | null
+	delivery_period: 'AM' | 'PM' | null
 	attachment_urls: string[] | null
 	quote_request_items: QuoteRequestItemRow[] | null
+	quote_request_locations: QuoteRequestLocationRow[] | null
+	quote_request_associates: QuoteRequestAssociateRow[] | null
 	orders: LinkedOrderRow | LinkedOrderRow[] | null
 }
 
@@ -328,9 +353,27 @@ const QUOTE_REQUEST_SELECT = `
 	project_id,
 	delivery_address_id,
 	delivery_date,
+	delivery_hour,
+	delivery_period,
 	attachment_urls,
+	quote_request_locations (
+		id,
+		client_id,
+		sort_order,
+		address_id,
+		delivery_date,
+		delivery_hour,
+		delivery_period
+	),
+	quote_request_associates (
+		name,
+		country_code,
+		number,
+		sort_order
+	),
 	quote_request_items (
 		id,
+		quote_request_location_id,
 		product_id,
 		customer_description,
 		product_name_ar,
@@ -421,6 +464,72 @@ async function getSourceQuoteRequest(
 	return linkedQuoteRequest as unknown as QuoteRequestRow
 }
 
+function quoteRequestItemInputFromRow(
+	item: QuoteRequestItemRow,
+	index: number,
+) {
+	return {
+		productId: item.product_id ?? undefined,
+		customerDescription: item.customer_description,
+		quantity: item.quantity,
+		unitOfMeasure: item.unit_of_measure,
+		unitOfMeasureAr: item.unit_of_measure_ar || item.unit_of_measure,
+		notes: item.notes ?? undefined,
+		matchConfidence: item.match_confidence ?? undefined,
+		sortOrder: index,
+		isUnmatched: item.is_unmatched,
+	}
+}
+
+function cloneQuoteRequestLocations(
+	source: QuoteRequestRow,
+	items: QuoteRequestItemRow[],
+): QuoteRequestLocationInput[] {
+	const sourceLocations = (source.quote_request_locations ?? [])
+		.slice()
+		.sort((a, b) => a.sort_order - b.sort_order)
+	const assignedSourceItemIds = new Set<string>()
+	const locations = sourceLocations
+		.map((location, locationIndex) => {
+			const locationItems = items.filter(
+				(item) => item.quote_request_location_id === location.id,
+			)
+			for (const item of locationItems) assignedSourceItemIds.add(item.id)
+			return {
+				clientId: location.client_id ?? `location-${locationIndex + 1}`,
+				addressId: location.address_id ?? undefined,
+				deliveryDate: location.delivery_date ?? undefined,
+				deliveryHour: location.delivery_hour ?? undefined,
+				deliveryPeriod: location.delivery_period ?? undefined,
+				items: locationItems.map(quoteRequestItemInputFromRow),
+			}
+		})
+		.filter((location) => location.items.length > 0)
+
+	const unassignedItems = items.filter(
+		(item) => !assignedSourceItemIds.has(item.id),
+	)
+	if (locations.length > 0 && unassignedItems.length > 0) {
+		locations[0].items.push(
+			...unassignedItems.map((item, index) =>
+				quoteRequestItemInputFromRow(item, locations[0].items.length + index),
+			),
+		)
+	}
+	if (locations.length > 0) return locations
+
+	return [
+		{
+			clientId: 'legacy-default',
+			addressId: source.delivery_address_id ?? undefined,
+			deliveryDate: source.delivery_date ?? undefined,
+			deliveryHour: source.delivery_hour ?? undefined,
+			deliveryPeriod: source.delivery_period ?? undefined,
+			items: items.map(quoteRequestItemInputFromRow),
+		},
+	]
+}
+
 export const saveOrderAsDraft = createServerFn({ method: 'POST' })
 	.inputValidator(saveOrderAsDraftInput)
 	.handler(
@@ -461,6 +570,8 @@ export const saveOrderAsDraft = createServerFn({ method: 'POST' })
 					project_id: source.project_id,
 					delivery_address_id: source.delivery_address_id,
 					delivery_date: source.delivery_date,
+					delivery_hour: source.delivery_hour,
+					delivery_period: source.delivery_period,
 					draft_name: source.draft_name,
 					notes: source.notes,
 					attachment_urls: source.attachment_urls ?? [],
@@ -475,20 +586,18 @@ export const saveOrderAsDraft = createServerFn({ method: 'POST' })
 				throw new Error(draftError?.message ?? 'Failed to save draft')
 			}
 
-			await insertQuoteRequestItems(
+			await replaceQuoteRequestLocationsAndItems(
 				supabase,
 				draft.id,
-				items.map((item, index) => ({
-					productId: item.product_id ?? undefined,
-					customerDescription: item.customer_description,
-					quantity: item.quantity,
-					unitOfMeasure: item.unit_of_measure,
-					unitOfMeasureAr: item.unit_of_measure_ar || item.unit_of_measure,
-					notes: item.notes ?? undefined,
-					matchConfidence: item.match_confidence ?? undefined,
-					sortOrder: index,
-					isUnmatched: item.is_unmatched,
-				})),
+				cloneQuoteRequestLocations(source, items),
+				(source.quote_request_associates ?? [])
+					.slice()
+					.sort((a, b) => a.sort_order - b.sort_order)
+					.map((associate) => ({
+						name: associate.name,
+						countryCode: associate.country_code,
+						number: associate.number,
+					})),
 			)
 
 			const sourceOrderId =

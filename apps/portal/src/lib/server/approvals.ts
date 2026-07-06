@@ -8,23 +8,39 @@ import { z } from 'zod'
 import { getAuthenticatedPortalCustomer } from './_supabase'
 import {
 	assertQuoteRequestItemsHaveOrderableProductLinks,
-	insertQuoteRequestItems,
 	quoteRequestItemInputSchema,
 } from './quote-request-items'
+import {
+	normalizeQuoteRequestLocations,
+	quoteRequestAssociateInputSchema,
+	quoteRequestItemsFromLocations,
+	quoteRequestLocationInputSchema,
+	quoteRequestLocationSummary,
+	replaceQuoteRequestLocationsAndItems,
+} from './quote-request-locations'
 
 // ============================================================================
 // Input Schemas
 // ============================================================================
 
-const submitForApprovalInput = z.object({
-	items: z.array(quoteRequestItemInputSchema).min(1),
-	deliveryAddressId: z.string().uuid().optional(),
-	deliveryDate: z.string().optional(),
-	notes: z.string().optional(),
-	projectId: z.string().uuid().optional(),
-	attachmentUrls: z.array(z.string()).optional(),
-	idempotencyKey: z.string().uuid(),
-})
+const submitForApprovalInput = z
+	.object({
+		items: z.array(quoteRequestItemInputSchema).optional(),
+		locations: z.array(quoteRequestLocationInputSchema).optional(),
+		associates: z.array(quoteRequestAssociateInputSchema).optional(),
+		deliveryAddressId: z.string().uuid().optional(),
+		deliveryDate: z.string().optional(),
+		notes: z.string().optional(),
+		projectId: z.string().uuid().optional(),
+		attachmentUrls: z.array(z.string()).optional(),
+		idempotencyKey: z.string().uuid(),
+	})
+	.refine(
+		(input) =>
+			(input.items?.length ?? 0) > 0 ||
+			(input.locations ?? []).some((location) => location.items.length > 0),
+		{ message: 'At least one quote request item is required' },
+	)
 
 // ============================================================================
 // submitForApproval
@@ -42,6 +58,9 @@ export const submitForApproval = createServerFn({ method: 'POST' })
 		}> => {
 			const { customerId, session, supabase } =
 				await getAuthenticatedPortalCustomer()
+			const locations = normalizeQuoteRequestLocations(input)
+			const items = quoteRequestItemsFromLocations(locations)
+			const summary = quoteRequestLocationSummary(locations)
 
 			// Check idempotency
 			const { data: existing } = await supabase
@@ -65,10 +84,7 @@ export const submitForApproval = createServerFn({ method: 'POST' })
 				}
 			}
 
-			await assertQuoteRequestItemsHaveOrderableProductLinks(
-				supabase,
-				input.items,
-			)
+			await assertQuoteRequestItemsHaveOrderableProductLinks(supabase, items)
 
 			let approverId: string | null = null
 			const { data: approvers } = await supabase
@@ -91,8 +107,10 @@ export const submitForApproval = createServerFn({ method: 'POST' })
 						status: 'submitted',
 						urgency: 'standard',
 						project_id: input.projectId ?? null,
-						delivery_address_id: input.deliveryAddressId ?? null,
-						delivery_date: input.deliveryDate ?? null,
+						delivery_address_id: summary.deliveryAddressId ?? null,
+						delivery_date: summary.deliveryDate ?? null,
+						delivery_hour: summary.deliveryHour ?? null,
+						delivery_period: summary.deliveryPeriod ?? null,
 						notes: input.notes ?? null,
 						attachment_urls: input.attachmentUrls ?? [],
 						submitted_at: new Date().toISOString(),
@@ -107,7 +125,12 @@ export const submitForApproval = createServerFn({ method: 'POST' })
 					throw new Error(qrError?.message ?? 'Failed to create quote request')
 				}
 
-				await insertQuoteRequestItems(supabase, qr.id, input.items)
+				await replaceQuoteRequestLocationsAndItems(
+					supabase,
+					qr.id,
+					locations,
+					input.associates,
+				)
 
 				return {
 					requestId: qr.id,
@@ -123,8 +146,10 @@ export const submitForApproval = createServerFn({ method: 'POST' })
 					status: 'draft',
 					urgency: 'standard',
 					project_id: input.projectId ?? null,
-					delivery_address_id: input.deliveryAddressId ?? null,
-					delivery_date: input.deliveryDate ?? null,
+					delivery_address_id: summary.deliveryAddressId ?? null,
+					delivery_date: summary.deliveryDate ?? null,
+					delivery_hour: summary.deliveryHour ?? null,
+					delivery_period: summary.deliveryPeriod ?? null,
 					notes: input.notes ?? null,
 					attachment_urls: input.attachmentUrls ?? [],
 					submitted_by: session.user.id,
@@ -138,7 +163,12 @@ export const submitForApproval = createServerFn({ method: 'POST' })
 				throw new Error(qrError?.message ?? 'Failed to create quote request')
 			}
 
-			await insertQuoteRequestItems(supabase, qr.id, input.items)
+			await replaceQuoteRequestLocationsAndItems(
+				supabase,
+				qr.id,
+				locations,
+				input.associates,
+			)
 
 			const { data: approval, error: approvalError } = await supabase
 				.from('approvals')
@@ -149,7 +179,7 @@ export const submitForApproval = createServerFn({ method: 'POST' })
 					requested_by: session.user.id,
 					assigned_to: approverId,
 					status: 'pending',
-					context: { items_count: input.items.length },
+					context: { items_count: items.length },
 				})
 				.select('id')
 				.single()

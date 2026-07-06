@@ -818,13 +818,15 @@ function ItemChecklist({
 	onChange: () => void
 }) {
 	const qc = useQueryClient()
-	const [splitProductSlug, setSplitProductSlug] = useState<string | null>(null)
+	const [splitQuoteRequestItemId, setSplitQuoteRequestItemId] = useState<
+		string | null
+	>(null)
 	const mutation = useMutation({
 		mutationFn: (input: {
 			exclusive?: boolean
 			quantity: number
 			truckId: string
-			productSlug: string
+			quoteRequestItemId: string
 		}) =>
 			setItemLoadedQuantity({
 				data: {
@@ -832,7 +834,7 @@ function ItemChecklist({
 					quantity: input.quantity,
 					quoteId: order.quoteId,
 					truckId: input.truckId,
-					productSlug: input.productSlug,
+					quoteRequestItemId: input.quoteRequestItemId,
 				},
 			}),
 		onSuccess: (res) => {
@@ -857,13 +859,13 @@ function ItemChecklist({
 			{order.items.map((item) => {
 				const complete = item.loadedQuantity === item.quantity
 				const overLoaded = item.loadedQuantity > item.quantity
-				const splitOpen = splitProductSlug === item.productSlug
+				const splitOpen = splitQuoteRequestItemId === item.quoteRequestItemId
 				const loadByTruck = new Map(
 					item.truckLoads.map((load) => [load.truckId, load.quantity]),
 				)
 				return (
 					<motion.div
-						key={item.productSlug}
+						key={item.quoteRequestItemId}
 						variants={{
 							hidden: { opacity: 0, x: -8 },
 							visible: { opacity: 1, x: 0 },
@@ -916,7 +918,7 @@ function ItemChecklist({
 													exclusive: true,
 													quantity: item.quantity,
 													truckId: a.truckId,
-													productSlug: item.productSlug,
+													quoteRequestItemId: item.quoteRequestItemId,
 												})
 											}
 											disabled={mutation.isPending}
@@ -943,9 +945,11 @@ function ItemChecklist({
 								<motion.button
 									type="button"
 									aria-expanded={splitOpen}
-									aria-controls={`split-${item.productSlug}`}
+									aria-controls={`split-${item.quoteRequestItemId}`}
 									onClick={() =>
-										setSplitProductSlug(splitOpen ? null : item.productSlug)
+										setSplitQuoteRequestItemId(
+											splitOpen ? null : item.quoteRequestItemId,
+										)
 									}
 									whileTap={{ scale: 0.95 }}
 									className="border-2 border-[#2F5EAA] bg-[#F4F7FF] px-3 py-2 text-start font-[family-name:var(--font-geist-mono)] text-[10px] font-bold uppercase tracking-[0.12em] text-[#2F5EAA] transition-colors hover:bg-[#2F5EAA] hover:text-[#FFFFFF] lg:border-[3px]"
@@ -962,7 +966,7 @@ function ItemChecklist({
 						<AnimatePresence initial={false}>
 							{splitOpen && (
 								<motion.div
-									id={`split-${item.productSlug}`}
+									id={`split-${item.quoteRequestItemId}`}
 									initial={{ opacity: 0, height: 0 }}
 									animate={{ opacity: 1, height: 'auto' }}
 									exit={{ opacity: 0, height: 0 }}
@@ -996,7 +1000,7 @@ function ItemChecklist({
 																mutation.mutate({
 																	quantity: Number(event.target.value) || 0,
 																	truckId: a.truckId,
-																	productSlug: item.productSlug,
+																	quoteRequestItemId: item.quoteRequestItemId,
 																})
 															}
 															disabled={mutation.isPending}

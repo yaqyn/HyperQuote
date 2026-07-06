@@ -17,6 +17,7 @@ import { NumberField as AriaNumberField } from 'react-aria-components/NumberFiel
 import { useDragAndDrop } from 'react-aria-components/useDragAndDrop'
 import { useTranslation } from 'react-i18next'
 import {
+	DEFAULT_QUOTE_LOCATION_CLIENT_ID,
 	type QuoteItem,
 	useQuoteBuilderStore,
 } from '../../../stores/quote-builder'
@@ -57,6 +58,17 @@ export function ProductListTable() {
 	const removeItem = useQuoteBuilderStore((s) => s.removeItem)
 	const updateItem = useQuoteBuilderStore((s) => s.updateItem)
 	const reorderItems = useQuoteBuilderStore((s) => s.reorderItems)
+	const locations = useQuoteBuilderStore((s) => s.locations)
+	const moveItemToLocation = useQuoteBuilderStore((s) => s.moveItemToLocation)
+	const hasMultipleLocations = locations.length > 1
+	const fallbackLocationClientId =
+		locations[0]?.clientId ?? DEFAULT_QUOTE_LOCATION_CLIENT_ID
+	const desktopGridClass = hasMultipleLocations
+		? 'hidden md:grid md:grid-cols-[32px_40px_1fr_128px_80px_60px_160px_40px] gap-2 px-2 py-2 text-[13px] text-[var(--color-text-muted)] border-b border-[var(--color-border)]'
+		: 'hidden md:grid md:grid-cols-[32px_40px_1fr_80px_60px_160px_40px] gap-2 px-2 py-2 text-[13px] text-[var(--color-text-muted)] border-b border-[var(--color-border)]'
+	const desktopRowClass = hasMultipleLocations
+		? 'hidden md:grid md:grid-cols-[32px_40px_1fr_128px_80px_60px_160px_40px] gap-2 items-center px-2 h-13 border-b border-[var(--color-border)]'
+		: 'hidden md:grid md:grid-cols-[32px_40px_1fr_80px_60px_160px_40px] gap-2 items-center px-2 h-13 border-b border-[var(--color-border)]'
 
 	const { dragAndDropHooks } = useDragAndDrop({
 		getItems: (keys) =>
@@ -163,6 +175,32 @@ export function ProductListTable() {
 		)
 	}
 
+	function LocationSelect({ item }: { item: QuoteItem }) {
+		if (!hasMultipleLocations) return null
+		return (
+			<select
+				value={item.locationClientId ?? fallbackLocationClientId}
+				onChange={(event) =>
+					moveItemToLocation(item.id, event.currentTarget.value)
+				}
+				aria-label={t('quoteBuilder.locationFor', {
+					defaultValue: 'Location for {{name}}',
+					name: item.customerDescription,
+				})}
+				className="h-9 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] px-2 text-[13px] text-[var(--color-text)] outline-none transition-colors focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/10"
+			>
+				{locations.map((location, index) => (
+					<option key={location.clientId} value={location.clientId}>
+						{t('quoteBuilder.locationNumber', {
+							defaultValue: 'Location {{number}}',
+							number: index + 1,
+						})}
+					</option>
+				))}
+			</select>
+		)
+	}
+
 	function RemoveItemButton({
 		label,
 		onPress,
@@ -186,10 +224,13 @@ export function ProductListTable() {
 	return (
 		<section aria-label={t('quoteBuilder.materialListLabel')}>
 			{/* Desktop header -- hidden on mobile */}
-			<div className="hidden md:grid md:grid-cols-[32px_40px_1fr_80px_60px_160px_40px] gap-2 px-2 py-2 text-[13px] text-[var(--color-text-muted)] border-b border-[var(--color-border)]">
+			<div className={desktopGridClass}>
 				<div />
 				<div>#</div>
 				<div>{t('quoteBuilder.product')}</div>
+				{hasMultipleLocations && (
+					<div>{t('quoteBuilder.location', 'Location')}</div>
+				)}
 				<div>{t('quoteBuilder.quantity')}</div>
 				<div>{t('quoteBuilder.uom')}</div>
 				<div>{t('quoteBuilder.notes')}</div>
@@ -222,7 +263,7 @@ export function ProductListTable() {
 								}}
 							>
 								{/* Desktop row */}
-								<div className="hidden md:grid md:grid-cols-[32px_40px_1fr_80px_60px_160px_40px] gap-2 items-center px-2 h-13 border-b border-[var(--color-border)]">
+								<div className={desktopRowClass}>
 									{/* Drag handle */}
 									<Button
 										slot="drag"
@@ -248,6 +289,8 @@ export function ProductListTable() {
 											{item.customerDescription}
 										</div>
 									</div>
+
+									<LocationSelect item={item} />
 
 									{/* Quantity */}
 									<QuantityField
@@ -316,6 +359,12 @@ export function ProductListTable() {
 											{unitLabel(item)}
 										</span>
 									</div>
+
+									{hasMultipleLocations && (
+										<div className="mt-3">
+											<LocationSelect item={item} />
+										</div>
+									)}
 
 									{/* Notes */}
 									<NotesField

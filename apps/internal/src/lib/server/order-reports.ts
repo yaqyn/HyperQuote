@@ -79,6 +79,8 @@ interface SupabaseReportProductRow {
 }
 
 interface SupabaseReportRequestItemRow {
+	id: string
+	quote_request_location_id: string | null
 	customer_description: string
 	quantity: number
 	unit_of_measure: string
@@ -403,46 +405,68 @@ function reportItemsFromSavedVersion(
 
 function assignedItemLoads(
 	value: unknown,
-	quantityBySlug: Map<string, number>,
-): { productSlug: string; quantity: number }[] {
+	quantityByLineId: Map<string, number>,
+	lineMetaBySlug: Map<string, { quoteRequestItemId: string }>,
+): { quoteRequestItemId: string; productSlug: string; quantity: number }[] {
 	if (!Array.isArray(value)) return []
 	return value
 		.map((item) => {
 			if (typeof item === 'string') {
-				const quantity = quantityBySlug.get(item) ?? 0
-				return quantity > 0 ? { productSlug: item, quantity } : null
+				const meta = lineMetaBySlug.get(item)
+				if (!meta) return null
+				const quantity = quantityByLineId.get(meta.quoteRequestItemId) ?? 0
+				return quantity > 0
+					? {
+							quoteRequestItemId: meta.quoteRequestItemId,
+							productSlug: item,
+							quantity,
+						}
+					: null
 			}
+			if (!isRecord(item)) return null
+			const quoteRequestItemId =
+				idFromDetails(item, 'quoteRequestItemId') ??
+				idFromDetails(item, 'quote_request_item_id')
+			const productSlug =
+				stringOrNull(item.productSlug) ?? stringOrNull(item.product_slug) ?? ''
+			const quantity = numberOrNull(item.quantity)
 			if (
-				typeof item !== 'object' ||
-				item === null ||
-				!('productSlug' in item) ||
-				!('quantity' in item) ||
-				typeof item.productSlug !== 'string' ||
-				typeof item.quantity !== 'number' ||
-				!Number.isFinite(item.quantity) ||
-				item.quantity <= 0
+				!quoteRequestItemId ||
+				quantity === null ||
+				!Number.isFinite(quantity) ||
+				quantity <= 0
 			) {
 				return null
 			}
-			return { productSlug: item.productSlug, quantity: item.quantity }
+			return { quoteRequestItemId, productSlug, quantity }
 		})
 		.filter(
-			(item): item is { productSlug: string; quantity: number } =>
-				item !== null,
+			(
+				item,
+			): item is {
+				quoteRequestItemId: string
+				productSlug: string
+				quantity: number
+			} => item !== null,
 		)
 }
 
 function loadingDriverReportLine(
 	assignment: SupabaseReportLoadingDriverRow,
-	quantityBySlug: Map<string, number>,
-	nameBySlug: Map<string, string>,
+	quantityByLineId: Map<string, number>,
+	nameByLineId: Map<string, string>,
+	lineMetaBySlug: Map<string, { quoteRequestItemId: string }>,
 ) {
 	const driver = firstRelation(assignment.drivers)
 	const truck = firstRelation(assignment.trucks)
-	const loads = assignedItemLoads(assignment.assigned_items, quantityBySlug)
+	const loads = assignedItemLoads(
+		assignment.assigned_items,
+		quantityByLineId,
+		lineMetaBySlug,
+	)
 	const loadText = loads
 		.map((load) => {
-			const name = nameBySlug.get(load.productSlug) ?? load.productSlug
+			const name = nameByLineId.get(load.quoteRequestItemId) || load.productSlug
 			return `${load.quantity.toLocaleString('en-EG')} ${name}`
 		})
 		.join(', ')
@@ -1016,6 +1040,8 @@ async function getSupabaseOrderReport(
 				landmark
 			),
 			quote_request_items (
+				id,
+				quote_request_location_id,
 				customer_description,
 				quantity,
 				unit_of_measure,
@@ -1210,16 +1236,27 @@ async function getSupabaseOrderReport(
 		matchingActivity(activityRows, 'manual_order_created', request.id)
 	const source = stringOrNull(submittedActivity?.details?.source) ?? 'portal'
 	const sourceName = sourceLabel(source)
-	const quantityBySlug = new Map<string, number>()
-	const nameBySlug = new Map<string, string>()
+	const quantityByLineId = new Map<string, number>()
+	const nameByLineId = new Map<string, string>()
+	const lineMetaBySlug = new Map<string, { quoteRequestItemId: string }>()
+	const seenSlugs = new Set<string>()
 	for (const item of request.quote_request_items ?? []) {
 		const product = firstRelation(item.products)
-		if (!product?.slug) continue
-		quantityBySlug.set(product.slug, Number(item.quantity))
-		nameBySlug.set(
-			product.slug,
-			item.customer_description.trim() || product.name || product.slug,
+		quantityByLineId.set(item.id, Number(item.quantity))
+		nameByLineId.set(
+			item.id,
+			item.customer_description.trim() ||
+				product?.name ||
+				product?.slug ||
+				item.id,
 		)
+		if (!product?.slug) continue
+		if (seenSlugs.has(product.slug)) {
+			lineMetaBySlug.delete(product.slug)
+			continue
+		}
+		seenSlugs.add(product.slug)
+		lineMetaBySlug.set(product.slug, { quoteRequestItemId: item.id })
 	}
 
 	const steps: OrderReportStep[] = [
@@ -1386,7 +1423,12 @@ async function getSupabaseOrderReport(
 				fact('Rejected reason', task.rejection_reason),
 			]),
 			lines: taskDrivers.map((assignment) =>
-				loadingDriverReportLine(assignment, quantityBySlug, nameBySlug),
+				loadingDriverReportLine(
+					assignment,
+					quantityByLineId,
+					nameByLineId,
+					lineMetaBySlug,
+				),
 			),
 			specialCase:
 				task.status === 'rejected'

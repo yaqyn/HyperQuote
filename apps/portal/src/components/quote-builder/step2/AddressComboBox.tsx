@@ -261,14 +261,28 @@ function NewAddressForm({ onSave, isSaving }: NewAddressFormProps) {
 // AddressComboBox
 // ============================================================================
 
-export function AddressComboBox() {
+interface AddressComboBoxProps {
+	label?: string
+	value?: string | null
+	onChange?: (addressId: string | null) => void
+}
+
+export function AddressComboBox({
+	label,
+	value,
+	onChange,
+}: AddressComboBoxProps = {}) {
 	const { t } = useTranslation('portal')
 	const queryClient = useQueryClient()
 	const addressSelectId = useId()
-	const setDeliveryAddressId = useQuoteBuilderStore(
+	const setStoreDeliveryAddressId = useQuoteBuilderStore(
 		(s) => s.setDeliveryAddressId,
 	)
-	const deliveryAddressId = useQuoteBuilderStore((s) => s.deliveryAddressId)
+	const storeDeliveryAddressId = useQuoteBuilderStore(
+		(s) => s.deliveryAddressId,
+	)
+	const deliveryAddressId = value ?? storeDeliveryAddressId
+	const setDeliveryAddressId = onChange ?? setStoreDeliveryAddressId
 
 	const [showNewForm, setShowNewForm] = useState(false)
 	const [isSaving, setIsSaving] = useState(false)
@@ -317,7 +331,7 @@ export function AddressComboBox() {
 					htmlFor={addressSelectId}
 					className="text-[13px] font-medium text-[var(--color-text-muted)]"
 				>
-					{t('quoteBuilder.deliveryAddress', 'Delivery Address')}
+					{label ?? t('quoteBuilder.deliveryAddress', 'Delivery Address')}
 				</label>
 				<div className="relative">
 					<MapPin
@@ -330,7 +344,7 @@ export function AddressComboBox() {
 						disabled={isLoading}
 						onChange={(event) => {
 							setShowNewForm(false)
-							setDeliveryAddressId(event.currentTarget.value)
+							setDeliveryAddressId(event.currentTarget.value || null)
 						}}
 						className="w-full h-10 ps-9 pe-9 rounded-lg border border-[var(--color-border)] bg-transparent text-sm text-[var(--color-text)] outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30 focus:border-[var(--color-primary)] transition-colors disabled:opacity-60"
 					>

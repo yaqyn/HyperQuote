@@ -706,6 +706,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -722,6 +723,7 @@ export type Database = {
 					driver_id?: string | null
 					id?: string
 					loading_task_id?: string | null
+					order_delivery_location_id?: string | null
 					order_id?: string | null
 					rejection_proof?: Json | null
 					rejection_reason?: string | null
@@ -738,6 +740,7 @@ export type Database = {
 					driver_id?: string | null
 					id?: string
 					loading_task_id?: string | null
+					order_delivery_location_id?: string | null
 					order_id?: string | null
 					rejection_proof?: Json | null
 					rejection_reason?: string | null
@@ -773,6 +776,13 @@ export type Database = {
 						columns: ['loading_task_id']
 						isOneToOne: false
 						referencedRelation: 'loading_tasks'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'deliveries_order_delivery_location_id_fkey'
+						columns: ['order_delivery_location_id']
+						isOneToOne: false
+						referencedRelation: 'order_delivery_locations'
 						referencedColumns: ['id']
 					},
 					{
@@ -2472,6 +2482,8 @@ export type Database = {
 					order_id: string
 					product_id: string
 					quantity: number
+					quote_request_item_id: string | null
+					quote_request_location_id: string | null
 					status: Database['public']['Enums']['inventory_reservation_status']
 					updated_at: string
 				}
@@ -2482,6 +2494,8 @@ export type Database = {
 					order_id: string
 					product_id: string
 					quantity: number
+					quote_request_item_id?: string | null
+					quote_request_location_id?: string | null
 					status?: Database['public']['Enums']['inventory_reservation_status']
 					updated_at?: string
 				}
@@ -2492,6 +2506,8 @@ export type Database = {
 					order_id?: string
 					product_id?: string
 					quantity?: number
+					quote_request_item_id?: string | null
+					quote_request_location_id?: string | null
 					status?: Database['public']['Enums']['inventory_reservation_status']
 					updated_at?: string
 				}
@@ -2543,6 +2559,20 @@ export type Database = {
 						columns: ['product_id']
 						isOneToOne: false
 						referencedRelation: 'products'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'inventory_reservations_quote_request_item_id_fkey'
+						columns: ['quote_request_item_id']
+						isOneToOne: false
+						referencedRelation: 'quote_request_items'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'inventory_reservations_quote_request_location_id_fkey'
+						columns: ['quote_request_location_id']
+						isOneToOne: false
+						referencedRelation: 'quote_request_locations'
 						referencedColumns: ['id']
 					},
 				]
@@ -2822,6 +2852,84 @@ export type Database = {
 						columns: ['customer_id']
 						isOneToOne: false
 						referencedRelation: 'customers'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			order_delivery_locations: {
+				Row: {
+					address_id: string | null
+					completed_at: string | null
+					created_at: string
+					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
+					id: string
+					order_id: string
+					quote_request_location_id: string
+					sort_order: number
+					status: string
+					updated_at: string
+				}
+				Insert: {
+					address_id?: string | null
+					completed_at?: string | null
+					created_at?: string
+					delivery_date?: string | null
+					delivery_hour?: number | null
+					delivery_period?:
+						| Database['public']['Enums']['delivery_period']
+						| null
+					id?: string
+					order_id: string
+					quote_request_location_id: string
+					sort_order?: number
+					status?: string
+					updated_at?: string
+				}
+				Update: {
+					address_id?: string | null
+					completed_at?: string | null
+					created_at?: string
+					delivery_date?: string | null
+					delivery_hour?: number | null
+					delivery_period?:
+						| Database['public']['Enums']['delivery_period']
+						| null
+					id?: string
+					order_id?: string
+					quote_request_location_id?: string
+					sort_order?: number
+					status?: string
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'order_delivery_locations_address_id_fkey'
+						columns: ['address_id']
+						isOneToOne: false
+						referencedRelation: 'customer_addresses'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'order_delivery_locations_order_id_fkey'
+						columns: ['order_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_order_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'order_delivery_locations_order_id_fkey'
+						columns: ['order_id']
+						isOneToOne: false
+						referencedRelation: 'orders'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'order_delivery_locations_quote_request_location_id_fkey'
+						columns: ['quote_request_location_id']
+						isOneToOne: false
+						referencedRelation: 'quote_request_locations'
 						referencedColumns: ['id']
 					},
 				]
@@ -3684,6 +3792,54 @@ export type Database = {
 					},
 				]
 			}
+			quote_request_associates: {
+				Row: {
+					country_code: string
+					created_at: string
+					id: string
+					name: string
+					number: string
+					quote_request_id: string
+					sort_order: number
+					updated_at: string
+				}
+				Insert: {
+					country_code: string
+					created_at?: string
+					id?: string
+					name: string
+					number: string
+					quote_request_id: string
+					sort_order?: number
+					updated_at?: string
+				}
+				Update: {
+					country_code?: string
+					created_at?: string
+					id?: string
+					name?: string
+					number?: string
+					quote_request_id?: string
+					sort_order?: number
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'quote_request_associates_quote_request_id_fkey'
+						columns: ['quote_request_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_quote_request_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'quote_request_associates_quote_request_id_fkey'
+						columns: ['quote_request_id']
+						isOneToOne: false
+						referencedRelation: 'quote_requests'
+						referencedColumns: ['id']
+					},
+				]
+			}
 			quote_request_items: {
 				Row: {
 					created_at: string
@@ -3699,6 +3855,7 @@ export type Database = {
 					product_name_ar: string
 					quantity: number
 					quote_request_id: string
+					quote_request_location_id: string
 					sort_order: number
 					unit_of_measure: string
 					unit_of_measure_ar: string
@@ -3717,6 +3874,7 @@ export type Database = {
 					product_name_ar?: string
 					quantity: number
 					quote_request_id: string
+					quote_request_location_id: string
 					sort_order?: number
 					unit_of_measure: string
 					unit_of_measure_ar?: string
@@ -3735,11 +3893,19 @@ export type Database = {
 					product_name_ar?: string
 					quantity?: number
 					quote_request_id?: string
+					quote_request_location_id?: string
 					sort_order?: number
 					unit_of_measure?: string
 					unit_of_measure_ar?: string
 				}
 				Relationships: [
+					{
+						foreignKeyName: 'quote_request_items_location_same_request_fkey'
+						columns: ['quote_request_location_id', 'quote_request_id']
+						isOneToOne: false
+						referencedRelation: 'quote_request_locations'
+						referencedColumns: ['id', 'quote_request_id']
+					},
 					{
 						foreignKeyName: 'quote_request_items_product_id_fkey'
 						columns: ['product_id']
@@ -3777,6 +3943,74 @@ export type Database = {
 					},
 				]
 			}
+			quote_request_locations: {
+				Row: {
+					address_id: string | null
+					client_id: string | null
+					created_at: string
+					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
+					id: string
+					notes: string | null
+					quote_request_id: string
+					sort_order: number
+					updated_at: string
+				}
+				Insert: {
+					address_id?: string | null
+					client_id?: string | null
+					created_at?: string
+					delivery_date?: string | null
+					delivery_hour?: number | null
+					delivery_period?:
+						| Database['public']['Enums']['delivery_period']
+						| null
+					id?: string
+					notes?: string | null
+					quote_request_id: string
+					sort_order?: number
+					updated_at?: string
+				}
+				Update: {
+					address_id?: string | null
+					client_id?: string | null
+					created_at?: string
+					delivery_date?: string | null
+					delivery_hour?: number | null
+					delivery_period?:
+						| Database['public']['Enums']['delivery_period']
+						| null
+					id?: string
+					notes?: string | null
+					quote_request_id?: string
+					sort_order?: number
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'quote_request_locations_address_id_fkey'
+						columns: ['address_id']
+						isOneToOne: false
+						referencedRelation: 'customer_addresses'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'quote_request_locations_quote_request_id_fkey'
+						columns: ['quote_request_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_quote_request_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'quote_request_locations_quote_request_id_fkey'
+						columns: ['quote_request_id']
+						isOneToOne: false
+						referencedRelation: 'quote_requests'
+						referencedColumns: ['id']
+					},
+				]
+			}
 			quote_requests: {
 				Row: {
 					approval_required: boolean
@@ -3787,6 +4021,8 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -3811,6 +4047,10 @@ export type Database = {
 					customer_id?: string | null
 					delivery_address_id?: string | null
 					delivery_date?: string | null
+					delivery_hour?: number | null
+					delivery_period?:
+						| Database['public']['Enums']['delivery_period']
+						| null
 					draft_name?: string | null
 					eligible_at?: string
 					id?: string
@@ -3835,6 +4075,10 @@ export type Database = {
 					customer_id?: string | null
 					delivery_address_id?: string | null
 					delivery_date?: string | null
+					delivery_hour?: number | null
+					delivery_period?:
+						| Database['public']['Enums']['delivery_period']
+						| null
 					draft_name?: string | null
 					eligible_at?: string
 					id?: string
@@ -6286,6 +6530,8 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -6319,6 +6565,8 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -6563,6 +6811,10 @@ export type Database = {
 							customer_id: string | null
 							delivery_address_id: string | null
 							delivery_date: string | null
+							delivery_hour: number | null
+							delivery_period:
+								| Database['public']['Enums']['delivery_period']
+								| null
 							draft_name: string | null
 							eligible_at: string
 							id: string
@@ -6596,6 +6848,10 @@ export type Database = {
 							customer_id: string | null
 							delivery_address_id: string | null
 							delivery_date: string | null
+							delivery_hour: number | null
+							delivery_period:
+								| Database['public']['Enums']['delivery_period']
+								| null
 							draft_name: string | null
 							eligible_at: string
 							id: string
@@ -6633,6 +6889,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -6658,6 +6915,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -6683,6 +6941,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -6708,6 +6967,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -6733,6 +6993,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -6758,6 +7019,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -6784,6 +7046,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -6820,6 +7083,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -6847,6 +7111,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -6872,6 +7137,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -6897,6 +7163,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -6938,6 +7205,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -8115,6 +8383,8 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -8148,6 +8418,8 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -8282,6 +8554,8 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -8315,6 +8589,8 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -8597,6 +8873,8 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -8640,6 +8918,8 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -8935,6 +9215,8 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -8972,6 +9254,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -9002,6 +9285,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -9033,6 +9317,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -9062,6 +9347,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -9109,6 +9395,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -9152,6 +9439,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -9181,6 +9469,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -9233,6 +9522,7 @@ export type Database = {
 					driver_id: string | null
 					id: string
 					loading_task_id: string | null
+					order_delivery_location_id: string | null
 					order_id: string | null
 					rejection_proof: Json | null
 					rejection_reason: string | null
@@ -10454,6 +10744,8 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -10491,6 +10783,8 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -10643,6 +10937,8 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -10682,6 +10978,8 @@ export type Database = {
 					customer_id: string | null
 					delivery_address_id: string | null
 					delivery_date: string | null
+					delivery_hour: number | null
+					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -11127,8 +11425,8 @@ export type Database = {
 					p_actor_user_id: string
 					p_exclusive?: boolean
 					p_order_id: string
-					p_product_slug: string
 					p_quantity: number
+					p_quote_request_item_id: string
 					p_truck_id: string
 				}
 				Returns: {
@@ -11442,8 +11740,8 @@ export type Database = {
 				Args: {
 					p_exclusive?: boolean
 					p_order_id: string
-					p_product_slug: string
 					p_quantity: number
+					p_quote_request_item_id: string
 					p_truck_id: string
 				}
 				Returns: {
@@ -11483,7 +11781,11 @@ export type Database = {
 				}
 			}
 			warehouse_toggle_loading_item: {
-				Args: { p_order_id: string; p_product_slug: string; p_truck_id: string }
+				Args: {
+					p_order_id: string
+					p_quote_request_item_id: string
+					p_truck_id: string
+				}
 				Returns: {
 					advisor_employee_id: string | null
 					created_at: string
@@ -11689,6 +11991,7 @@ export type Database = {
 			customer_payment_history: 'excellent' | 'good' | 'fair' | 'poor'
 			customer_status: 'unclaimed' | 'claimed' | 'active' | 'inactive'
 			customer_tier: 'A' | 'B' | 'C' | 'new'
+			delivery_period: 'AM' | 'PM'
 			delivery_proof_type: 'signature' | 'photo' | 'note'
 			delivery_status:
 				| 'assigned'
@@ -12191,6 +12494,7 @@ export const Constants = {
 			customer_payment_history: ['excellent', 'good', 'fair', 'poor'],
 			customer_status: ['unclaimed', 'claimed', 'active', 'inactive'],
 			customer_tier: ['A', 'B', 'C', 'new'],
+			delivery_period: ['AM', 'PM'],
 			delivery_proof_type: ['signature', 'photo', 'note'],
 			delivery_status: [
 				'assigned',

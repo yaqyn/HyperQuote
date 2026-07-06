@@ -28,16 +28,6 @@ export function SearchAndAdd() {
 
 	const selectProduct = useCallback(
 		(product: ProductSearchResult) => {
-			// Check if product already in list
-			const exists = items.some(
-				(i: { productId?: string }) => i.productId === product.id,
-			)
-			if (exists) {
-				setInputValue('')
-				setIsOpen(false)
-				return
-			}
-
 			addItem({
 				id: crypto.randomUUID(),
 				productId: product.id,

@@ -50,6 +50,12 @@ export function useQuoteDraft() {
 
 		if (store.items.length === 0) {
 			store.setItems(draft.items)
+			if (draft.locations?.length) {
+				useQuoteBuilderStore.setState({ locations: draft.locations })
+			}
+			if (draft.associates?.length) {
+				useQuoteBuilderStore.setState({ associates: draft.associates })
+			}
 			if (draft.projectId) store.setProjectId(draft.projectId)
 			if (draft.deliveryAddressId)
 				store.setDeliveryAddressId(draft.deliveryAddressId)
@@ -69,6 +75,8 @@ export function useQuoteDraft() {
 
 			saveDraftToLocal({
 				items: state.items,
+				locations: state.locations,
+				associates: state.associates,
 				projectId: state.projectId,
 				deliveryAddressId: state.deliveryAddressId,
 				deliveryDate: state.deliveryDate,
