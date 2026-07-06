@@ -57,6 +57,51 @@ interface SupabaseQuoteRequestRow {
 	quote_request_items: SupabaseQuoteRequestItemRow[] | null
 }
 
+const employeeQuoteSessionRowSchema = z.object({
+	id: z.string().uuid(),
+	quote_request_id: z.string().uuid(),
+	employee_id: z.string().uuid(),
+	client_session_id: z.string().uuid(),
+	status: z.string(),
+	opened_at: z.string(),
+	last_seen_at: z.string(),
+	closed_at: z.string().nullable(),
+	close_reason: z.string().nullable(),
+	threshold_seconds: z.number(),
+	flagged_at: z.string().nullable(),
+	flag_reason: z.string().nullable(),
+})
+
+type EmployeeQuoteSessionRow = z.infer<typeof employeeQuoteSessionRowSchema>
+
+export interface SalesQuoteSessionSummary {
+	closeReason: string | null
+	flagReason: string | null
+	flaggedAt: string | null
+	lastSeenAt: string
+	openedAt: string
+	quoteRequestId: string
+	sessionId: string
+	status: string
+	thresholdSeconds: number
+}
+
+function salesQuoteSessionSummary(
+	row: EmployeeQuoteSessionRow,
+): SalesQuoteSessionSummary {
+	return {
+		closeReason: row.close_reason,
+		flagReason: row.flag_reason,
+		flaggedAt: row.flagged_at,
+		lastSeenAt: row.last_seen_at,
+		openedAt: row.opened_at,
+		quoteRequestId: row.quote_request_id,
+		sessionId: row.id,
+		status: row.status,
+		thresholdSeconds: row.threshold_seconds,
+	}
+}
+
 function firstRelation<T>(value: T | T[] | null): T | null {
 	if (Array.isArray(value)) return value[0] ?? null
 	return value
@@ -363,6 +408,84 @@ export const claimNextSalesOrder = createServerFn({ method: 'POST' }).handler(
 		}
 	},
 )
+
+const quoteSessionStartInput = z.object({
+	clientSessionId: z.string().uuid(),
+	rfqId: z.string(),
+	thresholdSeconds: z.number().int().min(300).max(28_800).default(1800),
+})
+
+const quoteSessionInput = z.object({
+	clientSessionId: z.string().uuid(),
+	sessionId: z.string().uuid(),
+	thresholdSeconds: z.number().int().min(300).max(28_800).default(1800),
+})
+
+const quoteSessionCloseInput = z.object({
+	clientSessionId: z.string().uuid(),
+	closeReason: z.string().max(80).default('closed'),
+	sessionId: z.string().uuid(),
+})
+
+export const startSalesQuoteSession = createServerFn({ method: 'POST' })
+	.inputValidator(quoteSessionStartInput)
+	.handler(async ({ data }) => {
+		if (!isUuid(data.rfqId)) {
+			throw new Error('Supabase quote request id is required')
+		}
+		const auth = await getInternalSupabaseClient()
+		const { data: session, error } = await auth.client.rpc(
+			'sales_start_quote_session',
+			{
+				p_client_session_id: data.clientSessionId,
+				p_order_id: data.rfqId,
+				p_threshold_seconds: data.thresholdSeconds,
+			},
+		)
+		if (error) throw new Error(error.message)
+		if (!session) throw new Error('Quote session was not created')
+		return salesQuoteSessionSummary(
+			employeeQuoteSessionRowSchema.parse(session),
+		)
+	})
+
+export const heartbeatSalesQuoteSession = createServerFn({ method: 'POST' })
+	.inputValidator(quoteSessionInput)
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		const { data: session, error } = await auth.client.rpc(
+			'sales_heartbeat_quote_session',
+			{
+				p_client_session_id: data.clientSessionId,
+				p_session_id: data.sessionId,
+				p_threshold_seconds: data.thresholdSeconds,
+			},
+		)
+		if (error) throw new Error(error.message)
+		if (!session) throw new Error('Quote session was not found')
+		return salesQuoteSessionSummary(
+			employeeQuoteSessionRowSchema.parse(session),
+		)
+	})
+
+export const closeSalesQuoteSession = createServerFn({ method: 'POST' })
+	.inputValidator(quoteSessionCloseInput)
+	.handler(async ({ data }) => {
+		const auth = await getInternalSupabaseClient()
+		const { data: session, error } = await auth.client.rpc(
+			'sales_close_quote_session',
+			{
+				p_client_session_id: data.clientSessionId,
+				p_close_reason: data.closeReason,
+				p_session_id: data.sessionId,
+			},
+		)
+		if (error) throw new Error(error.message)
+		if (!session) throw new Error('Quote session was not found')
+		return salesQuoteSessionSummary(
+			employeeQuoteSessionRowSchema.parse(session),
+		)
+	})
 
 /**
  * Pause an assigned RFQ and return it to the submitted queue after the hold.

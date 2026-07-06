@@ -1259,6 +1259,91 @@ export type Database = {
 					},
 				]
 			}
+			employee_management_flags: {
+				Row: {
+					created_at: string
+					description: string | null
+					details: Json
+					employee_id: string
+					first_seen_at: string
+					flag_type: string
+					id: string
+					last_seen_at: string
+					resolution_note: string | null
+					resolved_at: string | null
+					severity: string
+					source_entity_id: string
+					source_entity_type: string
+					source_panel: string
+					source_session_id: string | null
+					status: string
+					title: string
+					updated_at: string
+				}
+				Insert: {
+					created_at?: string
+					description?: string | null
+					details?: Json
+					employee_id: string
+					first_seen_at?: string
+					flag_type: string
+					id?: string
+					last_seen_at?: string
+					resolution_note?: string | null
+					resolved_at?: string | null
+					severity?: string
+					source_entity_id: string
+					source_entity_type: string
+					source_panel: string
+					source_session_id?: string | null
+					status?: string
+					title: string
+					updated_at?: string
+				}
+				Update: {
+					created_at?: string
+					description?: string | null
+					details?: Json
+					employee_id?: string
+					first_seen_at?: string
+					flag_type?: string
+					id?: string
+					last_seen_at?: string
+					resolution_note?: string | null
+					resolved_at?: string | null
+					severity?: string
+					source_entity_id?: string
+					source_entity_type?: string
+					source_panel?: string
+					source_session_id?: string | null
+					status?: string
+					title?: string
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'employee_management_flags_employee_id_fkey'
+						columns: ['employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_management_flags_employee_id_fkey'
+						columns: ['employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_management_flags_source_session_id_fkey'
+						columns: ['source_session_id']
+						isOneToOne: false
+						referencedRelation: 'employee_quote_sessions'
+						referencedColumns: ['id']
+					},
+				]
+			}
 			employee_panel_permissions: {
 				Row: {
 					can_read: boolean
@@ -1433,6 +1518,86 @@ export type Database = {
 						columns: ['employee_id']
 						isOneToOne: true
 						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+				]
+			}
+			employee_quote_sessions: {
+				Row: {
+					client_session_id: string
+					close_reason: string | null
+					closed_at: string | null
+					created_at: string
+					employee_id: string
+					flag_reason: string | null
+					flagged_at: string | null
+					id: string
+					last_seen_at: string
+					opened_at: string
+					quote_request_id: string
+					status: string
+					threshold_seconds: number
+					updated_at: string
+				}
+				Insert: {
+					client_session_id: string
+					close_reason?: string | null
+					closed_at?: string | null
+					created_at?: string
+					employee_id: string
+					flag_reason?: string | null
+					flagged_at?: string | null
+					id?: string
+					last_seen_at?: string
+					opened_at?: string
+					quote_request_id: string
+					status?: string
+					threshold_seconds?: number
+					updated_at?: string
+				}
+				Update: {
+					client_session_id?: string
+					close_reason?: string | null
+					closed_at?: string | null
+					created_at?: string
+					employee_id?: string
+					flag_reason?: string | null
+					flagged_at?: string | null
+					id?: string
+					last_seen_at?: string
+					opened_at?: string
+					quote_request_id?: string
+					status?: string
+					threshold_seconds?: number
+					updated_at?: string
+				}
+				Relationships: [
+					{
+						foreignKeyName: 'employee_quote_sessions_employee_id_fkey'
+						columns: ['employee_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_employee_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_quote_sessions_employee_id_fkey'
+						columns: ['employee_id']
+						isOneToOne: false
+						referencedRelation: 'employees'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_quote_sessions_quote_request_id_fkey'
+						columns: ['quote_request_id']
+						isOneToOne: false
+						referencedRelation: 'ceo_quote_request_summary'
+						referencedColumns: ['id']
+					},
+					{
+						foreignKeyName: 'employee_quote_sessions_quote_request_id_fkey'
+						columns: ['quote_request_id']
+						isOneToOne: false
+						referencedRelation: 'quote_requests'
 						referencedColumns: ['id']
 					},
 				]
@@ -8005,6 +8170,35 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			sales_close_quote_session: {
+				Args: {
+					p_client_session_id: string
+					p_close_reason?: string
+					p_session_id: string
+				}
+				Returns: {
+					client_session_id: string
+					close_reason: string | null
+					closed_at: string | null
+					created_at: string
+					employee_id: string
+					flag_reason: string | null
+					flagged_at: string | null
+					id: string
+					last_seen_at: string
+					opened_at: string
+					quote_request_id: string
+					status: string
+					threshold_seconds: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'employee_quote_sessions'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			sales_confirm_order: {
 				Args: {
 					p_approval?: Json
@@ -8027,6 +8221,35 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'orders'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			sales_heartbeat_quote_session: {
+				Args: {
+					p_client_session_id: string
+					p_session_id: string
+					p_threshold_seconds?: number
+				}
+				Returns: {
+					client_session_id: string
+					close_reason: string | null
+					closed_at: string | null
+					created_at: string
+					employee_id: string
+					flag_reason: string | null
+					flagged_at: string | null
+					id: string
+					last_seen_at: string
+					opened_at: string
+					quote_request_id: string
+					status: string
+					threshold_seconds: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'employee_quote_sessions'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -8133,6 +8356,35 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'sales_quote_versions'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			sales_start_quote_session: {
+				Args: {
+					p_client_session_id: string
+					p_order_id: string
+					p_threshold_seconds?: number
+				}
+				Returns: {
+					client_session_id: string
+					close_reason: string | null
+					closed_at: string | null
+					created_at: string
+					employee_id: string
+					flag_reason: string | null
+					flagged_at: string | null
+					id: string
+					last_seen_at: string
+					opened_at: string
+					quote_request_id: string
+					status: string
+					threshold_seconds: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'employee_quote_sessions'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -10261,6 +10513,37 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			service_sales_close_quote_session: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_client_session_id: string
+					p_close_reason?: string
+					p_session_id: string
+				}
+				Returns: {
+					client_session_id: string
+					close_reason: string | null
+					closed_at: string | null
+					created_at: string
+					employee_id: string
+					flag_reason: string | null
+					flagged_at: string | null
+					id: string
+					last_seen_at: string
+					opened_at: string
+					quote_request_id: string
+					status: string
+					threshold_seconds: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'employee_quote_sessions'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			service_sales_confirm_order: {
 				Args: {
 					p_actor_pool: string
@@ -10285,6 +10568,37 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'orders'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_sales_heartbeat_quote_session: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_client_session_id: string
+					p_session_id: string
+					p_threshold_seconds?: number
+				}
+				Returns: {
+					client_session_id: string
+					close_reason: string | null
+					closed_at: string | null
+					created_at: string
+					employee_id: string
+					flag_reason: string | null
+					flagged_at: string | null
+					id: string
+					last_seen_at: string
+					opened_at: string
+					quote_request_id: string
+					status: string
+					threshold_seconds: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'employee_quote_sessions'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -10415,6 +10729,37 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'sales_quote_versions'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_sales_start_quote_session: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_client_session_id: string
+					p_order_id: string
+					p_threshold_seconds?: number
+				}
+				Returns: {
+					client_session_id: string
+					close_reason: string | null
+					closed_at: string | null
+					created_at: string
+					employee_id: string
+					flag_reason: string | null
+					flagged_at: string | null
+					id: string
+					last_seen_at: string
+					opened_at: string
+					quote_request_id: string
+					status: string
+					threshold_seconds: number
+					updated_at: string
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'employee_quote_sessions'
 					isOneToOne: true
 					isSetofReturn: false
 				}

@@ -3,6 +3,7 @@ import {
 	ArrowRight,
 	CheckCircle2,
 	CircleAlert,
+	Clock3,
 	Loader2,
 	MoreHorizontal,
 	Phone,
@@ -41,6 +42,12 @@ import {
 	requestInventoryPriceUpdate,
 	saveQuoteDraft,
 } from '../../../lib/server/sales-quotes'
+import {
+	closeSalesQuoteSession,
+	heartbeatSalesQuoteSession,
+	type SalesQuoteSessionSummary,
+	startSalesQuoteSession,
+} from '../../../lib/server/sales-rfq'
 import { useSalesStore } from '../../../stores/sales'
 import type {
 	FreshnessIndicator,
@@ -123,6 +130,40 @@ const PRICE_REFRESH_MATCH_ERROR =
 	'Prices could not match the current quote items. Reopen item search and try again.'
 const PRICE_REFRESH_FAILED_ERROR = 'Prices could not refresh. Try again.'
 const MINIMUM_MARGIN_PERCENT = 0
+const QUOTE_SESSION_FLAG_SECONDS = 30 * 60
+const QUOTE_SESSION_HEARTBEAT_MS = 60_000
+const QUOTE_SESSION_TICK_MS = 1_000
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function createQuoteSessionClientId(): string {
+	const randomUUID = globalThis.crypto?.randomUUID
+	if (typeof randomUUID === 'function')
+		return randomUUID.call(globalThis.crypto)
+	return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (token) => {
+		const value = Math.floor(Math.random() * 16)
+		const nibble = token === 'x' ? value : (value & 0x3) | 0x8
+		return nibble.toString(16)
+	})
+}
+
+function createQuoteSessionIdentity(rfqId: string) {
+	return {
+		clientId: createQuoteSessionClientId(),
+		rfqId,
+	}
+}
+
+function formatQuoteSessionElapsed(totalSeconds: number): string {
+	const safeSeconds = Math.max(0, Math.floor(totalSeconds))
+	const hours = Math.floor(safeSeconds / 3600)
+	const minutes = Math.floor((safeSeconds % 3600) / 60)
+	const seconds = safeSeconds % 60
+	if (hours > 0) {
+		return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+	}
+	return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
 
 function toNationalEgyptianMobile(value: string): string {
 	const digits = value.replace(/\D/g, '')
@@ -227,6 +268,70 @@ function QuoteChromeAction({
 		>
 			{children}
 		</button>
+	)
+}
+
+function QuoteSessionTimer({
+	elapsedSeconds,
+	hasError,
+	isFlagged,
+	isLocal,
+	isReported,
+}: {
+	elapsedSeconds: number
+	hasError: boolean
+	isFlagged: boolean
+	isLocal: boolean
+	isReported: boolean
+}) {
+	const stateLabel = isFlagged
+		? 'Flagged'
+		: hasError
+			? 'Timer error'
+			: isLocal
+				? 'Local only'
+				: isReported
+					? 'Tracked'
+					: 'Starting'
+	const toneClassName = isFlagged
+		? 'border-red-500/25 bg-red-500/[0.065] text-red-700 dark:text-red-300'
+		: hasError
+			? 'border-amber-500/25 bg-amber-500/[0.075] text-amber-700 dark:text-amber-300'
+			: isLocal
+				? 'border-[var(--color-border)] bg-black/[0.02] text-[var(--color-text-subtle)] dark:bg-white/[0.035]'
+				: 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]'
+	const title = isFlagged
+		? hasError
+			? 'This quote has exceeded the review window, but server reporting has not confirmed yet.'
+			: 'This quote has exceeded the review window and was flagged.'
+		: hasError
+			? 'The visible timer is running, but server tracking could not start.'
+			: isLocal
+				? 'This quote does not have a persisted RFQ session yet.'
+				: isReported
+					? 'This quote timer is reporting to employee management.'
+					: 'Quote timer tracking is starting.'
+
+	return (
+		<div
+			title={title}
+			className={`inline-flex h-7 shrink-0 items-center gap-2 rounded-sm border px-2.5 font-[family-name:var(--font-archivo)] transition-colors ${toneClassName}`}
+		>
+			{isFlagged || hasError ? (
+				<CircleAlert size={13} strokeWidth={2.25} aria-hidden="true" />
+			) : (
+				<Clock3 size={13} strokeWidth={2.25} aria-hidden="true" />
+			)}
+			<span className="hidden text-[10px] font-semibold uppercase text-current sm:inline">
+				Quote timer
+			</span>
+			<span className="font-[family-name:var(--font-plex-mono)] text-[11px] tabular-nums text-[var(--color-text)]">
+				{formatQuoteSessionElapsed(elapsedSeconds)}
+			</span>
+			<span className="hidden text-[10px] font-semibold uppercase text-current lg:inline">
+				{stateLabel}
+			</span>
+		</div>
 	)
 }
 
@@ -3086,6 +3191,22 @@ export function QuoteBuilderView({
 	const [callDialogOpen, setCallDialogOpen] = useState(false)
 	const [itemEditIndex, setItemEditIndex] = useState<number | null>(null)
 	const [mapOpen, setMapOpen] = useState(false)
+	const [quoteSessionIdentity, setQuoteSessionIdentity] = useState(() =>
+		createQuoteSessionIdentity(rfqId),
+	)
+	const quoteSessionClientId = quoteSessionIdentity.clientId
+	const isQuoteSessionIdentityReady = quoteSessionIdentity.rfqId === rfqId
+	const isReportableQuoteSession = !isNewCustomer && UUID_RE.test(rfqId)
+	const [quoteTimerStartedAt, setQuoteTimerStartedAt] = useState(() =>
+		Date.now(),
+	)
+	const [quoteTimerNow, setQuoteTimerNow] = useState(() => Date.now())
+	const [quoteSession, setQuoteSession] =
+		useState<SalesQuoteSessionSummary | null>(null)
+	const [quoteSessionError, setQuoteSessionError] = useState<string | null>(
+		null,
+	)
+	const quoteSessionRef = useRef<SalesQuoteSessionSummary | null>(null)
 
 	// Shared SlidePanel handles escape-key + outer-X dismissal via its
 	// `scope="sales"` registration — no manual handler needed here.
@@ -3105,6 +3226,118 @@ export function QuoteBuilderView({
 			}
 		}
 	}, [])
+
+	useEffect(() => {
+		if (quoteSessionIdentity.rfqId === rfqId) return
+		setQuoteSessionIdentity(createQuoteSessionIdentity(rfqId))
+	}, [quoteSessionIdentity.rfqId, rfqId])
+
+	useEffect(() => {
+		const interval = window.setInterval(() => {
+			setQuoteTimerNow(Date.now())
+		}, QUOTE_SESSION_TICK_MS)
+		return () => window.clearInterval(interval)
+	}, [])
+
+	useEffect(() => {
+		const now = Date.now()
+		setQuoteTimerStartedAt(now)
+		setQuoteTimerNow(now)
+		setQuoteSession(null)
+		setQuoteSessionError(null)
+		quoteSessionRef.current = null
+
+		if (!isReportableQuoteSession || !isQuoteSessionIdentityReady) return
+
+		let disposed = false
+		let heartbeatInterval: number | null = null
+
+		const applySession = (session: SalesQuoteSessionSummary) => {
+			quoteSessionRef.current = session
+			setQuoteSession(session)
+			const openedAt = new Date(session.openedAt).getTime()
+			if (Number.isFinite(openedAt)) {
+				setQuoteTimerStartedAt(openedAt)
+			}
+			setQuoteTimerNow(Date.now())
+			setQuoteSessionError(null)
+		}
+
+		const closeSession = (
+			session: SalesQuoteSessionSummary,
+			closeReason = 'closed',
+		) => {
+			void closeSalesQuoteSession({
+				data: {
+					clientSessionId: quoteSessionClientId,
+					closeReason,
+					sessionId: session.sessionId,
+				},
+			}).catch(() => undefined)
+		}
+
+		const heartbeat = async (sessionId: string) => {
+			try {
+				const nextSession = await heartbeatSalesQuoteSession({
+					data: {
+						clientSessionId: quoteSessionClientId,
+						sessionId,
+						thresholdSeconds: QUOTE_SESSION_FLAG_SECONDS,
+					},
+				})
+				if (!disposed) applySession(nextSession)
+			} catch (error) {
+				if (!disposed) {
+					setQuoteSessionError(
+						error instanceof Error
+							? error.message
+							: 'Quote timer could not report.',
+					)
+				}
+			}
+		}
+
+		startSalesQuoteSession({
+			data: {
+				clientSessionId: quoteSessionClientId,
+				rfqId,
+				thresholdSeconds: QUOTE_SESSION_FLAG_SECONDS,
+			},
+		})
+			.then((session) => {
+				if (disposed) {
+					closeSession(session, 'unmounted_before_ready')
+					return
+				}
+				applySession(session)
+				void heartbeat(session.sessionId)
+				heartbeatInterval = window.setInterval(() => {
+					void heartbeat(session.sessionId)
+				}, QUOTE_SESSION_HEARTBEAT_MS)
+			})
+			.catch((error) => {
+				if (!disposed) {
+					setQuoteSessionError(
+						error instanceof Error
+							? error.message
+							: 'Quote timer could not start.',
+					)
+				}
+			})
+
+		return () => {
+			disposed = true
+			if (heartbeatInterval) window.clearInterval(heartbeatInterval)
+			const session = quoteSessionRef.current
+			quoteSessionRef.current = null
+			if (session?.status === 'open') closeSession(session)
+		}
+	}, [
+		isQuoteSessionIdentityReady,
+		isReportableQuoteSession,
+		quoteSessionClientId,
+		rfqId,
+	])
 
 	const methods = useForm<QuoteFormValues>({
 		defaultValues: {
@@ -4092,6 +4325,16 @@ export function QuoteBuilderView({
 	}
 
 	const handleCallCustomer = () => setCallDialogOpen(true)
+	const quoteSessionThresholdSeconds =
+		quoteSession?.thresholdSeconds ?? QUOTE_SESSION_FLAG_SECONDS
+	const quoteTimerElapsedSeconds = Math.max(
+		0,
+		Math.floor((quoteTimerNow - quoteTimerStartedAt) / 1000),
+	)
+	const quoteTimerIsFlagged =
+		isReportableQuoteSession &&
+		(Boolean(quoteSession?.flaggedAt) ||
+			quoteTimerElapsedSeconds >= quoteSessionThresholdSeconds)
 
 	return (
 		<div className="flex h-full flex-col">
@@ -4111,6 +4354,13 @@ export function QuoteBuilderView({
 						</button>
 					</div>
 					<div className="flex shrink-0 items-center gap-1">
+						<QuoteSessionTimer
+							elapsedSeconds={quoteTimerElapsedSeconds}
+							hasError={Boolean(quoteSessionError)}
+							isFlagged={quoteTimerIsFlagged}
+							isLocal={!isReportableQuoteSession}
+							isReported={Boolean(quoteSession)}
+						/>
 						<QuoteChromeAction
 							ariaLabel="Reject quote"
 							onClick={() => setDeclineOpen(true)}
