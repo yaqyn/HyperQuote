@@ -243,6 +243,7 @@ interface ProductRow {
 interface QuoteRequestItemRow {
 	id: string
 	product_id: string | null
+	quote_request_location_id: string | null
 	customer_description: string
 	product_name_ar: string
 	quantity: number
@@ -250,6 +251,25 @@ interface QuoteRequestItemRow {
 	unit_of_measure_ar: string
 	sort_order: number
 	products: ProductRow | ProductRow[] | null
+}
+
+interface QuoteRequestLocationRow {
+	id: string
+	client_id: string | null
+	address_id: string | null
+	location_label: string | null
+	sort_order: number
+	delivery_date: string | null
+	delivery_hour: number | null
+	delivery_period: 'AM' | 'PM' | null
+	customer_addresses: PortalAddressRow | PortalAddressRow[] | null
+}
+
+interface QuoteRequestAssociateRow {
+	name: string
+	country_code: string
+	number: string
+	sort_order: number
 }
 
 interface QuoteRequestDetailRow {
@@ -267,6 +287,8 @@ interface QuoteRequestDetailRow {
 	customer_addresses: PortalAddressRow | PortalAddressRow[] | null
 	projects: PortalProjectRow | PortalProjectRow[] | null
 	quote_request_items: QuoteRequestItemRow[] | null
+	quote_request_locations: QuoteRequestLocationRow[] | null
+	quote_request_associates: QuoteRequestAssociateRow[] | null
 	orders: OrderRow | OrderRow[] | null
 }
 
@@ -519,6 +541,108 @@ export function formatPortalReportItemLine({
 	)}`
 }
 
+function formatPortalDeliveryTime(
+	date: string | null | undefined,
+	hour: number | null | undefined,
+	period: 'AM' | 'PM' | null | undefined,
+): string | null {
+	if (!date && (!hour || !period)) return null
+	if (date && hour && period) return `${date}, ${hour}:00 ${period}`
+	if (date) return date
+	if (hour && period) return `${hour}:00 ${period}`
+	return null
+}
+
+function portalLocationTitle(
+	location: QuoteRequestLocationRow,
+	index: number,
+): string {
+	const address = firstRelation(location.customer_addresses)
+	return (
+		location.location_label?.trim() ||
+		address?.label?.trim() ||
+		`Location ${index + 1}`
+	)
+}
+
+function portalLocationSubmissionLines(
+	quoteRequest: QuoteRequestDetailRow | null,
+	fallbackItems: OrderDetailResult['order']['items'],
+): string[] {
+	if (!quoteRequest) return []
+	const items = (quoteRequest.quote_request_items ?? []).slice()
+	const assignedItemIds = new Set<string>()
+	const lines = (quoteRequest.quote_request_locations ?? [])
+		.slice()
+		.sort((a, b) => a.sort_order - b.sort_order)
+		.flatMap((location, index) => {
+			const locationItems = items
+				.filter((item) => item.quote_request_location_id === location.id)
+				.sort((a, b) => a.sort_order - b.sort_order)
+			for (const item of locationItems) assignedItemIds.add(item.id)
+			if (locationItems.length === 0) return []
+			const title = portalLocationTitle(location, index)
+			const address = formatPortalAddress(
+				firstRelation(location.customer_addresses),
+			)
+			const deliveryTime = formatPortalDeliveryTime(
+				location.delivery_date,
+				location.delivery_hour,
+				location.delivery_period,
+			)
+			const detail = [deliveryTime, address].filter(Boolean).join(' · ')
+			return [
+				detail ? `${title} (${detail})` : title,
+				...locationItems.map((item) =>
+					formatPortalReportItemLine({
+						productName: item.customer_description,
+						quantity: item.quantity,
+						unitOfMeasure: item.unit_of_measure,
+					}),
+				),
+			]
+		})
+
+	const unassignedItems = items
+		.filter((item) => !assignedItemIds.has(item.id))
+		.sort((a, b) => a.sort_order - b.sort_order)
+	if (unassignedItems.length > 0) {
+		lines.push(
+			'Default Location',
+			...unassignedItems.map((item) =>
+				formatPortalReportItemLine({
+					productName: item.customer_description,
+					quantity: item.quantity,
+					unitOfMeasure: item.unit_of_measure,
+				}),
+			),
+		)
+	}
+	return lines.length > 0
+		? lines
+		: fallbackItems.map((item) =>
+				formatPortalReportItemLine({
+					productName: item.productName,
+					quantity: item.quantity,
+					unitOfMeasure: item.unitOfMeasure,
+				}),
+			)
+}
+
+function portalAssociateSummary(
+	quoteRequest: QuoteRequestDetailRow | null,
+): string | null {
+	const associates = (quoteRequest?.quote_request_associates ?? [])
+		.slice()
+		.sort((a, b) => a.sort_order - b.sort_order)
+		.map((associate) => {
+			const phone = `${associate.country_code} ${associate.number}`.trim()
+			return `${associate.name}${phone ? ` (${phone})` : ''}`
+		})
+		.filter(Boolean)
+	return associates.length > 0 ? associates.join(', ') : null
+}
+
 function orderReportStopReason(
 	quoteRequest: QuoteRequestDetailRow | null,
 	order: OrderRow | null | undefined,
@@ -618,13 +742,8 @@ export function buildOrderReport({
 		order.status === 'delivered' ||
 		Boolean(linkedOrder?.delivered_at) ||
 		delivery?.currentStage === 'delivered'
-	const submissionLines = items.map((item) =>
-		formatPortalReportItemLine({
-			productName: item.productName,
-			quantity: item.quantity,
-			unitOfMeasure: item.unitOfMeasure,
-		}),
-	)
+	const submissionLines = portalLocationSubmissionLines(quoteRequest, items)
+	const associateSummary = portalAssociateSummary(quoteRequest)
 	const processingLines = [
 		...reservations.map((reservation) => {
 			const product = firstRelation(reservation.products)
@@ -651,8 +770,15 @@ export function buildOrderReport({
 				),
 				reportFact('Urgency', quoteRequest?.urgency),
 				reportFact('Project', project?.name),
+				reportFact(
+					'Delivery locations',
+					quoteRequest?.quote_request_locations?.length
+						? quoteRequest.quote_request_locations.length
+						: null,
+				),
 				reportFact('Delivery date', quoteRequest?.delivery_date),
 				reportFact('Delivery address', address),
+				reportFact('Associates', associateSummary),
 				reportFact('Attachments', quoteRequest?.attachment_urls?.length ?? 0),
 				reportFact('Documents', documents.length),
 			],
@@ -1171,6 +1297,7 @@ const quoteRequestDetailSelect = `
 	quote_request_items (
 		id,
 		product_id,
+		quote_request_location_id,
 		customer_description,
 		product_name_ar,
 		quantity,
@@ -1184,6 +1311,30 @@ const quoteRequestDetailSelect = `
 			category,
 			image_urls
 		)
+	),
+	quote_request_locations (
+		id,
+		client_id,
+		address_id,
+		location_label,
+		sort_order,
+		delivery_date,
+		delivery_hour,
+		delivery_period,
+		customer_addresses (
+			label,
+			street,
+			area,
+			city,
+			governorate,
+			landmark
+		)
+	),
+	quote_request_associates (
+		name,
+		country_code,
+		number,
+		sort_order
 	),
 	orders (
 		id,

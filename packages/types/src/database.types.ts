@@ -568,28 +568,34 @@ export type Database = {
 			}
 			customer_quote_carts: {
 				Row: {
+					associates: Json
 					created_at: string
 					customer_id: string
 					global_note: string
 					items: Json
+					locations: Json
 					source: string
 					updated_at: string
 					version: number
 				}
 				Insert: {
+					associates?: Json
 					created_at?: string
 					customer_id: string
 					global_note?: string
 					items?: Json
+					locations?: Json
 					source?: string
 					updated_at?: string
 					version?: number
 				}
 				Update: {
+					associates?: Json
 					created_at?: string
 					customer_id?: string
 					global_note?: string
 					items?: Json
+					locations?: Json
 					source?: string
 					updated_at?: string
 					version?: number
@@ -2865,6 +2871,7 @@ export type Database = {
 					delivery_hour: number | null
 					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					id: string
+					location_label: string | null
 					order_id: string
 					quote_request_location_id: string
 					sort_order: number
@@ -2881,6 +2888,7 @@ export type Database = {
 						| Database['public']['Enums']['delivery_period']
 						| null
 					id?: string
+					location_label?: string | null
 					order_id: string
 					quote_request_location_id: string
 					sort_order?: number
@@ -2897,6 +2905,7 @@ export type Database = {
 						| Database['public']['Enums']['delivery_period']
 						| null
 					id?: string
+					location_label?: string | null
 					order_id?: string
 					quote_request_location_id?: string
 					sort_order?: number
@@ -3952,6 +3961,7 @@ export type Database = {
 					delivery_hour: number | null
 					delivery_period: Database['public']['Enums']['delivery_period'] | null
 					id: string
+					location_label: string | null
 					notes: string | null
 					quote_request_id: string
 					sort_order: number
@@ -3967,6 +3977,7 @@ export type Database = {
 						| Database['public']['Enums']['delivery_period']
 						| null
 					id?: string
+					location_label?: string | null
 					notes?: string | null
 					quote_request_id: string
 					sort_order?: number
@@ -3982,6 +3993,7 @@ export type Database = {
 						| Database['public']['Enums']['delivery_period']
 						| null
 					id?: string
+					location_label?: string | null
 					notes?: string | null
 					quote_request_id?: string
 					sort_order?: number

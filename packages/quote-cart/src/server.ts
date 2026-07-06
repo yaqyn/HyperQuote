@@ -1,7 +1,9 @@
 import { z } from 'zod'
 import {
 	getQuoteCartFingerprint,
+	type QuoteCartAssociate,
 	type QuoteCartItem,
+	type QuoteCartLocation,
 	type QuoteCartSnapshot,
 	type RemoteQuoteCartSnapshot,
 	sanitizeQuoteCartSnapshot,
@@ -16,6 +18,7 @@ export const quoteCartItemInput = z.object({
 	categoryName: z.string().max(160).optional(),
 	categoryNameAr: z.string().max(160).optional(),
 	imageUrl: z.string().max(1000).optional(),
+	locationClientId: z.string().max(120).optional(),
 	name: z.string().min(1).max(240),
 	nameAr: z.string().max(240).optional(),
 	note: z.string().max(1000).optional(),
@@ -26,21 +29,43 @@ export const quoteCartItemInput = z.object({
 	unitOfMeasureAr: z.string().max(80).optional(),
 })
 
+export const quoteCartLocationInput = z.object({
+	addressId: z.string().uuid().nullable().optional(),
+	clientId: z.string().min(1).max(120),
+	deliveryDate: z.string().nullable().optional(),
+	deliveryHour: z.number().int().min(1).max(12).nullable().optional(),
+	deliveryPeriod: z.enum(['AM', 'PM']).nullable().optional(),
+	label: z.string().min(1).max(240),
+})
+
+export const quoteCartAssociateInput = z.object({
+	countryCode: z.string().regex(/^\+[1-9][0-9]{0,3}$/),
+	id: z.string().min(1).max(160),
+	name: z.string().max(120),
+	number: z.string().max(40),
+})
+
 export const quoteCartSnapshotInput = z.object({
+	associates: z.array(quoteCartAssociateInput).max(20).optional(),
 	globalNote: z.string().max(2000).optional(),
 	items: z.array(quoteCartItemInput).max(100),
+	locations: z.array(quoteCartLocationInput).max(40).optional(),
 	source: z.enum(['portal', 'website']),
 })
 
 export interface CustomerQuoteCartSnapshotInput {
+	associates?: unknown
 	globalNote?: string
 	items: unknown
+	locations?: unknown
 	source: QuoteCartSource
 }
 
 export interface CustomerQuoteCartRow {
+	associates?: unknown
 	global_note: string | null
 	items: unknown
+	locations?: unknown
 	updated_at: string
 	version: number | null
 }
@@ -119,16 +144,20 @@ interface CustomerQuoteCartProductsTable {
 interface CustomerQuoteCartsTable {
 	select: (columns: string) => CustomerQuoteCartSelectQuery
 	update: (values: {
+		associates: QuoteCartAssociate[]
 		global_note: string
 		items: QuoteCartItem[]
+		locations: QuoteCartLocation[]
 		source: QuoteCartSource
 		version: number
 	}) => CustomerQuoteCartUpdateQuery
 	upsert: (
 		values: {
+			associates: QuoteCartAssociate[]
 			customer_id: string
 			global_note: string
 			items: QuoteCartItem[]
+			locations: QuoteCartLocation[]
 			source: QuoteCartSource
 			version: number
 		},
@@ -167,7 +196,9 @@ export function createCustomerQuoteCartStore(
 		async loadCart(customerId) {
 			const { data, error } = await db
 				.from('customer_quote_carts')
-				.select('items, global_note, updated_at, version')
+				.select(
+					'items, locations, associates, global_note, updated_at, version',
+				)
 				.eq('customer_id', customerId)
 				.maybeSingle()
 			if (error) throw error
@@ -177,13 +208,17 @@ export function createCustomerQuoteCartStore(
 			const { data, error } = await db
 				.from('customer_quote_carts')
 				.update({
+					associates: snapshot.associates,
 					global_note: snapshot.globalNote,
 					items: snapshot.items,
+					locations: snapshot.locations,
 					source,
 					version,
 				})
 				.eq('customer_id', customerId)
-				.select('items, global_note, updated_at, version')
+				.select(
+					'items, locations, associates, global_note, updated_at, version',
+				)
 				.single()
 			if (error || !data) throw error ?? new Error('Cart purge failed')
 			return data
@@ -193,15 +228,19 @@ export function createCustomerQuoteCartStore(
 				.from('customer_quote_carts')
 				.upsert(
 					{
+						associates: snapshot.associates,
 						customer_id: customerId,
 						global_note: snapshot.globalNote,
 						items: snapshot.items,
+						locations: snapshot.locations,
 						source,
 						version,
 					},
 					{ onConflict: 'customer_id' },
 				)
-				.select('items, global_note, updated_at, version')
+				.select(
+					'items, locations, associates, global_note, updated_at, version',
+				)
 				.single()
 			if (error || !data) throw error ?? new Error('Cart sync failed')
 			return data
@@ -265,7 +304,12 @@ async function sanitizeOrderableCartSnapshot(
 		new Set(snapshot.items.map((item) => item.productId)),
 	)
 	if (productIds.length === 0) {
-		return { globalNote: snapshot.globalNote, items: [] }
+		return {
+			globalNote: snapshot.globalNote,
+			items: [],
+			locations: snapshot.locations,
+			associates: snapshot.associates,
+		}
 	}
 
 	const products = new Map(
@@ -277,6 +321,8 @@ async function sanitizeOrderableCartSnapshot(
 
 	return {
 		globalNote: snapshot.globalNote,
+		locations: snapshot.locations,
+		associates: snapshot.associates,
 		items: snapshot.items.flatMap((item) => {
 			const product = products.get(item.productId)
 			if (!product) return []
@@ -304,6 +350,7 @@ function toCartItem(
 		nameAr: product.name_ar || item.nameAr || product.name,
 		note: item.note,
 		productId: product.id,
+		locationClientId: item.locationClientId,
 		quantity: item.quantity,
 		slug: product.slug || item.slug || product.id,
 		unitOfMeasure: product.unit_of_measure,
@@ -313,23 +360,43 @@ function toCartItem(
 
 function cartRowToSnapshot(row: CustomerQuoteCartRow): RemoteQuoteCartSnapshot {
 	const snapshot = sanitizeQuoteCartSnapshot({
+		associates: row.associates,
 		globalNote: row.global_note ?? '',
 		items: row.items,
+		locations: row.locations,
 	})
 	return {
 		globalNote: snapshot.globalNote,
 		items: snapshot.items,
+		locations: snapshot.locations,
+		associates: snapshot.associates,
 		updatedAt: row.updated_at,
 		version: row.version ?? 1,
 	}
 }
 
 function cartSnapshotChanged(
-	before: Pick<RemoteQuoteCartSnapshot, 'globalNote' | 'items'>,
-	after: Pick<RemoteQuoteCartSnapshot, 'globalNote' | 'items'>,
+	before: Pick<
+		RemoteQuoteCartSnapshot,
+		'associates' | 'globalNote' | 'items' | 'locations'
+	>,
+	after: Pick<
+		RemoteQuoteCartSnapshot,
+		'associates' | 'globalNote' | 'items' | 'locations'
+	>,
 ): boolean {
 	return (
-		getQuoteCartFingerprint(before.items, before.globalNote) !==
-		getQuoteCartFingerprint(after.items, after.globalNote)
+		getQuoteCartFingerprint(
+			before.items,
+			before.globalNote,
+			before.locations,
+			before.associates,
+		) !==
+		getQuoteCartFingerprint(
+			after.items,
+			after.globalNote,
+			after.locations,
+			after.associates,
+		)
 	)
 }

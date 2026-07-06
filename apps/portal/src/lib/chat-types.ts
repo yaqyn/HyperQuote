@@ -125,8 +125,22 @@ export interface ActiveChatDraftContext {
 		productName: string
 		productNameAr?: string
 		quantity: number
+		locationClientId?: string
 		unitOfMeasure: string
 		unitOfMeasureAr?: string
+	}[]
+	locations?: {
+		clientId: string
+		label: string
+		addressId: string | null
+		deliveryDate: string | null
+		deliveryHour: number | null
+		deliveryPeriod: 'AM' | 'PM' | null
+	}[]
+	associates?: {
+		name: string
+		countryCode: string
+		number: string
 	}[]
 	name: string | null
 	notes: string

@@ -84,7 +84,30 @@ interface SupabaseReportRequestItemRow {
 	customer_description: string
 	quantity: number
 	unit_of_measure: string
+	sort_order: number
 	products: SupabaseReportProductRow | SupabaseReportProductRow[] | null
+}
+
+interface SupabaseReportLocationRow {
+	id: string
+	client_id: string | null
+	address_id: string | null
+	location_label: string | null
+	sort_order: number
+	delivery_date: string | null
+	delivery_hour: number | null
+	delivery_period: 'AM' | 'PM' | null
+	customer_addresses:
+		| SupabaseReportAddressRow
+		| SupabaseReportAddressRow[]
+		| null
+}
+
+interface SupabaseReportAssociateRow {
+	name: string
+	country_code: string
+	number: string
+	sort_order: number
 }
 
 interface SupabaseReportRequestRow {
@@ -106,6 +129,8 @@ interface SupabaseReportRequestRow {
 		| SupabaseReportAddressRow[]
 		| null
 	quote_request_items: SupabaseReportRequestItemRow[] | null
+	quote_request_locations: SupabaseReportLocationRow[] | null
+	quote_request_associates: SupabaseReportAssociateRow[] | null
 }
 
 interface SupabaseReportQuoteVersionRow {
@@ -384,13 +409,102 @@ function facts(values: Array<OrderReportFact | null>): OrderReportFact[] {
 function reportItemsFromRequest(
 	items: SupabaseReportRequestItemRow[] | null,
 ): string[] {
-	return (items ?? []).map((item, index) => {
-		const product = firstRelation(item.products)
-		const snapshotName = item.customer_description.trim()
-		const productName =
-			snapshotName || product?.name || `Request line ${index + 1}`
-		return `${productName}: ${Number(item.quantity).toLocaleString('en-EG')} ${item.unit_of_measure}`
-	})
+	return (items ?? [])
+		.slice()
+		.sort((a, b) => a.sort_order - b.sort_order)
+		.map((item, index) => {
+			const product = firstRelation(item.products)
+			const snapshotName = item.customer_description.trim()
+			const productName =
+				snapshotName || product?.name || `Request line ${index + 1}`
+			return `${productName}: ${Number(item.quantity).toLocaleString('en-EG')} ${item.unit_of_measure}`
+		})
+}
+
+function formatReportDeliveryTime(
+	date: string | null | undefined,
+	hour: number | null | undefined,
+	period: 'AM' | 'PM' | null | undefined,
+): string | null {
+	if (!date && (!hour || !period)) return null
+	if (date && hour && period) return `${date}, ${hour}:00 ${period}`
+	if (date) return date
+	if (hour && period) return `${hour}:00 ${period}`
+	return null
+}
+
+function formatReportAddress(address: SupabaseReportAddressRow | null): string {
+	if (!address) return ''
+	return [
+		address.label,
+		address.street,
+		address.area,
+		address.city,
+		address.governorate,
+		address.landmark,
+	]
+		.map((value) => value?.trim())
+		.filter(Boolean)
+		.join(', ')
+}
+
+function reportLocationTitle(
+	location: SupabaseReportLocationRow,
+	index: number,
+): string {
+	const address = firstRelation(location.customer_addresses)
+	return (
+		location.location_label?.trim() ||
+		address?.label?.trim() ||
+		`Location ${index + 1}`
+	)
+}
+
+function reportItemsByLocation(request: SupabaseReportRequestRow): string[] {
+	const items = (request.quote_request_items ?? []).slice()
+	const assignedItemIds = new Set<string>()
+	const lines = (request.quote_request_locations ?? [])
+		.slice()
+		.sort((a, b) => a.sort_order - b.sort_order)
+		.flatMap((location, index) => {
+			const locationItems = items
+				.filter((item) => item.quote_request_location_id === location.id)
+				.sort((a, b) => a.sort_order - b.sort_order)
+			for (const item of locationItems) assignedItemIds.add(item.id)
+			if (locationItems.length === 0) return []
+			const title = reportLocationTitle(location, index)
+			const address = formatReportAddress(
+				firstRelation(location.customer_addresses),
+			)
+			const deliveryTime = formatReportDeliveryTime(
+				location.delivery_date,
+				location.delivery_hour,
+				location.delivery_period,
+			)
+			const detail = [deliveryTime, address].filter(Boolean).join(' · ')
+			return [
+				detail ? `${title} (${detail})` : title,
+				...reportItemsFromRequest(locationItems),
+			]
+		})
+	const unassignedItems = items.filter((item) => !assignedItemIds.has(item.id))
+	if (unassignedItems.length > 0) {
+		lines.push('Default Location', ...reportItemsFromRequest(unassignedItems))
+	}
+	return lines.length > 0 ? lines : reportItemsFromRequest(items)
+}
+
+function reportAssociateSummary(
+	request: SupabaseReportRequestRow,
+): string | null {
+	const associates = (request.quote_request_associates ?? [])
+		.slice()
+		.sort((a, b) => a.sort_order - b.sort_order)
+		.map((associate) => {
+			const phone = `${associate.country_code} ${associate.number}`.trim()
+			return `${associate.name}${phone ? ` (${phone})` : ''}`
+		})
+	return associates.length > 0 ? associates.join(', ') : null
 }
 
 function reportItemsFromSavedVersion(
@@ -934,6 +1048,8 @@ async function getSupabaseOrderStatusIndex(): Promise<OrderStatusIndexRow[]> {
 					customers: request.customers,
 					customer_addresses: null,
 					quote_request_items: null,
+					quote_request_locations: null,
+					quote_request_associates: null,
 				},
 				order
 					? {
@@ -1045,11 +1161,36 @@ async function getSupabaseOrderReport(
 				customer_description,
 				quantity,
 				unit_of_measure,
+				sort_order,
 				products (
 					slug,
 					name,
 					unit_of_measure
 				)
+			),
+			quote_request_locations (
+				id,
+				client_id,
+				address_id,
+				location_label,
+				sort_order,
+				delivery_date,
+				delivery_hour,
+				delivery_period,
+				customer_addresses (
+					label,
+					street,
+					area,
+					city,
+					governorate,
+					landmark
+				)
+			),
+			quote_request_associates (
+				name,
+				country_code,
+				number,
+				sort_order
 			)
 		`)
 		.eq('id', rfqId)
@@ -1258,6 +1399,7 @@ async function getSupabaseOrderReport(
 		seenSlugs.add(product.slug)
 		lineMetaBySlug.set(product.slug, { quoteRequestItemId: item.id })
 	}
+	const associateSummary = reportAssociateSummary(request)
 
 	const steps: OrderReportStep[] = [
 		{
@@ -1274,11 +1416,19 @@ async function getSupabaseOrderReport(
 					savedNotes.deliveryAddress ?? formatSupabaseAddress(salesAddress),
 				),
 				fact('Delivery city', savedNotes.deliveryCity ?? salesAddress?.city),
+				fact(
+					'Delivery locations',
+					request.quote_request_locations?.length
+						? request.quote_request_locations.length
+						: null,
+				),
+				fact('Associates', associateSummary),
 				fact('Urgency', `${deliveryUrgencyDays(request.delivery_date)}d`),
 			]),
-			lines:
-				reportItemsFromSavedVersion(savedNotes.items) ??
-				reportItemsFromRequest(request.quote_request_items),
+			lines: request.quote_request_locations?.length
+				? reportItemsByLocation(request)
+				: (reportItemsFromSavedVersion(savedNotes.items) ??
+					reportItemsFromRequest(request.quote_request_items)),
 			specialCase: null,
 			stage: 'submitted',
 			status: 'completed',

@@ -51,6 +51,11 @@ import { unavailableItemNamesFromError } from '../../lib/unavailable-quote-items
 import { useDraftQuoteStore } from '../../stores/draft-quote'
 import { usePortalStore } from '../../stores/portal'
 import type { Order, OrderItem } from '../../types/order'
+import {
+	PortalCartAssociatesPanel,
+	PortalCartItemLocationControls,
+	PortalCartLocationsPanel,
+} from '../shared/DraftQuoteDrawer'
 
 interface ChatDraftsPanelProps {
 	className?: string
@@ -510,6 +515,15 @@ export function ChatDraftsPanel({
 	const addCartItem = useDraftQuoteStore((s) => s.add)
 	const cartItems = useDraftQuoteStore((s) => s.items)
 	const cartGlobalNote = useDraftQuoteStore((s) => s.globalNote)
+	const cartLocations = useDraftQuoteStore((s) => s.locations)
+	const cartAssociates = useDraftQuoteStore((s) => s.associates)
+	const addCartLocation = useDraftQuoteStore((s) => s.addLocation)
+	const updateCartLocation = useDraftQuoteStore((s) => s.updateLocation)
+	const removeCartLocation = useDraftQuoteStore((s) => s.removeLocation)
+	const updateCartItemLocation = useDraftQuoteStore((s) => s.updateItemLocation)
+	const applyCartDeliveryToAllLocations = useDraftQuoteStore(
+		(s) => s.applyDeliveryToAllLocations,
+	)
 	const clearCart = useDraftQuoteStore((s) => s.clear)
 	const removeCartItem = useDraftQuoteStore((s) => s.remove)
 	const setCartGlobalNote = useDraftQuoteStore((s) => s.setGlobalNote)
@@ -707,15 +721,36 @@ export function ChatDraftsPanel({
 							productName: item.name,
 							productNameAr: item.nameAr,
 							quantity: item.quantity,
+							locationClientId: item.locationClientId,
 							unitOfMeasure: item.unitOfMeasure,
 							unitOfMeasureAr: item.unitOfMeasureAr,
 						})),
+						locations: cartLocations.map((location) => ({
+							clientId: location.clientId,
+							label: location.label,
+							addressId: location.addressId,
+							deliveryDate: location.deliveryDate,
+							deliveryHour: location.deliveryHour,
+							deliveryPeriod: location.deliveryPeriod,
+						})),
+						associates: cartAssociates
+							.filter(
+								(associate) =>
+									associate.name.trim() ||
+									associate.countryCode.trim() ||
+									associate.number.trim(),
+							)
+							.map((associate) => ({
+								name: associate.name,
+								countryCode: associate.countryCode,
+								number: associate.number,
+							})),
 						name: t('market.cart'),
 						notes: cartGlobalNote.trim().slice(0, 600),
 						reference: null,
 						sessionKey: 'cart',
 					},
-		[cartGlobalNote, cartItems, editor, t],
+		[cartAssociates, cartGlobalNote, cartItems, cartLocations, editor, t],
 	)
 
 	useEffect(() => {
@@ -1683,6 +1718,21 @@ export function ChatDraftsPanel({
 							className="space-y-4"
 							{...chatFadeMotion(shouldReduceMotion)}
 						>
+							<PortalCartLocationsPanel
+								locations={cartLocations}
+								onAddLocation={addCartLocation}
+								onApplyFirstDeliveryToAll={() => {
+									const first = cartLocations[0]
+									applyCartDeliveryToAllLocations({
+										deliveryDate: first?.deliveryDate ?? null,
+										deliveryHour: first?.deliveryHour ?? null,
+										deliveryPeriod: first?.deliveryPeriod ?? null,
+									})
+								}}
+								onRemoveLocation={removeCartLocation}
+								onUpdateLocation={updateCartLocation}
+							/>
+							<PortalCartAssociatesPanel />
 							<label className="block">
 								<span className="mb-1.5 flex items-center justify-between gap-2 text-[11px] font-semibold text-[var(--p-text-muted)]">
 									<span>{t('market.cartNotesLabel')}</span>
@@ -1808,6 +1858,15 @@ export function ChatDraftsPanel({
 																<X size={14} strokeWidth={1.8} />
 															</button>
 														</div>
+														<PortalCartItemLocationControls
+															itemLocationClientId={item.locationClientId}
+															locations={cartLocations}
+															onAddLocation={addCartLocation}
+															onItemLocationChange={(clientId) =>
+																updateCartItemLocation(item.productId, clientId)
+															}
+															onUpdateLocation={updateCartLocation}
+														/>
 													</motion.div>
 												)
 											})}

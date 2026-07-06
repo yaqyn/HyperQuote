@@ -1,15 +1,25 @@
-import { getQuoteCartFingerprint } from '@hyperquote/quote-cart'
+import {
+	getQuoteCartFingerprint,
+	ORDER_ASSOCIATE_COUNTRY_CODES,
+	type QuoteCartLocation,
+	toQuoteRequestAssociatePayloads,
+	toQuoteRequestLocationPayloads,
+} from '@hyperquote/quote-cart'
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import {
 	Check,
+	Clock3,
 	FilePenLine,
 	FileText,
+	MapPin,
 	Package,
 	PanelRightClose,
 	Plus,
 	Save,
 	Search,
 	StickyNote,
+	Trash2,
+	UserRoundPlus,
 	X,
 } from 'lucide-react'
 import {
@@ -113,16 +123,334 @@ function getDefaultDraftName(baseName: string, isArabic: boolean) {
 	return `${baseName} ${date}`
 }
 
+export function PortalCartLocationsPanel({
+	locations,
+	onAddLocation,
+	onApplyFirstDeliveryToAll,
+	onRemoveLocation,
+	onUpdateLocation,
+}: {
+	locations: QuoteCartLocation[]
+	onAddLocation: () => string
+	onApplyFirstDeliveryToAll: () => void
+	onRemoveLocation: (clientId: string) => void
+	onUpdateLocation: (
+		clientId: string,
+		updates: Partial<Omit<QuoteCartLocation, 'clientId'>>,
+	) => void
+}) {
+	const { t } = useTranslation('portal')
+	return (
+		<section className="space-y-2">
+			<div className="flex items-center justify-between gap-3">
+				<div className="flex min-w-0 items-center gap-2">
+					<MapPin
+						size={15}
+						strokeWidth={1.8}
+						className="shrink-0 text-[var(--p-accent)]"
+					/>
+					<h3 className="truncate text-[12px] font-semibold text-[var(--p-text)]">
+						{t('market.defaultLocationTime', 'Default Location & Default Time')}
+					</h3>
+				</div>
+				<button
+					type="button"
+					onClick={onAddLocation}
+					className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--p-border)] px-2.5 text-[11px] font-semibold text-[var(--p-accent)] transition-colors hover:bg-[var(--p-hover)]"
+				>
+					<Plus size={13} />
+					{t('quoteBuilder.addLocation', 'Add location')}
+				</button>
+			</div>
+			<div className="space-y-2">
+				{locations.map((location, index) => (
+					<PortalLocationFields
+						key={location.clientId}
+						canRemove={locations.length > 1}
+						index={index}
+						location={location}
+						onRemove={() => onRemoveLocation(location.clientId)}
+						onUpdate={(updates) => onUpdateLocation(location.clientId, updates)}
+					/>
+				))}
+			</div>
+			{locations.length > 1 && (
+				<button
+					type="button"
+					onClick={onApplyFirstDeliveryToAll}
+					className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--p-border)] px-2.5 text-[11px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+				>
+					<Clock3 size={13} />
+					{t('quoteBuilder.applyDeliveryToAll', 'Apply first time to all')}
+				</button>
+			)}
+		</section>
+	)
+}
+
+function PortalLocationFields({
+	canRemove,
+	index,
+	location,
+	onRemove,
+	onUpdate,
+}: {
+	canRemove: boolean
+	index: number
+	location: QuoteCartLocation
+	onRemove: () => void
+	onUpdate: (updates: Partial<Omit<QuoteCartLocation, 'clientId'>>) => void
+}) {
+	const { t } = useTranslation('portal')
+	return (
+		<div className="rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] p-2.5">
+			<div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_116px_84px_76px_auto]">
+				<input
+					value={location.label}
+					onChange={(event) => onUpdate({ label: event.currentTarget.value })}
+					placeholder={
+						index === 0
+							? t('market.defaultLocation', 'Default Location')
+							: t('quoteBuilder.locationNumber', {
+									defaultValue: 'Location {{number}}',
+									number: index + 1,
+								})
+					}
+					aria-label={t('market.defaultLocation', 'Default Location')}
+					className="h-9 w-full rounded-md border border-[var(--p-border)] bg-[var(--p-bg)] px-2.5 text-[12px] font-medium text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+				/>
+				<input
+					type="date"
+					value={location.deliveryDate ?? ''}
+					onChange={(event) =>
+						onUpdate({ deliveryDate: event.currentTarget.value || null })
+					}
+					aria-label={t('quoteBuilder.deliveryDateLabel', 'Delivery date')}
+					className="h-9 rounded-md border border-[var(--p-border)] bg-[var(--p-bg)] px-2 text-[12px] text-[var(--p-text)] outline-none focus:border-[var(--p-border-strong)]"
+				/>
+				<select
+					value={location.deliveryHour ?? ''}
+					onChange={(event) => {
+						const value = event.currentTarget.value
+						onUpdate({
+							deliveryHour: value ? Number(value) : null,
+							deliveryPeriod: value ? (location.deliveryPeriod ?? 'AM') : null,
+						})
+					}}
+					aria-label={t('quoteBuilder.deliveryHour', 'Hour')}
+					className="h-9 rounded-md border border-[var(--p-border)] bg-[var(--p-bg)] px-2 text-[12px] text-[var(--p-text)] outline-none focus:border-[var(--p-border-strong)]"
+				>
+					<option value="">{t('quoteBuilder.deliveryHour', 'Hour')}</option>
+					{Array.from({ length: 12 }, (_, hour) => hour + 1).map((hour) => (
+						<option key={hour} value={hour}>
+							{hour}
+						</option>
+					))}
+				</select>
+				<select
+					value={location.deliveryPeriod ?? ''}
+					onChange={(event) =>
+						onUpdate({
+							deliveryPeriod: event.currentTarget.value
+								? (event.currentTarget.value as 'AM' | 'PM')
+								: null,
+						})
+					}
+					aria-label={t('quoteBuilder.deliveryPeriod', 'AM/PM')}
+					className="h-9 rounded-md border border-[var(--p-border)] bg-[var(--p-bg)] px-2 text-[12px] text-[var(--p-text)] outline-none focus:border-[var(--p-border-strong)]"
+				>
+					<option value="">--</option>
+					<option value="AM">AM</option>
+					<option value="PM">PM</option>
+				</select>
+				{canRemove && (
+					<button
+						type="button"
+						onClick={onRemove}
+						aria-label={t('quoteBuilder.removeLocation', 'Remove location')}
+						className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-error)]"
+					>
+						<Trash2 size={14} />
+					</button>
+				)}
+			</div>
+		</div>
+	)
+}
+
+export function PortalCartItemLocationControls({
+	itemLocationClientId,
+	locations,
+	onAddLocation,
+	onItemLocationChange,
+	onUpdateLocation,
+}: {
+	itemLocationClientId: string
+	locations: QuoteCartLocation[]
+	onAddLocation: () => string
+	onItemLocationChange: (clientId: string) => void
+	onUpdateLocation: (
+		clientId: string,
+		updates: Partial<Omit<QuoteCartLocation, 'clientId'>>,
+	) => void
+}) {
+	const { t } = useTranslation('portal')
+	const selectedLocation =
+		locations.find((location) => location.clientId === itemLocationClientId) ??
+		locations[0]
+	if (!selectedLocation) return null
+	return (
+		<details className="mt-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2">
+			<summary className="cursor-pointer text-[11px] font-semibold text-[var(--p-text-muted)] marker:text-[var(--p-text-faint)]">
+				{t('market.customLocationTime', 'Custom location/time')} ·{' '}
+				{selectedLocation.label}
+			</summary>
+			<div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+				<select
+					value={selectedLocation.clientId}
+					onChange={(event) => {
+						const value = event.currentTarget.value
+						if (value === '__add__') {
+							const clientId = onAddLocation()
+							onItemLocationChange(clientId)
+							return
+						}
+						onItemLocationChange(value)
+					}}
+					className="h-9 min-w-0 rounded-md border border-[var(--p-border)] bg-[var(--p-bg)] px-2 text-[12px] text-[var(--p-text)] outline-none focus:border-[var(--p-border-strong)]"
+				>
+					{locations.map((location) => (
+						<option key={location.clientId} value={location.clientId}>
+							{location.label}
+						</option>
+					))}
+					<option value="__add__">
+						{t('quoteBuilder.addLocation', 'Add location')}
+					</option>
+				</select>
+				<PortalLocationFields
+					canRemove={false}
+					index={0}
+					location={selectedLocation}
+					onRemove={() => undefined}
+					onUpdate={(updates) =>
+						onUpdateLocation(selectedLocation.clientId, updates)
+					}
+				/>
+			</div>
+		</details>
+	)
+}
+
+export function PortalCartAssociatesPanel() {
+	const { t, i18n } = useTranslation('portal')
+	const isAr = i18n.language === 'ar'
+	const associates = useDraftQuoteStore((state) => state.associates)
+	const addAssociate = useDraftQuoteStore((state) => state.addAssociate)
+	const updateAssociate = useDraftQuoteStore((state) => state.updateAssociate)
+	const removeAssociate = useDraftQuoteStore((state) => state.removeAssociate)
+
+	return (
+		<section className="space-y-2">
+			<div className="flex items-center justify-between gap-3">
+				<div className="flex min-w-0 items-center gap-2">
+					<UserRoundPlus
+						size={15}
+						strokeWidth={1.8}
+						className="shrink-0 text-[var(--p-accent)]"
+					/>
+					<h3 className="truncate text-[12px] font-semibold text-[var(--p-text)]">
+						{t('quoteBuilder.associates', 'Associates')}
+					</h3>
+				</div>
+				<button
+					type="button"
+					onClick={addAssociate}
+					className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-[var(--p-border)] px-2.5 text-[11px] font-semibold text-[var(--p-accent)] transition-colors hover:bg-[var(--p-hover)]"
+				>
+					<Plus size={13} />
+					{t('quoteBuilder.addAssociate', 'Add associate')}
+				</button>
+			</div>
+			<p className="rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[11px] leading-5 text-[var(--p-text-muted)]">
+				{isAr
+					? 'أضف مرافقًا فقط إذا كنت تثق به لمناقشة هذا الطلب والتصرف نيابةً عنك. ستتعامل هايبركُوت مع تعليماته على أنها مصرح بها من طرفك لهذا الطلب، وتبقى مسؤولية هذا الاختيار عليك.'
+					: 'Add an associate only if you trust them to discuss this order and act on your behalf. HyperQuote will treat their instructions as authorized by you for this request, and you remain responsible for that choice.'}
+			</p>
+			{associates.map((associate) => (
+				<div
+					key={associate.id}
+					className="grid gap-2 rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] p-2 sm:grid-cols-[minmax(0,1fr)_132px_minmax(0,1fr)_auto]"
+				>
+					<input
+						value={associate.name}
+						onChange={(event) =>
+							updateAssociate(associate.id, {
+								name: event.currentTarget.value,
+							})
+						}
+						placeholder={t('quoteBuilder.associateName', 'Name')}
+						className="h-9 rounded-md border border-[var(--p-border)] bg-[var(--p-bg)] px-2 text-[12px] text-[var(--p-text)] outline-none focus:border-[var(--p-border-strong)]"
+					/>
+					<select
+						value={associate.countryCode}
+						onChange={(event) =>
+							updateAssociate(associate.id, {
+								countryCode: event.currentTarget.value,
+							})
+						}
+						aria-label={t('quoteBuilder.countryCode', 'Country code')}
+						className="h-9 rounded-md border border-[var(--p-border)] bg-[var(--p-bg)] px-2 text-[12px] text-[var(--p-text)] outline-none focus:border-[var(--p-border-strong)]"
+					>
+						{ORDER_ASSOCIATE_COUNTRY_CODES.map((country) => (
+							<option key={country.code} value={country.code}>
+								{country.code} {country.label}
+							</option>
+						))}
+					</select>
+					<input
+						value={associate.number}
+						onChange={(event) =>
+							updateAssociate(associate.id, {
+								number: event.currentTarget.value,
+							})
+						}
+						placeholder={t('quoteBuilder.phoneNumber', 'Phone number')}
+						className="h-9 rounded-md border border-[var(--p-border)] bg-[var(--p-bg)] px-2 text-[12px] text-[var(--p-text)] outline-none focus:border-[var(--p-border-strong)]"
+					/>
+					<button
+						type="button"
+						onClick={() => removeAssociate(associate.id)}
+						aria-label={t('quoteBuilder.removeAssociate', 'Remove associate')}
+						className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-error)]"
+					>
+						<Trash2 size={14} />
+					</button>
+				</div>
+			))}
+		</section>
+	)
+}
+
 export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	const { t, i18n } = useTranslation('portal')
 	const shouldReduceMotion = useReducedMotion()
 	const isAr = i18n.language === 'ar'
 	const items = useDraftQuoteStore((s) => s.items)
+	const locations = useDraftQuoteStore((s) => s.locations)
+	const associates = useDraftQuoteStore((s) => s.associates)
 	const globalNote = useDraftQuoteStore((s) => s.globalNote)
 	const updateQuantity = useDraftQuoteStore((s) => s.updateQuantity)
 	const setGlobalNote = useDraftQuoteStore((s) => s.setGlobalNote)
 	const remove = useDraftQuoteStore((s) => s.remove)
 	const clear = useDraftQuoteStore((s) => s.clear)
+	const addLocation = useDraftQuoteStore((s) => s.addLocation)
+	const updateLocation = useDraftQuoteStore((s) => s.updateLocation)
+	const removeLocation = useDraftQuoteStore((s) => s.removeLocation)
+	const updateItemLocation = useDraftQuoteStore((s) => s.updateItemLocation)
+	const applyDeliveryToAllLocations = useDraftQuoteStore(
+		(s) => s.applyDeliveryToAllLocations,
+	)
 	const [submittedReference, setSubmittedReference] = useState<string | null>(
 		null,
 	)
@@ -155,13 +483,22 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		() => toDraftQuoteRequestItemPayloads(items, { isArabic: isAr }),
 		[isAr, items],
 	)
+	const quoteRequestLocations = useMemo(
+		() =>
+			toQuoteRequestLocationPayloads({ items, locations }, { isArabic: isAr }),
+		[isAr, items, locations],
+	)
+	const quoteAssociates = useMemo(
+		() => toQuoteRequestAssociatePayloads(associates),
+		[associates],
+	)
 	const quoteItemsFingerprint = useMemo(
 		() => JSON.stringify(quoteRequestItems),
 		[quoteRequestItems],
 	)
 	const draftFingerprint = useMemo(
-		() => getQuoteCartFingerprint(items, globalNote),
-		[globalNote, items],
+		() => getQuoteCartFingerprint(items, globalNote, locations, associates),
+		[associates, globalNote, items, locations],
 	)
 	const isDraftSaved =
 		quoteRequestItems.length > 0 && savedDraftFingerprint === draftFingerprint
@@ -190,6 +527,8 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 				data: {
 					draftId: savedDraftId ?? undefined,
 					items: quoteRequestItems,
+					locations: quoteRequestLocations,
+					associates: quoteAssociates,
 					name: draftName.trim() || persistedDraftName || defaultDraftName,
 					notes: globalNote.trim() || undefined,
 					idempotencyKey: crypto.randomUUID(),
@@ -211,6 +550,8 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 				data: {
 					draftId: savedDraftId ?? undefined,
 					items: quoteRequestItems,
+					locations: quoteRequestLocations,
+					associates: quoteAssociates,
 					name,
 					notes: globalNote.trim() || undefined,
 				},
@@ -450,6 +791,23 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 											className="flex min-h-0 flex-1 flex-col"
 										>
 											<div className="flex-1 overflow-y-auto">
+												<div className="space-y-3 border-b border-[var(--p-border)] px-4 py-3 md:px-5">
+													<PortalCartLocationsPanel
+														locations={locations}
+														onAddLocation={addLocation}
+														onApplyFirstDeliveryToAll={() => {
+															const first = locations[0]
+															applyDeliveryToAllLocations({
+																deliveryDate: first?.deliveryDate ?? null,
+																deliveryHour: first?.deliveryHour ?? null,
+																deliveryPeriod: first?.deliveryPeriod ?? null,
+															})
+														}}
+														onRemoveLocation={removeLocation}
+														onUpdateLocation={updateLocation}
+													/>
+													<PortalCartAssociatesPanel />
+												</div>
 												<AnimatePresence initial={false}>
 													{items.map((item, index) => {
 														const itemName =
@@ -593,6 +951,15 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 																		<X size={15} strokeWidth={1.8} />
 																	</motion.button>
 																</div>
+																<PortalCartItemLocationControls
+																	itemLocationClientId={item.locationClientId}
+																	locations={locations}
+																	onAddLocation={addLocation}
+																	onItemLocationChange={(clientId) =>
+																		updateItemLocation(item.productId, clientId)
+																	}
+																	onUpdateLocation={updateLocation}
+																/>
 															</motion.div>
 														)
 													})}

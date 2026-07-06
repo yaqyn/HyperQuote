@@ -9,6 +9,7 @@ export const deliveryPeriodInput = z.enum(['AM', 'PM'])
 export const quoteRequestLocationInputSchema = z.object({
 	clientId: z.string().min(1).max(120),
 	addressId: z.string().uuid().optional(),
+	locationLabel: z.string().min(1).max(240).optional(),
 	deliveryDate: z.string().optional(),
 	deliveryHour: z.number().int().min(1).max(12).optional(),
 	deliveryPeriod: deliveryPeriodInput.optional(),
@@ -115,6 +116,7 @@ export async function replaceQuoteRequestLocationsAndItems(
 		client_id: location.clientId,
 		sort_order: index,
 		address_id: location.addressId ?? null,
+		location_label: location.locationLabel?.trim() || null,
 		delivery_date: location.deliveryDate ?? null,
 		delivery_hour: location.deliveryHour ?? null,
 		delivery_period: location.deliveryPeriod ?? null,

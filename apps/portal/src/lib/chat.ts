@@ -127,11 +127,35 @@ const activeDraftInput = z
 					productName: z.string().max(240),
 					productNameAr: z.string().max(240).optional(),
 					quantity: z.number().min(0).max(1_000_000),
+					locationClientId: z.string().max(120).optional(),
 					unitOfMeasure: z.string().max(80),
 					unitOfMeasureAr: z.string().max(80).optional(),
 				}),
 			)
 			.max(40),
+		locations: z
+			.array(
+				z.object({
+					addressId: z.string().uuid().nullable(),
+					clientId: z.string().max(120),
+					deliveryDate: z.string().nullable(),
+					deliveryHour: z.number().int().min(1).max(12).nullable(),
+					deliveryPeriod: z.enum(['AM', 'PM']).nullable(),
+					label: z.string().max(240),
+				}),
+			)
+			.max(40)
+			.optional(),
+		associates: z
+			.array(
+				z.object({
+					countryCode: z.string().max(8),
+					name: z.string().max(120),
+					number: z.string().max(40),
+				}),
+			)
+			.max(20)
+			.optional(),
 		name: z.string().max(160).nullable(),
 		notes: z.string().max(600),
 		reference: z.string().max(80).nullable(),
@@ -2666,8 +2690,10 @@ function activeDraftAnswerContext(
 				: 'temporary draft'
 	return `Current selected cart / draft desk (${workspaceLabel}):
 ${safeJson({
+	associates: activeDraft.associates ?? [],
 	dirty: activeDraft.dirty,
 	items: activeDraft.items.map((item) => ({
+		locationClientId: item.locationClientId,
 		name: item.productName,
 		nameAr: item.productNameAr,
 		orderable: item.orderable,
@@ -2675,6 +2701,7 @@ ${safeJson({
 		unit: item.unitOfMeasure,
 		unitAr: item.unitOfMeasureAr,
 	})),
+	locations: activeDraft.locations ?? [],
 	name: activeDraft.name,
 	notes: activeDraft.notes,
 	reference: activeDraft.reference,

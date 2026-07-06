@@ -1,3 +1,4 @@
+import { ORDER_ASSOCIATE_COUNTRY_CODES } from '@hyperquote/quote-cart'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
 	ArrowRight,
@@ -5,11 +6,15 @@ import {
 	CircleAlert,
 	Clock3,
 	Loader2,
+	MapPin,
 	MoreHorizontal,
 	Phone,
+	Plus,
 	RefreshCw,
 	Save,
+	Trash2,
 	Undo2,
+	UserRoundPlus,
 	X,
 } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
@@ -119,6 +124,24 @@ interface PriceUpdateNoticeState {
 	updatedAt: number
 }
 
+type SalesDeliveryPeriod = 'AM' | 'PM'
+
+interface SalesQuoteLocationState {
+	clientId: string
+	locationLabel: string
+	addressId: string | null
+	deliveryDate: string | null
+	deliveryHour: number | null
+	deliveryPeriod: SalesDeliveryPeriod | null
+}
+
+interface SalesQuoteAssociateState {
+	id: string
+	name: string
+	countryCode: string
+	number: string
+}
+
 // Customer phone number is NEVER exposed to the frontend.
 // Calls are initiated via server-side endpoint: /api/call/:rfqId
 // The server resolves the number, initiates VoIP/SIP, and connects the employee.
@@ -135,6 +158,25 @@ const QUOTE_SESSION_HEARTBEAT_MS = 60_000
 const QUOTE_SESSION_TICK_MS = 1_000
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const DEFAULT_SALES_LOCATION_CLIENT_ID = 'default-location'
+
+function defaultSalesQuoteLocation(): SalesQuoteLocationState {
+	return {
+		clientId: DEFAULT_SALES_LOCATION_CLIENT_ID,
+		locationLabel: 'Default Location',
+		addressId: null,
+		deliveryDate: null,
+		deliveryHour: null,
+		deliveryPeriod: null,
+	}
+}
+
+function createSalesClientId(prefix: string): string {
+	if (globalThis.crypto?.randomUUID) {
+		return `${prefix}-${globalThis.crypto.randomUUID()}`
+	}
+	return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
 
 function createQuoteSessionClientId(): string {
 	const randomUUID = globalThis.crypto?.randomUUID
@@ -915,15 +957,19 @@ function QuoteLineCard({
 	item,
 	index,
 	isLast,
+	locations,
 	marginColor,
 	onEditMargin,
+	onLocationChange,
 	onRemove,
 }: {
 	item: LineItemFormValues
 	index: number
 	isLast: boolean
+	locations: SalesQuoteLocationState[]
 	marginColor: string
 	onEditMargin: () => void
+	onLocationChange: (clientId: string) => void
 	onRemove: () => void
 }) {
 	const priceLabel = formatLineMoney(item.sellPrice)
@@ -1005,6 +1051,20 @@ function QuoteLineCard({
 						</span>
 					</span>
 				</button>
+				<label className="inline-flex h-8 min-w-[150px] max-w-full items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2 text-start">
+					<span className="sr-only">Line delivery location</span>
+					<select
+						value={item.locationClientId ?? locations[0]?.clientId ?? ''}
+						onChange={(event) => onLocationChange(event.currentTarget.value)}
+						className="min-w-0 flex-1 bg-transparent font-[family-name:var(--font-archivo)] text-[11px] font-medium text-[var(--color-text)] outline-none"
+					>
+						{locations.map((location) => (
+							<option key={location.clientId} value={location.clientId}>
+								{location.locationLabel}
+							</option>
+						))}
+					</select>
+				</label>
 				<button
 					type="button"
 					onClick={onRemove}
@@ -1029,6 +1089,232 @@ function AddQuoteLineCard({ onAdd }: { onAdd: () => void }) {
 				+ADD
 			</button>
 		</li>
+	)
+}
+
+function SalesLocationsAndAssociatesPanel({
+	associates,
+	locations,
+	onAddAssociate,
+	onAddLocation,
+	onApplyFirstDeliveryToAll,
+	onRemoveAssociate,
+	onRemoveLocation,
+	onUpdateAssociate,
+	onUpdateLocation,
+}: {
+	associates: SalesQuoteAssociateState[]
+	locations: SalesQuoteLocationState[]
+	onAddAssociate: () => void
+	onAddLocation: () => string
+	onApplyFirstDeliveryToAll: () => void
+	onRemoveAssociate: (id: string) => void
+	onRemoveLocation: (clientId: string) => void
+	onUpdateAssociate: (
+		id: string,
+		updates: Partial<Omit<SalesQuoteAssociateState, 'id'>>,
+	) => void
+	onUpdateLocation: (
+		clientId: string,
+		updates: Partial<Omit<SalesQuoteLocationState, 'clientId'>>,
+	) => void
+}) {
+	return (
+		<div className="border-t border-[var(--color-border)] py-3">
+			<section className="space-y-2">
+				<div className="flex items-center justify-between gap-3">
+					<div className="flex min-w-0 items-center gap-2">
+						<MapPin
+							size={14}
+							strokeWidth={1.8}
+							className="shrink-0 text-[var(--color-primary)]"
+						/>
+						<h3 className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text)]">
+							Locations & delivery time
+						</h3>
+					</div>
+					<div className="flex shrink-0 items-center gap-2">
+						<button
+							type="button"
+							onClick={onApplyFirstDeliveryToAll}
+							className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"
+						>
+							<Clock3 size={12} />
+							Apply time
+						</button>
+						<button
+							type="button"
+							onClick={onAddLocation}
+							className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)]/[0.04]"
+						>
+							<Plus size={12} />
+							Location
+						</button>
+					</div>
+				</div>
+
+				<div className="space-y-2">
+					{locations.map((location, index) => (
+						<div
+							key={location.clientId}
+							className="grid gap-2 rounded-md border border-[var(--color-border)] p-2 sm:grid-cols-[minmax(0,1fr)_128px_82px_76px_auto]"
+						>
+							<input
+								value={location.locationLabel}
+								onChange={(event) =>
+									onUpdateLocation(location.clientId, {
+										locationLabel: event.currentTarget.value,
+									})
+								}
+								placeholder={
+									index === 0 ? 'Default Location' : `Location ${index + 1}`
+								}
+								className="h-9 rounded-md border border-[var(--color-border)] bg-transparent px-2 text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/45"
+							/>
+							<input
+								type="date"
+								value={location.deliveryDate ?? ''}
+								onChange={(event) =>
+									onUpdateLocation(location.clientId, {
+										deliveryDate: event.currentTarget.value || null,
+									})
+								}
+								aria-label="Delivery date"
+								className="h-9 rounded-md border border-[var(--color-border)] bg-transparent px-2 text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/45"
+							/>
+							<select
+								value={location.deliveryHour ?? ''}
+								onChange={(event) => {
+									const value = event.currentTarget.value
+									onUpdateLocation(location.clientId, {
+										deliveryHour: value ? Number(value) : null,
+										deliveryPeriod: value
+											? (location.deliveryPeriod ?? 'AM')
+											: null,
+									})
+								}}
+								aria-label="Delivery hour"
+								className="h-9 rounded-md border border-[var(--color-border)] bg-transparent px-2 text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/45"
+							>
+								<option value="">Hour</option>
+								{Array.from({ length: 12 }, (_, hour) => hour + 1).map(
+									(hour) => (
+										<option key={hour} value={hour}>
+											{hour}
+										</option>
+									),
+								)}
+							</select>
+							<select
+								value={location.deliveryPeriod ?? ''}
+								onChange={(event) =>
+									onUpdateLocation(location.clientId, {
+										deliveryPeriod: event.currentTarget.value
+											? (event.currentTarget.value as SalesDeliveryPeriod)
+											: null,
+									})
+								}
+								aria-label="Delivery period"
+								className="h-9 rounded-md border border-[var(--color-border)] bg-transparent px-2 text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/45"
+							>
+								<option value="">--</option>
+								<option value="AM">AM</option>
+								<option value="PM">PM</option>
+							</select>
+							{locations.length > 1 && (
+								<button
+									type="button"
+									onClick={() => onRemoveLocation(location.clientId)}
+									aria-label="Remove location"
+									className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--color-text-subtle)] transition-colors hover:bg-red-600/[0.05] hover:text-red-700"
+								>
+									<Trash2 size={14} />
+								</button>
+							)}
+						</div>
+					))}
+				</div>
+			</section>
+
+			<section className="mt-4 space-y-2">
+				<div className="flex items-center justify-between gap-3">
+					<div className="flex min-w-0 items-center gap-2">
+						<UserRoundPlus
+							size={14}
+							strokeWidth={1.8}
+							className="shrink-0 text-[var(--color-primary)]"
+						/>
+						<h3 className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text)]">
+							Associates
+						</h3>
+					</div>
+					<button
+						type="button"
+						onClick={onAddAssociate}
+						className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--color-border)] px-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary)]/[0.04]"
+					>
+						<Plus size={12} />
+						Associate
+					</button>
+				</div>
+				<p className="rounded-md border border-[var(--color-border)] px-3 py-2 font-[family-name:var(--font-archivo)] text-[11px] leading-5 text-[var(--color-text-muted)]">
+					Add an associate only if you trust them to discuss this order and act
+					on your behalf. HyperQuote will treat their instructions as authorized
+					by you for this request, and you remain responsible for that choice.
+				</p>
+				{associates.map((associate) => (
+					<div
+						key={associate.id}
+						className="grid gap-2 rounded-md border border-[var(--color-border)] p-2 sm:grid-cols-[minmax(0,1fr)_140px_minmax(0,1fr)_auto]"
+					>
+						<input
+							value={associate.name}
+							onChange={(event) =>
+								onUpdateAssociate(associate.id, {
+									name: event.currentTarget.value,
+								})
+							}
+							placeholder="Name"
+							className="h-9 rounded-md border border-[var(--color-border)] bg-transparent px-2 text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/45"
+						/>
+						<select
+							value={associate.countryCode}
+							onChange={(event) =>
+								onUpdateAssociate(associate.id, {
+									countryCode: event.currentTarget.value,
+								})
+							}
+							aria-label="Country code"
+							className="h-9 rounded-md border border-[var(--color-border)] bg-transparent px-2 text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/45"
+						>
+							{ORDER_ASSOCIATE_COUNTRY_CODES.map((country) => (
+								<option key={country.code} value={country.code}>
+									{country.code} {country.label}
+								</option>
+							))}
+						</select>
+						<input
+							value={associate.number}
+							onChange={(event) =>
+								onUpdateAssociate(associate.id, {
+									number: event.currentTarget.value,
+								})
+							}
+							placeholder="Number"
+							className="h-9 rounded-md border border-[var(--color-border)] bg-transparent px-2 text-[12px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]/45"
+						/>
+						<button
+							type="button"
+							onClick={() => onRemoveAssociate(associate.id)}
+							aria-label="Remove associate"
+							className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--color-text-subtle)] transition-colors hover:bg-red-600/[0.05] hover:text-red-700"
+						>
+							<Trash2 size={14} />
+						</button>
+					</div>
+				))}
+			</section>
+		</div>
 	)
 }
 
@@ -3165,6 +3451,12 @@ export function QuoteBuilderView({
 	const [deliveryAddressOverride, setDeliveryAddressOverride] = useState(
 		Boolean(initialDeliveryAddress?.trim()),
 	)
+	const [salesLocations, setSalesLocations] = useState<
+		SalesQuoteLocationState[]
+	>(() => [defaultSalesQuoteLocation()])
+	const [salesAssociates, setSalesAssociates] = useState<
+		SalesQuoteAssociateState[]
+	>([])
 	const deliverySectionRef = useRef<HTMLDivElement | null>(null)
 	const approvalSectionRef = useRef<HTMLDivElement | null>(null)
 	const deliveryAttentionTimerRef = useRef<ReturnType<
@@ -3635,6 +3927,106 @@ export function QuoteBuilderView({
 		[],
 	)
 
+	const addSalesLocation = useCallback(() => {
+		const clientId = createSalesClientId('loc')
+		setSalesLocations((current) => [
+			...current,
+			{
+				clientId,
+				locationLabel: `Location ${current.length + 1}`,
+				addressId: null,
+				deliveryDate: current[0]?.deliveryDate ?? null,
+				deliveryHour: current[0]?.deliveryHour ?? null,
+				deliveryPeriod: current[0]?.deliveryPeriod ?? null,
+			},
+		])
+		return clientId
+	}, [])
+
+	const updateSalesLocation = useCallback(
+		(
+			clientId: string,
+			updates: Partial<Omit<SalesQuoteLocationState, 'clientId'>>,
+		) => {
+			setSalesLocations((current) =>
+				current.map((location) =>
+					location.clientId === clientId
+						? { ...location, ...updates }
+						: location,
+				),
+			)
+		},
+		[],
+	)
+
+	const removeSalesLocation = useCallback(
+		(clientId: string) => {
+			setSalesLocations((current) => {
+				if (current.length <= 1) return current
+				const next = current.filter(
+					(location) => location.clientId !== clientId,
+				)
+				const fallbackClientId =
+					next[0]?.clientId ?? DEFAULT_SALES_LOCATION_CLIENT_ID
+				methods.setValue(
+					'lineItems',
+					methods
+						.getValues('lineItems')
+						.map((item) =>
+							item.locationClientId === clientId
+								? { ...item, locationClientId: fallbackClientId }
+								: item,
+						),
+					{ shouldDirty: true },
+				)
+				return next
+			})
+		},
+		[methods],
+	)
+
+	const applyFirstSalesDeliveryToAllLocations = useCallback(() => {
+		setSalesLocations((current) => {
+			const first = current[0]
+			if (!first) return current
+			return current.map((location) => ({
+				...location,
+				deliveryDate: first.deliveryDate,
+				deliveryHour: first.deliveryHour,
+				deliveryPeriod: first.deliveryPeriod,
+			}))
+		})
+	}, [])
+
+	const addSalesAssociate = useCallback(() => {
+		setSalesAssociates((current) => [
+			...current,
+			{
+				id: createSalesClientId('assoc'),
+				name: '',
+				countryCode: '+20',
+				number: '',
+			},
+		])
+	}, [])
+
+	const updateSalesAssociate = useCallback(
+		(id: string, updates: Partial<Omit<SalesQuoteAssociateState, 'id'>>) => {
+			setSalesAssociates((current) =>
+				current.map((associate) =>
+					associate.id === id ? { ...associate, ...updates } : associate,
+				),
+			)
+		},
+		[],
+	)
+
+	const removeSalesAssociate = useCallback((id: string) => {
+		setSalesAssociates((current) =>
+			current.filter((associate) => associate.id !== id),
+		)
+	}, [])
+
 	const goToStep = (step: number) => {
 		setValidationErrors([])
 		setCurrentStep(step)
@@ -3787,6 +4179,34 @@ export function QuoteBuilderView({
 				} else {
 					setDeliveryCoordinates(null)
 				}
+				const hydratedLocations =
+					Array.isArray(data.locations) && data.locations.length > 0
+						? data.locations.map((location, index) => ({
+								clientId:
+									location.clientId ||
+									(index === 0
+										? DEFAULT_SALES_LOCATION_CLIENT_ID
+										: createSalesClientId('loc')),
+								locationLabel:
+									location.locationLabel ||
+									(index === 0 ? 'Default Location' : `Location ${index + 1}`),
+								addressId: location.addressId ?? null,
+								deliveryDate: location.deliveryDate ?? null,
+								deliveryHour: location.deliveryHour ?? null,
+								deliveryPeriod: location.deliveryPeriod ?? null,
+							}))
+						: [defaultSalesQuoteLocation()]
+				setSalesLocations(hydratedLocations)
+				setSalesAssociates(
+					Array.isArray(data.associates)
+						? data.associates.map((associate) => ({
+								id: associate.id || createSalesClientId('assoc'),
+								name: associate.name ?? '',
+								countryCode: associate.countryCode ?? '+20',
+								number: associate.number ?? '',
+							}))
+						: [],
+				)
 				// Rehydrate any saved delivery/terms overrides from the draft row
 				// so the rep picks up where they left off without retyping.
 				const draftDefaults = methods.getValues()
@@ -3808,6 +4228,8 @@ export function QuoteBuilderView({
 				})
 
 				if (data.suggestedProducts && data.suggestedProducts.length > 0) {
+					const fallbackLocationClientId =
+						hydratedLocations[0]?.clientId ?? DEFAULT_SALES_LOCATION_CLIENT_ID
 					const getScopedThreshold = (
 						productSlug?: string,
 						category?: string,
@@ -3842,6 +4264,8 @@ export function QuoteBuilderView({
 								: 0
 						return {
 							id: productSlug,
+							quoteRequestItemId: p.quoteRequestItemId,
+							locationClientId: p.locationClientId ?? fallbackLocationClientId,
 							productSlug,
 							productCategory,
 							productName: p.productName,
@@ -3884,6 +4308,8 @@ export function QuoteBuilderView({
 					customerId: persistedCustomerId ?? undefined,
 					lineItems: values.lineItems.map((item) => ({
 						id: item.id,
+						quoteRequestItemId: item.quoteRequestItemId,
+						locationClientId: item.locationClientId,
 						productSlug: item.productSlug,
 						productCategory: item.productCategory,
 						productName: item.productName,
@@ -3893,6 +4319,20 @@ export function QuoteBuilderView({
 						supplierCost: item.supplierCost,
 						marginPercent: item.marginPercent,
 						sellPrice: item.sellPrice,
+					})),
+					locations: salesLocations.map((location) => ({
+						clientId: location.clientId,
+						locationLabel: location.locationLabel || null,
+						addressId: location.addressId,
+						deliveryDate: location.deliveryDate,
+						deliveryHour: location.deliveryHour,
+						deliveryPeriod: location.deliveryPeriod,
+					})),
+					associates: salesAssociates.map((associate) => ({
+						id: associate.id,
+						name: associate.name,
+						countryCode: associate.countryCode,
+						number: associate.number,
 					})),
 					deliveryAddress: deliveryAddressOverride
 						? deliveryAddress || null
@@ -3928,6 +4368,8 @@ export function QuoteBuilderView({
 		deliveryAddress,
 		deliveryAddressOverride,
 		deliveryCoordinates,
+		salesAssociates,
+		salesLocations,
 	])
 
 	// Auto-save every 30 seconds — upserts draft via rfqId
@@ -3942,6 +4384,8 @@ export function QuoteBuilderView({
 					customerId: persistedCustomerId ?? undefined,
 					lineItems: values.lineItems.map((item) => ({
 						id: item.id,
+						quoteRequestItemId: item.quoteRequestItemId,
+						locationClientId: item.locationClientId,
 						productSlug: item.productSlug,
 						productCategory: item.productCategory,
 						productName: item.productName,
@@ -3951,6 +4395,20 @@ export function QuoteBuilderView({
 						supplierCost: item.supplierCost,
 						marginPercent: item.marginPercent,
 						sellPrice: item.sellPrice,
+					})),
+					locations: salesLocations.map((location) => ({
+						clientId: location.clientId,
+						locationLabel: location.locationLabel || null,
+						addressId: location.addressId,
+						deliveryDate: location.deliveryDate,
+						deliveryHour: location.deliveryHour,
+						deliveryPeriod: location.deliveryPeriod,
+					})),
+					associates: salesAssociates.map((associate) => ({
+						id: associate.id,
+						name: associate.name,
+						countryCode: associate.countryCode,
+						number: associate.number,
 					})),
 					// The delivery address is sales-owned. Null clears any inherited
 					// customer/profile address from the order request.
@@ -3991,6 +4449,8 @@ export function QuoteBuilderView({
 		deliveryAddressOverride,
 		deliveryCoordinates,
 		queryClient,
+		salesAssociates,
+		salesLocations,
 	])
 
 	useEffect(() => {
@@ -4119,6 +4579,8 @@ export function QuoteBuilderView({
 			return [
 				{
 					id: selection.product.slug,
+					locationClientId:
+						salesLocations[0]?.clientId ?? DEFAULT_SALES_LOCATION_CLIENT_ID,
 					productSlug: selection.product.slug,
 					productCategory: selection.product.category,
 					productName: selection.product.name,
@@ -4657,11 +5119,19 @@ export function QuoteBuilderView({
 														item={item}
 														index={i}
 														isLast={i === items.length - 1}
+														locations={salesLocations}
 														marginColor={marginColor}
 														onEditMargin={() => {
 															setMapOpen(false)
 															setItemEditIndex(i)
 														}}
+														onLocationChange={(clientId) =>
+															methods.setValue(
+																`lineItems.${i}.locationClientId`,
+																clientId,
+																{ shouldDirty: true },
+															)
+														}
 														onRemove={() => removeItem(i)}
 													/>
 												)
@@ -4691,6 +5161,19 @@ export function QuoteBuilderView({
 												}}
 												totalWeightTons={12}
 												leadTimeDays={2}
+											/>
+											<SalesLocationsAndAssociatesPanel
+												associates={salesAssociates}
+												locations={salesLocations}
+												onAddAssociate={addSalesAssociate}
+												onAddLocation={addSalesLocation}
+												onApplyFirstDeliveryToAll={
+													applyFirstSalesDeliveryToAllLocations
+												}
+												onRemoveAssociate={removeSalesAssociate}
+												onRemoveLocation={removeSalesLocation}
+												onUpdateAssociate={updateSalesAssociate}
+												onUpdateLocation={updateSalesLocation}
 											/>
 										</div>
 									</div>
