@@ -12,7 +12,7 @@ You can accept the quote as-is, negotiate quantities, swap materials for alterna
 
 **Contractors and construction companies** request quotes, manage projects, and track deliveries through the customer portal. Whether you're building a single villa or managing a multi-tower development, the platform scales to your needs.
 
-**Building material suppliers** publish their catalogs, set pricing, and receive purchase orders through the supplier portal. HyperQuote brings them qualified buyers without the overhead of a sales team.
+**Building material suppliers** are managed as verified business records by HyperQuote's internal procurement team. Supplier pricing and purchase-order coordination happen through the internal operating workflow, not through a public supplier account.
 
 **Delivery drivers** use the driver app for route optimization, proof of delivery, and real-time communication with the operations team.
 

@@ -42,9 +42,6 @@ const DISPLAY_NAMES: Record<string, string> = {
 	'docs.wizard.for-customers.title': 'For Customers',
 	'docs.wizard.for-customers.description':
 		'Learn how to manage projects, request quotes, and track deliveries through the portal.',
-	'docs.wizard.for-suppliers.title': 'For Suppliers',
-	'docs.wizard.for-suppliers.description':
-		'Publish your catalog, manage pricing, and handle purchase orders on HyperQuote.',
 	'docs.wizard.for-drivers.title': 'For Drivers',
 	'docs.wizard.for-drivers.description':
 		'Set up the driver app, manage deliveries, and capture proof of delivery.',
@@ -54,7 +51,6 @@ const DISPLAY_NAMES: Record<string, string> = {
 	'docs.category.website-market.title': 'Website & Market',
 	'docs.category.quotes-orders.title': 'Quotes & Orders',
 	'docs.category.customer-portal.title': 'Customer Portal',
-	'docs.category.supplier-portal.title': 'Supplier Portal',
 	'docs.category.delivery.title': 'Delivery & Logistics',
 	'docs.category.payments.title': 'Payments & Finance',
 	'docs.category.ai-lyon.title': 'AI & Lyon',
@@ -65,9 +61,6 @@ const DISPLAY_NAMES: Record<string, string> = {
 	'docs.article.what-is-hyperquote.title': 'What is HyperQuote',
 	'docs.article.what-is-hyperquote.description':
 		'B2B building materials platform built for Egypt\u2019s construction industry.',
-	'docs.article.white-label-model.title': 'White-Label Model',
-	'docs.article.white-label-model.description':
-		'How the multi-tenant branding and configuration system works.',
 	'docs.article.order-flow.title': 'Order Flow',
 	'docs.article.order-flow.description':
 		'The 12-step quote-to-cash journey from discovery to payment.',
@@ -110,20 +103,6 @@ const DISPLAY_NAMES: Record<string, string> = {
 	'docs.article.order-tracking.title': 'Order Tracking',
 	'docs.article.order-tracking.description':
 		'Real-time order status, delivery GPS tracking, and updates.',
-
-	// Articles — supplier-portal
-	'docs.article.publishing-catalog.title': 'Publishing Your Catalog',
-	'docs.article.publishing-catalog.description':
-		'How to publish product catalogs with AI-assisted parsing.',
-	'docs.article.managing-prices.title': 'Managing Prices',
-	'docs.article.managing-prices.description':
-		'Price list management, bulk updates, and tier pricing.',
-	'docs.article.purchase-orders.title': 'Purchase Orders',
-	'docs.article.purchase-orders.description':
-		'Receiving and processing purchase orders from HyperQuote.',
-	'docs.article.delivery-fulfillment.title': 'Delivery & Fulfillment',
-	'docs.article.delivery-fulfillment.description':
-		'Fulfillment workflow, delivery notes, and proof of delivery.',
 
 	// Articles — delivery
 	'docs.article.scheduling-dispatch.title': 'Scheduling & Dispatch',
@@ -208,12 +187,6 @@ export const WIZARDS: Omit<WizardDef, 'steps'>[] = [
 		illustration: 'for-customers',
 	},
 	{
-		slug: 'for-suppliers',
-		titleKey: 'docs.wizard.for-suppliers.title',
-		descriptionKey: 'docs.wizard.for-suppliers.description',
-		illustration: 'for-suppliers',
-	},
-	{
 		slug: 'for-drivers',
 		titleKey: 'docs.wizard.for-drivers.title',
 		descriptionKey: 'docs.wizard.for-drivers.description',
@@ -232,11 +205,6 @@ export const DOC_CATEGORIES: DocCategoryDef[] = [
 				slug: 'what-is-hyperquote',
 				titleKey: 'docs.article.what-is-hyperquote.title',
 				descriptionKey: 'docs.article.what-is-hyperquote.description',
-			},
-			{
-				slug: 'white-label-model',
-				titleKey: 'docs.article.white-label-model.title',
-				descriptionKey: 'docs.article.white-label-model.description',
 			},
 			{
 				slug: 'order-flow',
@@ -315,32 +283,6 @@ export const DOC_CATEGORIES: DocCategoryDef[] = [
 				slug: 'order-tracking',
 				titleKey: 'docs.article.order-tracking.title',
 				descriptionKey: 'docs.article.order-tracking.description',
-			},
-		],
-	},
-	{
-		slug: 'supplier-portal',
-		titleKey: 'docs.category.supplier-portal.title',
-		articles: [
-			{
-				slug: 'publishing-catalog',
-				titleKey: 'docs.article.publishing-catalog.title',
-				descriptionKey: 'docs.article.publishing-catalog.description',
-			},
-			{
-				slug: 'managing-prices',
-				titleKey: 'docs.article.managing-prices.title',
-				descriptionKey: 'docs.article.managing-prices.description',
-			},
-			{
-				slug: 'purchase-orders',
-				titleKey: 'docs.article.purchase-orders.title',
-				descriptionKey: 'docs.article.purchase-orders.description',
-			},
-			{
-				slug: 'delivery-fulfillment',
-				titleKey: 'docs.article.delivery-fulfillment.title',
-				descriptionKey: 'docs.article.delivery-fulfillment.description',
 			},
 		],
 	},

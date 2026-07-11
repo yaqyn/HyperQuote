@@ -453,7 +453,6 @@
 			"message": "Inquiry Message",
 			"messagePlaceholder": "Enter your message to suppliers...",
 			"sendViaEmail": "Email",
-			"sendViaPortal": "Supplier Portal",
 			"sendViaWhatsApp": "WhatsApp",
 			"sendToAllSelected": "Send to All Selected Suppliers",
 			"sending": "Sending...",

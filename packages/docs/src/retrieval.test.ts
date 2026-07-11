@@ -71,7 +71,6 @@ describe('website docs retrieval', () => {
 
 		assert.equal(result.hasHighConfidence, true)
 		assert.equal(result.chunks[0]?.href, '/docs/payments/invoicing')
-		assert.notEqual(result.chunks[1]?.categorySlug, 'supplier-portal')
 		assert.equal(
 			publicDocsSourceLinks(result.chunks, result.locale).match(
 				/\(\/docs\/payments\/invoicing\)/g,

@@ -111,10 +111,22 @@
 		"team": {
 			"label": "Team",
 			"heading": "Team",
-			"member1": { "name": "Hicham M. AlQuoaiidy", "role": "CEO & Founder" },
-			"member2": { "name": "Sarah El-Masry", "role": "CTO" },
-			"member3": { "name": "Omar Khalil", "role": "Head of Operations" },
-			"member4": { "name": "Nour Abdel-Rahman", "role": "Head of Product" }
+			"member1": {
+				"name": "Hicham M. AlQuoaiidy",
+				"role": "CEO & Founder"
+			},
+			"member2": {
+				"name": "Sarah El-Masry",
+				"role": "CTO"
+			},
+			"member3": {
+				"name": "Omar Khalil",
+				"role": "Head of Operations"
+			},
+			"member4": {
+				"name": "Nour Abdel-Rahman",
+				"role": "Head of Product"
+			}
 		},
 		"careers": {
 			"heading": "Join us",
@@ -708,11 +720,7 @@
 			"usingPortal": "Using the Portal",
 			"buildingMaterialLists": "Building Material Lists",
 			"trackingOrders": "Tracking Orders",
-			"managingProjects": "Managing Projects",
-			"forSuppliers": "For Suppliers",
-			"publishingCatalog": "Publishing Your Catalog",
-			"managingPrices": "Managing Prices",
-			"handlingPOs": "Handling POs"
+			"managingProjects": "Managing Projects"
 		},
 		"content": {
 			"notFound": "Not Found",
@@ -748,21 +756,6 @@
 				"title": "Managing Projects",
 				"createProject": "Creating a Project",
 				"budgets": "Budgets"
-			},
-			"publishingCatalog": {
-				"title": "Publishing Your Catalog",
-				"uploadProducts": "Uploading Products",
-				"aiParsing": "AI Parsing"
-			},
-			"managingPrices": {
-				"title": "Managing Prices",
-				"priceLists": "Price Lists",
-				"bulkUpdates": "Bulk Updates"
-			},
-			"handlingPOs": {
-				"title": "Handling POs",
-				"poInbox": "PO Inbox",
-				"fulfillment": "Fulfillment"
 			}
 		},
 		"toc": {

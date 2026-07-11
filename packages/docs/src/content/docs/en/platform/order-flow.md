@@ -10,7 +10,7 @@ Then you submit a **quote request (RFQ)** with your quantities and delivery requ
 
 ## Step 4-6: Sourcing and quote delivery
 
-Behind the scenes, the procurement team begins **supplier sourcing**, reaching out to 2-5 verified suppliers per product category in parallel. Suppliers respond with current pricing through the supplier portal.
+Behind the scenes, the procurement team begins **supplier sourcing**, comparing current information from verified supplier records and direct procurement communication. Supplier responses are managed by HyperQuote employees in the internal application.
 
 During **quote building**, the team evaluates supplier responses, applies margin rules, and assembles your formal quote. An internal approval process verifies margins and payment terms before anything reaches you.
 

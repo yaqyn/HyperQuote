@@ -14,7 +14,7 @@ The Egyptian Tax Authority mandates that all B2B invoices be submitted electroni
 
 Every product on an invoice requires an **EGS (Egyptian General Standard)** or **GPC (Global Product Classification)** code. These standardized codes identify the product type for the tax authority. The HyperQuote catalog enforces code assignment — products cannot appear on invoices without a valid EGS/GPC classification.
 
-When suppliers publish products through the supplier portal, they assign these codes during the catalog setup process. The system validates code presence and format before a product is approved for invoicing.
+HyperQuote employees maintain these codes while managing the internal catalog. The invoicing workflow validates code presence before a product can be included on an invoice.
 
 ## How HyperQuote handles compliance
 

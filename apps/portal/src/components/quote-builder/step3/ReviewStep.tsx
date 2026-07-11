@@ -1,8 +1,6 @@
 /**
  * Step 3: Review & Submit.
  * Shows item summary, delivery details, and submit button.
- * Non-approver buyers see "Submit for Approval" instead of "Submit Quote Request".
- * Confirmation modal adapts text based on approval workflow.
  */
 
 import { Pencil } from 'lucide-react'
@@ -11,19 +9,13 @@ import { Button } from 'react-aria-components/Button'
 import { Dialog, DialogTrigger, Heading } from 'react-aria-components/Dialog'
 import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
-import { useNeedsApproval } from '../../../hooks/useApproval'
 import { useQuoteBuilderOrderability } from '../../../hooks/useQuoteBuilderOrderability'
 import { useQuoteSubmit } from '../../../hooks/useQuoteSubmit'
-import { clearLocalDraft } from '../../../lib/quote-draft'
-import { toQuoteSubmissionPayload } from '../../../lib/quote-request-payload'
-import { submitForApproval } from '../../../lib/server/approvals'
 import { useQuoteBuilderStore } from '../../../stores/quote-builder'
 import { SubmitConfirmation } from './SubmitConfirmation'
 
 interface SubmitResult {
-	requestId: string
 	reference: string
-	isApproval?: boolean
 }
 
 export function ReviewStep() {
@@ -33,10 +25,8 @@ export function ReviewStep() {
 	const notes = useQuoteBuilderStore((s) => s.notes)
 	const deliveryDate = useQuoteBuilderStore((s) => s.deliveryDate)
 	const { submit, isSubmitting } = useQuoteSubmit()
-	const { needsApproval } = useNeedsApproval()
 
 	const [showConfirm, setShowConfirm] = useState(false)
-	const [submitting, setSubmitting] = useState(false)
 	const [result, setResult] = useState<SubmitResult | null>(null)
 	const [error, setError] = useState<string | null>(null)
 	const {
@@ -45,61 +35,24 @@ export function ReviewStep() {
 		unavailableItems,
 	} = useQuoteBuilderOrderability(items)
 
-	const handleSubmit = useCallback(async () => {
+	const handleSubmit = useCallback(() => {
 		if (isOrderabilityBlocked) return
-		setSubmitting(true)
 		setError(null)
-
-		try {
-			if (needsApproval) {
-				const state = useQuoteBuilderStore.getState()
-				const res = await submitForApproval({
-					data: {
-						...toQuoteSubmissionPayload(state),
-						idempotencyKey: crypto.randomUUID(),
-					},
-				})
-				clearLocalDraft()
-				useQuoteBuilderStore.getState().reset()
-				setResult({
-					requestId: res.requestId,
-					reference: res.reference,
-					isApproval: true,
-				})
-			} else {
-				submit(undefined, {
-					onSuccess: (data) => {
-						setResult({
-							requestId: data.requestId,
-							reference: data.reference,
-							isApproval: false,
-						})
-					},
-					onError: (err) => {
-						setError(err.message)
-					},
-				})
-			}
-		} catch (err) {
-			setError(
-				err instanceof Error ? err.message : t('quoteBuilder.errorToast'),
-			)
-		} finally {
-			setSubmitting(false)
-		}
-	}, [isOrderabilityBlocked, needsApproval, submit, t])
+		submit(undefined, {
+			onSuccess: (data) => {
+				setResult({ reference: data.reference })
+			},
+			onError: (err) => {
+				setError(err.message)
+			},
+		})
+	}, [isOrderabilityBlocked, submit])
 
 	if (result) {
-		return (
-			<SubmitConfirmation
-				reference={result.reference}
-				requestId={result.requestId}
-				isApproval={result.isApproval}
-			/>
-		)
+		return <SubmitConfirmation reference={result.reference} />
 	}
 
-	const isPending = submitting || isSubmitting
+	const isPending = isSubmitting
 
 	return (
 		<div className="flex flex-col gap-6 px-6 py-4">
@@ -202,7 +155,7 @@ export function ReviewStep() {
 				</div>
 			)}
 
-			{/* Submit / Submit for Approval */}
+			{/* Submit */}
 			<div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--color-border)]">
 				<DialogTrigger>
 					<Button
@@ -214,9 +167,7 @@ export function ReviewStep() {
 					>
 						{isPending
 							? t('quoteBuilder.submitting')
-							: needsApproval
-								? t('quoteBuilder.submitForApproval')
-								: t('quoteBuilder.submitCTA')}
+							: t('quoteBuilder.submitCTA')}
 					</Button>
 
 					{showConfirm && (
@@ -231,17 +182,13 @@ export function ReviewStep() {
 										slot="title"
 										className="text-lg font-semibold text-[var(--color-text)] mb-2"
 									>
-										{needsApproval
-											? t('quoteBuilder.confirmApproval')
-											: t('quoteBuilder.confirmHeading', {
-													count: items.length,
-												})}
+										{t('quoteBuilder.confirmHeading', {
+											count: items.length,
+										})}
 									</Heading>
-									{!needsApproval && (
-										<p className="text-sm text-[var(--color-text-muted)] mb-6">
-											{t('quoteBuilder.confirmBody')}
-										</p>
-									)}
+									<p className="text-sm text-[var(--color-text-muted)] mb-6">
+										{t('quoteBuilder.confirmBody')}
+									</p>
 									<div className="flex items-center justify-end gap-3">
 										<Button
 											onPress={() => setShowConfirm(false)}
@@ -257,9 +204,7 @@ export function ReviewStep() {
 											isDisabled={isOrderabilityBlocked || isPending}
 											className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer disabled:opacity-50"
 										>
-											{needsApproval
-												? t('quoteBuilder.submitForApproval')
-												: t('quoteBuilder.confirmConfirm')}
+											{t('quoteBuilder.confirmConfirm')}
 										</Button>
 									</div>
 								</Dialog>

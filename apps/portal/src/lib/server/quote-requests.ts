@@ -31,7 +31,6 @@ const quoteRequestDraftInput = z.object({
 })
 
 const submitQuoteRequestInput = quoteRequestDraftInput.extend({
-	approvalRequired: z.boolean().optional(),
 	idempotencyKey: z.string().uuid(),
 })
 
@@ -230,8 +229,7 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 		async ({
 			data: input,
 		}): Promise<{ requestId: string; reference: string }> => {
-			const { customerId, session, supabase } =
-				await getAuthenticatedPortalCustomer()
+			const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 			await assertQuoteRequestItemsOrderable(supabase, input.items)
 
 			const { data: existing } = await supabase
@@ -241,7 +239,7 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 				.maybeSingle()
 
 			if (existing) {
-				if (existing.status === 'draft' && !input.approvalRequired) {
+				if (existing.status === 'draft') {
 					const { error: submitError } = await supabase.rpc(
 						'customer_submit_saved_quote_request',
 						{
@@ -259,7 +257,7 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 				}
 			}
 
-			if (input.draftId && !input.approvalRequired) {
+			if (input.draftId) {
 				const draft = await loadEditableDraft(supabase, {
 					customerId,
 					draftId: input.draftId,
@@ -282,37 +280,6 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 				}
 			}
 
-			if (input.draftId) {
-				const draft = await loadEditableDraft(supabase, {
-					customerId,
-					draftId: input.draftId,
-				})
-				await updateDraftWithItems(supabase, {
-					customerId,
-					draftId: input.draftId,
-					items: input.items,
-					update: {
-						...buildDraftMetadataUpdate(input),
-						approval_required: true,
-					},
-				})
-
-				await supabase.from('approvals').insert({
-					approval_type: 'quote_discount',
-					entity_type: 'quote_request',
-					entity_id: input.draftId,
-					requested_by: session.user.id,
-					assigned_to: null,
-					status: 'pending',
-					context: { items_count: input.items.length },
-				})
-
-				return {
-					requestId: draft.id,
-					reference: draft.request_number,
-				}
-			}
-
 			const { data: qr, error: qrError } = await supabase
 				.from('quote_requests')
 				.insert({
@@ -322,13 +289,11 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 					project_id: input.projectId ?? null,
 					delivery_address_id: input.deliveryAddressId ?? null,
 					delivery_date: input.deliveryDate ?? null,
-					draft_name: input.approvalRequired
-						? normalizeDraftName(input.name)
-						: null,
+					draft_name: null,
 					notes: normalizeNotes(input.notes),
 					attachment_urls: input.attachmentUrls ?? [],
 					idempotency_key: input.idempotencyKey,
-					approval_required: input.approvalRequired ?? false,
+					approval_required: false,
 				})
 				.select('id, request_number')
 				.single()
@@ -339,27 +304,15 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 
 			await insertQuoteRequestItems(supabase, qr.id, input.items)
 
-			if (input.approvalRequired) {
-				await supabase.from('approvals').insert({
-					approval_type: 'quote_discount',
-					entity_type: 'quote_request',
-					entity_id: qr.id,
-					requested_by: session.user.id,
-					assigned_to: null,
-					status: 'pending',
-					context: { items_count: input.items.length },
-				})
-			} else {
-				const { error: submitError } = await supabase.rpc(
-					'customer_submit_saved_quote_request',
-					{
-						p_quote_request_id: qr.id,
-						p_source: 'portal',
-					},
-				)
+			const { error: submitError } = await supabase.rpc(
+				'customer_submit_saved_quote_request',
+				{
+					p_quote_request_id: qr.id,
+					p_source: 'portal',
+				},
+			)
 
-				if (submitError) throw new Error(submitError.message)
-			}
+			if (submitError) throw new Error(submitError.message)
 
 			return {
 				requestId: qr.id,

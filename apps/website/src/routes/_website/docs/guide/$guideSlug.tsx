@@ -11,7 +11,6 @@ import { WizardRenderer } from '../../../../components/docs/WizardRenderer'
 import { displayName, WIZARDS } from '../../../../content/registry'
 import { steps as forCustomersSteps } from '../../../../content/wizards/for-customers'
 import { steps as forDriversSteps } from '../../../../content/wizards/for-drivers'
-import { steps as forSuppliersSteps } from '../../../../content/wizards/for-suppliers'
 // Eagerly import all wizard step data.
 // When adding a new wizard, add its import here and to the map.
 import { steps as gettingStartedSteps } from '../../../../content/wizards/getting-started'
@@ -20,7 +19,6 @@ import { titleCaseSlug, websiteHead } from '../../../../lib/seo'
 const WIZARD_STEPS: Record<string, typeof gettingStartedSteps> = {
 	'getting-started': gettingStartedSteps,
 	'for-customers': forCustomersSteps,
-	'for-suppliers': forSuppliersSteps,
 	'for-drivers': forDriversSteps,
 }
 

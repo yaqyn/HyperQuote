@@ -1,7 +1,6 @@
 /**
  * Post-submit confirmation view.
- * Shows success message after quote submission or approval submission.
- * isApproval: shows approval-specific text without "Track Quote" button.
+ * Shows the direct quote-request submission result.
  */
 
 import { useNavigate } from '@tanstack/react-router'
@@ -11,14 +10,9 @@ import { useTranslation } from 'react-i18next'
 
 interface SubmitConfirmationProps {
 	reference: string
-	requestId: string
-	isApproval?: boolean
 }
 
-export function SubmitConfirmation({
-	reference,
-	isApproval,
-}: SubmitConfirmationProps) {
+export function SubmitConfirmation({ reference }: SubmitConfirmationProps) {
 	const { t } = useTranslation('portal')
 	const navigate = useNavigate()
 
@@ -31,23 +25,17 @@ export function SubmitConfirmation({
 
 			{/* Heading */}
 			<h2 className="text-xl font-semibold text-[var(--color-text)] text-center">
-				{isApproval
-					? t('quoteBuilder.approvalSuccessHeading')
-					: t('quoteBuilder.successHeading')}
+				{t('quoteBuilder.successHeading')}
 			</h2>
 
 			{/* Reference */}
-			{!isApproval && (
-				<p className="text-sm font-mono text-[var(--color-text-muted)]">
-					{t('quoteBuilder.successReference', { ref: reference })}
-				</p>
-			)}
+			<p className="text-sm font-mono text-[var(--color-text-muted)]">
+				{t('quoteBuilder.successReference', { ref: reference })}
+			</p>
 
 			{/* Body */}
 			<p className="text-sm text-[var(--color-text-muted)] text-center max-w-md">
-				{isApproval
-					? t('quoteBuilder.approvalSuccessBody')
-					: t('quoteBuilder.successBody')}
+				{t('quoteBuilder.successBody')}
 			</p>
 
 			{/* Actions */}
@@ -55,25 +43,17 @@ export function SubmitConfirmation({
 				{/* Back to Orders -- always shown */}
 				<Button
 					onPress={() => navigate({ to: '/orders' })}
-					className={[
-						'h-11 px-6 rounded-xl text-sm font-semibold transition-opacity cursor-pointer',
-						isApproval
-							? 'bg-[var(--color-primary)] text-[var(--color-primary-contrast)]'
-							: 'border border-[var(--color-border)] text-[var(--color-text)] hover:bg-[var(--color-surface)]',
-					].join(' ')}
+					className="h-11 px-6 rounded-xl border border-[var(--color-border)] text-sm font-semibold text-[var(--color-text)] transition-opacity cursor-pointer hover:bg-[var(--color-surface)]"
 				>
 					{t('quoteBuilder.backToOrders')}
 				</Button>
 
-				{/* Track Quote -- only for direct submissions */}
-				{!isApproval && (
-					<Button
-						onPress={() => navigate({ to: '/orders' })}
-						className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer"
-					>
-						{t('quoteBuilder.trackQuote')}
-					</Button>
-				)}
+				<Button
+					onPress={() => navigate({ to: '/orders' })}
+					className="h-11 px-6 rounded-xl bg-[var(--color-primary)] text-[var(--color-primary-contrast)] text-sm font-semibold transition-opacity cursor-pointer"
+				>
+					{t('quoteBuilder.trackQuote')}
+				</Button>
 			</div>
 		</div>
 	)

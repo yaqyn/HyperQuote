@@ -1,88 +1,53 @@
-/**
- * Security settings section.
- * "Data is the design" — sessions as rows with bottom borders.
- * Device name, location, time in monospace. Current device badge tiny uppercase.
- * Sign out as text link. MFA section minimal.
- */
-
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
-import { signOutSession } from '../../lib/server/settings'
-import type { ActiveSession } from '../../types/settings'
+import { signOutPortalAccount } from '../../lib/auth'
+import { usePortalStore } from '../../stores/portal'
 
-interface SecuritySectionProps {
-	sessions: ActiveSession[]
-}
-
-const labelClass =
-	'text-[13px] uppercase tracking-[0.15em] text-[var(--color-text-subtle)]'
-
-export function SecuritySection({ sessions }: SecuritySectionProps) {
+export function SecuritySection() {
 	const { t } = useTranslation('portal')
-	const queryClient = useQueryClient()
+	const setSigningOut = usePortalStore((state) => state.setSigningOut)
+	const [error, setError] = useState(false)
+	const [isPending, setIsPending] = useState(false)
 
-	const signOutMutation = useMutation({
-		mutationFn: (sessionId: string) => signOutSession({ data: { sessionId } }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['activeSessions'] })
-		},
-	})
+	async function signOutCurrentDevice() {
+		setError(false)
+		setIsPending(true)
+		setSigningOut(true)
+		try {
+			await signOutPortalAccount()
+			window.location.assign('/login')
+		} catch {
+			setError(true)
+			setIsPending(false)
+			setSigningOut(false)
+		}
+	}
 
 	return (
-		<div className="space-y-8">
-			{/* Active Sessions */}
-			<div>
-				{sessions.map((session) => (
-					<div
-						key={session.id}
-						className="flex items-center justify-between py-4 border-b border-[var(--color-border)]"
-					>
-						<div className="space-y-0.5">
-							<div className="flex items-center gap-3">
-								<span className="text-sm font-mono text-[var(--color-text)]">
-									{session.device}
-								</span>
-								{session.isCurrent && (
-									<span className={labelClass}>
-										{t('settings.security.currentSession')}
-									</span>
-								)}
-							</div>
-							<div className="flex items-center gap-3">
-								<span className="text-[13px] font-mono text-[var(--color-text-subtle)]">
-									{session.location}
-								</span>
-								<span className="text-[13px] font-mono text-[var(--color-text-subtle)]">
-									{new Date(session.lastActive).toLocaleString()}
-								</span>
-							</div>
-						</div>
-
-						{/* Sign out — text link, hidden for current */}
-						{!session.isCurrent && (
-							<Button
-								onPress={() => signOutMutation.mutate(session.id)}
-								isDisabled={signOutMutation.isPending}
-								className="text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] rounded disabled:opacity-50"
-							>
-								{t('settings.security.signOut')}
-							</Button>
-						)}
-					</div>
-				))}
-			</div>
-
-			{/* Two-Factor Authentication */}
-			<div className="space-y-3 pt-6 border-t border-[var(--color-border)]">
-				<span className={labelClass}>{t('settings.security.mfaTitle')}</span>
-				<p className="text-[13px] text-[var(--color-text-subtle)]">
-					{t('settings.security.mfaDescription')}
+		<div className="space-y-4">
+			<div className="border-b border-[var(--color-border)] pb-4">
+				<p className="text-sm font-medium text-[var(--color-text)]">
+					{t('settings.security.currentSession')}
 				</p>
-				<Button className="px-4 py-2 bg-[#0F172A] text-white dark:bg-[#FAFAFA] dark:text-[#09090B] text-sm cursor-pointer outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] focus-visible:ring-offset-2">
-					{t('settings.security.enableMfa')}
-				</Button>
+				<p className="mt-1 text-[13px] text-[var(--color-text-subtle)]">
+					{t('settings.security.currentSessionDescription')}
+				</p>
 			</div>
+			<Button
+				onPress={signOutCurrentDevice}
+				isDisabled={isPending}
+				className="text-[13px] text-[var(--color-text-subtle)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--p-focus-ring)] disabled:opacity-50"
+			>
+				{isPending
+					? t('settings.security.signingOut')
+					: t('settings.security.signOut')}
+			</Button>
+			{error && (
+				<p className="text-sm text-red-600 dark:text-red-400" role="alert">
+					{t('settings.security.signOutError')}
+				</p>
+			)}
 		</div>
 	)
 }

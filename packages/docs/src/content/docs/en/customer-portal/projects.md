@@ -23,11 +23,9 @@ Within a project, you can save material lists as templates. A "Monthly Restock" 
 
 These saved lists work alongside the one-tap reorder feature. If you ordered a specific combination of materials three months ago for one site and need the same for another, you can duplicate that order into a new project.
 
-## Team collaboration
+## Quote request organization
 
-Projects support multi-user access through the portal's role system. A procurement manager might create the project and material lists, a project manager reviews and adjusts quantities, and a site foreman manages deliveries on-site. Everyone works within the same project context with shared visibility.
-
-Sharing a material list between team members is built in. You prepare a draft, share it with a colleague for review, and they can add items, adjust quantities, or leave notes before submission.
+Projects provide an optional customer-side label for quote requests. You can prepare and edit your own drafts, then submit them directly to HyperQuote when the quantities and delivery details are ready.
 
 ## Project-level reporting
 

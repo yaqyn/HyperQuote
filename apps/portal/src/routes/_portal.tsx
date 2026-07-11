@@ -100,7 +100,6 @@ function PortalLayout() {
 	)
 	const companyName =
 		firstText(metadataValue(metadata, 'company_name')) || undefined
-	const hasSupplierRole = auth?.roles.includes('supplier') ?? false
 	const sidebarInitialX = -24
 	const contentDir = i18n.dir()
 
@@ -148,7 +147,6 @@ function PortalLayout() {
 							<ChatSidebar
 								userName={userName}
 								companyName={companyName}
-								hasSupplierRole={hasSupplierRole}
 								closeOnNavigate={isCompactViewport}
 							/>
 						</motion.aside>
@@ -173,11 +171,7 @@ function PortalLayout() {
 								transition={{ duration: 0.24, ease: SMOOTH_EASE }}
 								className="h-full w-[260px]"
 							>
-								<ChatSidebar
-									userName={userName}
-									companyName={companyName}
-									hasSupplierRole={hasSupplierRole}
-								/>
+								<ChatSidebar userName={userName} companyName={companyName} />
 							</motion.div>
 						)}
 					</AnimatePresence>
@@ -267,23 +261,9 @@ function usePortalQuoteCartSync(enabled: boolean) {
 
 function PortalShortcuts() {
 	const navigate = useNavigate()
-	const activeRole = usePortalStore((s) => s.activeRole)
 
-	useShortcut('O', () => navigate({ to: '/orders' }), {
-		enabled: activeRole === 'customer',
-	})
-	useShortcut('M', () => navigate({ to: '/market' }), {
-		enabled: activeRole === 'customer',
-	})
-	useShortcut('S', () => navigate({ to: '/supplier/stock' }), {
-		enabled: activeRole === 'supplier',
-	})
-	useShortcut('P', () => navigate({ to: '/supplier/orders' }), {
-		enabled: activeRole === 'supplier',
-	})
-	useShortcut('A', () => navigate({ to: '/supplier/analytics' }), {
-		enabled: activeRole === 'supplier',
-	})
+	useShortcut('O', () => navigate({ to: '/orders' }))
+	useShortcut('M', () => navigate({ to: '/market' }))
 	useShortcut('N', () => navigate({ to: '/notifications' }))
 	useShortcut('[', () => usePortalStore.getState().toggleSidebar())
 	useShortcut('/', () => {

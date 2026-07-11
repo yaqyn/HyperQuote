@@ -2733,6 +2733,7 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					enabled: boolean
+					event: Database['public']['Enums']['notification_event']
 					id: string
 					updated_at: string
 					user_id: string | null
@@ -2742,6 +2743,7 @@ export type Database = {
 					created_at?: string
 					customer_id?: string | null
 					enabled?: boolean
+					event: Database['public']['Enums']['notification_event']
 					id?: string
 					updated_at?: string
 					user_id?: string | null
@@ -2751,6 +2753,7 @@ export type Database = {
 					created_at?: string
 					customer_id?: string | null
 					enabled?: boolean
+					event?: Database['public']['Enums']['notification_event']
 					id?: string
 					updated_at?: string
 					user_id?: string | null
@@ -4171,51 +4174,6 @@ export type Database = {
 					},
 				]
 			}
-			referrals: {
-				Row: {
-					created_at: string
-					customer_id: string
-					id: string
-					referral_code: string
-					referred_email: string | null
-					status: Database['public']['Enums']['referral_status']
-					updated_at: string
-				}
-				Insert: {
-					created_at?: string
-					customer_id: string
-					id?: string
-					referral_code: string
-					referred_email?: string | null
-					status?: Database['public']['Enums']['referral_status']
-					updated_at?: string
-				}
-				Update: {
-					created_at?: string
-					customer_id?: string
-					id?: string
-					referral_code?: string
-					referred_email?: string | null
-					status?: Database['public']['Enums']['referral_status']
-					updated_at?: string
-				}
-				Relationships: [
-					{
-						foreignKeyName: 'referrals_customer_id_fkey'
-						columns: ['customer_id']
-						isOneToOne: false
-						referencedRelation: 'ceo_customer_summary'
-						referencedColumns: ['id']
-					},
-					{
-						foreignKeyName: 'referrals_customer_id_fkey'
-						columns: ['customer_id']
-						isOneToOne: false
-						referencedRelation: 'customers'
-						referencedColumns: ['id']
-					},
-				]
-			}
 			refill_requests: {
 				Row: {
 					created_at: string
@@ -4986,90 +4944,6 @@ export type Database = {
 					},
 				]
 			}
-			team_invites: {
-				Row: {
-					created_at: string
-					customer_id: string
-					email: string
-					id: string
-					role: Database['public']['Enums']['team_member_role']
-					status: Database['public']['Enums']['team_invite_status']
-					updated_at: string
-				}
-				Insert: {
-					created_at?: string
-					customer_id: string
-					email: string
-					id?: string
-					role?: Database['public']['Enums']['team_member_role']
-					status?: Database['public']['Enums']['team_invite_status']
-					updated_at?: string
-				}
-				Update: {
-					created_at?: string
-					customer_id?: string
-					email?: string
-					id?: string
-					role?: Database['public']['Enums']['team_member_role']
-					status?: Database['public']['Enums']['team_invite_status']
-					updated_at?: string
-				}
-				Relationships: [
-					{
-						foreignKeyName: 'team_invites_customer_id_fkey'
-						columns: ['customer_id']
-						isOneToOne: false
-						referencedRelation: 'ceo_customer_summary'
-						referencedColumns: ['id']
-					},
-					{
-						foreignKeyName: 'team_invites_customer_id_fkey'
-						columns: ['customer_id']
-						isOneToOne: false
-						referencedRelation: 'customers'
-						referencedColumns: ['id']
-					},
-				]
-			}
-			team_members: {
-				Row: {
-					created_at: string
-					customer_id: string
-					id: string
-					role: Database['public']['Enums']['team_member_role']
-					user_id: string | null
-				}
-				Insert: {
-					created_at?: string
-					customer_id: string
-					id?: string
-					role?: Database['public']['Enums']['team_member_role']
-					user_id?: string | null
-				}
-				Update: {
-					created_at?: string
-					customer_id?: string
-					id?: string
-					role?: Database['public']['Enums']['team_member_role']
-					user_id?: string | null
-				}
-				Relationships: [
-					{
-						foreignKeyName: 'team_members_customer_id_fkey'
-						columns: ['customer_id']
-						isOneToOne: false
-						referencedRelation: 'ceo_customer_summary'
-						referencedColumns: ['id']
-					},
-					{
-						foreignKeyName: 'team_members_customer_id_fkey'
-						columns: ['customer_id']
-						isOneToOne: false
-						referencedRelation: 'customers'
-						referencedColumns: ['id']
-					},
-				]
-			}
 			truck_fuel_expenses: {
 				Row: {
 					amount: number | null
@@ -5379,36 +5253,6 @@ export type Database = {
 						referencedColumns: ['id']
 					},
 				]
-			}
-			user_sessions: {
-				Row: {
-					created_at: string
-					device: string | null
-					id: string
-					is_current: boolean
-					last_active: string
-					location: string | null
-					user_id: string
-				}
-				Insert: {
-					created_at?: string
-					device?: string | null
-					id?: string
-					is_current?: boolean
-					last_active?: string
-					location?: string | null
-					user_id: string
-				}
-				Update: {
-					created_at?: string
-					device?: string | null
-					id?: string
-					is_current?: boolean
-					last_active?: string
-					location?: string | null
-					user_id?: string
-				}
-				Relationships: []
 			}
 		}
 		Views: {
@@ -10898,14 +10742,6 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
-			service_transfer_team_ownership: {
-				Args: {
-					p_actor_pool: string
-					p_actor_user_id: string
-					p_member_id: string
-				}
-				Returns: undefined
-			}
 			service_warehouse_approve_loading: {
 				Args: {
 					p_actor_pool: string
@@ -11261,10 +11097,6 @@ export type Database = {
 					isOneToOne: true
 					isSetofReturn: false
 				}
-			}
-			transfer_team_ownership: {
-				Args: { p_member_id: string }
-				Returns: undefined
 			}
 			warehouse_approve_loading: {
 				Args: { p_loading_task_id: string; p_proof: Json }
@@ -11778,6 +11610,13 @@ export type Database = {
 			inventory_reservation_status: 'reserved' | 'released' | 'consumed'
 			loading_task_status: 'pending' | 'loading' | 'approved' | 'rejected'
 			notification_channel: 'email' | 'sms' | 'whatsapp' | 'push'
+			notification_event:
+				| 'quote_ready'
+				| 'order_status'
+				| 'delivery_update'
+				| 'invoice_generated'
+				| 'payment_confirmation'
+				| 'support_response'
 			order_workflow_status:
 				| 'confirmed_for_inventory'
 				| 'inventory_reserved'
@@ -11825,7 +11664,6 @@ export type Database = {
 				| 'cancelled'
 				| 'requires_re_quote'
 			receiving_task_status: 'pending' | 'approved' | 'rejected'
-			referral_status: 'pending' | 'converted' | 'credited' | 'canceled'
 			refill_request_status:
 				| 'finance_pending'
 				| 'finance_approved'
@@ -11846,8 +11684,6 @@ export type Database = {
 				| 'internal'
 				| 'email'
 			support_ticket_status: 'open' | 'pending' | 'closed'
-			team_invite_status: 'pending' | 'accepted' | 'revoked'
-			team_member_role: 'owner' | 'admin' | 'member'
 			trade_license_status:
 				| 'not_uploaded'
 				| 'under_review'
@@ -12290,6 +12126,14 @@ export const Constants = {
 			inventory_reservation_status: ['reserved', 'released', 'consumed'],
 			loading_task_status: ['pending', 'loading', 'approved', 'rejected'],
 			notification_channel: ['email', 'sms', 'whatsapp', 'push'],
+			notification_event: [
+				'quote_ready',
+				'order_status',
+				'delivery_update',
+				'invoice_generated',
+				'payment_confirmation',
+				'support_response',
+			],
 			order_workflow_status: [
 				'confirmed_for_inventory',
 				'inventory_reserved',
@@ -12340,7 +12184,6 @@ export const Constants = {
 				'requires_re_quote',
 			],
 			receiving_task_status: ['pending', 'approved', 'rejected'],
-			referral_status: ['pending', 'converted', 'credited', 'canceled'],
 			refill_request_status: [
 				'finance_pending',
 				'finance_approved',
@@ -12363,8 +12206,6 @@ export const Constants = {
 				'email',
 			],
 			support_ticket_status: ['open', 'pending', 'closed'],
-			team_invite_status: ['pending', 'accepted', 'revoked'],
-			team_member_role: ['owner', 'admin', 'member'],
 			trade_license_status: [
 				'not_uploaded',
 				'under_review',

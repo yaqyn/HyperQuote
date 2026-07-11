@@ -12,15 +12,12 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest, getResponse } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import type {
-	ActiveSession,
 	Address,
 	CustomerProfile,
+	NotificationPreference,
 	Project,
 } from '../../types/settings'
-import {
-	getAuthenticatedPortalCustomer,
-	getAuthenticatedSupabase,
-} from './_supabase'
+import { getAuthenticatedPortalCustomer } from './_supabase'
 import { resolveAddressCoordinates } from './address-coordinates'
 
 const emailChangeInput = z.object({
@@ -570,78 +567,50 @@ export const archiveProject = createServerFn({ method: 'POST' })
 		return { success: true }
 	})
 
-export const updateNotificationPreferences = createServerFn({ method: 'POST' })
-	.inputValidator(
-		z.object({
-			preferences: z.array(
-				z.object({
-					channel: z.enum(['whatsapp', 'email', 'push', 'sms']),
-					event: z.enum([
-						'quote_ready',
-						'order_status',
-						'delivery_update',
-						'invoice_generated',
-						'payment_confirmation',
-						'support_response',
-					]),
-					enabled: z.boolean(),
-				}),
-			),
-		}),
-	)
-	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
+const notificationPreferenceInput = z.object({
+	channel: z.enum(['whatsapp', 'email', 'push', 'sms']),
+	event: z.enum([
+		'quote_ready',
+		'order_status',
+		'delivery_update',
+		'invoice_generated',
+		'payment_confirmation',
+		'support_response',
+	]),
+	enabled: z.boolean(),
+})
+
+export const getNotificationPreferences = createServerFn().handler(
+	async (): Promise<NotificationPreference[]> => {
 		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
-		const byChannel = new Map<string, boolean>()
-		for (const preference of input.preferences) {
-			byChannel.set(preference.channel, preference.enabled)
-		}
-		const payload = Array.from(byChannel, ([channel, enabled]) => ({
-			customer_id: customerId,
-			channel,
-			enabled,
-		}))
-
-		if (payload.length > 0) {
-			const { error } = await supabase
-				.from('notification_preferences')
-				.upsert(payload, { onConflict: 'customer_id,channel' })
-			if (error) throw new Error(error.message)
-		}
-
-		return { success: true }
-	})
-
-export const getActiveSessions = createServerFn().handler(
-	async (): Promise<ActiveSession[]> => {
-		const { session, supabase } = await getAuthenticatedSupabase()
 		const { data, error } = await supabase
-			.from('user_sessions')
-			.select('id, device, last_active, location, is_current')
-			.eq('user_id', session.user.id)
-			.order('last_active', { ascending: false })
+			.from('notification_preferences')
+			.select('channel, event, enabled')
+			.eq('customer_id', customerId)
 
 		if (error) throw new Error(error.message)
-
-		return (data ?? []).map((session) => ({
-			id: session.id,
-			device: session.device ?? 'Unknown device',
-			lastActive: session.last_active,
-			location: session.location ?? '',
-			isCurrent: session.is_current,
-		}))
+		return data ?? []
 	},
 )
 
-export const signOutSession = createServerFn({ method: 'POST' })
-	.inputValidator(z.object({ sessionId: z.string() }))
+export const updateNotificationPreference = createServerFn({ method: 'POST' })
+	.inputValidator(z.object({ preference: notificationPreferenceInput }))
 	.handler(async ({ data: input }): Promise<{ success: boolean }> => {
-		const { session, supabase } = await getAuthenticatedSupabase()
-		const { error } = await supabase
-			.from('user_sessions')
-			.delete()
-			.eq('id', input.sessionId)
-			.eq('user_id', session.user.id)
+		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
+		const preference = input.preference
+		const { error: insertError } = await supabase
+			.from('notification_preferences')
+			.upsert(
+				{
+					user_id: null,
+					customer_id: customerId,
+					channel: preference.channel,
+					event: preference.event,
+					enabled: preference.enabled,
+				},
+				{ onConflict: 'user_id,customer_id,channel,event' },
+			)
 
-		if (error) throw new Error(error.message)
+		if (insertError) throw new Error(insertError.message)
 		return { success: true }
 	})

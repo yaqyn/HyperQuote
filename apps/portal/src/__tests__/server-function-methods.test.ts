@@ -39,10 +39,6 @@ function sourceFilesUnder(root: string): string[] {
 const mutatingServerFunctions = [
 	{ file: 'lib/auth.ts', exports: ['requestPhoneChange', 'verifyPhoneChange'] },
 	{
-		file: 'lib/server/approvals.ts',
-		exports: ['submitForApproval'],
-	},
-	{
 		file: 'lib/server/addresses.ts',
 		exports: ['createAddress'],
 	},
@@ -86,33 +82,7 @@ const mutatingServerFunctions = [
 			'deleteAddress',
 			'saveProject',
 			'archiveProject',
-			'updateNotificationPreferences',
-			'signOutSession',
-		],
-	},
-	{
-		file: 'lib/server/supplier-catalog.ts',
-		exports: ['uploadCatalog'],
-	},
-	{
-		file: 'lib/server/supplier-invoices.ts',
-		exports: ['submitSupplierInvoice'],
-	},
-	{
-		file: 'lib/server/supplier-orders.ts',
-		exports: ['confirmPO', 'rejectPO', 'uploadDeliveryNote'],
-	},
-	{
-		file: 'lib/server/supplier-stock.ts',
-		exports: ['updateSupplierStock', 'bulkUpdatePrices'],
-	},
-	{
-		file: 'lib/server/team.ts',
-		exports: [
-			'inviteTeamMember',
-			'removeTeamMember',
-			'changeTeamMemberRole',
-			'transferOwnership',
+			'updateNotificationPreference',
 		],
 	},
 ] satisfies Array<{ exports: string[]; file: string }>

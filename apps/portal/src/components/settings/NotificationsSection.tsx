@@ -9,7 +9,7 @@ import type { ParseKeys } from 'i18next'
 import { useState } from 'react'
 import { Switch } from 'react-aria-components/Switch'
 import { useTranslation } from 'react-i18next'
-import { updateNotificationPreferences } from '../../lib/server/settings'
+import { updateNotificationPreference } from '../../lib/server/settings'
 import type { NotificationPreference } from '../../types/settings'
 
 const CHANNELS = ['whatsapp', 'email', 'push'] as const
@@ -40,7 +40,7 @@ const EVENT_LABELS: Record<(typeof EVENTS)[number], ParseKeys<'portal'>> = {
 export function NotificationsSection({
 	preferences: initialPreferences,
 }: {
-	preferences?: NotificationPreference[]
+	preferences: NotificationPreference[]
 }) {
 	const { t } = useTranslation('portal')
 	const queryClient = useQueryClient()
@@ -59,8 +59,8 @@ export function NotificationsSection({
 	})
 
 	const updateMutation = useMutation({
-		mutationFn: (prefs: NotificationPreference[]) =>
-			updateNotificationPreferences({ data: { preferences: prefs } }),
+		mutationFn: (preference: NotificationPreference) =>
+			updateNotificationPreference({ data: { preference } }),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['notificationPreferences'] })
 		},
@@ -72,24 +72,24 @@ export function NotificationsSection({
 		enabled: boolean,
 	) {
 		const key = `${channel}:${event}`
-		const newMap = { ...prefMap, [key]: enabled }
-		setPrefMap(newMap)
-
-		const prefs: NotificationPreference[] = Object.entries(newMap).map(
-			([k, v]) => {
-				const [ch, ev] = k.split(':')
-				return {
-					channel: ch as NotificationPreference['channel'],
-					event: ev as NotificationPreference['event'],
-					enabled: v,
-				}
+		setPrefMap((current) => ({ ...current, [key]: enabled }))
+		updateMutation.mutate(
+			{ channel, event, enabled },
+			{
+				onError: () => {
+					setPrefMap((current) => ({ ...current, [key]: !enabled }))
+				},
 			},
 		)
-		updateMutation.mutate(prefs)
 	}
 
 	return (
 		<div className="flex flex-col gap-6">
+			{updateMutation.isError && (
+				<p className="text-sm text-red-600 dark:text-red-400" role="alert">
+					{t('settings.notifications.updateError')}
+				</p>
+			)}
 			{EVENTS.map((event) => (
 				<div
 					key={event}

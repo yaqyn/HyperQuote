@@ -196,7 +196,6 @@ const TABLE_QUERY_KEYS: Record<string, readonly QueryKeyPrefix[]> = {
 	quotes: [...SALES_QUERY_KEYS, ...ORDER_FLOW_QUERY_KEYS],
 	receiving_task_items: [...WAREHOUSE_QUERY_KEYS, ...FINANCE_QUERY_KEYS],
 	receiving_tasks: [...WAREHOUSE_QUERY_KEYS, ...FINANCE_QUERY_KEYS],
-	referrals: [...ADMIN_QUERY_KEYS, ...CUSTOMER_QUERY_KEYS],
 	refill_requests: [...CATALOG_QUERY_KEYS, ...FINANCE_QUERY_KEYS],
 	sales_call_notes: SALES_QUERY_KEYS,
 	sales_quote_versions: [...SALES_QUERY_KEYS, ...ORDER_FLOW_QUERY_KEYS],
@@ -212,8 +211,6 @@ const TABLE_QUERY_KEYS: Record<string, readonly QueryKeyPrefix[]> = {
 	support_conversations: SUPPORT_QUERY_KEYS,
 	support_messages: SUPPORT_QUERY_KEYS,
 	support_tickets: SUPPORT_QUERY_KEYS,
-	team_invites: [...ADMIN_QUERY_KEYS, ...CUSTOMER_QUERY_KEYS],
-	team_members: [...ADMIN_QUERY_KEYS, ...CUSTOMER_QUERY_KEYS],
 	trucks: [
 		...ADMIN_QUERY_KEYS,
 		...WAREHOUSE_QUERY_KEYS,
@@ -221,7 +218,6 @@ const TABLE_QUERY_KEYS: Record<string, readonly QueryKeyPrefix[]> = {
 	],
 	user_profiles: ADMIN_QUERY_KEYS,
 	user_roles: ADMIN_QUERY_KEYS,
-	user_sessions: ADMIN_QUERY_KEYS,
 } as const
 
 const REALTIME_TABLES = Object.keys(TABLE_QUERY_KEYS)

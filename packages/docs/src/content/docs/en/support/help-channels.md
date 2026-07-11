@@ -16,7 +16,7 @@ Phone is the recommended channel for: delivery emergencies (truck breakdown, sit
 
 ## In-app chat
 
-The customer portal and supplier portal both include in-app chat accessible from any screen. Portal chat is attached to your account context, which makes it the right channel for order modifications, quote inquiries, delivery details, and account questions.
+The customer portal includes in-app Lyon chat attached to your account context. It is the right place to inspect customer-owned drafts, quotes, orders, deliveries, and account information before confirming any supported action.
 
 Lyon AI for account-specific help lives in the signed-in portal app. Website chat is limited to public website guidance.
 

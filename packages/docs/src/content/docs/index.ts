@@ -24,15 +24,10 @@ import invoicingAr from './ar/payments/invoicing.md?raw'
 import paymentMethodsAr from './ar/payments/payment-methods.md?raw'
 import orderFlowAr from './ar/platform/order-flow.md?raw'
 import whatIsHyperquoteAr from './ar/platform/what-is-hyperquote.md?raw'
-import whiteLabelModelAr from './ar/platform/white-label-model.md?raw'
 import changeOrdersAr from './ar/quotes-orders/change-orders.md?raw'
 import orderManagementAr from './ar/quotes-orders/order-management.md?raw'
 import quoteLifecycleAr from './ar/quotes-orders/quote-lifecycle.md?raw'
 import rfqFlowAr from './ar/quotes-orders/rfq-flow.md?raw'
-import deliveryFulfillmentAr from './ar/supplier-portal/delivery-fulfillment.md?raw'
-import managingPricesAr from './ar/supplier-portal/managing-prices.md?raw'
-import publishingCatalogAr from './ar/supplier-portal/publishing-catalog.md?raw'
-import purchaseOrdersAr from './ar/supplier-portal/purchase-orders.md?raw'
 import damagedDeliveryAr from './ar/support/damaged-delivery.md?raw'
 import faqAr from './ar/support/faq.md?raw'
 import helpChannelsAr from './ar/support/help-channels.md?raw'
@@ -65,17 +60,11 @@ import paymentMethodsEn from './en/payments/payment-methods.md?raw'
 import orderFlowEn from './en/platform/order-flow.md?raw'
 // platform
 import whatIsHyperquoteEn from './en/platform/what-is-hyperquote.md?raw'
-import whiteLabelModelEn from './en/platform/white-label-model.md?raw'
 import changeOrdersEn from './en/quotes-orders/change-orders.md?raw'
 import orderManagementEn from './en/quotes-orders/order-management.md?raw'
 import quoteLifecycleEn from './en/quotes-orders/quote-lifecycle.md?raw'
 // quotes-orders
 import rfqFlowEn from './en/quotes-orders/rfq-flow.md?raw'
-import deliveryFulfillmentEn from './en/supplier-portal/delivery-fulfillment.md?raw'
-import managingPricesEn from './en/supplier-portal/managing-prices.md?raw'
-// supplier-portal
-import publishingCatalogEn from './en/supplier-portal/publishing-catalog.md?raw'
-import purchaseOrdersEn from './en/supplier-portal/purchase-orders.md?raw'
 import damagedDeliveryEn from './en/support/damaged-delivery.md?raw'
 import faqEn from './en/support/faq.md?raw'
 // support
@@ -90,10 +79,6 @@ const CONTENT: Record<string, { en: string; ar: string }> = {
 	'platform/what-is-hyperquote': {
 		en: whatIsHyperquoteEn,
 		ar: whatIsHyperquoteAr,
-	},
-	'platform/white-label-model': {
-		en: whiteLabelModelEn,
-		ar: whiteLabelModelAr,
 	},
 	'platform/order-flow': { en: orderFlowEn, ar: orderFlowAr },
 	'website-market/browsing-catalog': {
@@ -124,22 +109,6 @@ const CONTENT: Record<string, { en: string; ar: string }> = {
 	'customer-portal/order-tracking': {
 		en: orderTrackingEn,
 		ar: orderTrackingAr,
-	},
-	'supplier-portal/publishing-catalog': {
-		en: publishingCatalogEn,
-		ar: publishingCatalogAr,
-	},
-	'supplier-portal/managing-prices': {
-		en: managingPricesEn,
-		ar: managingPricesAr,
-	},
-	'supplier-portal/purchase-orders': {
-		en: purchaseOrdersEn,
-		ar: purchaseOrdersAr,
-	},
-	'supplier-portal/delivery-fulfillment': {
-		en: deliveryFulfillmentEn,
-		ar: deliveryFulfillmentAr,
 	},
 	'delivery/scheduling-dispatch': {
 		en: schedulingDispatchEn,

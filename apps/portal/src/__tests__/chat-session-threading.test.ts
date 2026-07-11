@@ -24,15 +24,8 @@ function message(id: string, content: string): ChatMessage {
 describe('portal chat session threading', () => {
 	beforeEach(() => {
 		useChatStore.setState({
-			activeConversationId: { customer: null, supplier: null },
-			customerConversations: [],
 			customerMessages: [],
 			customerThreadMessages: {},
-			isHistoryOpen: false,
-			quickActionContext: 'home',
-			supplierConversations: [],
-			supplierMessages: [],
-			supplierThreadMessages: {},
 		})
 	})
 
@@ -41,8 +34,8 @@ describe('portal chat session threading', () => {
 		const defaultMessages = [message('default-1', 'hello')]
 		const draftMessages = [message('draft-1', 'draft 123')]
 
-		store.setMessages('customer', defaultMessages, 'default')
-		store.setMessages('customer', draftMessages, 'draft:123')
+		store.setMessages(defaultMessages, 'default')
+		store.setMessages(draftMessages, 'draft:123')
 
 		expect(useChatStore.getState().customerThreadMessages.default).toEqual(
 			defaultMessages,
@@ -57,8 +50,8 @@ describe('portal chat session threading', () => {
 		const store = useChatStore.getState()
 		const tempMessages = [message('temp-1', 'before save')]
 
-		store.setMessages('customer', tempMessages, 'draft:temp:abc')
-		store.moveThread('customer', 'draft:temp:abc', 'draft:123')
+		store.setMessages(tempMessages, 'draft:temp:abc')
+		store.moveThread('draft:temp:abc', 'draft:123')
 
 		expect(
 			useChatStore.getState().customerThreadMessages['draft:temp:abc'],
@@ -73,9 +66,9 @@ describe('portal chat session threading', () => {
 		const savedMessages = [message('saved-1', 'existing saved chat')]
 		const tempMessages = [message('temp-1', 'temporary chat')]
 
-		store.setMessages('customer', savedMessages, 'draft:123')
-		store.setMessages('customer', tempMessages, 'draft:temp:abc')
-		store.moveThread('customer', 'draft:temp:abc', 'draft:123')
+		store.setMessages(savedMessages, 'draft:123')
+		store.setMessages(tempMessages, 'draft:temp:abc')
+		store.moveThread('draft:temp:abc', 'draft:123')
 
 		expect(
 			useChatStore.getState().customerThreadMessages['draft:temp:abc'],
@@ -178,15 +171,15 @@ describe('portal chat session threading', () => {
 
 		expect(hookSource).toContain("previousKey.startsWith('draft:temp:')")
 		expect(hookSource).toContain("conversationKey === 'default'")
-		expect(hookSource).toContain('clearStoreActive(activeRole, previousKey)')
+		expect(hookSource).toContain('clearStoreActive(previousKey)')
 		expect(hookSource).toContain("previousKey === 'default'")
 		expect(hookSource).toContain("conversationKey.startsWith('draft:temp:')")
 		expect(hookSource).toContain(
-			'moveStoreThread(activeRole, previousKey, conversationKey)',
+			'moveStoreThread(previousKey, conversationKey)',
 		)
 		expect(hookSource).toContain('currentMessages.length > 0')
 		expect(hookSource).toContain(
-			"storedMessages.length === 0 &&\n\t\t\tconversationKey.startsWith('draft:temp:')",
+			"threadMessages.length === 0 &&\n\t\t\tconversationKey.startsWith('draft:temp:')",
 		)
 		expect(chatViewSource).toContain(
 			"setChatThreadKey(draft?.sessionKey ?? 'default')",
@@ -222,7 +215,7 @@ describe('portal chat session threading', () => {
 		expect(chatSource).toContain("name: 'portal_clear_draft_threads'")
 		expect(chatSource).toContain('clearThreadSessionKeys: [draftSessionKey')
 		expect(hookSource).toContain('clearDraftThreadKeys')
-		expect(hookSource).toContain('clearStoreActive(activeRole, key)')
+		expect(hookSource).toContain('clearStoreActive(key)')
 		expect(hookSource).toContain('if (activeThreadCleared) onNewSession?.()')
 	})
 })

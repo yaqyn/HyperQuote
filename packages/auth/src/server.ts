@@ -502,7 +502,6 @@ const ACTOR_RPC_NAMES = new Set([
 	'set_employee_presence',
 	'set_support_conversation_status',
 	'set_support_ticket_status',
-	'transfer_team_ownership',
 	'warehouse_approve_loading',
 	'warehouse_approve_receiving',
 	'warehouse_assign_loading_driver',

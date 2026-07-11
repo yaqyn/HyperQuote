@@ -1,8 +1,4 @@
-/**
- * Zustand chat store with durable local persistence.
- * The portal keeps one active chat thread per role and draft context.
- * Uses skipHydration for SSR safety — rehydrate in useEffect.
- */
+/** Customer chat state persisted per draft/thread context. */
 import { create } from 'zustand'
 import {
 	createJSONStorage,
@@ -11,77 +7,18 @@ import {
 } from 'zustand/middleware'
 import type { ChatMessage } from '../lib/chat-types'
 
-// ============================================================================
-// Types
-// ============================================================================
-
-export interface Conversation {
-	id: string
-	messages: ChatMessage[]
-	createdAt: string
-	preview: string
-	entityRef?: string
-	pinned: boolean
-}
-
 interface ChatStoreState {
-	// Per-role active messages
 	customerMessages: ChatMessage[]
-	supplierMessages: ChatMessage[]
-	// Per-role scoped threads. Keys are "default", "draft:<id>", or "draft:temp:<id>".
 	customerThreadMessages: Record<string, ChatMessage[]>
-	supplierThreadMessages: Record<string, ChatMessage[]>
-	// Per-role conversation history
-	customerConversations: Conversation[]
-	supplierConversations: Conversation[]
-	// Active conversation ID per role
-	activeConversationId: Record<'customer' | 'supplier', string | null>
-	// Context for quick action chips
-	quickActionContext: 'home' | 'product' | 'order'
-	// History overlay state
-	isHistoryOpen: boolean
 }
 
 interface ChatStoreActions {
-	addMessage: (role: 'customer' | 'supplier', msg: ChatMessage) => void
-	setMessages: (
-		role: 'customer' | 'supplier',
-		msgs: ChatMessage[],
-		threadKey?: string,
-	) => void
-	loadConversation: (role: 'customer' | 'supplier', id: string) => void
-	clearActive: (role: 'customer' | 'supplier', threadKey?: string) => void
-	moveThread: (
-		role: 'customer' | 'supplier',
-		fromKey: string,
-		toKey: string,
-	) => void
-	saveConversation: (role: 'customer' | 'supplier') => void
-	togglePin: (role: 'customer' | 'supplier', id: string) => void
-	setQuickActionContext: (ctx: 'home' | 'product' | 'order') => void
-	setHistoryOpen: (open: boolean) => void
+	setMessages: (messages: ChatMessage[], threadKey?: string) => void
+	clearActive: (threadKey?: string) => void
+	moveThread: (fromKey: string, toKey: string) => void
 }
 
 type ChatStore = ChatStoreState & ChatStoreActions
-
-type PersistedChatStore = Pick<
-	ChatStoreState,
-	| 'customerMessages'
-	| 'customerThreadMessages'
-	| 'quickActionContext'
-	| 'supplierMessages'
-	| 'supplierThreadMessages'
->
-
-function emptyPersistedChatStore(): PersistedChatStore {
-	return {
-		customerMessages: [],
-		customerThreadMessages: {},
-		quickActionContext: 'home',
-		supplierMessages: [],
-		supplierThreadMessages: {},
-	}
-}
 
 function isChatMessage(value: unknown): value is ChatMessage {
 	if (!value || typeof value !== 'object') return false
@@ -109,38 +46,19 @@ function readStoredThreadMessages(
 	)
 }
 
-function migrateChatStoreToSingleSession(
-	persistedState: unknown,
-): PersistedChatStore {
+function migrateCustomerChatStore(persistedState: unknown): ChatStoreState {
 	if (!persistedState || typeof persistedState !== 'object') {
-		return emptyPersistedChatStore()
+		return { customerMessages: [], customerThreadMessages: {} }
 	}
 	const state = persistedState as Partial<ChatStoreState>
 	const customerMessages = readStoredMessages(state.customerMessages)
-	const supplierMessages = readStoredMessages(state.supplierMessages)
 	const customerThreadMessages = readStoredThreadMessages(
 		state.customerThreadMessages,
-	)
-	const supplierThreadMessages = readStoredThreadMessages(
-		state.supplierThreadMessages,
 	)
 	if (customerMessages.length > 0 && !customerThreadMessages.default) {
 		customerThreadMessages.default = customerMessages
 	}
-	if (supplierMessages.length > 0 && !supplierThreadMessages.default) {
-		supplierThreadMessages.default = supplierMessages
-	}
-	return {
-		customerMessages,
-		customerThreadMessages,
-		quickActionContext:
-			state.quickActionContext === 'product' ||
-			state.quickActionContext === 'order'
-				? state.quickActionContext
-				: 'home',
-		supplierMessages,
-		supplierThreadMessages,
-	}
+	return { customerMessages, customerThreadMessages }
 }
 
 function webStorage(kind: 'localStorage' | 'sessionStorage'): Storage | null {
@@ -166,7 +84,7 @@ function safeRemove(storage: Storage | null, name: string) {
 	try {
 		storage.removeItem(name)
 	} catch {
-		// Ignore unavailable browser storage.
+		// Unavailable browser storage is non-fatal.
 	}
 }
 
@@ -204,120 +122,58 @@ function portalChatStorage(): StateStorage {
 	}
 }
 
-// ============================================================================
-// Store
-// ============================================================================
-
 export const useChatStore = create<ChatStore>()(
 	persist(
 		(set) => ({
-			// State
 			customerMessages: [],
 			customerThreadMessages: {},
-			supplierMessages: [],
-			supplierThreadMessages: {},
-			customerConversations: [],
-			supplierConversations: [],
-			activeConversationId: { customer: null, supplier: null },
-			quickActionContext: 'home',
-			isHistoryOpen: false,
-
-			// Actions
-			addMessage: (role, msg) =>
+			setMessages: (messages, threadKey = 'default') =>
 				set((state) => {
-					const key =
-						role === 'customer' ? 'customerMessages' : 'supplierMessages'
-					return { [key]: [...state[key], msg] }
-				}),
-
-			setMessages: (role, msgs, threadKey = 'default') =>
-				set((state) => {
-					const key =
-						role === 'customer' ? 'customerMessages' : 'supplierMessages'
-					const threadStoreKey =
-						role === 'customer'
-							? 'customerThreadMessages'
-							: 'supplierThreadMessages'
-					const nextThreads = { ...state[threadStoreKey] }
-					if (msgs.length > 0) {
-						nextThreads[threadKey] = msgs
+					const customerThreadMessages = {
+						...state.customerThreadMessages,
+					}
+					if (messages.length > 0) {
+						customerThreadMessages[threadKey] = messages
 					} else {
-						delete nextThreads[threadKey]
+						delete customerThreadMessages[threadKey]
 					}
-					return {
-						[key]: msgs,
-						[threadStoreKey]: nextThreads,
-					}
+					return { customerMessages: messages, customerThreadMessages }
 				}),
-
-			loadConversation: () => undefined,
-
-			clearActive: (role, threadKey = 'default') =>
+			clearActive: (threadKey = 'default') =>
 				set((state) => {
-					const msgKey =
-						role === 'customer' ? 'customerMessages' : 'supplierMessages'
-					const threadStoreKey =
-						role === 'customer'
-							? 'customerThreadMessages'
-							: 'supplierThreadMessages'
-					const nextThreads = { ...state[threadStoreKey] }
-					delete nextThreads[threadKey]
-					return {
-						customerConversations: [],
-						supplierConversations: [],
-						[msgKey]: [],
-						[threadStoreKey]: nextThreads,
-						activeConversationId: {
-							...state.activeConversationId,
-							[role]: null,
-						},
+					const customerThreadMessages = {
+						...state.customerThreadMessages,
 					}
+					delete customerThreadMessages[threadKey]
+					return { customerMessages: [], customerThreadMessages }
 				}),
-
-			moveThread: (role, fromKey, toKey) =>
+			moveThread: (fromKey, toKey) =>
 				set((state) => {
 					if (fromKey === toKey) return state
-					const threadStoreKey =
-						role === 'customer'
-							? 'customerThreadMessages'
-							: 'supplierThreadMessages'
-					const fromMessages = state[threadStoreKey][fromKey]
+					const fromMessages = state.customerThreadMessages[fromKey]
 					if (!fromMessages?.length) return state
-					const nextThreads = { ...state[threadStoreKey] }
-					if (!nextThreads[toKey]?.length) {
-						nextThreads[toKey] = fromMessages
+					const customerThreadMessages = {
+						...state.customerThreadMessages,
 					}
-					delete nextThreads[fromKey]
-					return { [threadStoreKey]: nextThreads }
+					if (!customerThreadMessages[toKey]?.length) {
+						customerThreadMessages[toKey] = fromMessages
+					}
+					delete customerThreadMessages[fromKey]
+					return { customerThreadMessages }
 				}),
-
-			saveConversation: () => undefined,
-
-			togglePin: () => undefined,
-
-			setQuickActionContext: (ctx) => set({ quickActionContext: ctx }),
-
-			setHistoryOpen: (open) => set({ isHistoryOpen: open }),
 		}),
 		{
 			name: 'hq-portal-chat',
 			storage: createJSONStorage(() => portalChatStorage()),
-			version: 1,
-			migrate: migrateChatStoreToSingleSession,
+			version: 2,
+			migrate: migrateCustomerChatStore,
 			merge: (persistedState, currentState) => ({
 				...currentState,
-				...migrateChatStoreToSingleSession(persistedState),
-				activeConversationId: { customer: null, supplier: null },
-				customerConversations: [],
-				isHistoryOpen: false,
-				supplierConversations: [],
+				...migrateCustomerChatStore(persistedState),
 			}),
 			partialize: (state) => ({
 				customerMessages: state.customerMessages,
 				customerThreadMessages: state.customerThreadMessages,
-				quickActionContext: state.quickActionContext,
-				supplierMessages: state.supplierMessages,
-				supplierThreadMessages: state.supplierThreadMessages,
 			}),
 			skipHydration: true,
 		},

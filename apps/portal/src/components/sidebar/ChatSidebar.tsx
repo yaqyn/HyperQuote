@@ -19,7 +19,6 @@ import {
 	MessageSquare,
 	Moon,
 	ShoppingBag,
-	Star,
 	Sun,
 	User,
 } from 'lucide-react'
@@ -33,7 +32,6 @@ import { getActiveOrders, getOrderHistoryOrders } from '../../lib/order-history'
 import { getAllCustomerOrders } from '../../lib/server/orders'
 import { getCustomerProfile } from '../../lib/server/settings'
 import { getCurrentPortalTheme, setPortalTheme } from '../../lib/theme'
-import { type Conversation, useChatStore } from '../../stores/chat'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
 import { usePortalStore } from '../../stores/portal'
 import { DraftQuoteTrigger } from '../shared/DraftQuoteTrigger'
@@ -41,7 +39,6 @@ import { DraftQuoteTrigger } from '../shared/DraftQuoteTrigger'
 interface ChatSidebarProps {
 	userName: string
 	companyName?: string
-	hasSupplierRole: boolean
 	closeOnNavigate?: boolean
 }
 
@@ -68,34 +65,19 @@ const WEBSITE_HREF =
 export function ChatSidebar({
 	userName,
 	companyName,
-	hasSupplierRole,
 	closeOnNavigate = false,
 }: ChatSidebarProps) {
 	const { t, i18n } = useTranslation('portal')
 	const navigate = useNavigate()
 	const matches = useMatches()
-	const activeRole = usePortalStore((s) => s.activeRole)
-	const setActiveRole = usePortalStore((s) => s.setActiveRole)
-	const [favoritesOpen, setFavoritesOpen] = useState(true)
 	const [brandMenuOpen, setBrandMenuOpen] = useState(false)
 	const brandMenuRef = useRef<HTMLDivElement>(null)
-
-	const conversations = useChatStore((s) =>
-		activeRole === 'customer'
-			? s.customerConversations
-			: s.supplierConversations,
-	)
-	const activeConversationId = useChatStore(
-		(s) => s.activeConversationId[activeRole],
-	)
-	const loadConversation = useChatStore((s) => s.loadConversation)
 	const { data: profile } = useQuery({
 		queryKey: ['customer-profile-sidebar'],
 		queryFn: () => getCustomerProfile(),
 		staleTime: 60_000,
 	})
 
-	const favorites = conversations.filter((c) => c.pinned)
 	const profileName = firstText(
 		profile?.contactName,
 		userName,
@@ -125,23 +107,6 @@ export function ChatSidebar({
 			usePortalStore.getState().setSidebarOpen(false)
 		}
 	}, [closeOnNavigate])
-
-	const handleSelect = useCallback(
-		(id: string) => {
-			loadConversation(activeRole, id)
-			if (closeOnNavigate) {
-				navigate({ to: '/' })
-				closeSidebarAfterNavigate()
-			}
-		},
-		[
-			loadConversation,
-			activeRole,
-			closeOnNavigate,
-			navigate,
-			closeSidebarAfterNavigate,
-		],
-	)
 
 	const handleNavigate = useCallback(
 		(to: NavTarget) => {
@@ -257,56 +222,11 @@ export function ChatSidebar({
 					})}
 				</motion.nav>
 
-				{hasSupplierRole && (
-					<motion.div {...stagger(2)} className="shrink-0 px-4 pt-3">
-						<div className="grid grid-cols-2 gap-1 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-1">
-							{(['customer', 'supplier'] as const).map((role) => (
-								<button
-									key={role}
-									type="button"
-									onClick={() => setActiveRole(role)}
-									className={`h-8 rounded-lg text-[11px] font-semibold transition-colors ${
-										activeRole === role
-											? 'bg-[var(--p-bg)] text-[var(--p-text)] shadow-[inset_0_0_0_1px_var(--p-border)]'
-											: 'text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
-									}`}
-								>
-									{t(`role.${role}`)}
-								</button>
-							))}
-						</div>
-					</motion.div>
-				)}
-
 				<motion.div
 					{...stagger(3)}
 					className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-3"
 				>
 					<DraftSection closeOnNavigate={closeOnNavigate} />
-
-					{favorites.length > 0 && (
-						<>
-							<SectionHeader
-								label={t('sidebar.starredChats')}
-								icon={<Star size={12} className="text-[var(--p-text-muted)]" />}
-								count={favorites.length}
-								open={favoritesOpen}
-								onToggle={() => setFavoritesOpen(!favoritesOpen)}
-							/>
-							{favoritesOpen && (
-								<div className="mb-2 flex flex-col gap-1">
-									{favorites.map((conv) => (
-										<ConversationItem
-											key={conv.id}
-											conversation={conv}
-											isActive={conv.id === activeConversationId}
-											onSelect={() => handleSelect(conv.id)}
-										/>
-									))}
-								</div>
-							)}
-						</>
-					)}
 
 					<ActiveOrdersSection closeOnNavigate={closeOnNavigate} />
 				</motion.div>
@@ -381,43 +301,6 @@ function SectionHeader({
 				</span>
 			)}
 			<DisclosureGlyph open={open} />
-		</button>
-	)
-}
-
-function ConversationItem({
-	conversation,
-	isActive,
-	onSelect,
-}: {
-	conversation: Conversation
-	isActive: boolean
-	onSelect: () => void
-}) {
-	const { t } = useTranslation('portal')
-	const preview = conversation.preview || t('sidebar.newChat')
-
-	return (
-		<button
-			type="button"
-			onClick={onSelect}
-			className={`group relative flex min-h-10 w-full items-center gap-2 rounded-xl border px-2.5 py-2 text-start transition-colors ${
-				isActive
-					? 'border-[var(--p-border-strong)] bg-[var(--p-card)] text-[var(--p-text)]'
-					: 'border-[var(--p-border)] bg-[var(--p-card)] text-[var(--p-text-muted)] hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
-			}`}
-		>
-			<span
-				aria-hidden
-				className={`h-1.5 w-1.5 shrink-0 rounded-full transition-colors ${
-					isActive
-						? 'bg-[var(--p-text)]'
-						: 'bg-[var(--p-border-strong)] group-hover:bg-[var(--p-text-muted)]'
-				}`}
-			/>
-			<span className="block min-w-0 flex-1 truncate text-[13px] font-medium leading-tight">
-				{preview}
-			</span>
 		</button>
 	)
 }

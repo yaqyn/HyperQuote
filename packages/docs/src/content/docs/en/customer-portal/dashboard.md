@@ -20,11 +20,9 @@ The AI assistant can give you a status summary on demand. Ask "What is happening
 
 The assistant also proactively suggests actions based on your activity: reorder reminders for recurring materials, alerts about quotes nearing expiration, and follow-ups on outstanding items.
 
-## Multi-user access
+## Account scope
 
-B2B purchasing involves multiple people. The portal supports team roles from day one: **buyers** who browse and submit quote requests, **approvers** who review and accept quotes, and **site managers** who track deliveries and confirm receipt. A procurement manager can browse products and share a list with a project manager, who adds quantities, which a foreman then reviews before the buyer submits the RFQ.
-
-Each team member sees the same data scoped to their role and projects. Activity logs show who did what and when, maintaining accountability across your team.
+The portal is a customer workspace. Your quotes, orders, deliveries, documents, projects, and notification preferences are scoped to the signed-in customer account. HyperQuote employees use the separate internal application for operational work and approvals.
 
 ## Notifications
 

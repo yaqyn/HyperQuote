@@ -6,7 +6,6 @@
  *   2. execute only customer-owned reads or draft-only writes,
  *   3. write a friendly final answer from the supplied tool context.
  *
- * Supplier mode is intentionally left read-style and keyword-based for V1.
  */
 
 import {
@@ -195,7 +194,6 @@ const portalChatInput = z.object({
 		)
 		.min(1)
 		.max(MAX_CHAT_MESSAGES),
-	role: z.enum(['customer', 'supplier']),
 	conversationId: z.string().nullable(),
 })
 
@@ -536,20 +534,6 @@ interface PortalToolResult {
 	writeEntityType: string | null
 }
 
-const SUPPLIER_RESPONSES: Record<string, string> = {
-	default:
-		'Welcome to the Supplier Portal. I can help you manage stock, check PO status, and update pricing. What do you need?',
-	cement:
-		'Here is the current stock status for cement products in your catalog.',
-	rebar: 'Here is the current stock status for rebar products.',
-	order: 'Let me pull up the latest purchase order status.',
-	track: 'Checking the status of your recent purchase orders.',
-	price:
-		'You can update your pricing through the catalog management window. Would you like me to open it?',
-	help: 'Here are the key actions available to you.',
-	stock: 'Let me check your current stock levels.',
-}
-
 export const portalChatFn = createServerFn({ method: 'POST' })
 	.inputValidator(portalChatInput)
 	.handler(async ({ data: input }) => {
@@ -559,12 +543,6 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 		const { customerId, session, supabase } =
 			await getAuthenticatedPortalCustomer()
 		const supportIdentity = supportIdentityFromSession(session.user)
-
-		if (input.role === 'supplier') {
-			const chunks = await supplierPortalChunks(userText, modelMessages)
-			// biome-ignore lint/complexity/noBannedTypes: TanStack server-fn serialization accepts this historical chunk boundary type.
-			return chunks as unknown as Array<{ [k: string]: {} }>
-		}
 
 		const activeDraft = input.activeDraft ?? null
 		const confirmedRoute = confirmedActionToToolRequest(
@@ -1611,13 +1589,10 @@ function simpleCustomerChatAnswer(messages: ChatMessageInput[]): string | null {
 		.reverse()
 		.find((message) => message.role === 'user')
 	const userText = lastUser?.content.trim() ?? ''
-	return simplePortalTextAnswer(userText, 'customer')
+	return simplePortalTextAnswer(userText)
 }
 
-function simplePortalTextAnswer(
-	userText: string,
-	role: 'customer' | 'supplier',
-): string | null {
+function simplePortalTextAnswer(userText: string): string | null {
 	const normalized = normalizeForMatch(userText)
 	const isArabic = detectPortalAiLocale(userText) === 'ar'
 	const isGreeting =
@@ -1630,11 +1605,6 @@ function simplePortalTextAnswer(
 			: "I'm here to help with HyperQuote when you're ready."
 	}
 	if (!isGreeting) return null
-	if (role === 'supplier') {
-		return isArabic
-			? 'أهلاً، أقدر أساعدك في المخزون وأوامر الشراء والأسعار داخل بوابة المورد.'
-			: 'Hi, I can help with supplier portal stock, purchase orders, and pricing.'
-	}
 	return isArabic
 		? 'أهلاً، أنا ليون. نبني، نراجع، ولا نعدّل؟'
 		: "Hi, I'm Lyon. What should we build, check, or edit?"
@@ -7693,38 +7663,6 @@ function unitLabel(product: PortalAiProduct, locale: 'ar' | 'en'): string {
 	return locale === 'ar' && product.unit_of_measure_ar
 		? product.unit_of_measure_ar
 		: product.unit_of_measure
-}
-
-async function supplierPortalChunks(
-	userText: string,
-	modelMessages: ChatMessageInput[],
-): Promise<StreamChunk[]> {
-	if (await isAIEnabled())
-		return streamWithCustomEvents(modelMessages, LYON_PORTAL, [])
-
-	const simpleAnswer = simplePortalTextAnswer(userText, 'supplier')
-	if (simpleAnswer) return textOnlyChunks(simpleAnswer, [])
-
-	const lower = userText.toLowerCase()
-	const key = lower.includes('cement')
-		? 'cement'
-		: lower.includes('rebar') || lower.includes('steel')
-			? 'rebar'
-			: lower.includes('order') || lower.includes('po')
-				? 'order'
-				: lower.includes('track')
-					? 'track'
-					: lower.includes('price')
-						? 'price'
-						: lower.includes('stock')
-							? 'stock'
-							: lower.includes('help')
-								? 'help'
-								: 'default'
-	return textOnlyChunks(
-		SUPPLIER_RESPONSES[key] ?? SUPPLIER_RESPONSES.default,
-		[],
-	)
 }
 
 async function streamWithCustomEvents(

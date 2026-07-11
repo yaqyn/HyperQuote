@@ -15,19 +15,16 @@ import { AppearanceSection } from '../../components/settings/AppearanceSection'
 import { NotificationsSection } from '../../components/settings/NotificationsSection'
 import { ProfileSection } from '../../components/settings/ProfileSection'
 import { ProjectsSection } from '../../components/settings/ProjectsSection'
-import { ReferralsSection } from '../../components/settings/ReferralsSection'
 import { SecuritySection } from '../../components/settings/SecuritySection'
-import { TeamSection } from '../../components/settings/TeamSection'
 import { WindowShell } from '../../components/windows/WindowShell'
 import { usePortalThemeSnapshot } from '../../hooks/usePortalThemeSnapshot'
 import { portalHead } from '../../lib/page-meta'
 import {
-	getActiveSessions,
 	getAddresses,
 	getCustomerProfile,
+	getNotificationPreferences,
 	getProjects,
 } from '../../lib/server/settings'
-import { getTeamMembers } from '../../lib/server/team'
 import type { SettingsSection } from '../../types/settings'
 
 const SECTIONS: Array<{
@@ -37,11 +34,9 @@ const SECTIONS: Array<{
 	{ id: 'profile', labelKey: 'settings.tabProfile' },
 	{ id: 'addresses', labelKey: 'settings.tabAddresses' },
 	{ id: 'projects', labelKey: 'settings.tabProjects' },
-	{ id: 'team', labelKey: 'settings.tabTeam' },
 	{ id: 'notifications', labelKey: 'settings.tabNotifications' },
 	{ id: 'appearance', labelKey: 'settings.tabAppearance' },
 	{ id: 'security', labelKey: 'settings.tabSecurity' },
-	{ id: 'referrals', labelKey: 'settings.tabReferrals' },
 ]
 
 export const Route = createFileRoute('/_portal/settings')({
@@ -49,7 +44,7 @@ export const Route = createFileRoute('/_portal/settings')({
 		portalHead({
 			title: 'Settings — HyperQuote Portal',
 			description:
-				'Private HyperQuote settings for profile, addresses, projects, team members, notifications, appearance, security, and referrals.',
+				'Private HyperQuote settings for profile, addresses, projects, notifications, appearance, and security.',
 			path: '/settings',
 		}),
 	component: SettingsWindow,
@@ -101,13 +96,9 @@ function SettingsWindow() {
 		queryKey: ['projects'],
 		queryFn: () => getProjects(),
 	})
-	const teamQuery = useQuery({
-		queryKey: ['teamMembers'],
-		queryFn: () => getTeamMembers(),
-	})
-	const sessionsQuery = useQuery({
-		queryKey: ['activeSessions'],
-		queryFn: () => getActiveSessions(),
+	const notificationPreferencesQuery = useQuery({
+		queryKey: ['notificationPreferences'],
+		queryFn: () => getNotificationPreferences(),
 	})
 
 	return (
@@ -176,23 +167,6 @@ function SettingsWindow() {
 						)}
 					</SettingsBlock>
 
-					{/* Team */}
-					<SettingsBlock
-						ref={(el) => {
-							sectionRefs.current.team = el
-						}}
-						title={t('settings.tabTeam')}
-					>
-						{teamQuery.data ? (
-							<TeamSection
-								members={teamQuery.data}
-								isOwner={teamQuery.data.some((m) => m.isOwner)}
-							/>
-						) : (
-							<Skeleton />
-						)}
-					</SettingsBlock>
-
 					{/* Notifications */}
 					<SettingsBlock
 						ref={(el) => {
@@ -200,7 +174,19 @@ function SettingsWindow() {
 						}}
 						title={t('settings.tabNotifications')}
 					>
-						<NotificationsSection />
+						{notificationPreferencesQuery.isPending ? (
+							<Skeleton />
+						) : notificationPreferencesQuery.isError ? (
+							<SettingsError
+								message={t('settings.notifications.loadError')}
+								retryLabel={t('orders.retry')}
+								onRetry={() => notificationPreferencesQuery.refetch()}
+							/>
+						) : (
+							<NotificationsSection
+								preferences={notificationPreferencesQuery.data ?? []}
+							/>
+						)}
 					</SettingsBlock>
 
 					{/* Appearance */}
@@ -241,21 +227,7 @@ function SettingsWindow() {
 						}}
 						title={t('settings.tabSecurity')}
 					>
-						{sessionsQuery.data ? (
-							<SecuritySection sessions={sessionsQuery.data} />
-						) : (
-							<Skeleton />
-						)}
-					</SettingsBlock>
-
-					{/* Referrals */}
-					<SettingsBlock
-						ref={(el) => {
-							sectionRefs.current.referrals = el
-						}}
-						title={t('settings.tabReferrals')}
-					>
-						<ReferralsSection />
+						<SecuritySection />
 					</SettingsBlock>
 				</div>
 			</div>
@@ -300,6 +272,29 @@ function Skeleton() {
 			<div className="h-9 w-full border-b border-[var(--color-surface)]" />
 			<div className="h-9 w-full border-b border-[var(--color-surface)]" />
 			<div className="h-9 w-3/4 border-b border-[var(--color-surface)]" />
+		</div>
+	)
+}
+
+function SettingsError({
+	message,
+	retryLabel,
+	onRetry,
+}: {
+	message: string
+	retryLabel: string
+	onRetry: () => void
+}) {
+	return (
+		<div className="space-y-3" role="alert">
+			<p className="text-sm text-red-600 dark:text-red-400">{message}</p>
+			<button
+				type="button"
+				onClick={onRetry}
+				className="text-sm text-[var(--color-text)] underline underline-offset-4"
+			>
+				{retryLabel}
+			</button>
 		</div>
 	)
 }

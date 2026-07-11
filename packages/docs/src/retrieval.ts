@@ -148,9 +148,6 @@ const AR_PUBLIC_DOCS_TOPIC_PATTERN =
 const CUSTOMER_TAX_QUERY_PATTERN =
 	/(\b(my|buyer|customer|client)\b.*\b(invoice|invoices|vat|tax|recover|reclaim|input)\b|\b(invoice|invoices|vat|tax|recover|reclaim|input)\b.*\b(my|buyer|customer|client)\b)/i
 
-const SUPPLIER_TAX_QUERY_PATTERN =
-	/\b(supplier|purchase order|purchase orders|po|withholding)\b/i
-
 const MATERIAL_PROCUREMENT_QUERY_PATTERN =
 	/\b(buy|purchase|source|sourcing|procure|procurement|shop|store|find|get|need|looking for)\b.*\b(materials?|wood|lumber|timber|plywood|cement|concrete|rebar|steel|sand|aggregate|brick|bricks|blocks?|paint|pipe|pipes|plumbing|electrical|hardware|roofing|drywall)\b|\b(materials?|wood|lumber|timber|plywood|cement|concrete|rebar|steel|sand|aggregate|brick|bricks|blocks?|paint|pipe|pipes|plumbing|electrical|hardware|roofing|drywall)\b.*\b(buy|purchase|source|sourcing|procure|procurement|shop|store|find|get|need|looking for)\b/i
 
@@ -166,7 +163,7 @@ type DocsTopic =
 	| 'platform'
 	| 'portal'
 	| 'quotes'
-	| 'supplier'
+	| 'sourcing'
 	| 'support'
 
 interface DocsTopicRule {
@@ -177,8 +174,8 @@ interface DocsTopicRule {
 
 const DOC_TOPIC_RULES: DocsTopicRule[] = [
 	{
-		topic: 'supplier',
-		categories: ['supplier-portal', 'quotes-orders'],
+		topic: 'sourcing',
+		categories: ['platform', 'quotes-orders'],
 		tokens: [
 			'supplier',
 			'suppliers',
@@ -796,14 +793,6 @@ function scoreChunk(
 		) {
 			score += 8
 		}
-		if (chunk.article.categorySlug === 'supplier-portal') score -= 28
-	}
-	if (
-		SUPPLIER_TAX_QUERY_PATTERN.test(rawQuery) &&
-		!CUSTOMER_TAX_QUERY_PATTERN.test(rawQuery) &&
-		chunk.article.categorySlug === 'supplier-portal'
-	) {
-		score += 10
 	}
 
 	return score

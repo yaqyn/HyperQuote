@@ -2,8 +2,6 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 interface PortalStore {
-	activeRole: 'customer' | 'supplier'
-	setActiveRole: (role: 'customer' | 'supplier') => void
 	isFloatingAIOpen: boolean
 	toggleFloatingAI: () => void
 	setFloatingAIOpen: (open: boolean) => void
@@ -20,8 +18,6 @@ interface PortalStore {
 export const usePortalStore = create<PortalStore>()(
 	persist(
 		(set) => ({
-			activeRole: 'customer',
-			setActiveRole: (role) => set({ activeRole: role }),
 			isFloatingAIOpen: false,
 			toggleFloatingAI: () =>
 				set((s) => ({ isFloatingAIOpen: !s.isFloatingAIOpen })),

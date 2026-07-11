@@ -6,7 +6,7 @@ A quote request starts from any of several entry points: adding products while b
 
 The quote form is intentionally minimal: products (pre-filled from your list), quantities, and delivery location. You can optionally attach drawings, specifications, or BOQ documents in PDF, Excel, or image format. All drafts are editable until you hit submit.
 
-Upon submission, you receive an instant confirmation via WhatsApp and email with a reference number, an expected timeline ("within 4 hours"), and the name of your assigned team member. First-time customers receive priority processing.
+Upon submission, you receive an instant confirmation with a reference number and the expected review timeline. HyperQuote's sales team then owns the request inside the internal application.
 
 ## What happens behind the scenes
 

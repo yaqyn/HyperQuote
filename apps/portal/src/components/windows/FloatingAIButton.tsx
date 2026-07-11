@@ -39,27 +39,10 @@ const WINDOW_ROUTES = [
 	'/documents',
 	'/support',
 	'/settings',
-	'/supplier/stock',
-	'/supplier/orders',
-	'/supplier/analytics',
-	'/supplier/invoices',
-	'/supplier/catalog-upload',
 ]
 
-/** Context-aware greeting key based on current route and role */
-function getContextGreeting(
-	pathname: string,
-	activeRole: 'customer' | 'supplier',
-): ParseKeys<'portal'> {
-	if (activeRole === 'supplier') {
-		if (pathname.startsWith('/supplier/stock'))
-			return 'floatingAI.supplierStock'
-		if (pathname.startsWith('/supplier/orders'))
-			return 'floatingAI.supplierOrders'
-		if (pathname.startsWith('/supplier/analytics'))
-			return 'floatingAI.supplierAnalytics'
-		return 'floatingAI.supplierStock'
-	}
+/** Context-aware greeting key based on the current customer route. */
+function getContextGreeting(pathname: string): ParseKeys<'portal'> {
 	if (pathname.startsWith('/orders')) return 'floatingAI.orders'
 	if (pathname.startsWith('/market')) return 'floatingAI.market'
 	return 'floatingAI.orders'
@@ -87,7 +70,6 @@ export function FloatingAIButton() {
 	const { t, i18n } = useTranslation('portal')
 	const matches = useMatches()
 	const location = useLocation()
-	const activeRole = usePortalStore((s) => s.activeRole)
 	const isFloatingAIOpen = usePortalStore((s) => s.isFloatingAIOpen)
 	const toggleFloatingAI = usePortalStore((s) => s.toggleFloatingAI)
 	const setFloatingAIOpen = usePortalStore((s) => s.setFloatingAIOpen)
@@ -158,7 +140,7 @@ export function FloatingAIButton() {
 
 	if (!isWindowOpen) return null
 
-	const greetingKey = getContextGreeting(location.pathname, activeRole)
+	const greetingKey = getContextGreeting(location.pathname)
 	const hasMessages = chat.messages.length > 0
 
 	return (
@@ -231,11 +213,6 @@ export function FloatingAIButton() {
 										<p className="text-sm text-[var(--color-text-muted)]">
 											{t(greetingKey)}
 										</p>
-										{activeRole === 'supplier' && (
-											<p className="text-[13px] text-[var(--color-text-muted)] opacity-60">
-												{t('floatingAI.supplierContext')}
-											</p>
-										)}
 									</div>
 								) : (
 									<div className="flex flex-col gap-2">

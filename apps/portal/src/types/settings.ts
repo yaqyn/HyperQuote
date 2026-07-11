@@ -1,17 +1,15 @@
 /**
  * Settings types for portal settings window.
- * 8 sections: Profile, Addresses, Projects, Team, Notifications, Appearance, Security, Referrals.
+ * Customer profile, address, project, notification, appearance, and security settings.
  */
 
 export type SettingsSection =
 	| 'profile'
 	| 'addresses'
 	| 'projects'
-	| 'team'
 	| 'notifications'
 	| 'appearance'
 	| 'security'
-	| 'referrals'
 
 export interface CustomerProfile {
 	authEmail?: string
@@ -56,16 +54,6 @@ export interface Project {
 	archived: boolean
 }
 
-export interface TeamMember {
-	id: string
-	name: string
-	email: string
-	phone?: string
-	role: 'buyer' | 'approver' | 'site_manager'
-	isOwner: boolean
-	joinedAt: string
-}
-
 export interface NotificationPreference {
 	channel: 'whatsapp' | 'email' | 'push' | 'sms'
 	event:
@@ -76,20 +64,4 @@ export interface NotificationPreference {
 		| 'payment_confirmation'
 		| 'support_response'
 	enabled: boolean
-}
-
-export interface ActiveSession {
-	id: string
-	device: string
-	lastActive: string
-	location: string
-	isCurrent: boolean
-}
-
-export interface ReferralStats {
-	totalReferrals: number
-	pendingCredits: number
-	earnedCredits: number
-	referralCode: string
-	referralLink: string
 }

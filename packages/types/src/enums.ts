@@ -19,7 +19,6 @@ export type BackendUserRole = DbEnum<'user_role'>
 export type SupplierStatus = DbEnum<'supplier_status'>
 export type CatalogAvailabilityStatus = DbEnum<'catalog_availability_status'>
 export type PriceUpdateRequestStatus = DbEnum<'price_update_request_status'>
-export type ReferralStatus = DbEnum<'referral_status'>
 export type QuoteRequestUrgency = DbEnum<'quote_request_urgency'>
 export type SalesQuoteVersionStatus = DbEnum<'sales_quote_version_status'>
 export type QuoteItemLineStatus = DbEnum<'quote_item_line_status'>
@@ -41,8 +40,6 @@ export type SupportConversationStatus = DbEnum<'support_conversation_status'>
 export type SupportSenderType = DbEnum<'support_sender_type'>
 export type SupportMessageChannel = DbEnum<'support_message_channel'>
 export type BackendDocumentType = DbEnum<'document_type'>
-export type TeamMemberRole = DbEnum<'team_member_role'>
-export type TeamInviteStatus = DbEnum<'team_invite_status'>
 export type AiAgentScope = DbEnum<'ai_agent_scope'>
 export type AuditEventType = DbEnum<'audit_event_type'>
 
