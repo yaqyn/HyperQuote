@@ -6,6 +6,9 @@
 	"exports": {
 		".": "./src/index.ts"
 	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
 	"dependencies": {
 		"react-hook-form": "^7.76.0",
 		"@hookform/resolvers": "^5.2.2"

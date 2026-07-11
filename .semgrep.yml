@@ -1,0 +1,28 @@
+rules:
+  - id: hyperquote-no-raw-html
+    message: Raw HTML injection is restricted to reviewed JSON-LD and boot-script modules.
+    severity: ERROR
+    languages: [typescript]
+    patterns:
+      - pattern: <$ELEMENT ... dangerouslySetInnerHTML=$VALUE ... />
+    paths:
+      exclude:
+        - /apps/website/src/components/shared/JsonLd.tsx
+        - /apps/website/src/routes/__root.tsx
+        - /apps/internal/src/routes/__root.tsx
+
+  - id: hyperquote-no-eval
+    message: Dynamic code evaluation is not allowed in application or package source.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: hyperquote-no-html-assignment
+    message: Assigning HTML strings directly to DOM nodes is not allowed.
+    severity: ERROR
+    languages: [typescript]
+    pattern-either:
+      - pattern: $NODE.innerHTML = $VALUE
+      - pattern: $NODE.outerHTML = $VALUE

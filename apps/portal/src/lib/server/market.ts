@@ -61,7 +61,7 @@ export interface MarketProductFamily {
 	productTypes: MarketProductType[]
 }
 
-export interface MarketProductType {
+interface MarketProductType {
 	slug: string
 	name: string
 	nameAr: string

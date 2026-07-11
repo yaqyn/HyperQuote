@@ -10,7 +10,8 @@
 		"./retrieval": "./src/retrieval.ts"
 	},
 	"scripts": {
-		"test": "bun test src/retrieval.test.ts"
+		"test": "bun test src/retrieval.test.ts",
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@hyperquote/i18n": "workspace:*"

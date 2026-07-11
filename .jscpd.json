@@ -1,0 +1,23 @@
+{
+	"threshold": 5,
+	"reporters": ["console"],
+	"mode": "mild",
+	"minLines": 8,
+	"minTokens": 80,
+	"maxLines": 15000,
+	"maxSize": "500kb",
+	"ignore": [
+		"**/node_modules/**",
+		"**/dist/**",
+		"**/.output/**",
+		"**/.turbo/**",
+		"**/routeTree.gen.ts",
+		"**/database.types.ts",
+		"apps/website/public/service-worker.js",
+		"apps/portal/public/sw.js",
+		"apps/internal/public/service-worker.js",
+		"apps/driver/public/service-worker.js",
+		"apps/driver/android/app/src/main/assets/public/**",
+		"apps/driver/ios/App/App/public/**"
+	]
+}

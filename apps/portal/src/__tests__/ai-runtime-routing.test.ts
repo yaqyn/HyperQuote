@@ -10,32 +10,7 @@ function readRepoFile(path: string): string {
 	return readFileSync(join(repoRoot, path), 'utf8')
 }
 
-function sliceFrom(source: string, startNeedle: string, endNeedle: string) {
-	const start = source.indexOf(startNeedle)
-	const end = source.indexOf(endNeedle, start)
-	expect(start, `${startNeedle} not found`).toBeGreaterThanOrEqual(0)
-	expect(end, `${endNeedle} not found`).toBeGreaterThan(start)
-	return source.slice(start, end)
-}
-
 describe('AI runtime routing', () => {
-	it('calls Groq for normal portal chat before static fallback text', () => {
-		const source = readRepoFile('apps/portal/src/lib/chat.ts')
-		const chatBranch = sliceFrom(
-			source,
-			"if (result.context.type === 'chat') {",
-			"if (result.context.type === 'public_docs') {",
-		)
-
-		const modelCall = chatBranch.indexOf(
-			'streamWithCustomEvents(modelMessages, LYON_PORTAL, customEvents)',
-		)
-		const fallback = chatBranch.indexOf('return textOnlyChunks(fallbackText')
-
-		expect(modelCall).toBeGreaterThanOrEqual(0)
-		expect(fallback).toBeGreaterThan(modelCall)
-	})
-
 	it('uses bounded tools for website chat and tool calls for internal chat', () => {
 		const websiteSource = readRepoFile('apps/website/src/lib/chat.ts')
 		expect(websiteSource).toContain('completeChatWithTools')

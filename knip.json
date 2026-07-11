@@ -29,8 +29,6 @@
 	"ignoreBinaries": ["gitleaks", "osv-scanner", "semgrep"],
 	"ignoreDependencies": [
 		"@capacitor/ios",
-		"@ast-grep/cli",
-		"rollup-plugin-visualizer",
 		"tailwindcss",
 		"tailwindcss-react-aria-components"
 	],

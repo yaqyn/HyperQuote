@@ -8,6 +8,10 @@
 		"./groq": "./src/groq.ts",
 		"./prompts": "./src/prompts.ts"
 	},
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
+	},
 	"dependencies": {
 		"@hyperquote/runtime": "workspace:*"
 	},

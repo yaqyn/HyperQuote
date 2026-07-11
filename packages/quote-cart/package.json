@@ -7,6 +7,10 @@
 		".": "./src/index.ts",
 		"./server": "./src/server.ts"
 	},
+	"scripts": {
+		"test": "bun test src/server.test.ts",
+		"typecheck": "tsc --noEmit"
+	},
 	"dependencies": {
 		"zod": "^4.4.3",
 		"zustand": "^5.0.13"

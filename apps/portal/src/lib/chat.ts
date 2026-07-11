@@ -51,6 +51,7 @@ import {
 	productSearchTerm,
 } from './portal-catalog-intent'
 import { portalChatCommandPaletteGroups } from './portal-chat-commands'
+import { portalChatShouldUseModel } from './portal-chat-routing'
 import {
 	buildPortalCustomerAgentPrompt,
 	detectPortalAiLocale,
@@ -2530,7 +2531,13 @@ async function renderPortalCustomerResponse(
 		if (result.context.message) {
 			return textOnlyChunks(result.context.message, customEvents)
 		}
-		if (await isAIEnabled()) {
+		if (
+			portalChatShouldUseModel({
+				aiEnabled: await isAIEnabled(),
+				commandName: result.route.commandName,
+				contextMessage: result.context.message,
+			})
+		) {
 			return streamWithCustomEvents(
 				modelMessages,
 				buildPortalChatAnswerPrompt(activeDraft),

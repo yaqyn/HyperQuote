@@ -7,5 +7,8 @@
 		".": "./src/env.ts",
 		"./env": "./src/env.ts",
 		"./file": "./src/file.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
 	}
 }

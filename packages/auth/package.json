@@ -16,6 +16,9 @@
 		"./types": "./src/types.ts",
 		"./rate-limit": "./src/rate-limit.ts"
 	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
 	"dependencies": {
 		"@hyperquote/runtime": "workspace:*",
 		"@supabase/ssr": "^0.9.0",

@@ -355,45 +355,6 @@ export const declineRFQ = createServerFn({ method: 'POST' })
 		}
 	})
 
-export const cancelRFQ = createServerFn({ method: 'POST' })
-	.inputValidator(
-		z.object({
-			rfqId: z.string(),
-			reason: z.string().trim().min(3),
-			note: z.string().optional(),
-			proof: z.object({
-				fileName: z.string().trim().min(1),
-				proofPath: z.string().trim().min(1),
-			}),
-		}),
-	)
-	.handler(async ({ data }) => {
-		const reason = data.reason.trim()
-		const note = data.note?.trim() || undefined
-		if (!isUuid(data.rfqId)) {
-			throw new Error('Supabase quote request id is required')
-		}
-		const auth = await getInternalSupabaseClient()
-		const { error } = await auth.client.rpc('sales_cancel_order', {
-			p_order_id: data.rfqId,
-			p_reason: reason,
-			p_proof: {
-				file_name: data.proof.fileName,
-				note: note ?? null,
-				proof_path: data.proof.proofPath,
-			},
-		})
-		if (error) throw new Error(error.message)
-		return {
-			success: true,
-			rfqId: data.rfqId,
-			status: 'declined' as const,
-			reason,
-			note: note ?? null,
-			canceledAt: new Date().toISOString(),
-		}
-	})
-
 export const claimNextSalesOrder = createServerFn({ method: 'POST' }).handler(
 	async () => {
 		const auth = await getInternalSupabaseClient()

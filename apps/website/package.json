@@ -11,7 +11,7 @@
 		"deploy:worker": "bun run build:worker && wrangler deploy",
 		"routes:generate": "tsr generate",
 		"typecheck": "bun run routes:generate && tsc --noEmit",
-		"test": "bun test src/lib/chat.test.ts && bun run --cwd ../../packages/docs test",
+		"test": "bun test src/lib/chat.test.ts",
 		"preview": "vite preview"
 	},
 	"dependencies": {

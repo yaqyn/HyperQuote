@@ -48,6 +48,10 @@
 			"persistent": true
 		},
 		"lint": {},
+		"test": {
+			"dependsOn": ["^build"],
+			"outputs": []
+		},
 		"typecheck": {
 			"dependsOn": ["^build"],
 			"inputs": [

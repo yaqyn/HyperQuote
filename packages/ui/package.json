@@ -26,6 +26,10 @@
 		"./viewport/keyboard": "./src/viewport/keyboard.ts",
 		"./voice/useSpeechInput": "./src/voice/useSpeechInput.ts"
 	},
+	"scripts": {
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
+	},
 	"dependencies": {
 		"@hyperquote/i18n": "workspace:*",
 		"motion": "^12.38.0",
@@ -40,6 +44,7 @@
 		"i18next": "^26.2.0"
 	},
 	"devDependencies": {
-		"@types/react": "^19.2.14"
+		"@types/react": "^19.2.14",
+		"vitest": "^4.1.6"
 	}
 }

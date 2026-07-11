@@ -890,28 +890,6 @@ export const assignTruckToOrder = createServerFn({ method: 'POST' })
 		return { success: true as const, quoteId: data.quoteId }
 	})
 
-export const toggleItemLoaded = createServerFn({ method: 'POST' })
-	.inputValidator(
-		z.object({
-			quoteId: z.string(),
-			truckId: z.string(),
-			productSlug: z.string(),
-		}),
-	)
-	.handler(async ({ data }) => {
-		if (!isUuid(data.quoteId) || !isUuid(data.truckId)) {
-			return { success: false as const, error: 'Order or truck not found' }
-		}
-		const auth = await getInternalSupabaseClient()
-		const { error } = await auth.client.rpc('warehouse_toggle_loading_item', {
-			p_order_id: data.quoteId,
-			p_product_slug: data.productSlug,
-			p_truck_id: data.truckId,
-		})
-		if (error) return { success: false as const, error: error.message }
-		return { success: true as const }
-	})
-
 export const setItemLoadedQuantity = createServerFn({ method: 'POST' })
 	.inputValidator(
 		z.object({

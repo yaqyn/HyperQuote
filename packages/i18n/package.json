@@ -20,6 +20,9 @@
 		"./locales/en/website": "./src/locales/en/website.json",
 		"./types/resources": "./src/types/resources.d.ts"
 	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
 	"dependencies": {
 		"i18next": "^26.2.0",
 		"react-i18next": "^17.0.8"
