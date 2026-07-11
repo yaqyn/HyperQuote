@@ -44,9 +44,7 @@ function reportInput(): Parameters<typeof buildOrderReport>[0] {
 			notes: null,
 			orders: null,
 			projects: null,
-			quote_request_associates: [],
 			quote_request_items: [],
-			quote_request_locations: [],
 			rejected_reason: null,
 			request_number: 'RFQ-1',
 			status: 'submitted',
@@ -172,90 +170,5 @@ describe('portal order report formatting', () => {
 		expect(report.steps.map((step) => step.title)).toContain(
 			'Order was confirmed before stop',
 		)
-	})
-
-	it('groups submitted lines by delivery location and lists associates', () => {
-		const input = reportInput()
-		input.quoteRequest = input.quoteRequest
-			? {
-					...input.quoteRequest,
-					quote_request_associates: [
-						{
-							country_code: '+20',
-							name: 'Mona Advisor',
-							number: '1002003000',
-							sort_order: 0,
-						},
-					],
-					quote_request_items: [
-						{
-							customer_description: 'Wood',
-							id: 'item-wood',
-							product_id: null,
-							product_name_ar: 'خشب',
-							products: null,
-							quantity: 1000,
-							quote_request_location_id: 'loc-zaid',
-							sort_order: 0,
-							unit_of_measure: 'piece',
-							unit_of_measure_ar: 'قطعة',
-						},
-						{
-							customer_description: 'Steel',
-							id: 'item-steel',
-							product_id: null,
-							product_name_ar: 'حديد',
-							products: null,
-							quantity: 200,
-							quote_request_location_id: 'loc-cairo',
-							sort_order: 1,
-							unit_of_measure: 'ton',
-							unit_of_measure_ar: 'طن',
-						},
-					],
-					quote_request_locations: [
-						{
-							address_id: null,
-							client_id: 'zaid',
-							customer_addresses: null,
-							delivery_date: '2026-07-08',
-							delivery_hour: 10,
-							delivery_period: 'AM',
-							id: 'loc-zaid',
-							location_label: 'New Zaid City',
-							sort_order: 0,
-						},
-						{
-							address_id: null,
-							client_id: 'cairo',
-							customer_addresses: null,
-							delivery_date: '2026-07-09',
-							delivery_hour: 2,
-							delivery_period: 'PM',
-							id: 'loc-cairo',
-							location_label: 'Cairo City',
-							sort_order: 1,
-						},
-					],
-				}
-			: null
-
-		const report = buildOrderReport(input)
-		const submitted = report.steps.find((step) => step.stage === 'submitted')
-
-		expect(submitted?.facts).toContainEqual({
-			label: 'Delivery locations',
-			value: '2',
-		})
-		expect(submitted?.facts).toContainEqual({
-			label: 'Associates',
-			value: 'Mona Advisor (+20 1002003000)',
-		})
-		expect(submitted?.lines).toEqual([
-			'New Zaid City (2026-07-08, 10:00 AM)',
-			'Wood: 1,000 Pieces',
-			'Cairo City (2026-07-09, 2:00 PM)',
-			'Steel: 200 ton',
-		])
 	})
 })

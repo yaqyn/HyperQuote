@@ -225,35 +225,11 @@ interface SupabaseQuoteBuilderItemRow {
 	quantity: number
 	unit_of_measure: string
 	notes: string | null
-	quote_request_location_id: string | null
 	sort_order: number
 	products:
 		| SupabaseQuoteBuilderProductRow
 		| SupabaseQuoteBuilderProductRow[]
 		| null
-}
-
-interface SupabaseQuoteBuilderLocationRow {
-	id: string
-	client_id: string
-	address_id: string | null
-	location_label: string | null
-	sort_order: number
-	delivery_date: string | null
-	delivery_hour: number | null
-	delivery_period: 'AM' | 'PM' | null
-	customer_addresses:
-		| SupabaseQuoteBuilderAddressRow
-		| SupabaseQuoteBuilderAddressRow[]
-		| null
-}
-
-interface SupabaseQuoteBuilderAssociateRow {
-	id: string
-	name: string
-	country_code: string
-	number: string
-	sort_order: number
 }
 
 interface SupabaseQuoteBuilderCustomerRow {
@@ -293,8 +269,6 @@ interface SupabaseQuoteBuilderRequestRow {
 		| SupabaseQuoteBuilderAddressRow[]
 		| null
 	quote_request_items: SupabaseQuoteBuilderItemRow[] | null
-	quote_request_locations: SupabaseQuoteBuilderLocationRow[] | null
-	quote_request_associates: SupabaseQuoteBuilderAssociateRow[] | null
 }
 
 interface SupabaseQuoteBuilderSupplierLinkRow {
@@ -306,8 +280,6 @@ interface SupabaseQuoteBuilderSupplierLinkRow {
 
 interface SupabaseSavedQuoteLineItem {
 	id?: string
-	quoteRequestItemId?: string
-	locationClientId?: string
 	productSlug?: string
 	productName: string
 	specification: string
@@ -331,24 +303,6 @@ interface SupabaseSavedQuoteNotes {
 	earlyPaymentDiscount?: string | null
 	coverNote?: string | null
 	items?: SupabaseSavedQuoteLineItem[]
-	locations?: SalesQuoteLocationInput[]
-	associates?: SalesQuoteAssociateInput[]
-}
-
-interface SalesQuoteLocationInput {
-	clientId: string
-	locationLabel?: string | null
-	addressId?: string | null
-	deliveryDate?: string | null
-	deliveryHour?: number | null
-	deliveryPeriod?: 'AM' | 'PM' | null
-}
-
-interface SalesQuoteAssociateInput {
-	id?: string
-	name: string
-	countryCode: string
-	number: string
 }
 
 function firstRelation<T>(value: T | T[] | null): T | null {
@@ -445,12 +399,6 @@ function parseSavedQuoteNotes(value: string | null): SupabaseSavedQuoteNotes {
 					)
 				})
 			: undefined
-		const locations = Array.isArray(parsed.locations)
-			? parsed.locations.flatMap(parseSavedQuoteLocation)
-			: undefined
-		const associates = Array.isArray(parsed.associates)
-			? parsed.associates.flatMap(parseSavedQuoteAssociate)
-			: undefined
 		const metadata =
 			typeof parsed.notes === 'string'
 				? parseSavedQuoteMetadata(parsed.notes)
@@ -467,69 +415,10 @@ function parseSavedQuoteNotes(value: string | null): SupabaseSavedQuoteNotes {
 			earlyPaymentDiscount: metadata.earlyPaymentDiscount,
 			coverNote: metadata.coverNote,
 			items,
-			locations,
-			associates,
 		}
 	} catch {
 		return {}
 	}
-}
-
-function parseSavedQuoteLocation(value: unknown): SalesQuoteLocationInput[] {
-	if (!isUnknownRecord(value)) return []
-	const clientId =
-		stringField(value, 'clientId') ?? stringField(value, 'client_id')
-	if (!clientId) return []
-	const deliveryHour = numberField(value, 'deliveryHour')
-	const deliveryPeriod = stringField(value, 'deliveryPeriod')
-	return [
-		{
-			clientId,
-			locationLabel:
-				stringField(value, 'locationLabel') ??
-				stringField(value, 'location_label') ??
-				null,
-			addressId:
-				stringField(value, 'addressId') ?? stringField(value, 'address_id'),
-			deliveryDate:
-				stringField(value, 'deliveryDate') ??
-				stringField(value, 'delivery_date') ??
-				null,
-			deliveryHour,
-			deliveryPeriod:
-				deliveryPeriod === 'AM' || deliveryPeriod === 'PM'
-					? deliveryPeriod
-					: null,
-		},
-	]
-}
-
-function parseSavedQuoteAssociate(value: unknown): SalesQuoteAssociateInput[] {
-	if (!isUnknownRecord(value)) return []
-	const name = stringField(value, 'name')
-	const countryCode =
-		stringField(value, 'countryCode') ?? stringField(value, 'country_code')
-	const number = stringField(value, 'number')
-	if (!name || !countryCode || !number) return []
-	return [
-		{ id: stringField(value, 'id') ?? undefined, name, countryCode, number },
-	]
-}
-
-function stringField(
-	value: Record<string, unknown>,
-	key: string,
-): string | null {
-	const next = value[key]
-	return typeof next === 'string' && next.trim() ? next.trim() : null
-}
-
-function numberField(
-	value: Record<string, unknown>,
-	key: string,
-): number | null {
-	const next = value[key]
-	return typeof next === 'number' && Number.isFinite(next) ? next : null
 }
 
 function parseSavedQuoteMetadataObject(
@@ -761,8 +650,6 @@ function buildSupabaseSuggestedProductFromSavedItem(
 		: fallbackSellPrice
 	return {
 		id: item.id ?? `sp-${rfqId}-${index + 1}`,
-		quoteRequestItemId: item.quoteRequestItemId,
-		locationClientId: item.locationClientId,
 		productSlug: product?.slug ?? item.productSlug ?? item.productName,
 		productName: product?.name ?? item.productName,
 		specification:
@@ -848,8 +735,6 @@ function buildSupabaseSuggestedProductFromRequestItem(
 	)
 	return {
 		id: `sp-${rfqId}-${index + 1}`,
-		quoteRequestItemId: item.id,
-		locationClientId: item.quote_request_location_id ?? undefined,
 		productSlug: product?.slug ?? `request-item-${item.id}`,
 		productName: product?.name ?? item.customer_description,
 		specification:
@@ -869,59 +754,6 @@ function buildSupabaseSuggestedProductFromRequestItem(
 		marginPercent,
 		sellPrice: price.sellPrice,
 	}
-}
-
-function buildQuoteLocationsForSales(
-	request: SupabaseQuoteBuilderRequestRow,
-	savedLocations: SalesQuoteLocationInput[] | undefined,
-): SalesQuoteLocationInput[] {
-	if (savedLocations && savedLocations.length > 0) return savedLocations
-	const rows = (request.quote_request_locations ?? [])
-		.slice()
-		.sort((a, b) => a.sort_order - b.sort_order)
-	if (rows.length === 0) {
-		return [
-			{
-				clientId: 'default-location',
-				locationLabel: null,
-				addressId: request.delivery_address_id,
-				deliveryDate: request.delivery_date,
-				deliveryHour: null,
-				deliveryPeriod: null,
-			},
-		]
-	}
-
-	return rows.map((location, index) => {
-		const address = firstRelation(location.customer_addresses)
-		return {
-			clientId: location.client_id || location.id,
-			locationLabel:
-				location.location_label ??
-				formatSupabaseAddress(isSalesQuoteAddress(address) ? address : null) ??
-				`Location ${index + 1}`,
-			addressId: location.address_id,
-			deliveryDate: location.delivery_date,
-			deliveryHour: location.delivery_hour,
-			deliveryPeriod: location.delivery_period,
-		}
-	})
-}
-
-function buildQuoteAssociatesForSales(
-	request: SupabaseQuoteBuilderRequestRow,
-	savedAssociates: SalesQuoteAssociateInput[] | undefined,
-): SalesQuoteAssociateInput[] {
-	if (savedAssociates) return savedAssociates
-	return (request.quote_request_associates ?? [])
-		.slice()
-		.sort((a, b) => a.sort_order - b.sort_order)
-		.map((associate) => ({
-			id: associate.id,
-			name: associate.name,
-			countryCode: associate.country_code,
-			number: associate.number,
-		}))
 }
 
 async function buildSupabaseQuoteBuilderData(
@@ -966,7 +798,6 @@ async function buildSupabaseQuoteBuilderData(
 				quantity,
 				unit_of_measure,
 				notes,
-				quote_request_location_id,
 				sort_order,
 				products (
 					id,
@@ -987,35 +818,6 @@ async function buildSupabaseQuoteBuilderData(
 						)
 					)
 				)
-			),
-			quote_request_locations (
-				id,
-				client_id,
-				address_id,
-				location_label,
-				sort_order,
-				delivery_date,
-				delivery_hour,
-				delivery_period,
-				customer_addresses (
-					id,
-					label,
-					street,
-					area,
-					city,
-					governorate,
-					landmark,
-					is_default,
-					latitude,
-					longitude
-				)
-			),
-			quote_request_associates (
-				id,
-				name,
-				country_code,
-				number,
-				sort_order
 			)
 		`)
 		.eq('id', rfqId)
@@ -1062,10 +864,6 @@ async function buildSupabaseQuoteBuilderData(
 	const salesAddress = isSalesQuoteAddress(address) ? address : null
 	const deliveryAddress =
 		savedNotes.deliveryAddress ?? formatSupabaseAddress(salesAddress)
-	const salesLocations = buildQuoteLocationsForSales(
-		request,
-		savedNotes.locations,
-	)
 
 	return {
 		rfqId,
@@ -1089,8 +887,6 @@ async function buildSupabaseQuoteBuilderData(
 			normalizeLongitude(salesAddress?.longitude),
 		deliveryDate: savedNotes.deliveryDate ?? request.delivery_date ?? '',
 		deliveryWindow: savedNotes.deliveryWindow ?? '',
-		locations: salesLocations,
-		associates: buildQuoteAssociatesForSales(request, savedNotes.associates),
 		specialInstructions: savedNotes.notes ?? request.notes ?? '',
 		paymentTerms: savedNotes.paymentTerms ?? '',
 		earlyPaymentDiscount: savedNotes.earlyPaymentDiscount ?? '',
@@ -1161,8 +957,6 @@ async function buildSupabaseManualCustomerQuoteData(
 		deliveryLongitude: null,
 		deliveryDate: '',
 		deliveryWindow: '',
-		locations: [],
-		associates: [],
 		specialInstructions: '',
 		paymentTerms: '',
 		earlyPaymentDiscount: '',
@@ -1213,8 +1007,6 @@ async function buildEmptyManualQuoteData(
 		deliveryLongitude: null,
 		deliveryDate: '',
 		deliveryWindow: '',
-		locations: [],
-		associates: [],
 		specialInstructions: '',
 		paymentTerms: '',
 		earlyPaymentDiscount: '',
@@ -1250,149 +1042,6 @@ async function buildQuoteBuilderData(rfqId: string) {
 	throw new Error('Supabase quote request or customer is required')
 }
 
-interface PersistQuoteLocationEditsInput {
-	quoteRequestId: string
-	lineItems: Array<{
-		quoteRequestItemId?: string
-		locationClientId?: string
-	}>
-	locations?: SalesQuoteLocationInput[]
-	associates?: SalesQuoteAssociateInput[]
-}
-
-async function persistQuoteLocationAndAssociateEdits(
-	client: InternalSupabaseClient,
-	input: PersistQuoteLocationEditsInput,
-) {
-	if (input.locations && input.locations.length > 0) {
-		const { data: currentRows, error: currentError } = await client
-			.from('quote_request_locations')
-			.select('id, client_id, sort_order')
-			.eq('quote_request_id', input.quoteRequestId)
-			.order('sort_order', { ascending: true })
-		if (currentError) throw new Error(currentError.message)
-
-		const currentByClientId = new Map(
-			(
-				(currentRows ?? []) as Array<{
-					id: string
-					client_id: string
-					sort_order: number
-				}>
-			).map((row) => [row.client_id, row]),
-		)
-		const locationIdByClientId = new Map<string, string>()
-		const keptLocationIds = new Set<string>()
-
-		for (const [index, location] of input.locations.entries()) {
-			const existing = currentByClientId.get(location.clientId)
-			const patch = {
-				address_id: location.addressId ?? null,
-				client_id: location.clientId,
-				delivery_date: location.deliveryDate || null,
-				delivery_hour: location.deliveryHour ?? null,
-				delivery_period: location.deliveryPeriod ?? null,
-				location_label: cleanOptionalText(location.locationLabel) ?? null,
-				sort_order: index,
-			}
-
-			if (existing) {
-				const { error } = await client
-					.from('quote_request_locations')
-					.update(patch)
-					.eq('id', existing.id)
-					.eq('quote_request_id', input.quoteRequestId)
-				if (error) throw new Error(error.message)
-				locationIdByClientId.set(location.clientId, existing.id)
-				keptLocationIds.add(existing.id)
-				continue
-			}
-
-			const { data: inserted, error } = await client
-				.from('quote_request_locations')
-				.insert({
-					...patch,
-					quote_request_id: input.quoteRequestId,
-				})
-				.select('id')
-				.single()
-			if (error || !inserted) {
-				throw new Error(error?.message ?? 'quote_location_insert_failed')
-			}
-			locationIdByClientId.set(location.clientId, inserted.id)
-			keptLocationIds.add(inserted.id)
-		}
-
-		for (const lineItem of input.lineItems) {
-			if (!lineItem.quoteRequestItemId || !lineItem.locationClientId) continue
-			const locationId = locationIdByClientId.get(lineItem.locationClientId)
-			if (!locationId) continue
-			const { error } = await client
-				.from('quote_request_items')
-				.update({ quote_request_location_id: locationId })
-				.eq('id', lineItem.quoteRequestItemId)
-				.eq('quote_request_id', input.quoteRequestId)
-			if (error) throw new Error(error.message)
-		}
-
-		const { data: referencedItems, error: referencedError } = await client
-			.from('quote_request_items')
-			.select('quote_request_location_id')
-			.eq('quote_request_id', input.quoteRequestId)
-		if (referencedError) throw new Error(referencedError.message)
-		const referencedLocationIds = new Set(
-			(
-				(referencedItems ?? []) as Array<{
-					quote_request_location_id: string | null
-				}>
-			)
-				.map((item) => item.quote_request_location_id)
-				.filter((id): id is string => Boolean(id)),
-		)
-
-		for (const row of currentRows ?? []) {
-			if (keptLocationIds.has(row.id) || referencedLocationIds.has(row.id)) {
-				continue
-			}
-			const { error } = await client
-				.from('quote_request_locations')
-				.delete()
-				.eq('id', row.id)
-				.eq('quote_request_id', input.quoteRequestId)
-			if (error) throw new Error(error.message)
-		}
-	}
-
-	if (input.associates) {
-		const { error: deleteError } = await client
-			.from('quote_request_associates')
-			.delete()
-			.eq('quote_request_id', input.quoteRequestId)
-		if (deleteError) throw new Error(deleteError.message)
-
-		const associateRows = input.associates
-			.map((associate, index) => ({
-				quote_request_id: input.quoteRequestId,
-				sort_order: index,
-				name: associate.name.trim(),
-				country_code: associate.countryCode.trim(),
-				number: associate.number.trim(),
-			}))
-			.filter(
-				(associate) =>
-					associate.name.length > 0 &&
-					associate.country_code.length > 0 &&
-					associate.number.length > 0,
-			)
-		if (associateRows.length > 0) {
-			const { error } = await client
-				.from('quote_request_associates')
-				.insert(associateRows)
-			if (error) throw new Error(error.message)
-		}
-	}
-}
-
 // ─── Server Functions ─────────────────────────────────────
 
 export const saveQuoteDraft = createServerFn({ method: 'POST' })
@@ -1404,8 +1053,6 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
 			lineItems: z.array(
 				z.object({
 					id: z.string().optional(),
-					quoteRequestItemId: z.string().uuid().optional(),
-					locationClientId: z.string().optional(),
 					productSlug: z.string().optional(),
 					productCategory: z.string().optional(),
 					productName: z.string(),
@@ -1417,28 +1064,6 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
 					sellPrice: z.number().nonnegative(),
 				}),
 			),
-			locations: z
-				.array(
-					z.object({
-						clientId: z.string().min(1).max(120),
-						locationLabel: z.string().max(240).nullable().optional(),
-						addressId: z.string().uuid().nullable().optional(),
-						deliveryDate: z.string().nullable().optional(),
-						deliveryHour: z.number().int().min(1).max(12).nullable().optional(),
-						deliveryPeriod: z.enum(['AM', 'PM']).nullable().optional(),
-					}),
-				)
-				.optional(),
-			associates: z
-				.array(
-					z.object({
-						id: z.string().optional(),
-						name: z.string().max(120),
-						countryCode: z.string().regex(/^\+[1-9][0-9]{0,3}$/),
-						number: z.string().max(40),
-					}),
-				)
-				.optional(),
 			// Every field below is a user-typed override of the defaults inherited
 			// from the source RFQ / customer. Null = leave the DB row alone,
 			// empty string = explicit clear.
@@ -1484,12 +1109,6 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
 					latitude: draftDeliveryLatitude,
 					longitude: draftDeliveryLongitude,
 				})
-				await persistQuoteLocationAndAssociateEdits(auth.client, {
-					quoteRequestId: supabaseQuoteRequestId,
-					lineItems: data.lineItems,
-					locations: data.locations,
-					associates: data.associates,
-				})
 				const draftNotes = JSON.stringify({
 					quoteVersionId: savedQuoteVersion?.quoteVersionId ?? null,
 					deliveryAddress: draftDeliveryAddress,
@@ -1502,8 +1121,6 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
 					paymentTerms: data.paymentTerms ?? null,
 					earlyPaymentDiscount: data.earlyPaymentDiscount ?? null,
 					coverNote: data.coverNote ?? null,
-					locations: data.locations ?? [],
-					associates: data.associates ?? [],
 				})
 				const { data: version, error: saveError } = await auth.client.rpc(
 					'sales_save_quote_version',
@@ -1586,8 +1203,6 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
 				paymentTerms: data.paymentTerms ?? null,
 				earlyPaymentDiscount: data.earlyPaymentDiscount ?? null,
 				coverNote: data.coverNote ?? null,
-				locations: data.locations ?? [],
-				associates: data.associates ?? [],
 			})
 			const { data: version, error: saveError } = await auth.client.rpc(
 				'sales_save_quote_version',

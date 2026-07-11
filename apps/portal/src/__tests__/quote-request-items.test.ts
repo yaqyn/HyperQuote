@@ -98,33 +98,6 @@ describe('quote request item insert rows', () => {
 		).toThrowError(QUOTE_REQUEST_ITEM_PRODUCT_NOT_ORDERABLE)
 	})
 
-	it('links inserted rows to a quote request location when provided', () => {
-		const quoteRequestLocationId = '44444444-4444-4444-8444-444444444444'
-
-		expect(
-			toQuoteRequestItemRows(
-				quoteRequestId,
-				[
-					{
-						customerDescription: 'Repeated cement',
-						productId: orderableProductId,
-						quantity: 3,
-						sortOrder: 0,
-						unitOfMeasure: 'bag',
-					},
-				],
-				new Set([orderableProductId]),
-				{ quoteRequestLocationId },
-			),
-		).toMatchObject([
-			{
-				quote_request_id: quoteRequestId,
-				quote_request_location_id: quoteRequestLocationId,
-				product_id: orderableProductId,
-			},
-		])
-	})
-
 	it('treats low-stock catalog rows as customer-orderable', () => {
 		expect(
 			isOrderableQuoteProduct({

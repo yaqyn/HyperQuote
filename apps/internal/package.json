@@ -17,7 +17,6 @@
 	"dependencies": {
 		"@hyperquote/ai": "workspace:*",
 		"@hyperquote/auth": "workspace:*",
-		"@hyperquote/quote-cart": "workspace:*",
 		"@hyperquote/runtime": "workspace:*",
 		"@hyperquote/types": "workspace:*",
 		"@hyperquote/ui": "workspace:*",

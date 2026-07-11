@@ -15,7 +15,6 @@ export const quoteRequestItemInputSchema = z.object({
 
 type QuoteRequestItemInput = z.infer<typeof quoteRequestItemInputSchema>
 interface InsertQuoteRequestItemsOptions {
-	quoteRequestLocationId?: string
 	requireOrderableProductLinks?: boolean
 }
 
@@ -47,7 +46,6 @@ export function toQuoteRequestItemRows(
 	quoteRequestId: string,
 	items: QuoteRequestItemInput[],
 	orderableProductIds: ReadonlySet<string>,
-	options: { quoteRequestLocationId?: string } = {},
 ) {
 	return items.map((item) => {
 		const hasOrderableProduct =
@@ -57,9 +55,6 @@ export function toQuoteRequestItemRows(
 
 		return {
 			quote_request_id: quoteRequestId,
-			...(options.quoteRequestLocationId
-				? { quote_request_location_id: options.quoteRequestLocationId }
-				: {}),
 			product_id: productId,
 			customer_description: item.customerDescription,
 			quantity: item.quantity,
@@ -132,11 +127,9 @@ export async function insertQuoteRequestItems(
 		assertAllProductLinksOrderable(items, orderableProductIds)
 	}
 
-	const { error } = await supabase.from('quote_request_items').insert(
-		toQuoteRequestItemRows(quoteRequestId, items, orderableProductIds, {
-			quoteRequestLocationId: options.quoteRequestLocationId,
-		}),
-	)
+	const { error } = await supabase
+		.from('quote_request_items')
+		.insert(toQuoteRequestItemRows(quoteRequestId, items, orderableProductIds))
 
 	if (error) {
 		throw new Error(error.message)

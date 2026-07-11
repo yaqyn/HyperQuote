@@ -17,11 +17,7 @@ import { useQuoteSubmit } from '../../../hooks/useQuoteSubmit'
 import { clearLocalDraft } from '../../../lib/quote-draft'
 import { toQuoteSubmissionPayload } from '../../../lib/quote-request-payload'
 import { submitForApproval } from '../../../lib/server/approvals'
-import {
-	DEFAULT_QUOTE_LOCATION_CLIENT_ID,
-	type QuoteLocation,
-	useQuoteBuilderStore,
-} from '../../../stores/quote-builder'
+import { useQuoteBuilderStore } from '../../../stores/quote-builder'
 import { SubmitConfirmation } from './SubmitConfirmation'
 
 interface SubmitResult {
@@ -34,8 +30,8 @@ export function ReviewStep() {
 	const { t, i18n } = useTranslation('portal')
 	const isAr = i18n.language === 'ar'
 	const items = useQuoteBuilderStore((s) => s.items)
-	const locations = useQuoteBuilderStore((s) => s.locations)
 	const notes = useQuoteBuilderStore((s) => s.notes)
+	const deliveryDate = useQuoteBuilderStore((s) => s.deliveryDate)
 	const { submit, isSubmitting } = useQuoteSubmit()
 	const { needsApproval } = useNeedsApproval()
 
@@ -104,31 +100,6 @@ export function ReviewStep() {
 	}
 
 	const isPending = submitting || isSubmitting
-	const normalizedLocations =
-		locations.length > 0
-			? locations
-			: [
-					{
-						clientId: DEFAULT_QUOTE_LOCATION_CLIENT_ID,
-						addressId: null,
-						deliveryDate: null,
-						deliveryHour: null,
-						deliveryPeriod: null,
-					},
-				]
-	const fallbackLocationClientId =
-		normalizedLocations[0]?.clientId ?? DEFAULT_QUOTE_LOCATION_CLIENT_ID
-	const groupedLocations = normalizedLocations
-		.map((location, index) => ({
-			location,
-			index,
-			items: items.filter(
-				(item) =>
-					(item.locationClientId ?? fallbackLocationClientId) ===
-					location.clientId,
-			),
-		}))
-		.filter((group) => group.items.length > 0)
 
 	return (
 		<div className="flex flex-col gap-6 px-6 py-4">
@@ -159,54 +130,46 @@ export function ReviewStep() {
 						{t('quoteBuilder.edit')}
 					</Button>
 				</div>
-				<div className="flex flex-col gap-3">
-					{groupedLocations.map((group) => (
+				<div className="flex flex-col gap-2">
+					{items.map((item) => (
 						<div
-							key={group.location.clientId}
-							className="rounded-xl border border-[var(--color-border)]"
+							key={item.id}
+							className="flex items-center justify-between px-4 py-3 rounded-lg border border-[var(--color-border)]"
 						>
-							<div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-3">
-								<div>
-									<h4 className="text-sm font-semibold text-[var(--color-text)]">
-										{t('quoteBuilder.locationNumber', {
-											defaultValue: 'Location {{number}}',
-											number: group.index + 1,
-										})}
-									</h4>
-									<p className="font-mono text-[13px] text-[var(--color-text-muted)]">
-										{formatDeliveryWindow(group.location)}
-									</p>
-								</div>
-								<Button
-									onPress={() => useQuoteBuilderStore.getState().setStep(2)}
-									className="flex items-center gap-1 text-[13px] text-[var(--color-primary)] hover:underline outline-none"
-								>
-									<Pencil size={12} />
-									{t('quoteBuilder.edit')}
-								</Button>
-							</div>
-							<div className="flex flex-col">
-								{group.items.map((item) => (
-									<div
-										key={item.id}
-										className="flex items-center justify-between gap-3 px-4 py-3 not-last:border-b not-last:border-[var(--color-border)]"
-									>
-										<span className="text-sm text-[var(--color-text)]">
-											{item.customerDescription}
-										</span>
-										<span className="shrink-0 text-sm font-mono text-[var(--color-text-muted)]">
-											{item.quantity}{' '}
-											{isAr && item.unitOfMeasureAr
-												? item.unitOfMeasureAr
-												: item.unitOfMeasure}
-										</span>
-									</div>
-								))}
-							</div>
+							<span className="text-sm text-[var(--color-text)]">
+								{item.customerDescription}
+							</span>
+							<span className="text-sm font-mono text-[var(--color-text-muted)]">
+								{item.quantity}{' '}
+								{isAr && item.unitOfMeasureAr
+									? item.unitOfMeasureAr
+									: item.unitOfMeasure}
+							</span>
 						</div>
 					))}
 				</div>
 			</div>
+
+			{/* Delivery details */}
+			{deliveryDate && (
+				<div className="flex flex-col gap-1">
+					<div className="flex items-center justify-between">
+						<span className="text-[13px] text-[var(--color-text-muted)]">
+							{t('quoteBuilder.deliveryDateLabel')}
+						</span>
+						<Button
+							onPress={() => useQuoteBuilderStore.getState().setStep(2)}
+							className="flex items-center gap-1 text-[13px] text-[var(--color-primary)] hover:underline outline-none"
+						>
+							<Pencil size={12} />
+							{t('quoteBuilder.edit')}
+						</Button>
+					</div>
+					<span className="text-sm font-mono text-[var(--color-text)]">
+						{deliveryDate}
+					</span>
+				</div>
+			)}
 
 			{/* Notes */}
 			{notes && (
@@ -307,13 +270,4 @@ export function ReviewStep() {
 			</div>
 		</div>
 	)
-}
-
-function formatDeliveryWindow(location: QuoteLocation): string {
-	const date = location.deliveryDate ?? 'Date not set'
-	const time =
-		location.deliveryHour && location.deliveryPeriod
-			? `${location.deliveryHour} ${location.deliveryPeriod}`
-			: 'Time not set'
-	return `${date} · ${time}`
 }

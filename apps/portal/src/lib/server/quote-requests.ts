@@ -10,26 +10,18 @@ import {
 	unavailableItemNamesFromError,
 } from '../unavailable-quote-items'
 import { getAuthenticatedPortalCustomer } from './_supabase'
-import { quoteRequestItemInputSchema } from './quote-request-items'
 import {
-	normalizeQuoteRequestLocations,
-	type QuoteRequestLocationInput,
-	quoteRequestAssociateInputSchema,
-	quoteRequestItemsFromLocations,
-	quoteRequestLocationInputSchema,
-	quoteRequestLocationSummary,
-	replaceQuoteRequestLocationsAndItems,
-} from './quote-request-locations'
+	insertQuoteRequestItems,
+	quoteRequestItemInputSchema,
+} from './quote-request-items'
 
 // ============================================================================
 // Input Schemas
 // ============================================================================
 
-const quoteRequestDraftBaseInput = z.object({
+const quoteRequestDraftInput = z.object({
 	draftId: z.string().uuid().optional(),
-	items: z.array(quoteRequestItemInputSchema).optional(),
-	locations: z.array(quoteRequestLocationInputSchema).optional(),
-	associates: z.array(quoteRequestAssociateInputSchema).optional(),
+	items: z.array(quoteRequestItemInputSchema).min(1),
 	deliveryAddressId: z.string().uuid().optional(),
 	deliveryDate: z.string().optional(),
 	name: z.string().max(120).optional(),
@@ -38,29 +30,10 @@ const quoteRequestDraftBaseInput = z.object({
 	attachmentUrls: z.array(z.string()).optional(),
 })
 
-function hasQuoteRequestItems(input: {
-	items?: unknown[]
-	locations?: { items: unknown[] }[]
-}) {
-	return (
-		(input.items?.length ?? 0) > 0 ||
-		(input.locations ?? []).some((location) => location.items.length > 0)
-	)
-}
-
-const quoteRequestDraftInput = quoteRequestDraftBaseInput.refine(
-	(input) => hasQuoteRequestItems(input),
-	{ message: 'At least one quote request item is required' },
-)
-
-const submitQuoteRequestInput = quoteRequestDraftBaseInput
-	.extend({
-		approvalRequired: z.boolean().optional(),
-		idempotencyKey: z.string().uuid(),
-	})
-	.refine((input) => hasQuoteRequestItems(input), {
-		message: 'At least one quote request item is required',
-	})
+const submitQuoteRequestInput = quoteRequestDraftInput.extend({
+	approvalRequired: z.boolean().optional(),
+	idempotencyKey: z.string().uuid(),
+})
 
 const saveDraftInput = quoteRequestDraftInput
 const validateQuoteRequestItemsInput = z.object({
@@ -77,8 +50,6 @@ interface QuoteRequestUpdate {
 	attachment_urls?: string[]
 	delivery_address_id?: string | null
 	delivery_date?: string | null
-	delivery_hour?: number | null
-	delivery_period?: 'AM' | 'PM' | null
 	draft_name?: string | null
 	idempotency_key?: string
 	notes?: string | null
@@ -101,8 +72,6 @@ function buildDraftMetadataUpdate(input: {
 	attachmentUrls?: string[]
 	deliveryAddressId?: string
 	deliveryDate?: string
-	deliveryHour?: number
-	deliveryPeriod?: 'AM' | 'PM'
 	name?: string
 	notes?: string
 	projectId?: string
@@ -118,12 +87,6 @@ function buildDraftMetadataUpdate(input: {
 	if (input.deliveryDate !== undefined) {
 		update.delivery_date = input.deliveryDate || null
 	}
-	if (input.deliveryHour !== undefined) {
-		update.delivery_hour = input.deliveryHour || null
-	}
-	if (input.deliveryPeriod !== undefined) {
-		update.delivery_period = input.deliveryPeriod || null
-	}
 	if (input.name !== undefined) {
 		update.draft_name = normalizeDraftName(input.name)
 	}
@@ -135,18 +98,6 @@ function buildDraftMetadataUpdate(input: {
 	}
 
 	return update
-}
-
-function metadataUpdateFromLocations(
-	input: Parameters<typeof buildDraftMetadataUpdate>[0] & {
-		locations: QuoteRequestLocationInput[]
-	},
-) {
-	const summary = quoteRequestLocationSummary(input.locations)
-	return buildDraftMetadataUpdate({
-		...input,
-		...summary,
-	})
 }
 
 async function assertQuoteRequestItemsOrderable(
@@ -215,13 +166,12 @@ async function loadEditableDraft(
 	return draft
 }
 
-async function updateDraftWithLocations(
+async function updateDraftWithItems(
 	supabase: PortalCustomerSupabase,
 	input: {
 		customerId: string
 		draftId: string
-		locations: QuoteRequestLocationInput[]
-		associates?: z.infer<typeof quoteRequestAssociateInputSchema>[]
+		items: QuoteRequestItemInput[]
 		update: QuoteRequestUpdate
 	},
 ) {
@@ -234,12 +184,14 @@ async function updateDraftWithLocations(
 
 	if (updateError) throw new Error(updateError.message)
 
-	await replaceQuoteRequestLocationsAndItems(
-		supabase,
-		input.draftId,
-		input.locations,
-		input.associates,
-	)
+	const { error: deleteItemsError } = await supabase
+		.from('quote_request_items')
+		.delete()
+		.eq('quote_request_id', input.draftId)
+
+	if (deleteItemsError) throw new Error(deleteItemsError.message)
+
+	await insertQuoteRequestItems(supabase, input.draftId, input.items)
 }
 
 async function submitCustomerDraft(
@@ -280,10 +232,7 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 		}): Promise<{ requestId: string; reference: string }> => {
 			const { customerId, session, supabase } =
 				await getAuthenticatedPortalCustomer()
-			const locations = normalizeQuoteRequestLocations(input)
-			const items = quoteRequestItemsFromLocations(locations)
-			const summary = quoteRequestLocationSummary(locations)
-			await assertQuoteRequestItemsOrderable(supabase, items)
+			await assertQuoteRequestItemsOrderable(supabase, input.items)
 
 			const { data: existing } = await supabase
 				.from('quote_requests')
@@ -315,13 +264,12 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 					customerId,
 					draftId: input.draftId,
 				})
-				await updateDraftWithLocations(supabase, {
+				await updateDraftWithItems(supabase, {
 					customerId,
 					draftId: input.draftId,
-					locations,
-					associates: input.associates,
+					items: input.items,
 					update: {
-						...metadataUpdateFromLocations({ ...input, locations }),
+						...buildDraftMetadataUpdate(input),
 						approval_required: false,
 						idempotency_key: input.idempotencyKey,
 					},
@@ -339,13 +287,12 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 					customerId,
 					draftId: input.draftId,
 				})
-				await updateDraftWithLocations(supabase, {
+				await updateDraftWithItems(supabase, {
 					customerId,
 					draftId: input.draftId,
-					locations,
-					associates: input.associates,
+					items: input.items,
 					update: {
-						...metadataUpdateFromLocations({ ...input, locations }),
+						...buildDraftMetadataUpdate(input),
 						approval_required: true,
 					},
 				})
@@ -357,7 +304,7 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 					requested_by: session.user.id,
 					assigned_to: null,
 					status: 'pending',
-					context: { items_count: items.length },
+					context: { items_count: input.items.length },
 				})
 
 				return {
@@ -373,10 +320,8 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 					status: 'draft',
 					urgency: 'standard',
 					project_id: input.projectId ?? null,
-					delivery_address_id: summary.deliveryAddressId ?? null,
-					delivery_date: summary.deliveryDate ?? null,
-					delivery_hour: summary.deliveryHour ?? null,
-					delivery_period: summary.deliveryPeriod ?? null,
+					delivery_address_id: input.deliveryAddressId ?? null,
+					delivery_date: input.deliveryDate ?? null,
 					draft_name: input.approvalRequired
 						? normalizeDraftName(input.name)
 						: null,
@@ -392,12 +337,7 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 				throw new Error(qrError?.message ?? 'Failed to create quote request')
 			}
 
-			await replaceQuoteRequestLocationsAndItems(
-				supabase,
-				qr.id,
-				locations,
-				input.associates,
-			)
+			await insertQuoteRequestItems(supabase, qr.id, input.items)
 
 			if (input.approvalRequired) {
 				await supabase.from('approvals').insert({
@@ -407,7 +347,7 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 					requested_by: session.user.id,
 					assigned_to: null,
 					status: 'pending',
-					context: { items_count: items.length },
+					context: { items_count: input.items.length },
 				})
 			} else {
 				const { error: submitError } = await supabase.rpc(
@@ -439,13 +379,10 @@ export const saveDraft = createServerFn({ method: 'POST' })
 			data: input,
 		}): Promise<{ draftId: string; reference: string }> => {
 			const { customerId, supabase } = await getAuthenticatedPortalCustomer()
-			const locations = normalizeQuoteRequestLocations(input)
-			const items = quoteRequestItemsFromLocations(locations)
-			const summary = quoteRequestLocationSummary(locations)
-			await assertQuoteRequestItemsOrderable(supabase, items)
+			await assertQuoteRequestItemsOrderable(supabase, input.items)
 
 			if (input.draftId) {
-				const draftUpdate = metadataUpdateFromLocations({ ...input, locations })
+				const draftUpdate = buildDraftMetadataUpdate(input)
 				const draftQuery =
 					Object.keys(draftUpdate).length > 0
 						? supabase
@@ -471,18 +408,22 @@ export const saveDraft = createServerFn({ method: 'POST' })
 					throw new Error('Draft was not found or is no longer editable')
 				}
 
-				await replaceQuoteRequestLocationsAndItems(
-					supabase,
-					input.draftId,
-					locations,
-					input.associates,
-				)
+				const { error: deleteItemsError } = await supabase
+					.from('quote_request_items')
+					.delete()
+					.eq('quote_request_id', input.draftId)
+
+				if (deleteItemsError) throw new Error(deleteItemsError.message)
+
+				if (input.items.length > 0) {
+					await insertQuoteRequestItems(supabase, input.draftId, input.items)
+				}
 
 				const { error: activityError } = await supabase.rpc(
 					'customer_record_quote_request_draft_saved',
 					{
 						p_context: {
-							item_count: items.length,
+							item_count: input.items.length,
 							operation: 'update',
 						},
 						p_quote_request_id: input.draftId,
@@ -505,10 +446,8 @@ export const saveDraft = createServerFn({ method: 'POST' })
 					status: 'draft',
 					draft_name: normalizeDraftName(input.name),
 					project_id: input.projectId ?? null,
-					delivery_address_id: summary.deliveryAddressId ?? null,
-					delivery_date: summary.deliveryDate ?? null,
-					delivery_hour: summary.deliveryHour ?? null,
-					delivery_period: summary.deliveryPeriod ?? null,
+					delivery_address_id: input.deliveryAddressId ?? null,
+					delivery_date: input.deliveryDate ?? null,
 					notes: normalizeNotes(input.notes),
 					attachment_urls: input.attachmentUrls ?? [],
 				})
@@ -519,18 +458,15 @@ export const saveDraft = createServerFn({ method: 'POST' })
 				throw new Error(qrError?.message ?? 'Failed to create draft')
 			}
 
-			await replaceQuoteRequestLocationsAndItems(
-				supabase,
-				qr.id,
-				locations,
-				input.associates,
-			)
+			if (input.items.length > 0) {
+				await insertQuoteRequestItems(supabase, qr.id, input.items)
+			}
 
 			const { error: activityError } = await supabase.rpc(
 				'customer_record_quote_request_draft_saved',
 				{
 					p_context: {
-						item_count: items.length,
+						item_count: input.items.length,
 						operation: 'create',
 					},
 					p_quote_request_id: qr.id,

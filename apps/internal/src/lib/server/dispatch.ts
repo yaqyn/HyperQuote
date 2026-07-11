@@ -43,8 +43,6 @@ interface DispatchTruckView {
 }
 
 interface DispatchRouteItemView {
-	quoteRequestItemId: string
-	locationId: string | null
 	productSlug: string
 	productName: string
 	sku: string
@@ -119,8 +117,6 @@ interface SupabaseDispatchProductRow {
 }
 
 interface SupabaseDispatchItemRow {
-	id: string
-	quote_request_location_id: string | null
 	product_id: string | null
 	customer_description: string
 	quantity: number
@@ -267,105 +263,33 @@ function firstRelation<T>(value: T | T[] | null | undefined): T | null {
 
 function parseAssignedItemLoads(
 	value: unknown,
-	quantityByItemId: Map<string, number>,
-	itemMetaBySlug: Map<
-		string,
-		{ quoteRequestItemId: string; locationId: string | null }
-	>,
-): { quoteRequestItemId: string; productSlug: string; quantity: number }[] {
+	quantityBySlug: Map<string, number>,
+): { productSlug: string; quantity: number }[] {
 	if (!Array.isArray(value)) return []
 	return value
 		.map((item) => {
 			if (typeof item === 'string') {
-				const meta = itemMetaBySlug.get(item)
-				if (!meta) return null
-				const quantity = quantityByItemId.get(meta.quoteRequestItemId) ?? 0
-				return quantity > 0
-					? {
-							quoteRequestItemId: meta.quoteRequestItemId,
-							productSlug: item,
-							quantity,
-						}
-					: null
+				const quantity = quantityBySlug.get(item) ?? 0
+				return quantity > 0 ? { productSlug: item, quantity } : null
 			}
-			const record = asRecord(item)
-			const quoteRequestItemId = textFrom(
-				record?.quoteRequestItemId,
-				record?.quote_request_item_id,
-			)
-			const productSlug = textFrom(record?.productSlug, record?.product_slug)
-			const quantity = numberFrom(record?.quantity)
 			if (
-				!isUuid(quoteRequestItemId) ||
-				!Number.isFinite(quantity) ||
-				quantity <= 0
+				typeof item !== 'object' ||
+				item === null ||
+				!('productSlug' in item) ||
+				!('quantity' in item) ||
+				typeof item.productSlug !== 'string' ||
+				typeof item.quantity !== 'number' ||
+				!Number.isFinite(item.quantity) ||
+				item.quantity <= 0
 			) {
 				return null
 			}
-			return { quoteRequestItemId, productSlug, quantity }
+			return { productSlug: item.productSlug, quantity: item.quantity }
 		})
 		.filter(
-			(
-				item,
-			): item is {
-				quoteRequestItemId: string
-				productSlug: string
-				quantity: number
-			} => item !== null,
+			(item): item is { productSlug: string; quantity: number } =>
+				item !== null,
 		)
-}
-
-function dispatchLineSlug(item: SupabaseDispatchItemRow): string {
-	const product = firstRelation(item.products)
-	return (
-		product?.slug ??
-		item.customer_description
-			.toLowerCase()
-			.replace(/[^a-z0-9]+/g, '-')
-			.replace(/^-|-$/g, '')
-	)
-}
-
-function dispatchLineMetaBySlug(items: SupabaseDispatchItemRow[]) {
-	const meta = new Map<
-		string,
-		{ quoteRequestItemId: string; locationId: string | null }
-	>()
-	const seen = new Set<string>()
-	for (const item of items) {
-		const slug = dispatchLineSlug(item)
-		if (seen.has(slug)) {
-			meta.delete(slug)
-			continue
-		}
-		seen.add(slug)
-		meta.set(slug, {
-			quoteRequestItemId: item.id,
-			locationId: item.quote_request_location_id,
-		})
-	}
-	return meta
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-	return value && typeof value === 'object' && !Array.isArray(value)
-		? (value as Record<string, unknown>)
-		: null
-}
-
-function textFrom(...values: unknown[]): string {
-	for (const value of values) {
-		if (typeof value !== 'string') continue
-		const text = value.trim()
-		if (text) return text
-	}
-	return ''
-}
-
-function numberFrom(value: unknown): number {
-	if (typeof value === 'number') return value
-	if (typeof value === 'string') return Number(value)
-	return Number.NaN
 }
 
 function nullableCoordinate(value: number | null | undefined): number | null {
@@ -501,8 +425,6 @@ async function getSupabaseDispatchData(orderId?: string) {
 					longitude
 				),
 				quote_request_items (
-					id,
-					quote_request_location_id,
 					product_id,
 					customer_description,
 					quantity,
@@ -644,11 +566,17 @@ function buildSupabaseRoute(
 	const passedAt = task.updated_at || task.created_at
 	const passedAtHoursAgo = roundedHoursSince(passedAt)
 	const requestItems = request.quote_request_items ?? []
-	const quantityByItemId = new Map<string, number>()
+	const quantityBySlug = new Map<string, number>()
 	for (const item of requestItems) {
-		quantityByItemId.set(item.id, Number(item.quantity))
+		const product = firstRelation(item.products)
+		const slug =
+			product?.slug ??
+			item.customer_description
+				.toLowerCase()
+				.replace(/[^a-z0-9]+/g, '-')
+				.replace(/^-|-$/g, '')
+		quantityBySlug.set(slug, Number(item.quantity))
 	}
-	const itemMetaBySlug = dispatchLineMetaBySlug(requestItems)
 	const itemAssignments = new Map<
 		string,
 		{
@@ -664,17 +592,16 @@ function buildSupabaseRoute(
 		if (!driver) continue
 		for (const load of parseAssignedItemLoads(
 			assignment.assigned_items,
-			quantityByItemId,
-			itemMetaBySlug,
+			quantityBySlug,
 		)) {
-			const list = itemAssignments.get(load.quoteRequestItemId) ?? []
+			const list = itemAssignments.get(load.productSlug) ?? []
 			list.push({
 				truckId: truck?.id ?? null,
 				truckPlateNumber: truck?.plate_number ?? null,
 				driverName: driver.full_name,
 				quantity: load.quantity,
 			})
-			itemAssignments.set(load.quoteRequestItemId, list)
+			itemAssignments.set(load.productSlug, list)
 		}
 	}
 	const items: DispatchRouteItemView[] = requestItems
@@ -682,13 +609,16 @@ function buildSupabaseRoute(
 		.sort((a, b) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0))
 		.map((item) => {
 			const product = firstRelation(item.products)
-			const slug = dispatchLineSlug(item)
-			const assignmentsForItem = itemAssignments.get(item.id) ?? []
+			const slug =
+				product?.slug ??
+				item.customer_description
+					.toLowerCase()
+					.replace(/[^a-z0-9]+/g, '-')
+					.replace(/^-|-$/g, '')
+			const assignmentsForItem = itemAssignments.get(slug) ?? []
 			const singleAssignment =
 				assignmentsForItem.length === 1 ? assignmentsForItem[0] : null
 			return {
-				quoteRequestItemId: item.id,
-				locationId: item.quote_request_location_id,
 				productSlug: slug,
 				productName: product?.name ?? item.customer_description,
 				sku: product?.sku ?? '',

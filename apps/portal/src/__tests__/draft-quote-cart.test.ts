@@ -1,7 +1,5 @@
 import {
 	createQuoteCartSync,
-	DEFAULT_QUOTE_CART_LOCATION_CLIENT_ID,
-	DEFAULT_QUOTE_CART_LOCATION_LABEL,
 	type getQuoteCartSnapshot,
 	type QuoteCartItem,
 	type QuoteCartState,
@@ -245,10 +243,8 @@ describe('draft quote cart recovery', () => {
 			],
 		})
 		const remote: RemoteQuoteCartSnapshot = {
-			associates: [],
 			globalNote: '',
 			items: [cartItem({ productId: keptProductId, quantity: 2 })],
-			locations: defaultLocations(),
 			updatedAt: '2026-05-23T10:01:00.000Z',
 			version: 2,
 		}
@@ -286,10 +282,8 @@ describe('draft quote cart recovery', () => {
 		const controller = createQuoteCartSync({
 			adapter: {
 				load: async () => ({
-					associates: [],
 					globalNote: '',
 					items: [],
-					locations: defaultLocations(),
 					updatedAt: '2026-05-23T10:02:00.000Z',
 					version: 3,
 				}),
@@ -326,7 +320,6 @@ function cartItem(input: {
 		categoryName: 'Material',
 		categoryNameAr: 'مواد',
 		imageUrl: '',
-		locationClientId: DEFAULT_QUOTE_CART_LOCATION_CLIENT_ID,
 		name: 'Wood',
 		nameAr: 'خشب',
 		note: '',
@@ -369,37 +362,14 @@ function createQuoteCartState(input: {
 }): QuoteCartState {
 	return {
 		add: () => undefined,
-		addAssociate: () => '',
-		addLocation: () => DEFAULT_QUOTE_CART_LOCATION_CLIENT_ID,
-		applyDeliveryToAllLocations: () => undefined,
-		associates: [],
 		clear: () => undefined,
 		duplicate: () => undefined,
 		globalNote: input.globalNote,
 		items: input.items,
-		locations: defaultLocations(),
 		remove: () => undefined,
-		removeAssociate: () => undefined,
-		removeLocation: () => undefined,
 		setGlobalNote: () => undefined,
 		totalUnits: () => input.items.reduce((sum, item) => sum + item.quantity, 0),
-		updateAssociate: () => undefined,
-		updateItemLocation: () => undefined,
-		updateLocation: () => undefined,
 		updateNote: () => undefined,
 		updateQuantity: () => undefined,
 	}
-}
-
-function defaultLocations() {
-	return [
-		{
-			clientId: DEFAULT_QUOTE_CART_LOCATION_CLIENT_ID,
-			label: DEFAULT_QUOTE_CART_LOCATION_LABEL,
-			addressId: null,
-			deliveryDate: null,
-			deliveryHour: null,
-			deliveryPeriod: null,
-		},
-	]
 }

@@ -41,8 +41,6 @@ interface TruckAssignment {
 }
 
 interface LoadedTruckItem {
-	quoteRequestItemId: string
-	locationId: string | null
 	productSlug: string
 	quantity: number
 }
@@ -79,8 +77,6 @@ export type WarehouseStage =
 // ─── View shapes returned to the client ──
 
 interface WarehouseItemView {
-	quoteRequestItemId: string
-	locationId: string | null
 	productSlug: string
 	productName: string
 	sku: string
@@ -128,8 +124,6 @@ interface SupabaseLoadingProductRow {
 }
 
 interface SupabaseLoadingItemRow {
-	id: string
-	quote_request_location_id: string | null
 	product_id: string | null
 	customer_description: string
 	quantity: number
@@ -277,49 +271,28 @@ function firstRelation<T>(value: T | T[] | null): T | null {
 
 function parseAssignedItemLoads(
 	value: unknown,
-	quantityByItemId: Map<string, number>,
-	itemMetaBySlug: Map<
-		string,
-		{ quoteRequestItemId: string; locationId: string | null }
-	>,
+	quantityBySlug: Map<string, number>,
 ): LoadedTruckItem[] {
 	if (!Array.isArray(value)) return []
 	return value
 		.map((item) => {
 			if (typeof item === 'string') {
-				const meta = itemMetaBySlug.get(item)
-				if (!meta) return null
-				const quantity = quantityByItemId.get(meta.quoteRequestItemId) ?? 0
-				return quantity > 0
-					? {
-							quoteRequestItemId: meta.quoteRequestItemId,
-							locationId: meta.locationId,
-							productSlug: item,
-							quantity,
-						}
-					: null
+				const quantity = quantityBySlug.get(item) ?? 0
+				return quantity > 0 ? { productSlug: item, quantity } : null
 			}
-			const record = asRecord(item)
-			const quoteRequestItemId = textFrom(
-				record?.quoteRequestItemId,
-				record?.quote_request_item_id,
-			)
-			const quantity = numberFrom(record?.quantity)
-			const productSlug = textFrom(record?.productSlug, record?.product_slug)
-			const locationId = textFrom(record?.locationId, record?.location_id)
 			if (
-				!isUuid(quoteRequestItemId) ||
-				!Number.isFinite(quantity) ||
-				quantity <= 0
+				typeof item !== 'object' ||
+				item === null ||
+				!('productSlug' in item) ||
+				!('quantity' in item) ||
+				typeof item.productSlug !== 'string' ||
+				typeof item.quantity !== 'number' ||
+				!Number.isFinite(item.quantity) ||
+				item.quantity <= 0
 			) {
 				return null
 			}
-			return {
-				quoteRequestItemId,
-				locationId: isUuid(locationId) ? locationId : null,
-				productSlug,
-				quantity,
-			}
+			return { productSlug: item.productSlug, quantity: item.quantity }
 		})
 		.filter((item): item is LoadedTruckItem => item !== null)
 }
@@ -335,54 +308,12 @@ function lineSlug(item: SupabaseLoadingItemRow): string {
 	)
 }
 
-function lineQuantityByItemId(items: SupabaseLoadingItemRow[]) {
+function lineQuantityBySlug(items: SupabaseLoadingItemRow[]) {
 	const quantities = new Map<string, number>()
 	for (const item of items) {
-		quantities.set(item.id, Number(item.quantity))
+		quantities.set(lineSlug(item), Number(item.quantity))
 	}
 	return quantities
-}
-
-function lineMetaBySlug(items: SupabaseLoadingItemRow[]) {
-	const meta = new Map<
-		string,
-		{ quoteRequestItemId: string; locationId: string | null }
-	>()
-	const seen = new Set<string>()
-	for (const item of items) {
-		const slug = lineSlug(item)
-		if (seen.has(slug)) {
-			meta.delete(slug)
-			continue
-		}
-		seen.add(slug)
-		meta.set(slug, {
-			quoteRequestItemId: item.id,
-			locationId: item.quote_request_location_id,
-		})
-	}
-	return meta
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-	return value && typeof value === 'object' && !Array.isArray(value)
-		? (value as Record<string, unknown>)
-		: null
-}
-
-function textFrom(...values: unknown[]): string {
-	for (const value of values) {
-		if (typeof value !== 'string') continue
-		const text = value.trim()
-		if (text) return text
-	}
-	return ''
-}
-
-function numberFrom(value: unknown): number {
-	if (typeof value === 'number') return value
-	if (typeof value === 'string') return Number(value)
-	return Number.NaN
 }
 
 function isWarehouseAdvisor(row: SupabaseWarehouseEmployeeRow): boolean {
@@ -542,8 +473,6 @@ async function getSupabaseLoadingData(orderId?: string) {
 					governorate
 				),
 				quote_request_items (
-					id,
-					quote_request_location_id,
 					product_id,
 					customer_description,
 					quantity,
@@ -607,11 +536,7 @@ async function getSupabaseLoadingData(orderId?: string) {
 
 function buildSupabaseTruckAssignment(
 	assignment: SupabaseLoadingTaskDriverRow,
-	quantityByItemId: Map<string, number>,
-	itemMetaBySlug: Map<
-		string,
-		{ quoteRequestItemId: string; locationId: string | null }
-	>,
+	quantityBySlug: Map<string, number>,
 ): TruckAssignment | null {
 	const truck = firstRelation(assignment.trucks)
 	const driver = firstRelation(assignment.drivers)
@@ -623,8 +548,7 @@ function buildSupabaseTruckAssignment(
 		capacityTons: Number(truck.capacity_tons ?? 0),
 		itemsLoaded: parseAssignedItemLoads(
 			assignment.assigned_items,
-			quantityByItemId,
-			itemMetaBySlug,
+			quantityBySlug,
 		),
 		assignedAt: assignment.created_at,
 	}
@@ -647,19 +571,16 @@ function buildSupabaseLoadingRow(
 	const customer = firstRelation(order.customers)
 	if (!request || !customer) return null
 	const items = request.quote_request_items ?? []
-	const quantityByItemId = lineQuantityByItemId(items)
-	const itemMetaBySlug = lineMetaBySlug(items)
-	const loadedQuantityByItemId = new Map<string, number>()
+	const quantityBySlug = lineQuantityBySlug(items)
+	const loadedQuantityBySlug = new Map<string, number>()
 	for (const assignment of assignments) {
 		for (const item of parseAssignedItemLoads(
 			assignment.assigned_items,
-			quantityByItemId,
-			itemMetaBySlug,
+			quantityBySlug,
 		)) {
-			loadedQuantityByItemId.set(
-				item.quoteRequestItemId,
-				(loadedQuantityByItemId.get(item.quoteRequestItemId) ?? 0) +
-					item.quantity,
+			loadedQuantityBySlug.set(
+				item.productSlug,
+				(loadedQuantityBySlug.get(item.productSlug) ?? 0) + item.quantity,
 			)
 		}
 	}
@@ -678,7 +599,8 @@ function buildSupabaseLoadingRow(
 		approvedHoursAgo: roundedHoursSince(task.created_at),
 		stage: supabaseLoadingStage(task, assignments),
 		loadedCount: items.filter((item) => {
-			return (loadedQuantityByItemId.get(item.id) ?? 0) >= Number(item.quantity)
+			const slug = lineSlug(item)
+			return (loadedQuantityBySlug.get(slug) ?? 0) >= Number(item.quantity)
 		}).length,
 		truckCount: assignments.length,
 	}
@@ -693,9 +615,8 @@ function buildSupabaseLoadingDetail(
 	const request = firstRelation(order?.quote_requests ?? null)
 	if (!row || !order || !request) return null
 	const orderItems = request.quote_request_items ?? []
-	const quantityByItemId = lineQuantityByItemId(orderItems)
-	const itemMetaBySlug = lineMetaBySlug(orderItems)
-	const loadedByItemId = new Map<
+	const quantityBySlug = lineQuantityBySlug(orderItems)
+	const loadedBySlug = new Map<
 		string,
 		{
 			truckId: string
@@ -707,12 +628,11 @@ function buildSupabaseLoadingDetail(
 		if (!truck) continue
 		for (const load of parseAssignedItemLoads(
 			assignment.assigned_items,
-			quantityByItemId,
-			itemMetaBySlug,
+			quantityBySlug,
 		)) {
-			const list = loadedByItemId.get(load.quoteRequestItemId) ?? []
+			const list = loadedBySlug.get(load.productSlug) ?? []
 			list.push({ truckId: truck.id, quantity: load.quantity })
-			loadedByItemId.set(load.quoteRequestItemId, list)
+			loadedBySlug.set(load.productSlug, list)
 		}
 	}
 	const items: WarehouseItemView[] = orderItems
@@ -722,14 +642,12 @@ function buildSupabaseLoadingDetail(
 			const product = firstRelation(item.products)
 			const slug = lineSlug(item)
 			const quantity = Number(item.quantity)
-			const truckLoads = loadedByItemId.get(item.id) ?? []
+			const truckLoads = loadedBySlug.get(slug) ?? []
 			const loadedQuantity = truckLoads.reduce(
 				(sum, load) => sum + load.quantity,
 				0,
 			)
 			return {
-				quoteRequestItemId: item.id,
-				locationId: item.quote_request_location_id,
 				productSlug: slug,
 				productName: product?.name ?? item.customer_description,
 				sku: product?.sku ?? '',
@@ -742,11 +660,7 @@ function buildSupabaseLoadingDetail(
 		})
 	const truckAssignments = assignments
 		.map((assignment) =>
-			buildSupabaseTruckAssignment(
-				assignment,
-				quantityByItemId,
-				itemMetaBySlug,
-			),
+			buildSupabaseTruckAssignment(assignment, quantityBySlug),
 		)
 		.filter((assignment): assignment is TruckAssignment => assignment !== null)
 	const advisorName = supabaseAdvisorName(task)
@@ -981,21 +895,17 @@ export const toggleItemLoaded = createServerFn({ method: 'POST' })
 		z.object({
 			quoteId: z.string(),
 			truckId: z.string(),
-			quoteRequestItemId: z.string(),
+			productSlug: z.string(),
 		}),
 	)
 	.handler(async ({ data }) => {
-		if (
-			!isUuid(data.quoteId) ||
-			!isUuid(data.truckId) ||
-			!isUuid(data.quoteRequestItemId)
-		) {
+		if (!isUuid(data.quoteId) || !isUuid(data.truckId)) {
 			return { success: false as const, error: 'Order or truck not found' }
 		}
 		const auth = await getInternalSupabaseClient()
 		const { error } = await auth.client.rpc('warehouse_toggle_loading_item', {
 			p_order_id: data.quoteId,
-			p_quote_request_item_id: data.quoteRequestItemId,
+			p_product_slug: data.productSlug,
 			p_truck_id: data.truckId,
 		})
 		if (error) return { success: false as const, error: error.message }
@@ -1009,15 +919,11 @@ export const setItemLoadedQuantity = createServerFn({ method: 'POST' })
 			quantity: z.number().finite().min(0),
 			quoteId: z.string(),
 			truckId: z.string(),
-			quoteRequestItemId: z.string(),
+			productSlug: z.string(),
 		}),
 	)
 	.handler(async ({ data }) => {
-		if (
-			!isUuid(data.quoteId) ||
-			!isUuid(data.truckId) ||
-			!isUuid(data.quoteRequestItemId)
-		) {
+		if (!isUuid(data.quoteId) || !isUuid(data.truckId)) {
 			return { success: false as const, error: 'Order or truck not found' }
 		}
 		const auth = await getInternalSupabaseClient()
@@ -1026,7 +932,7 @@ export const setItemLoadedQuantity = createServerFn({ method: 'POST' })
 			{
 				p_exclusive: data.exclusive ?? false,
 				p_order_id: data.quoteId,
-				p_quote_request_item_id: data.quoteRequestItemId,
+				p_product_slug: data.productSlug,
 				p_quantity: data.quantity,
 				p_truck_id: data.truckId,
 			},

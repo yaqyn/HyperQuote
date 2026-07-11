@@ -14,71 +14,9 @@ const FALLBACK_UNIT_AR = 'وحدة'
 
 export const QUOTE_CART_STORAGE_KEY = 'hq-draft-quote'
 export const LEGACY_WEBSITE_QUOTE_CART_STORAGE_KEY = 'hq-website-quote-cart'
-export const DEFAULT_QUOTE_CART_LOCATION_CLIENT_ID = 'default-location'
-export const DEFAULT_QUOTE_CART_LOCATION_LABEL = 'Default Location'
-export type QuoteDeliveryPeriod = 'AM' | 'PM'
-
-export interface CountryCodeOption {
-	code: string
-	label: string
-}
-
-export const ORDER_ASSOCIATE_COUNTRY_CODES: CountryCodeOption[] = [
-	{ code: '+20', label: 'Egypt' },
-	{ code: '+966', label: 'Saudi Arabia' },
-	{ code: '+971', label: 'United Arab Emirates' },
-	{ code: '+965', label: 'Kuwait' },
-	{ code: '+974', label: 'Qatar' },
-	{ code: '+973', label: 'Bahrain' },
-	{ code: '+968', label: 'Oman' },
-	{ code: '+962', label: 'Jordan' },
-	{ code: '+961', label: 'Lebanon' },
-	{ code: '+964', label: 'Iraq' },
-	{ code: '+963', label: 'Syria' },
-	{ code: '+970', label: 'Palestine' },
-	{ code: '+212', label: 'Morocco' },
-	{ code: '+213', label: 'Algeria' },
-	{ code: '+216', label: 'Tunisia' },
-	{ code: '+218', label: 'Libya' },
-	{ code: '+249', label: 'Sudan' },
-	{ code: '+967', label: 'Yemen' },
-	{ code: '+1', label: 'United States / Canada' },
-	{ code: '+44', label: 'United Kingdom' },
-	{ code: '+33', label: 'France' },
-	{ code: '+49', label: 'Germany' },
-	{ code: '+39', label: 'Italy' },
-	{ code: '+34', label: 'Spain' },
-	{ code: '+90', label: 'Turkey' },
-	{ code: '+91', label: 'India' },
-	{ code: '+92', label: 'Pakistan' },
-	{ code: '+880', label: 'Bangladesh' },
-	{ code: '+86', label: 'China' },
-	{ code: '+81', label: 'Japan' },
-	{ code: '+82', label: 'South Korea' },
-	{ code: '+234', label: 'Nigeria' },
-	{ code: '+27', label: 'South Africa' },
-	{ code: '+61', label: 'Australia' },
-]
-
-export interface QuoteCartLocation {
-	clientId: string
-	label: string
-	addressId: string | null
-	deliveryDate: string | null
-	deliveryHour: number | null
-	deliveryPeriod: QuoteDeliveryPeriod | null
-}
-
-export interface QuoteCartAssociate {
-	id: string
-	name: string
-	countryCode: string
-	number: string
-}
 
 export interface QuoteCartItem {
 	productId: string
-	locationClientId: string
 	slug: string
 	name: string
 	nameAr: string
@@ -117,50 +55,13 @@ export interface QuoteRequestItemPayload {
 	isUnmatched?: boolean
 }
 
-export interface QuoteRequestLocationPayload {
-	clientId: string
-	addressId?: string
-	locationLabel?: string
-	deliveryDate?: string
-	deliveryHour?: number
-	deliveryPeriod?: QuoteDeliveryPeriod
-	items: QuoteRequestItemPayload[]
-}
-
-export interface QuoteRequestAssociatePayload {
-	name: string
-	countryCode: string
-	number: string
-}
-
 export interface QuoteCartState {
 	items: QuoteCartItem[]
-	locations: QuoteCartLocation[]
-	associates: QuoteCartAssociate[]
 	globalNote: string
 	add: (item: QuoteCartItemInput, quantity?: number) => void
 	remove: (productId: string) => void
 	updateQuantity: (productId: string, quantity: number) => void
 	updateNote: (productId: string, note: string) => void
-	addLocation: () => string
-	updateLocation: (
-		clientId: string,
-		updates: Partial<Omit<QuoteCartLocation, 'clientId'>>,
-	) => void
-	removeLocation: (clientId: string) => void
-	updateItemLocation: (productId: string, locationClientId: string) => void
-	applyDeliveryToAllLocations: (
-		delivery: Pick<
-			QuoteCartLocation,
-			'deliveryDate' | 'deliveryHour' | 'deliveryPeriod'
-		>,
-	) => void
-	addAssociate: () => string
-	updateAssociate: (
-		id: string,
-		updates: Partial<Omit<QuoteCartAssociate, 'id'>>,
-	) => void
-	removeAssociate: (id: string) => void
 	setGlobalNote: (note: string) => void
 	duplicate: (productId: string) => void
 	clear: () => void
@@ -170,8 +71,6 @@ export interface QuoteCartState {
 export interface QuoteCartSnapshot {
 	globalNote: string
 	items: QuoteCartItem[]
-	locations: QuoteCartLocation[]
-	associates: QuoteCartAssociate[]
 }
 
 export interface RemoteQuoteCartSnapshot extends QuoteCartSnapshot {
@@ -212,20 +111,14 @@ export function isQuoteCartProductId(value: string): boolean {
 export function sanitizeQuoteCartSnapshot(value: unknown): {
 	globalNote: string
 	items: QuoteCartItem[]
-	locations: QuoteCartLocation[]
-	associates: QuoteCartAssociate[]
 } {
 	const record = asRecord(value)
 	const stateRecord = asRecord(record?.state)
 	const source = stateRecord ?? record
-	const locations = sanitizeQuoteCartLocations(source?.locations)
-	const locationIds = new Set(locations.map((location) => location.clientId))
 
 	return {
 		globalNote: textFrom(source?.globalNote, source?.note, source?.notes),
-		items: sanitizeQuoteCartItems(source?.items, locationIds),
-		locations,
-		associates: sanitizeQuoteCartAssociates(source?.associates),
+		items: sanitizeQuoteCartItems(source?.items),
 	}
 }
 
@@ -257,72 +150,19 @@ export function toQuoteRequestItemPayloads(
 		})
 }
 
-export function toQuoteRequestLocationPayloads(
-	snapshot: Pick<QuoteCartSnapshot, 'items' | 'locations'>,
-	options: { isArabic: boolean },
-): QuoteRequestLocationPayload[] {
-	const sanitized = sanitizeQuoteCartSnapshot(snapshot)
-	const fallbackClientId =
-		sanitized.locations[0]?.clientId ?? DEFAULT_QUOTE_CART_LOCATION_CLIENT_ID
-
-	return sanitized.locations
-		.map((location) => {
-			const locationItems = sanitized.items.filter(
-				(item) =>
-					(item.locationClientId || fallbackClientId) === location.clientId,
-			)
-			return {
-				clientId: location.clientId,
-				addressId: location.addressId ?? undefined,
-				locationLabel: location.label.trim() || undefined,
-				deliveryDate: location.deliveryDate ?? undefined,
-				deliveryHour: location.deliveryHour ?? undefined,
-				deliveryPeriod: location.deliveryPeriod ?? undefined,
-				items: toQuoteRequestItemPayloads(locationItems, options),
-			}
-		})
-		.filter((location) => location.items.length > 0)
-}
-
-export function toQuoteRequestAssociatePayloads(
-	associates: QuoteCartAssociate[],
-): QuoteRequestAssociatePayload[] | undefined {
-	const payload = sanitizeQuoteCartAssociates(associates)
-		.map((associate) => ({
-			name: associate.name.trim(),
-			countryCode: associate.countryCode.trim(),
-			number: associate.number.trim(),
-		}))
-		.filter(
-			(associate) =>
-				associate.name.length > 0 &&
-				associate.countryCode.length > 0 &&
-				associate.number.length > 0,
-		)
-
-	return payload.length > 0 ? payload : undefined
-}
-
 export function getQuoteCartFingerprint(
 	items: QuoteCartItem[],
 	globalNote: string,
-	locations: QuoteCartLocation[] = defaultQuoteCartLocations(),
-	associates: QuoteCartAssociate[] = [],
 ) {
-	const sanitizedLocations = sanitizeQuoteCartLocations(locations)
-	const locationIds = new Set(
-		sanitizedLocations.map((location) => location.clientId),
-	)
 	return JSON.stringify({
 		globalNote: globalNote.trim(),
-		items: sanitizeQuoteCartItems(items, locationIds)
+		items: sanitizeQuoteCartItems(items)
 			.filter((item) => item.quantity > 0)
 			.map((item, index) => ({
 				category: item.category,
 				categoryName: item.categoryName,
 				categoryNameAr: item.categoryNameAr,
 				imageUrl: item.imageUrl,
-				locationClientId: item.locationClientId,
 				name: item.name,
 				nameAr: item.nameAr,
 				note: item.note.trim(),
@@ -332,31 +172,15 @@ export function getQuoteCartFingerprint(
 				unitOfMeasure: item.unitOfMeasure,
 				unitOfMeasureAr: item.unitOfMeasureAr,
 			})),
-		locations: sanitizedLocations.map((location) => ({
-			addressId: location.addressId,
-			clientId: location.clientId,
-			deliveryDate: location.deliveryDate,
-			deliveryHour: location.deliveryHour,
-			deliveryPeriod: location.deliveryPeriod,
-			label: location.label.trim(),
-		})),
-		associates: sanitizeQuoteCartAssociates(associates).map((associate) => ({
-			countryCode: associate.countryCode,
-			name: associate.name.trim(),
-			number: associate.number.trim(),
-		})),
 	})
 }
 
 export function getQuoteCartSnapshot(
-	state: Pick<QuoteCartState, 'globalNote' | 'items'> &
-		Partial<Pick<QuoteCartState, 'associates' | 'locations'>>,
+	state: Pick<QuoteCartState, 'globalNote' | 'items'>,
 ): QuoteCartSnapshot {
 	return sanitizeQuoteCartSnapshot({
 		globalNote: state.globalNote,
 		items: state.items,
-		locations: state.locations,
-		associates: state.associates,
 	})
 }
 
@@ -368,8 +192,6 @@ export function applyQuoteCartSnapshot(
 	store.setState({
 		globalNote: sanitized.globalNote,
 		items: sanitized.items,
-		locations: sanitized.locations,
-		associates: sanitized.associates,
 	})
 }
 
@@ -386,8 +208,6 @@ export function createQuoteCartSync(
 	let lastFingerprint = getQuoteCartFingerprint(
 		store.getState().items,
 		store.getState().globalNote,
-		store.getState().locations,
-		store.getState().associates,
 	)
 	let lastRemoteUpdatedAt = ''
 
@@ -418,8 +238,6 @@ export function createQuoteCartSync(
 			lastFingerprint = getQuoteCartFingerprint(
 				snapshot.items,
 				snapshot.globalNote,
-				snapshot.locations,
-				snapshot.associates,
 			)
 		} finally {
 			applyingRemote = false
@@ -432,8 +250,6 @@ export function createQuoteCartSync(
 		const fingerprint = getQuoteCartFingerprint(
 			snapshot.items,
 			snapshot.globalNote,
-			snapshot.locations,
-			snapshot.associates,
 		)
 		if (fingerprint === lastFingerprint) return
 		lastFingerprint = fingerprint
@@ -454,14 +270,10 @@ export function createQuoteCartSync(
 		const remoteFingerprint = getQuoteCartFingerprint(
 			remoteSnapshot.items,
 			remoteSnapshot.globalNote,
-			remoteSnapshot.locations,
-			remoteSnapshot.associates,
 		)
 		const localFingerprint = getQuoteCartFingerprint(
 			snapshot.items,
 			snapshot.globalNote,
-			snapshot.locations,
-			snapshot.associates,
 		)
 		if (remoteFingerprint !== localFingerprint) {
 			applyRemoteSnapshot(remoteSnapshot)
@@ -486,8 +298,6 @@ export function createQuoteCartSync(
 		const remoteFingerprint = getQuoteCartFingerprint(
 			remote.items,
 			remote.globalNote,
-			remote.locations,
-			remote.associates,
 		)
 		if (remoteFingerprint === lastFingerprint) return
 		applyRemoteSnapshot(remote)
@@ -527,8 +337,6 @@ export function createQuoteCartStore(storageKey = QUOTE_CART_STORAGE_KEY) {
 		persist(
 			(set, get) => ({
 				items: [],
-				locations: defaultQuoteCartLocations(),
-				associates: [],
 				globalNote: '',
 				add: (item, quantity = 1) =>
 					set((state) => {
@@ -575,98 +383,6 @@ export function createQuoteCartStore(storageKey = QUOTE_CART_STORAGE_KEY) {
 							item.productId === productId ? { ...item, note } : item,
 						),
 					})),
-				addLocation: () => {
-					const clientId = randomClientId('loc')
-					set((state) => ({
-						locations: [
-							...sanitizeQuoteCartLocations(state.locations),
-							{
-								clientId,
-								label: `Location ${state.locations.length + 1}`,
-								addressId: null,
-								deliveryDate: state.locations[0]?.deliveryDate ?? null,
-								deliveryHour: state.locations[0]?.deliveryHour ?? null,
-								deliveryPeriod: state.locations[0]?.deliveryPeriod ?? null,
-							},
-						],
-					}))
-					return clientId
-				},
-				updateLocation: (clientId, updates) =>
-					set((state) => ({
-						locations: sanitizeQuoteCartLocations(state.locations).map(
-							(location) => {
-								if (location.clientId !== clientId) return location
-								return (
-									normalizeQuoteCartLocation({ ...location, ...updates }) ??
-									location
-								)
-							},
-						),
-					})),
-				removeLocation: (clientId) =>
-					set((state) => {
-						const locations = sanitizeQuoteCartLocations(state.locations)
-						if (locations.length <= 1) return state
-						const nextLocations = locations.filter(
-							(location) => location.clientId !== clientId,
-						)
-						const fallbackClientId =
-							nextLocations[0]?.clientId ??
-							DEFAULT_QUOTE_CART_LOCATION_CLIENT_ID
-						return {
-							locations: nextLocations,
-							items: state.items.map((item) =>
-								item.locationClientId === clientId
-									? { ...item, locationClientId: fallbackClientId }
-									: item,
-							),
-						}
-					}),
-				updateItemLocation: (productId, locationClientId) =>
-					set((state) => ({
-						items: state.items.map((item) =>
-							item.productId === productId
-								? { ...item, locationClientId }
-								: item,
-						),
-					})),
-				applyDeliveryToAllLocations: (delivery) =>
-					set((state) => ({
-						locations: sanitizeQuoteCartLocations(state.locations).map(
-							(location) => ({ ...location, ...delivery }),
-						),
-					})),
-				addAssociate: () => {
-					const id = randomClientId('assoc')
-					set((state) => ({
-						associates: [
-							...sanitizeQuoteCartAssociates(state.associates),
-							{ id, name: '', countryCode: '+20', number: '' },
-						],
-					}))
-					return id
-				},
-				updateAssociate: (id, updates) =>
-					set((state) => ({
-						associates: sanitizeQuoteCartAssociates(state.associates).map(
-							(associate) => {
-								if (associate.id !== id) return associate
-								return (
-									normalizeQuoteCartAssociate({
-										...associate,
-										...updates,
-									}) ?? associate
-								)
-							},
-						),
-					})),
-				removeAssociate: (id) =>
-					set((state) => ({
-						associates: sanitizeQuoteCartAssociates(state.associates).filter(
-							(associate) => associate.id !== id,
-						),
-					})),
 				setGlobalNote: (globalNote) => set({ globalNote }),
 				duplicate: (productId) =>
 					set((state) => {
@@ -685,13 +401,7 @@ export function createQuoteCartStore(storageKey = QUOTE_CART_STORAGE_KEY) {
 							),
 						}
 					}),
-				clear: () =>
-					set({
-						items: [],
-						locations: defaultQuoteCartLocations(),
-						associates: [],
-						globalNote: '',
-					}),
+				clear: () => set({ items: [], globalNote: '' }),
 				totalUnits: () =>
 					get().items.reduce((sum, item) => sum + item.quantity, 0),
 			}),
@@ -704,8 +414,6 @@ export function createQuoteCartStore(storageKey = QUOTE_CART_STORAGE_KEY) {
 				partialize: (state) => ({
 					globalNote: state.globalNote,
 					items: state.items,
-					locations: state.locations,
-					associates: state.associates,
 				}),
 				storage: createJSONStorage(() => {
 					migrateLegacyWebsiteQuoteCartStorage()
@@ -734,27 +442,10 @@ function randomSyncClientId(): string {
 	return `${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-function randomClientId(prefix: string): string {
-	if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-		return `${prefix}-${crypto.randomUUID()}`
-	}
-	return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`
-}
-
 function quoteCartSnapshotHasContent(snapshot: QuoteCartSnapshot): boolean {
 	return (
 		snapshot.globalNote.trim().length > 0 ||
-		snapshot.items.some((item) => item.quantity > 0) ||
-		snapshot.associates.length > 0 ||
-		snapshot.locations.some(
-			(location, index) =>
-				index > 0 ||
-				location.label !== DEFAULT_QUOTE_CART_LOCATION_LABEL ||
-				location.addressId !== null ||
-				location.deliveryDate !== null ||
-				location.deliveryHour !== null ||
-				location.deliveryPeriod !== null,
-		)
+		snapshot.items.some((item) => item.quantity > 0)
 	)
 }
 
@@ -774,15 +465,12 @@ function migrateLegacyWebsiteQuoteCartStorage() {
 	}
 }
 
-function sanitizeQuoteCartItems(
-	value: unknown,
-	locationIds: Set<string> = new Set([DEFAULT_QUOTE_CART_LOCATION_CLIENT_ID]),
-): QuoteCartItem[] {
+function sanitizeQuoteCartItems(value: unknown): QuoteCartItem[] {
 	if (!Array.isArray(value)) return []
 
 	const itemsByProductId = new Map<string, QuoteCartItem>()
 	for (const item of value) {
-		const normalized = normalizeQuoteCartItem(item, locationIds)
+		const normalized = normalizeQuoteCartItem(item)
 		if (!normalized) continue
 
 		const existing = itemsByProductId.get(normalized.productId)
@@ -797,10 +485,7 @@ function sanitizeQuoteCartItems(
 	return Array.from(itemsByProductId.values())
 }
 
-function normalizeQuoteCartItem(
-	value: unknown,
-	locationIds: Set<string>,
-): QuoteCartItem | null {
+function normalizeQuoteCartItem(value: unknown): QuoteCartItem | null {
 	const record = asRecord(value)
 	if (!record) return null
 
@@ -860,10 +545,6 @@ function normalizeQuoteCartItem(
 
 	return {
 		productId,
-		locationClientId: safeLocationClientId(
-			record.locationClientId,
-			locationIds,
-		),
 		slug: textFrom(record.slug, productId),
 		name,
 		nameAr,
@@ -890,7 +571,6 @@ function normalizeQuoteCartItemInput(
 
 	return {
 		productId: item.productId,
-		locationClientId: DEFAULT_QUOTE_CART_LOCATION_CLIENT_ID,
 		slug: item.slug?.trim() || item.productId,
 		name: item.name,
 		nameAr,
@@ -903,140 +583,6 @@ function normalizeQuoteCartItemInput(
 		imageUrl: item.imageUrl?.trim() || '',
 		note: '',
 	}
-}
-
-function defaultQuoteCartLocations(): QuoteCartLocation[] {
-	return [
-		{
-			clientId: DEFAULT_QUOTE_CART_LOCATION_CLIENT_ID,
-			label: DEFAULT_QUOTE_CART_LOCATION_LABEL,
-			addressId: null,
-			deliveryDate: null,
-			deliveryHour: null,
-			deliveryPeriod: null,
-		},
-	]
-}
-
-function sanitizeQuoteCartLocations(value: unknown): QuoteCartLocation[] {
-	if (!Array.isArray(value)) return defaultQuoteCartLocations()
-	const locations: QuoteCartLocation[] = []
-	const seen = new Set<string>()
-
-	for (const entry of value) {
-		const location = normalizeQuoteCartLocation(entry)
-		if (!location || seen.has(location.clientId)) continue
-		seen.add(location.clientId)
-		locations.push(location)
-	}
-
-	if (locations.length === 0) return defaultQuoteCartLocations()
-	return locations
-}
-
-function normalizeQuoteCartLocation(value: unknown): QuoteCartLocation | null {
-	const record = asRecord(value)
-	if (!record) return null
-	const clientId = textFrom(record.clientId, record.client_id)
-	const normalizedClientId =
-		clientId || `${DEFAULT_QUOTE_CART_LOCATION_CLIENT_ID}-${Date.now()}`
-	const hour = deliveryHourFrom(record.deliveryHour, record.delivery_hour)
-	const period = deliveryPeriodFrom(
-		record.deliveryPeriod,
-		record.delivery_period,
-	)
-	return {
-		clientId: normalizedClientId,
-		label: textFrom(
-			record.label,
-			record.locationLabel,
-			record.location_label,
-			normalizedClientId === DEFAULT_QUOTE_CART_LOCATION_CLIENT_ID
-				? DEFAULT_QUOTE_CART_LOCATION_LABEL
-				: normalizedClientId,
-		).slice(0, 240),
-		addressId: uuidOrNull(record.addressId, record.address_id),
-		deliveryDate: deliveryDateFrom(record.deliveryDate, record.delivery_date),
-		deliveryHour: hour,
-		deliveryPeriod: hour ? (period ?? 'AM') : null,
-	}
-}
-
-function sanitizeQuoteCartAssociates(value: unknown): QuoteCartAssociate[] {
-	if (!Array.isArray(value)) return []
-	const associates: QuoteCartAssociate[] = []
-	const seen = new Set<string>()
-
-	for (const entry of value) {
-		const associate = normalizeQuoteCartAssociate(entry)
-		if (!associate || seen.has(associate.id)) continue
-		seen.add(associate.id)
-		associates.push(associate)
-	}
-
-	return associates
-}
-
-function normalizeQuoteCartAssociate(
-	value: unknown,
-): QuoteCartAssociate | null {
-	const record = asRecord(value)
-	if (!record) return null
-	const id = textFrom(record.id) || randomClientId('assoc')
-	const countryCode = textFrom(record.countryCode, record.country_code, '+20')
-	return {
-		id,
-		name: textFrom(record.name).slice(0, 120),
-		countryCode: /^\+[1-9][0-9]{0,3}$/.test(countryCode) ? countryCode : '+20',
-		number: textFrom(record.number, record.phone, record.phoneNumber).slice(
-			0,
-			40,
-		),
-	}
-}
-
-function safeLocationClientId(
-	value: unknown,
-	locationIds: Set<string>,
-): string {
-	const clientId = textFrom(value)
-	return locationIds.has(clientId)
-		? clientId
-		: DEFAULT_QUOTE_CART_LOCATION_CLIENT_ID
-}
-
-function uuidOrNull(...values: unknown[]): string | null {
-	const value = textFrom(...values)
-	return UUID_RE.test(value) ? value : null
-}
-
-function deliveryDateFrom(...values: unknown[]): string | null {
-	const value = textFrom(...values)
-	return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null
-}
-
-function deliveryHourFrom(...values: unknown[]): number | null {
-	for (const value of values) {
-		const numberValue =
-			typeof value === 'number'
-				? value
-				: typeof value === 'string'
-					? Number(value)
-					: Number.NaN
-		if (
-			Number.isInteger(numberValue) &&
-			numberValue >= 1 &&
-			numberValue <= 12
-		) {
-			return numberValue
-		}
-	}
-	return null
-}
-
-function deliveryPeriodFrom(...values: unknown[]): QuoteDeliveryPeriod | null {
-	const value = textFrom(...values).toUpperCase()
-	return value === 'AM' || value === 'PM' ? value : null
 }
 
 function humanCategoryLabel(value: string) {

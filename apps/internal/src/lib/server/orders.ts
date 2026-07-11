@@ -25,8 +25,6 @@ export interface ActiveRefillSummary {
 }
 
 export interface OrderLineItemView {
-	quoteRequestItemId: string
-	locationId: string | null
 	productSlug: string
 	productName: string
 	productSku: string
@@ -101,7 +99,6 @@ interface SupabaseOrderProductRow {
 
 interface SupabaseOrderRequestItemRow {
 	id: string
-	quote_request_location_id: string | null
 	product_id: string | null
 	customer_description: string
 	quantity: number
@@ -192,8 +189,6 @@ function buildSupabaseLineItem(
 		product?.price_range_max ?? product?.price_range_min ?? 0,
 	)
 	return {
-		quoteRequestItemId: item.id,
-		locationId: item.quote_request_location_id,
 		productSlug: product?.slug ?? `request-item-${item.id}`,
 		productName: product?.name ?? item.customer_description,
 		productSku: product?.sku ?? '',
@@ -287,7 +282,6 @@ async function getSupabaseCustomerOrders(orderId?: string) {
 				),
 				quote_request_items (
 					id,
-					quote_request_location_id,
 					product_id,
 					customer_description,
 					quantity,

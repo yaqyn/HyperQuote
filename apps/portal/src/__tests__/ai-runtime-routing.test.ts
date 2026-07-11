@@ -28,7 +28,7 @@ describe('AI runtime routing', () => {
 		)
 
 		const modelCall = chatBranch.indexOf(
-			'streamWithCustomEvents(\n\t\t\t\tmodelMessages,\n\t\t\t\tbuildPortalChatAnswerPrompt(activeDraft),\n\t\t\t\tcustomEvents,',
+			'streamWithCustomEvents(modelMessages, LYON_PORTAL, customEvents)',
 		)
 		const fallback = chatBranch.indexOf('return textOnlyChunks(fallbackText')
 

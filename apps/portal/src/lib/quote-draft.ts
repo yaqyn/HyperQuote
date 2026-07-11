@@ -2,12 +2,7 @@
  * Quote draft persistence utilities.
  * Manages localStorage save/restore with timestamps for conflict resolution.
  */
-import type {
-	QuoteAssociate,
-	QuoteAttachment,
-	QuoteItem,
-	QuoteLocation,
-} from '../stores/quote-builder'
+import type { QuoteAttachment, QuoteItem } from '../stores/quote-builder'
 
 // ============================================================================
 // Types
@@ -15,8 +10,6 @@ import type {
 
 interface DraftData {
 	items: QuoteItem[]
-	locations?: QuoteLocation[]
-	associates?: QuoteAssociate[]
 	projectId: string | null
 	deliveryAddressId: string | null
 	deliveryDate: string | null

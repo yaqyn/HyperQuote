@@ -21,65 +21,26 @@ const quoteRequestItemInput = z.object({
 	sortOrder: z.number().int().min(0),
 })
 
-const deliveryPeriodInput = z.enum(['AM', 'PM'])
-
-const quoteRequestLocationInput = z.object({
-	clientId: z.string().min(1).max(120),
-	addressId: z.string().uuid().optional(),
-	locationLabel: z.string().min(1).max(240).optional(),
-	deliveryDate: z.string().optional(),
-	deliveryHour: z.number().int().min(1).max(12).optional(),
-	deliveryPeriod: deliveryPeriodInput.optional(),
-	items: z.array(quoteRequestItemInput).min(1),
-})
-
-const quoteRequestAssociateInput = z.object({
-	name: z.string().min(1).max(120),
-	countryCode: z.string().regex(/^\+[1-9][0-9]{0,3}$/),
-	number: z.string().min(1).max(40),
-})
-
-const websiteQuoteBaseInput = z.object({
+const submitWebsiteQuoteInput = z.object({
 	draftId: z.string().uuid().optional(),
-	items: z.array(quoteRequestItemInput).optional(),
-	locations: z.array(quoteRequestLocationInput).optional(),
-	associates: z.array(quoteRequestAssociateInput).optional(),
-	deliveryAddressId: z.string().uuid().optional(),
-	deliveryDate: z.string().optional(),
+	items: z.array(quoteRequestItemInput).min(1),
+	name: z.string().max(120).optional(),
+	notes: z.string().max(2000).optional(),
+	idempotencyKey: z.string().uuid(),
+})
+
+const saveWebsiteQuoteDraftInput = z.object({
+	draftId: z.string().uuid().optional(),
+	items: z.array(quoteRequestItemInput).min(1),
 	name: z.string().max(120).optional(),
 	notes: z.string().max(2000).optional(),
 })
-
-function hasQuoteRequestItems(input: {
-	items?: unknown[]
-	locations?: { items: unknown[] }[]
-}) {
-	return (
-		(input.items?.length ?? 0) > 0 ||
-		(input.locations ?? []).some((location) => location.items.length > 0)
-	)
-}
-
-const submitWebsiteQuoteInput = websiteQuoteBaseInput
-	.extend({
-		idempotencyKey: z.string().uuid(),
-	})
-	.refine((input) => hasQuoteRequestItems(input), {
-		message: 'At least one quote request item is required',
-	})
-
-const saveWebsiteQuoteDraftInput = websiteQuoteBaseInput.refine(
-	(input) => hasQuoteRequestItems(input),
-	{ message: 'At least one quote request item is required' },
-)
 
 const validateWebsiteQuoteItemsInput = z.object({
 	items: z.array(quoteRequestItemInput),
 })
 
 type QuoteRequestItemInput = z.infer<typeof quoteRequestItemInput>
-type QuoteRequestLocationInput = z.infer<typeof quoteRequestLocationInput>
-type QuoteRequestAssociateInput = z.infer<typeof quoteRequestAssociateInput>
 
 const savedDraftProductRow = z.object({
 	availability_status: z.string(),
@@ -253,15 +214,11 @@ function validProductId(productId: string | undefined): string | null {
 function quoteRequestItemRows(
 	quoteRequestId: string,
 	items: QuoteRequestItemInput[],
-	quoteRequestLocationId?: string,
 ) {
 	return items.map((item) => {
 		const productId = validProductId(item.productId)
 		return {
 			quote_request_id: quoteRequestId,
-			...(quoteRequestLocationId
-				? { quote_request_location_id: quoteRequestLocationId }
-				: {}),
 			product_id: productId,
 			customer_description: item.customerDescription,
 			quantity: item.quantity,
@@ -275,47 +232,11 @@ function quoteRequestItemRows(
 	})
 }
 
-function normalizeQuoteRequestLocations(input: {
-	deliveryAddressId?: string
-	deliveryDate?: string
-	items?: QuoteRequestItemInput[]
-	locations?: QuoteRequestLocationInput[]
-}): QuoteRequestLocationInput[] {
-	if (input.locations && input.locations.length > 0) return input.locations
-
-	return [
-		{
-			clientId: 'legacy-default',
-			addressId: input.deliveryAddressId,
-			deliveryDate: input.deliveryDate,
-			items: input.items ?? [],
-		},
-	]
-}
-
-function quoteRequestItemsFromLocations(
-	locations: QuoteRequestLocationInput[],
-) {
-	return locations.flatMap((location) => location.items)
-}
-
-function quoteRequestLocationSummary(locations: QuoteRequestLocationInput[]) {
-	const first = locations[0] ?? null
-	return {
-		deliveryAddressId: first?.addressId,
-		deliveryDate: first?.deliveryDate,
-		deliveryHour: first?.deliveryHour,
-		deliveryPeriod: first?.deliveryPeriod,
-	}
-}
-
-async function replaceQuoteRequestLocationsAndItems(
+async function replaceQuoteRequestItems(
 	client: WebsiteCustomerSupabaseClient,
 	quoteRequestId: string,
-	locations: QuoteRequestLocationInput[],
-	associates: QuoteRequestAssociateInput[] = [],
+	items: QuoteRequestItemInput[],
 ) {
-	const items = quoteRequestItemsFromLocations(locations)
 	await assertQuoteRequestItemsOrderable(client, items)
 
 	const { error: deleteError } = await client
@@ -325,87 +246,23 @@ async function replaceQuoteRequestLocationsAndItems(
 
 	if (deleteError) throw deleteError
 
-	const { error: deleteAssociatesError } = await client
-		.from('quote_request_associates')
-		.delete()
-		.eq('quote_request_id', quoteRequestId)
-	if (deleteAssociatesError) throw deleteAssociatesError
-
-	const { error: deleteLocationsError } = await client
-		.from('quote_request_locations')
-		.delete()
-		.eq('quote_request_id', quoteRequestId)
-	if (deleteLocationsError) throw deleteLocationsError
-
-	const locationRows = locations.map((location, index) => ({
-		quote_request_id: quoteRequestId,
-		client_id: location.clientId,
-		sort_order: index,
-		address_id: location.addressId ?? null,
-		location_label: location.locationLabel?.trim() || null,
-		delivery_date: location.deliveryDate ?? null,
-		delivery_hour: location.deliveryHour ?? null,
-		delivery_period: location.deliveryPeriod ?? null,
-	}))
-
-	const { data: insertedLocations, error: insertLocationsError } = await client
-		.from('quote_request_locations')
-		.insert(locationRows)
-		.select('id, sort_order')
-	if (insertLocationsError) throw insertLocationsError
-
-	const locationIdBySortOrder = new Map(
-		(insertedLocations ?? []).map((location) => [
-			Number(location.sort_order),
-			location.id,
-		]),
-	)
-
-	for (const [index, location] of locations.entries()) {
-		const quoteRequestLocationId = locationIdBySortOrder.get(index)
-		if (!quoteRequestLocationId) {
-			throw new Error('Quote request delivery location insert failed')
-		}
-		await insertQuoteRequestItems(client, quoteRequestId, location.items, {
-			orderableChecked: true,
-			quoteRequestLocationId,
-		})
-	}
-
-	const associateRows = associates.map((associate, index) => ({
-		quote_request_id: quoteRequestId,
-		sort_order: index,
-		name: associate.name.trim(),
-		country_code: associate.countryCode.trim(),
-		number: associate.number.trim(),
-	}))
-
-	if (associateRows.length === 0) return
-
-	const { error: insertAssociatesError } = await client
-		.from('quote_request_associates')
-		.insert(associateRows)
-	if (insertAssociatesError) throw insertAssociatesError
+	await insertQuoteRequestItems(client, quoteRequestId, items, {
+		orderableChecked: true,
+	})
 }
 
 async function insertQuoteRequestItems(
 	client: WebsiteCustomerSupabaseClient,
 	quoteRequestId: string,
 	items: QuoteRequestItemInput[],
-	options: { orderableChecked?: boolean; quoteRequestLocationId?: string } = {},
+	options: { orderableChecked?: boolean } = {},
 ) {
 	if (!options.orderableChecked) {
 		await assertQuoteRequestItemsOrderable(client, items)
 	}
 	const { error } = await client
 		.from('quote_request_items')
-		.insert(
-			quoteRequestItemRows(
-				quoteRequestId,
-				items,
-				options.quoteRequestLocationId,
-			),
-		)
+		.insert(quoteRequestItemRows(quoteRequestId, items))
 
 	if (error) throw error
 }
@@ -569,10 +426,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 				if ('error' in auth) {
 					return { success: false, error: auth.error ?? 'submit_failed' }
 				}
-				const locations = normalizeQuoteRequestLocations(input)
-				const items = quoteRequestItemsFromLocations(locations)
-				const summary = quoteRequestLocationSummary(locations)
-				await assertQuoteRequestItemsOrderable(auth.client, items)
+				await assertQuoteRequestItemsOrderable(auth.client, input.items)
 
 				const existing = await auth.client
 					.from('quote_requests')
@@ -619,10 +473,6 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 					const draftSubmitUpdate = {
 						approval_required: false,
 						idempotency_key: input.idempotencyKey,
-						delivery_address_id: summary.deliveryAddressId ?? null,
-						delivery_date: summary.deliveryDate ?? null,
-						delivery_hour: summary.deliveryHour ?? null,
-						delivery_period: summary.deliveryPeriod ?? null,
 						...(input.notes === undefined
 							? {}
 							: { notes: normalizeNotes(input.notes) }),
@@ -636,11 +486,17 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 
 					if (updateDraftError) throw updateDraftError
 
-					await replaceQuoteRequestLocationsAndItems(
+					const { error: deleteItemsError } = await auth.client
+						.from('quote_request_items')
+						.delete()
+						.eq('quote_request_id', sourceDraft.id)
+
+					if (deleteItemsError) throw deleteItemsError
+
+					await insertQuoteRequestItems(
 						auth.client,
 						sourceDraft.id,
-						locations,
-						input.associates,
+						input.items,
 					)
 
 					const { error: submitError } = await auth.client.rpc(
@@ -669,10 +525,6 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 						status: 'draft',
 						urgency: 'standard',
 						draft_name: null,
-						delivery_address_id: summary.deliveryAddressId ?? null,
-						delivery_date: summary.deliveryDate ?? null,
-						delivery_hour: summary.deliveryHour ?? null,
-						delivery_period: summary.deliveryPeriod ?? null,
 						notes: normalizeNotes(input.notes),
 						attachment_urls: [],
 						idempotency_key: input.idempotencyKey,
@@ -685,12 +537,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 					throw requestError ?? new Error('Quote request insert failed')
 				}
 
-				await replaceQuoteRequestLocationsAndItems(
-					auth.client,
-					requestRow.id,
-					locations,
-					input.associates,
-				)
+				await insertQuoteRequestItems(auth.client, requestRow.id, input.items)
 
 				const { error: submitError } = await auth.client.rpc(
 					'customer_submit_saved_quote_request',
@@ -750,20 +597,13 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 				if ('error' in auth) {
 					return { success: false, error: auth.error ?? 'save_failed' }
 				}
-				const locations = normalizeQuoteRequestLocations(input)
-				const items = quoteRequestItemsFromLocations(locations)
-				const summary = quoteRequestLocationSummary(locations)
-				await assertQuoteRequestItemsOrderable(auth.client, items)
+				await assertQuoteRequestItemsOrderable(auth.client, input.items)
 
 				if (input.draftId) {
 					const { data: updatedDraft, error: updateError } = await auth.client
 						.from('quote_requests')
 						.update({
 							draft_name: normalizeDraftName(input.name),
-							delivery_address_id: summary.deliveryAddressId ?? null,
-							delivery_date: summary.deliveryDate ?? null,
-							delivery_hour: summary.deliveryHour ?? null,
-							delivery_period: summary.deliveryPeriod ?? null,
 							notes: normalizeNotes(input.notes),
 						})
 						.eq('id', input.draftId)
@@ -776,18 +616,17 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 						throw updateError ?? new Error('Quote draft update failed')
 					}
 
-					await replaceQuoteRequestLocationsAndItems(
+					await replaceQuoteRequestItems(
 						auth.client,
 						input.draftId,
-						locations,
-						input.associates,
+						input.items,
 					)
 
 					const { error: activityError } = await auth.client.rpc(
 						'customer_record_quote_request_draft_saved',
 						{
 							p_context: {
-								item_count: items.length,
+								item_count: input.items.length,
 								operation: 'update',
 							},
 							p_quote_request_id: updatedDraft.id,
@@ -818,10 +657,6 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 						status: 'draft',
 						urgency: 'standard',
 						draft_name: normalizeDraftName(input.name),
-						delivery_address_id: summary.deliveryAddressId ?? null,
-						delivery_date: summary.deliveryDate ?? null,
-						delivery_hour: summary.deliveryHour ?? null,
-						delivery_period: summary.deliveryPeriod ?? null,
 						notes: normalizeNotes(input.notes),
 						attachment_urls: [],
 						approval_required: false,
@@ -833,18 +668,13 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 					throw requestError ?? new Error('Quote draft insert failed')
 				}
 
-				await replaceQuoteRequestLocationsAndItems(
-					auth.client,
-					requestRow.id,
-					locations,
-					input.associates,
-				)
+				await insertQuoteRequestItems(auth.client, requestRow.id, input.items)
 
 				const { error: activityError } = await auth.client.rpc(
 					'customer_record_quote_request_draft_saved',
 					{
 						p_context: {
-							item_count: items.length,
+							item_count: input.items.length,
 							operation: 'create',
 						},
 						p_quote_request_id: requestRow.id,

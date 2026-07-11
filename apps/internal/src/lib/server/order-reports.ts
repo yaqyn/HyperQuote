@@ -79,35 +79,10 @@ interface SupabaseReportProductRow {
 }
 
 interface SupabaseReportRequestItemRow {
-	id: string
-	quote_request_location_id: string | null
 	customer_description: string
 	quantity: number
 	unit_of_measure: string
-	sort_order: number
 	products: SupabaseReportProductRow | SupabaseReportProductRow[] | null
-}
-
-interface SupabaseReportLocationRow {
-	id: string
-	client_id: string | null
-	address_id: string | null
-	location_label: string | null
-	sort_order: number
-	delivery_date: string | null
-	delivery_hour: number | null
-	delivery_period: 'AM' | 'PM' | null
-	customer_addresses:
-		| SupabaseReportAddressRow
-		| SupabaseReportAddressRow[]
-		| null
-}
-
-interface SupabaseReportAssociateRow {
-	name: string
-	country_code: string
-	number: string
-	sort_order: number
 }
 
 interface SupabaseReportRequestRow {
@@ -129,8 +104,6 @@ interface SupabaseReportRequestRow {
 		| SupabaseReportAddressRow[]
 		| null
 	quote_request_items: SupabaseReportRequestItemRow[] | null
-	quote_request_locations: SupabaseReportLocationRow[] | null
-	quote_request_associates: SupabaseReportAssociateRow[] | null
 }
 
 interface SupabaseReportQuoteVersionRow {
@@ -409,102 +382,13 @@ function facts(values: Array<OrderReportFact | null>): OrderReportFact[] {
 function reportItemsFromRequest(
 	items: SupabaseReportRequestItemRow[] | null,
 ): string[] {
-	return (items ?? [])
-		.slice()
-		.sort((a, b) => a.sort_order - b.sort_order)
-		.map((item, index) => {
-			const product = firstRelation(item.products)
-			const snapshotName = item.customer_description.trim()
-			const productName =
-				snapshotName || product?.name || `Request line ${index + 1}`
-			return `${productName}: ${Number(item.quantity).toLocaleString('en-EG')} ${item.unit_of_measure}`
-		})
-}
-
-function formatReportDeliveryTime(
-	date: string | null | undefined,
-	hour: number | null | undefined,
-	period: 'AM' | 'PM' | null | undefined,
-): string | null {
-	if (!date && (!hour || !period)) return null
-	if (date && hour && period) return `${date}, ${hour}:00 ${period}`
-	if (date) return date
-	if (hour && period) return `${hour}:00 ${period}`
-	return null
-}
-
-function formatReportAddress(address: SupabaseReportAddressRow | null): string {
-	if (!address) return ''
-	return [
-		address.label,
-		address.street,
-		address.area,
-		address.city,
-		address.governorate,
-		address.landmark,
-	]
-		.map((value) => value?.trim())
-		.filter(Boolean)
-		.join(', ')
-}
-
-function reportLocationTitle(
-	location: SupabaseReportLocationRow,
-	index: number,
-): string {
-	const address = firstRelation(location.customer_addresses)
-	return (
-		location.location_label?.trim() ||
-		address?.label?.trim() ||
-		`Location ${index + 1}`
-	)
-}
-
-function reportItemsByLocation(request: SupabaseReportRequestRow): string[] {
-	const items = (request.quote_request_items ?? []).slice()
-	const assignedItemIds = new Set<string>()
-	const lines = (request.quote_request_locations ?? [])
-		.slice()
-		.sort((a, b) => a.sort_order - b.sort_order)
-		.flatMap((location, index) => {
-			const locationItems = items
-				.filter((item) => item.quote_request_location_id === location.id)
-				.sort((a, b) => a.sort_order - b.sort_order)
-			for (const item of locationItems) assignedItemIds.add(item.id)
-			if (locationItems.length === 0) return []
-			const title = reportLocationTitle(location, index)
-			const address = formatReportAddress(
-				firstRelation(location.customer_addresses),
-			)
-			const deliveryTime = formatReportDeliveryTime(
-				location.delivery_date,
-				location.delivery_hour,
-				location.delivery_period,
-			)
-			const detail = [deliveryTime, address].filter(Boolean).join(' · ')
-			return [
-				detail ? `${title} (${detail})` : title,
-				...reportItemsFromRequest(locationItems),
-			]
-		})
-	const unassignedItems = items.filter((item) => !assignedItemIds.has(item.id))
-	if (unassignedItems.length > 0) {
-		lines.push('Default Location', ...reportItemsFromRequest(unassignedItems))
-	}
-	return lines.length > 0 ? lines : reportItemsFromRequest(items)
-}
-
-function reportAssociateSummary(
-	request: SupabaseReportRequestRow,
-): string | null {
-	const associates = (request.quote_request_associates ?? [])
-		.slice()
-		.sort((a, b) => a.sort_order - b.sort_order)
-		.map((associate) => {
-			const phone = `${associate.country_code} ${associate.number}`.trim()
-			return `${associate.name}${phone ? ` (${phone})` : ''}`
-		})
-	return associates.length > 0 ? associates.join(', ') : null
+	return (items ?? []).map((item, index) => {
+		const product = firstRelation(item.products)
+		const snapshotName = item.customer_description.trim()
+		const productName =
+			snapshotName || product?.name || `Request line ${index + 1}`
+		return `${productName}: ${Number(item.quantity).toLocaleString('en-EG')} ${item.unit_of_measure}`
+	})
 }
 
 function reportItemsFromSavedVersion(
@@ -519,68 +403,46 @@ function reportItemsFromSavedVersion(
 
 function assignedItemLoads(
 	value: unknown,
-	quantityByLineId: Map<string, number>,
-	lineMetaBySlug: Map<string, { quoteRequestItemId: string }>,
-): { quoteRequestItemId: string; productSlug: string; quantity: number }[] {
+	quantityBySlug: Map<string, number>,
+): { productSlug: string; quantity: number }[] {
 	if (!Array.isArray(value)) return []
 	return value
 		.map((item) => {
 			if (typeof item === 'string') {
-				const meta = lineMetaBySlug.get(item)
-				if (!meta) return null
-				const quantity = quantityByLineId.get(meta.quoteRequestItemId) ?? 0
-				return quantity > 0
-					? {
-							quoteRequestItemId: meta.quoteRequestItemId,
-							productSlug: item,
-							quantity,
-						}
-					: null
+				const quantity = quantityBySlug.get(item) ?? 0
+				return quantity > 0 ? { productSlug: item, quantity } : null
 			}
-			if (!isRecord(item)) return null
-			const quoteRequestItemId =
-				idFromDetails(item, 'quoteRequestItemId') ??
-				idFromDetails(item, 'quote_request_item_id')
-			const productSlug =
-				stringOrNull(item.productSlug) ?? stringOrNull(item.product_slug) ?? ''
-			const quantity = numberOrNull(item.quantity)
 			if (
-				!quoteRequestItemId ||
-				quantity === null ||
-				!Number.isFinite(quantity) ||
-				quantity <= 0
+				typeof item !== 'object' ||
+				item === null ||
+				!('productSlug' in item) ||
+				!('quantity' in item) ||
+				typeof item.productSlug !== 'string' ||
+				typeof item.quantity !== 'number' ||
+				!Number.isFinite(item.quantity) ||
+				item.quantity <= 0
 			) {
 				return null
 			}
-			return { quoteRequestItemId, productSlug, quantity }
+			return { productSlug: item.productSlug, quantity: item.quantity }
 		})
 		.filter(
-			(
-				item,
-			): item is {
-				quoteRequestItemId: string
-				productSlug: string
-				quantity: number
-			} => item !== null,
+			(item): item is { productSlug: string; quantity: number } =>
+				item !== null,
 		)
 }
 
 function loadingDriverReportLine(
 	assignment: SupabaseReportLoadingDriverRow,
-	quantityByLineId: Map<string, number>,
-	nameByLineId: Map<string, string>,
-	lineMetaBySlug: Map<string, { quoteRequestItemId: string }>,
+	quantityBySlug: Map<string, number>,
+	nameBySlug: Map<string, string>,
 ) {
 	const driver = firstRelation(assignment.drivers)
 	const truck = firstRelation(assignment.trucks)
-	const loads = assignedItemLoads(
-		assignment.assigned_items,
-		quantityByLineId,
-		lineMetaBySlug,
-	)
+	const loads = assignedItemLoads(assignment.assigned_items, quantityBySlug)
 	const loadText = loads
 		.map((load) => {
-			const name = nameByLineId.get(load.quoteRequestItemId) || load.productSlug
+			const name = nameBySlug.get(load.productSlug) ?? load.productSlug
 			return `${load.quantity.toLocaleString('en-EG')} ${name}`
 		})
 		.join(', ')
@@ -1048,8 +910,6 @@ async function getSupabaseOrderStatusIndex(): Promise<OrderStatusIndexRow[]> {
 					customers: request.customers,
 					customer_addresses: null,
 					quote_request_items: null,
-					quote_request_locations: null,
-					quote_request_associates: null,
 				},
 				order
 					? {
@@ -1156,41 +1016,14 @@ async function getSupabaseOrderReport(
 				landmark
 			),
 			quote_request_items (
-				id,
-				quote_request_location_id,
 				customer_description,
 				quantity,
 				unit_of_measure,
-				sort_order,
 				products (
 					slug,
 					name,
 					unit_of_measure
 				)
-			),
-			quote_request_locations (
-				id,
-				client_id,
-				address_id,
-				location_label,
-				sort_order,
-				delivery_date,
-				delivery_hour,
-				delivery_period,
-				customer_addresses (
-					label,
-					street,
-					area,
-					city,
-					governorate,
-					landmark
-				)
-			),
-			quote_request_associates (
-				name,
-				country_code,
-				number,
-				sort_order
 			)
 		`)
 		.eq('id', rfqId)
@@ -1377,29 +1210,17 @@ async function getSupabaseOrderReport(
 		matchingActivity(activityRows, 'manual_order_created', request.id)
 	const source = stringOrNull(submittedActivity?.details?.source) ?? 'portal'
 	const sourceName = sourceLabel(source)
-	const quantityByLineId = new Map<string, number>()
-	const nameByLineId = new Map<string, string>()
-	const lineMetaBySlug = new Map<string, { quoteRequestItemId: string }>()
-	const seenSlugs = new Set<string>()
+	const quantityBySlug = new Map<string, number>()
+	const nameBySlug = new Map<string, string>()
 	for (const item of request.quote_request_items ?? []) {
 		const product = firstRelation(item.products)
-		quantityByLineId.set(item.id, Number(item.quantity))
-		nameByLineId.set(
-			item.id,
-			item.customer_description.trim() ||
-				product?.name ||
-				product?.slug ||
-				item.id,
-		)
 		if (!product?.slug) continue
-		if (seenSlugs.has(product.slug)) {
-			lineMetaBySlug.delete(product.slug)
-			continue
-		}
-		seenSlugs.add(product.slug)
-		lineMetaBySlug.set(product.slug, { quoteRequestItemId: item.id })
+		quantityBySlug.set(product.slug, Number(item.quantity))
+		nameBySlug.set(
+			product.slug,
+			item.customer_description.trim() || product.name || product.slug,
+		)
 	}
-	const associateSummary = reportAssociateSummary(request)
 
 	const steps: OrderReportStep[] = [
 		{
@@ -1416,19 +1237,11 @@ async function getSupabaseOrderReport(
 					savedNotes.deliveryAddress ?? formatSupabaseAddress(salesAddress),
 				),
 				fact('Delivery city', savedNotes.deliveryCity ?? salesAddress?.city),
-				fact(
-					'Delivery locations',
-					request.quote_request_locations?.length
-						? request.quote_request_locations.length
-						: null,
-				),
-				fact('Associates', associateSummary),
 				fact('Urgency', `${deliveryUrgencyDays(request.delivery_date)}d`),
 			]),
-			lines: request.quote_request_locations?.length
-				? reportItemsByLocation(request)
-				: (reportItemsFromSavedVersion(savedNotes.items) ??
-					reportItemsFromRequest(request.quote_request_items)),
+			lines:
+				reportItemsFromSavedVersion(savedNotes.items) ??
+				reportItemsFromRequest(request.quote_request_items),
 			specialCase: null,
 			stage: 'submitted',
 			status: 'completed',
@@ -1573,12 +1386,7 @@ async function getSupabaseOrderReport(
 				fact('Rejected reason', task.rejection_reason),
 			]),
 			lines: taskDrivers.map((assignment) =>
-				loadingDriverReportLine(
-					assignment,
-					quantityByLineId,
-					nameByLineId,
-					lineMetaBySlug,
-				),
+				loadingDriverReportLine(assignment, quantityBySlug, nameBySlug),
 			),
 			specialCase:
 				task.status === 'rejected'
