@@ -16,6 +16,7 @@ import {
 	completeChatWithTools,
 	isAIEnabled,
 } from '@hyperquote/ai'
+import type { EmployeePanel } from '@hyperquote/types'
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
@@ -33,6 +34,37 @@ import type { SearchDisplayIndexRow } from './search-display'
 import { searchTokens } from './search-query'
 import { getInternalSupabaseClient } from './server/_supabase'
 
+const internalPanelIdSchema = z.enum([
+	'sales',
+	'procurement',
+	'warehouse',
+	'finance',
+	'dispatch',
+	'customer-service',
+	'admin',
+	'search',
+])
+
+export type InternalPanelId = z.infer<typeof internalPanelIdSchema>
+
+export function isInternalPanelId(
+	value: string | null | undefined,
+): value is InternalPanelId {
+	return internalPanelIdSchema.safeParse(value).success
+}
+
+const INTERNAL_AI_PANEL_ACCESS: Partial<
+	Record<InternalPanelId, EmployeePanel>
+> = {
+	admin: 'admin',
+	'customer-service': 'customer_service',
+	dispatch: 'dispatch',
+	finance: 'finance',
+	procurement: 'inventory',
+	sales: 'sales',
+	warehouse: 'warehouse',
+}
+
 const internalChatInput = z.object({
 	messages: z.array(
 		z.object({
@@ -40,7 +72,7 @@ const internalChatInput = z.object({
 			content: z.string(),
 		}),
 	),
-	panelId: z.string().trim().min(1).max(80).optional(),
+	panelId: internalPanelIdSchema.optional(),
 })
 
 const INTERNAL_AI_ENTITY_LIMIT = 8
@@ -53,8 +85,8 @@ const internalSearchToolArgs = z.object({
 })
 
 type InternalSearchToolArgs = z.infer<typeof internalSearchToolArgs>
-type InternalSupabaseClient = NonNullable<
-	Awaited<ReturnType<typeof getInternalSupabaseClient>>
+type InternalSupabaseClient = Awaited<
+	ReturnType<typeof getInternalSupabaseClient>
 >['client']
 
 async function* textStream(text: string): AsyncGenerator<StreamChunk> {
@@ -85,14 +117,17 @@ async function* textStream(text: string): AsyncGenerator<StreamChunk> {
 export const internalChatFn = createServerFn({ method: 'POST' })
 	.inputValidator(internalChatInput)
 	.handler(async ({ data: input }) => {
-		const auth = await getInternalSupabaseClient()
-		if (!auth) throw new Error('internal_ai_employee_session_required')
-
 		const lastMessage = input.messages[input.messages.length - 1]
 		const userText = lastMessage?.content ?? ''
 		const scope = resolveInternalAiScope({
 			panelId: input.panelId,
 		})
+		const panel = input.panelId
+			? INTERNAL_AI_PANEL_ACCESS[input.panelId]
+			: undefined
+		const auth = await getInternalSupabaseClient(
+			panel ? { panel, writeRequired: false } : { activeEmployeeOnly: true },
+		)
 		if (scope === 'search') {
 			const { data: canSearch, error } = await auth.client.rpc(
 				'can_access_ceo_search',

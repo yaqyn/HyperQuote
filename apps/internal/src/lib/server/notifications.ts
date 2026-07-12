@@ -26,7 +26,9 @@ function mapNotificationType(value: string): Notification['type'] {
 
 export const getNotifications = createServerFn({ method: 'GET' }).handler(
 	async (): Promise<Notification[]> => {
-		const { client, user } = await getInternalSupabaseClient()
+		const { client, user } = await getInternalSupabaseClient({
+			activeEmployeeOnly: true,
+		})
 		const { data, error } = await client
 			.from('notifications')
 			.select('id, type, title, body, read, target_type, target_id, created_at')
@@ -54,7 +56,9 @@ export const getNotifications = createServerFn({ method: 'GET' }).handler(
 export const markNotificationRead = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ id: z.string().uuid() }))
 	.handler(async ({ data: input }) => {
-		const { client, user } = await getInternalSupabaseClient()
+		const { client, user } = await getInternalSupabaseClient({
+			activeEmployeeOnly: true,
+		})
 		const { error } = await client
 			.from('notifications')
 			.update({ read: true })
@@ -67,7 +71,9 @@ export const markNotificationRead = createServerFn({ method: 'POST' })
 
 export const markAllRead = createServerFn({ method: 'POST' }).handler(
 	async () => {
-		const { client, user } = await getInternalSupabaseClient()
+		const { client, user } = await getInternalSupabaseClient({
+			activeEmployeeOnly: true,
+		})
 		const { error } = await client
 			.from('notifications')
 			.update({ read: true })

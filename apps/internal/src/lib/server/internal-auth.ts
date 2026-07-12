@@ -46,7 +46,11 @@ export const submitInternalLogin = createServerFn({ method: 'POST' })
 				input,
 				requestUrl: request.url,
 				validateUser: async (user) =>
-					Boolean(await getInternalEmployeeActor(user.id)),
+					Boolean(
+						await getInternalEmployeeActor(user.id, {
+							activeEmployeeOnly: true,
+						}),
+					),
 			})
 
 			appendSetCookieHeaders(
@@ -65,7 +69,9 @@ export const validateCurrentInternalPassword = createServerFn({
 })
 	.inputValidator(z.object({ password: z.string().min(1) }))
 	.handler(async ({ data }): Promise<{ ok: boolean }> => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			activeEmployeeOnly: true,
+		})
 		const email = auth.user.email
 		if (!email) return { ok: false }
 

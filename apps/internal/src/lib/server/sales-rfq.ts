@@ -219,8 +219,10 @@ async function getSupabaseRFQQueue(input: {
 	page: number
 	limit: number
 }) {
-	const auth = await getInternalSupabaseClient()
-	if (!auth) return null
+	const auth = await getInternalSupabaseClient({
+		panel: 'sales',
+		writeRequired: false,
+	})
 	const { data: currentEmployeeId, error: employeeError } =
 		await auth.client.rpc('current_employee_id')
 	if (employeeError) throw new Error(employeeError.message)
@@ -334,7 +336,10 @@ export const declineRFQ = createServerFn({ method: 'POST' })
 		if (!isUuid(data.rfqId)) {
 			throw new Error('Supabase quote request id is required')
 		}
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: true,
+		})
 		const { error } = await auth.client.rpc('sales_reject_order', {
 			p_order_id: data.rfqId,
 			p_reason: data.reason,
@@ -357,7 +362,10 @@ export const declineRFQ = createServerFn({ method: 'POST' })
 
 export const claimNextSalesOrder = createServerFn({ method: 'POST' }).handler(
 	async () => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: true,
+		})
 		const { data: claimed, error } = await auth.client.rpc(
 			'claim_next_sales_order',
 		)
@@ -394,7 +402,10 @@ export const startSalesQuoteSession = createServerFn({ method: 'POST' })
 		if (!isUuid(data.rfqId)) {
 			throw new Error('Supabase quote request id is required')
 		}
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: true,
+		})
 		const { data: session, error } = await auth.client.rpc(
 			'sales_start_quote_session',
 			{
@@ -413,7 +424,10 @@ export const startSalesQuoteSession = createServerFn({ method: 'POST' })
 export const heartbeatSalesQuoteSession = createServerFn({ method: 'POST' })
 	.inputValidator(quoteSessionInput)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: true,
+		})
 		const { data: session, error } = await auth.client.rpc(
 			'sales_heartbeat_quote_session',
 			{
@@ -432,7 +446,10 @@ export const heartbeatSalesQuoteSession = createServerFn({ method: 'POST' })
 export const closeSalesQuoteSession = createServerFn({ method: 'POST' })
 	.inputValidator(quoteSessionCloseInput)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: true,
+		})
 		const { data: session, error } = await auth.client.rpc(
 			'sales_close_quote_session',
 			{
@@ -463,7 +480,10 @@ export const saveRFQForLater = createServerFn({ method: 'POST' })
 		if (!isUuid(data.rfqId)) {
 			throw new Error('Supabase quote request id is required')
 		}
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: true,
+		})
 		const { data: updated, error } = await auth.client.rpc(
 			'sales_save_and_requeue',
 			{

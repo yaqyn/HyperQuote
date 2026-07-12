@@ -672,7 +672,10 @@ function buildSupabaseFinanceDeal(
 }
 
 async function getSupabaseFinanceInbox() {
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'finance',
+		writeRequired: false,
+	})
 
 	const { data: orderRows, error: orderError } = await auth.client
 		.from('orders')
@@ -1011,7 +1014,10 @@ function requireJsonObject<T>(value: unknown, label: string): T {
 export const getFinanceAccountingDashboard = createServerFn({ method: 'POST' })
 	.inputValidator(accountingDashboardInput)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: false,
+		})
 		const { data: dashboard, error } = await auth.client.rpc(
 			'finance_accounting_dashboard',
 			{
@@ -1031,7 +1037,10 @@ export const backfillFinanceAccountingSources = createServerFn({
 })
 	.inputValidator(z.object({}))
 	.handler(async () => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		const { data, error } = await auth.client.rpc(
 			'finance_backfill_accounting_sources',
 		)
@@ -1045,7 +1054,10 @@ export const backfillFinanceAccountingSources = createServerFn({
 export const createFinanceAdjustment = createServerFn({ method: 'POST' })
 	.inputValidator(createAdjustmentInput)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		const { data: adjustment, error } = await auth.client.rpc(
 			'finance_create_adjustment',
 			{
@@ -1064,7 +1076,10 @@ export const createFinanceAdjustment = createServerFn({ method: 'POST' })
 export const updateEmployeeCompensation = createServerFn({ method: 'POST' })
 	.inputValidator(updateEmployeeCompensationInput)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		const { data: compensation, error } = await auth.client.rpc(
 			'finance_update_employee_compensation',
 			{
@@ -1088,7 +1103,10 @@ export const updateEmployeeCompensation = createServerFn({ method: 'POST' })
 export const payEmployeeSalary = createServerFn({ method: 'POST' })
 	.inputValidator(payEmployeeSalaryInput)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		const { data: payment, error } = await auth.client.rpc(
 			'finance_pay_employee_salary',
 			{
@@ -1106,7 +1124,10 @@ export const payEmployeeSalary = createServerFn({ method: 'POST' })
 export const payEmployeeBonus = createServerFn({ method: 'POST' })
 	.inputValidator(payEmployeeBonusInput)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		const { data: payment, error } = await auth.client.rpc(
 			'finance_pay_employee_bonus',
 			{
@@ -1125,7 +1146,10 @@ export const payEmployeeBonus = createServerFn({ method: 'POST' })
 export const postTruckFuelExpense = createServerFn({ method: 'POST' })
 	.inputValidator(postTruckFuelExpenseInput)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		const { data: expense, error } = await auth.client.rpc(
 			'finance_post_truck_fuel_expense',
 			{
@@ -1143,7 +1167,10 @@ export const postTruckFuelExpense = createServerFn({ method: 'POST' })
 export const rejectTruckFuelExpense = createServerFn({ method: 'POST' })
 	.inputValidator(rejectTruckFuelExpenseInput)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		const { data: expense, error } = await auth.client.rpc(
 			'finance_reject_truck_fuel_expense',
 			{
@@ -1160,7 +1187,10 @@ export const rejectTruckFuelExpense = createServerFn({ method: 'POST' })
 export const recordCompanyAsset = createServerFn({ method: 'POST' })
 	.inputValidator(recordCompanyAssetInput)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		const { data: asset, error } = await auth.client.rpc(
 			'finance_record_company_asset',
 			{
@@ -1183,7 +1213,10 @@ export const recordCompanyAsset = createServerFn({ method: 'POST' })
 export const postFinanceJournalEntry = createServerFn({ method: 'POST' })
 	.inputValidator(journalEntryActionInput)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		const { error } = await auth.client.rpc('finance_post_journal_entry', {
 			p_entry_id: data.entryId,
 			p_proof_document_id: optionalUuid(data.proofDocumentId),
@@ -1196,7 +1229,10 @@ export const postFinanceJournalEntry = createServerFn({ method: 'POST' })
 export const reverseFinanceJournalEntry = createServerFn({ method: 'POST' })
 	.inputValidator(journalEntryActionInput.required({ reason: true }))
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		const { data: reversal, error } = await auth.client.rpc(
 			'finance_reverse_journal_entry',
 			{
@@ -1217,7 +1253,10 @@ export const reverseFinanceJournalEntry = createServerFn({ method: 'POST' })
 export const voidFinanceDraftJournalEntry = createServerFn({ method: 'POST' })
 	.inputValidator(journalEntryActionInput.required({ reason: true }))
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		const { error } = await auth.client.rpc(
 			'finance_void_draft_journal_entry',
 			{
@@ -1268,7 +1307,10 @@ function canAdvance(from: PaymentStatus, to: PaymentStatus): boolean {
 
 async function getSupabaseOrderPaymentTarget(orderId: string) {
 	if (!isUuid(orderId)) return null
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'finance',
+		writeRequired: true,
+	})
 
 	const { data: order, error: orderError } = await auth.client
 		.from('orders')
@@ -1306,7 +1348,10 @@ async function getSupabaseOrderPaymentTarget(orderId: string) {
 
 async function getSupabaseDealPaymentTarget(dealId: string) {
 	if (!isUuid(dealId)) return null
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'finance',
+		writeRequired: true,
+	})
 
 	const { data: refill, error: refillError } = await auth.client
 		.from('refill_requests')
@@ -1447,7 +1492,10 @@ export const recordOrderFollowUp = createServerFn({ method: 'POST' })
 	.handler(async ({ data }) => {
 		if (!data.quoteId)
 			return { success: false as const, error: 'quoteId required' }
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		if (!isUuid(data.quoteId)) {
 			return {
 				success: false as const,
@@ -1501,7 +1549,10 @@ export const cancelOrderFromFinance = createServerFn({ method: 'POST' })
 		if (!isUuid(data.quoteId)) {
 			return { success: false as const, error: 'Order not found' }
 		}
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		const { data: order, error } = await auth.client.rpc(
 			'finance_cancel_customer_order',
 			{
@@ -1542,7 +1593,10 @@ export const cancelDealFromFinance = createServerFn({ method: 'POST' })
 		if (!isUuid(data.dealId)) {
 			return { success: false as const, error: 'Deal not found' }
 		}
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		const { data: refill, error } = await auth.client.rpc(
 			'finance_cancel_supplier_refill',
 			{
@@ -1642,7 +1696,10 @@ export const recordDealFollowUp = createServerFn({ method: 'POST' })
 	.handler(async ({ data }) => {
 		if (!data.dealId)
 			return { success: false as const, error: 'dealId required' }
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'finance',
+			writeRequired: true,
+		})
 		if (!isUuid(data.dealId)) {
 			return {
 				success: false as const,

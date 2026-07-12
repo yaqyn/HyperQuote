@@ -21,7 +21,7 @@ const employeePresenceInput = z.object({
 export const setEmployeePresence = createServerFn({ method: 'POST' })
 	.inputValidator(employeePresenceInput)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({ activeEmployeeOnly: true })
 		const { data: presence, error } = await auth.client.rpc(
 			'set_employee_presence',
 			{

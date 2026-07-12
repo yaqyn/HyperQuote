@@ -321,13 +321,10 @@ function canApproveInventoryDamage(employee: EmployeeRow): boolean {
 }
 
 async function requireInventoryPanel(writeRequired: boolean) {
-	const auth = await getInternalSupabaseClient()
-	const { error } = await auth.client.rpc('require_panel', {
-		required_panel: 'inventory',
-		write_required: writeRequired,
+	return getInternalSupabaseClient({
+		panel: 'inventory',
+		writeRequired,
 	})
-	if (error) throw new Error(error.message)
-	return auth
 }
 
 async function loadDamageableProducts(

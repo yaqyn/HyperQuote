@@ -1,6 +1,6 @@
 import type { StreamChunk } from '@tanstack/ai'
 import { create } from 'zustand'
-import { internalChatFn } from '../lib/ai-chat'
+import { internalChatFn, isInternalPanelId } from '../lib/ai-chat'
 
 export interface AIChatMessage {
 	id: string
@@ -72,6 +72,9 @@ export const useAIChatStore = create<AIChatStore>()((set, get) => ({
 		// animates a bit, rather than snapping into a single flash.
 		void (async () => {
 			try {
+				const panelId = isInternalPanelId(state.panelId)
+					? state.panelId
+					: undefined
 				const history = [...state.messages, userMessage].map((m) => ({
 					role: m.role,
 					content: m.content,
@@ -79,7 +82,7 @@ export const useAIChatStore = create<AIChatStore>()((set, get) => ({
 				const raw = await internalChatFn({
 					data: {
 						messages: history,
-						panelId: state.panelId ?? undefined,
+						panelId,
 					},
 				})
 				const chunks = raw as unknown as StreamChunk[]

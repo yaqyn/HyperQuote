@@ -186,12 +186,10 @@ export const uploadProofDocument = createServerFn({ method: 'POST' })
 			throw new Error('Proof file size mismatch')
 		}
 
-		const auth = await getInternalSupabaseClient()
-		const { error: permissionError } = await auth.client.rpc('require_panel', {
-			required_panel: input.panel,
-			write_required: true,
+		const auth = await getInternalSupabaseClient({
+			panel: input.panel,
+			writeRequired: true,
 		})
-		if (permissionError) throw new Error(permissionError.message)
 
 		const storagePath = proofStoragePath({
 			fileName: input.fileName,
@@ -253,7 +251,7 @@ export const uploadProofDocument = createServerFn({ method: 'POST' })
 export const getActivityProofDocuments = createServerFn({ method: 'POST' })
 	.inputValidator(activityProofDocumentsInput)
 	.handler(async ({ data }): Promise<ActivityProofDocument[]> => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({ activeEmployeeOnly: true })
 		const { data: canSearch, error: accessError } = await auth.client.rpc(
 			'can_access_ceo_search',
 		)

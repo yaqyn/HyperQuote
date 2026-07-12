@@ -110,11 +110,7 @@ export function SupplierBatchPricePanel({
 
 	const mutation = useMutation({
 		mutationFn: updateSupplierQuoteBatch,
-		onSuccess: async (result) => {
-			if (!result.success) {
-				setSaveError(result.error)
-				return
-			}
+		onSuccess: async () => {
 			await Promise.all([
 				qc.invalidateQueries({ queryKey: ['inventory-overview'] }),
 				qc.invalidateQueries({ queryKey: ['supplier-batch-price-options'] }),

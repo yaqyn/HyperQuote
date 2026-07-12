@@ -430,7 +430,10 @@ async function getWarehouseCredentialClient(
 }
 
 async function getSupabaseLoadingData(orderId?: string) {
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'warehouse',
+		writeRequired: false,
+	})
 
 	let query = auth.client.from('loading_tasks').select(`
 		id,
@@ -764,7 +767,10 @@ export const getWarehouseOrderDetail = createServerFn({ method: 'POST' })
 export const getAvailableTrucks = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'warehouse',
+			writeRequired: false,
+		})
 		const { data: driverRows, error: driverError } = await auth.client
 			.from('drivers')
 			.select('id, full_name, status, vehicle_label')
@@ -833,7 +839,10 @@ export const getAvailableTrucks = createServerFn({ method: 'POST' })
 export const getWarehouseEmployees = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'warehouse',
+			writeRequired: false,
+		})
 		const { data, error } = await auth.client
 			.from('employees')
 			.select('id, full_name, employee_roles(role)')
@@ -875,7 +884,10 @@ export const assignTruckToOrder = createServerFn({ method: 'POST' })
 				error: 'Order, driver, or truck not found',
 			}
 		}
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'warehouse',
+			writeRequired: true,
+		})
 		const { error } = await auth.client.rpc('warehouse_assign_loading_driver', {
 			p_driver_id: data.driverId,
 			p_order_id: data.quoteId,
@@ -904,7 +916,10 @@ export const setItemLoadedQuantity = createServerFn({ method: 'POST' })
 		if (!isUuid(data.quoteId) || !isUuid(data.truckId)) {
 			return { success: false as const, error: 'Order or truck not found' }
 		}
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'warehouse',
+			writeRequired: true,
+		})
 		const { error } = await auth.client.rpc(
 			'warehouse_set_loading_item_quantity',
 			{
@@ -925,7 +940,10 @@ export const markReadyForSignoff = createServerFn({ method: 'POST' })
 		if (!isUuid(data.quoteId)) {
 			return { success: false as const, error: 'Order not found' }
 		}
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'warehouse',
+			writeRequired: true,
+		})
 		const { error } = await auth.client.rpc('warehouse_mark_loading_ready', {
 			p_order_id: data.quoteId,
 		})
@@ -939,7 +957,10 @@ export const removeTruckFromOrder = createServerFn({ method: 'POST' })
 		if (!isUuid(data.quoteId) || !isUuid(data.truckId)) {
 			return { success: false as const, error: 'Order or truck not found' }
 		}
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'warehouse',
+			writeRequired: true,
+		})
 		const { error } = await auth.client.rpc('warehouse_remove_loading_driver', {
 			p_order_id: data.quoteId,
 			p_truck_id: data.truckId,
@@ -969,7 +990,10 @@ export const replaceTruckOnOrder = createServerFn({ method: 'POST' })
 				error: 'Order, driver, or truck not found',
 			}
 		}
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'warehouse',
+			writeRequired: true,
+		})
 		const { error } = await auth.client.rpc(
 			'warehouse_replace_loading_driver',
 			{
@@ -1002,7 +1026,10 @@ export const recordWarehouseSignoff = createServerFn({ method: 'POST' })
 		if (!isUuid(data.quoteId)) {
 			return { success: false as const, error: 'Order not found' }
 		}
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'warehouse',
+			writeRequired: true,
+		})
 		const advisorCheck = await getWarehouseAdvisor(
 			auth.client,
 			data.advisorId,
@@ -1050,7 +1077,10 @@ export const logFailedInspection = createServerFn({ method: 'POST' })
 		if (!isUuid(data.quoteId)) {
 			return { success: false as const, error: 'Order not found' }
 		}
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'warehouse',
+			writeRequired: true,
+		})
 		const advisorCheck = await getWarehouseAdvisor(
 			auth.client,
 			data.advisorId,
@@ -1081,7 +1111,10 @@ export const resetWarehouseOrder = createServerFn({ method: 'POST' })
 		if (!isUuid(data.quoteId)) {
 			return { success: false as const, error: 'Order not found' }
 		}
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'warehouse',
+			writeRequired: true,
+		})
 		const { error } = await auth.client.rpc('warehouse_reset_loading', {
 			p_order_id: data.quoteId,
 		})
@@ -1315,7 +1348,12 @@ async function getSupabaseReceivingData(
 	dealId?: string,
 	client?: Parameters<typeof verifyEmployeeCredential>[0]['client'],
 ) {
-	const auth = client ? { client } : await getInternalSupabaseClient()
+	const auth = client
+		? { client }
+		: await getInternalSupabaseClient({
+				panel: 'warehouse',
+				writeRequired: false,
+			})
 
 	let query = auth.client
 		.from('receiving_tasks')
@@ -1472,6 +1510,10 @@ export const recordReceivingAttempt = createServerFn({ method: 'POST' })
 		if (!isUuid(data.dealId)) {
 			return { success: false as const, error: 'Deal not found' }
 		}
+		await getInternalSupabaseClient({
+			panel: 'warehouse',
+			writeRequired: true,
+		})
 		const actionAuth = await getWarehouseCredentialClient(
 			data.advisorId,
 			data.securityMethod,

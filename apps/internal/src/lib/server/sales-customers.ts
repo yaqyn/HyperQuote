@@ -131,7 +131,10 @@ export const getCustomerList = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: false,
+		})
 		const search = normalizeCustomerSearch(data.search)
 		let query = auth.client
 			.from('customers')
@@ -210,7 +213,10 @@ export const addCustomer = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: true,
+		})
 		const phone = normalizePhone(data.phone)
 		const { data: existingByPhone, error: phoneError } = await auth.client
 			.from('customers')

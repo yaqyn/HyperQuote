@@ -30,7 +30,10 @@ export const markAsWon = createServerFn({ method: 'POST' })
 			}
 		}
 
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: true,
+		})
 		const { data: order, error } = await auth.client.rpc(
 			'sales_confirm_order',
 			{
@@ -84,7 +87,10 @@ export const markAsLost = createServerFn({ method: 'POST' })
 			}
 		}
 
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: true,
+		})
 		const { error } = await auth.client.rpc('sales_cancel_order', {
 			p_order_id: supabaseQuoteVersion.quoteRequestId,
 			p_reason: data.lossReason,
@@ -111,7 +117,10 @@ export const convertQuoteToOrder = createServerFn({ method: 'POST' })
 			throw new Error('Supabase quote version required')
 		}
 
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: true,
+		})
 		const { data: order, error } = await auth.client.rpc(
 			'sales_confirm_order',
 			{
@@ -181,7 +190,10 @@ export const getNegotiationHistory = createServerFn({ method: 'POST' })
 		const supabaseQuoteVersion = decodeSupabaseQuoteVersionId(data.quoteId)
 		if (!supabaseQuoteVersion) return { events: [] }
 
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: false,
+		})
 		const { data: rows, error } = await auth.client
 			.from('activity_events')
 			.select(

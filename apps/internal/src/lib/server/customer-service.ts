@@ -901,7 +901,10 @@ async function sendTwilioMessage(input: {
 }
 
 async function getSupabaseConversations() {
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'customer_service',
+		writeRequired: false,
+	})
 
 	const [
 		{ data: ticketRows, error: ticketError },
@@ -1193,7 +1196,10 @@ export const sendCustomerPasswordReset = createServerFn({ method: 'POST' })
 			destination: string
 			success: boolean
 		}> => {
-			const auth = await getInternalSupabaseClient()
+			const auth = await getInternalSupabaseClient({
+				panel: 'customer_service',
+				writeRequired: true,
+			})
 			const customer = await getPasswordResetCustomer(
 				auth.client,
 				data.customerId,
@@ -1237,7 +1243,10 @@ export const sendReply = createServerFn({ method: 'POST' })
 	.inputValidator((d) => sendReplyInputSchema.parse(d))
 	.handler(
 		async ({ data }): Promise<{ success: boolean; messageId: string }> => {
-			const auth = await getInternalSupabaseClient()
+			const auth = await getInternalSupabaseClient({
+				panel: 'customer_service',
+				writeRequired: true,
+			})
 			const ref = supportRef(data.conversationId)
 			if (ref.kind === 'local')
 				throw new Error('Supabase support record required')
@@ -1317,7 +1326,10 @@ export const sendReply = createServerFn({ method: 'POST' })
 export const updateConversationStatus = createServerFn({ method: 'POST' })
 	.inputValidator((d) => statusInputSchema.parse(d))
 	.handler(async ({ data }): Promise<{ success: boolean }> => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'customer_service',
+			writeRequired: true,
+		})
 		const ref = supportRef(data.conversationId)
 		if (ref.kind === 'local')
 			throw new Error('Supabase support record required')
@@ -1348,7 +1360,10 @@ export const updateConversationStatus = createServerFn({ method: 'POST' })
 export const assignConversation = createServerFn({ method: 'POST' })
 	.inputValidator((d) => conversationOnlyInputSchema.parse(d))
 	.handler(async ({ data }): Promise<{ success: boolean }> => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'customer_service',
+			writeRequired: true,
+		})
 		const ref = supportRef(data.conversationId)
 		if (ref.kind === 'local')
 			throw new Error('Supabase support record required')
@@ -1367,7 +1382,10 @@ export const assignConversation = createServerFn({ method: 'POST' })
 export const linkConversationToCustomer = createServerFn({ method: 'POST' })
 	.inputValidator((d) => conversationOnlyInputSchema.parse(d))
 	.handler(async ({ data }): Promise<{ success: boolean }> => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'customer_service',
+			writeRequired: true,
+		})
 		const ref = supportRef(data.conversationId)
 		if (ref.kind !== 'conversation') {
 			throw new Error('WhatsApp support conversation required')

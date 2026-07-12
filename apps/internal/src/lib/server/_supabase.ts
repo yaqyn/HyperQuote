@@ -6,10 +6,17 @@ import {
 	getSupabaseServerUser,
 	resolveSupabaseRuntimeConfig,
 } from '@hyperquote/auth/server'
+import type { EmployeePanel } from '@hyperquote/types'
 import { createClient } from '@supabase/supabase-js'
 import { getRequest, getResponse } from '@tanstack/react-start/server'
 
-export async function getInternalSupabaseClient() {
+export type InternalAccessRequirement =
+	| { activeEmployeeOnly: true }
+	| { panel: EmployeePanel; writeRequired: boolean }
+
+export async function getInternalSupabaseClient(
+	access: InternalAccessRequirement,
+) {
 	const config = await resolveSupabaseRuntimeConfig(process.env)
 	if (!config) throw new Error('Supabase is required for internal app')
 
@@ -35,7 +42,7 @@ export async function getInternalSupabaseClient() {
 		throw new Error('Internal Supabase session is required')
 	}
 
-	const actor = await getInternalEmployeeActor(user.id)
+	const actor = await getInternalEmployeeActor(user.id, access)
 	if (!actor) {
 		throw new Error('Active internal employee is required')
 	}
@@ -52,7 +59,10 @@ export async function getInternalSupabaseClient() {
 	}
 }
 
-export async function getInternalEmployeeActor(userId: string) {
+export async function getInternalEmployeeActor(
+	userId: string,
+	access: InternalAccessRequirement,
+) {
 	const service = await createSupabaseServiceRoleClient(process.env)
 	if (!service) {
 		throw new Error('Supabase service role is required for internal app')
@@ -63,7 +73,13 @@ export async function getInternalEmployeeActor(userId: string) {
 		actorUserId: userId,
 		client: service,
 	})
-	const { data: employeeId, error } = await client.rpc('current_employee_id')
+	const { data: employeeId, error } =
+		'panel' in access
+			? await client.rpc('require_panel', {
+					required_panel: access.panel,
+					write_required: access.writeRequired,
+				})
+			: await client.rpc('current_employee_id')
 	if (error) throw new Error(error.message)
 	if (typeof employeeId !== 'string') return null
 	return { client, employeeId }

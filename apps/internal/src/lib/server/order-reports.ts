@@ -750,8 +750,7 @@ async function fetchActivityRows(
 
 async function getSupabaseOrderStatusIndex(): Promise<OrderStatusIndexRow[]> {
 	const { getInternalSupabaseClient } = await import('./_supabase')
-	const auth = await getInternalSupabaseClient()
-	if (!auth) throw new Error('order_status_no_internal_auth')
+	const auth = await getInternalSupabaseClient({ activeEmployeeOnly: true })
 
 	const { data: requestData, error: requestError } = await auth.client
 		.from('quote_requests')
@@ -983,8 +982,7 @@ async function getSupabaseOrderReport(
 ): Promise<ResolvedReport | null> {
 	if (!UUID_RE.test(rfqId)) return null
 	const { getInternalSupabaseClient } = await import('./_supabase')
-	const auth = await getInternalSupabaseClient()
-	if (!auth) throw new Error('flow_report_no_internal_auth')
+	const auth = await getInternalSupabaseClient({ activeEmployeeOnly: true })
 
 	const { data: requestData, error: requestError } = await auth.client
 		.from('quote_requests')

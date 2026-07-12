@@ -301,7 +301,10 @@ function buildSupabaseStockView({
 }
 
 async function getSupabaseStockOverview() {
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'inventory',
+		writeRequired: false,
+	})
 
 	const { data: productRows, error: productError } = await auth.client
 		.from('catalog_product_hierarchy')
@@ -498,7 +501,10 @@ function presentSpecialtySupplierOffer({
 }
 
 async function getSupabaseRefillProductDetail(slug: string) {
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'inventory',
+		writeRequired: false,
+	})
 
 	const { data: productData, error: productError } = await auth.client
 		.from('catalog_product_hierarchy')
@@ -627,7 +633,10 @@ export const createDeal = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'inventory',
+			writeRequired: true,
+		})
 		const { data: supplier, error: supplierError } = await auth.client
 			.from('suppliers')
 			.select('id, name')

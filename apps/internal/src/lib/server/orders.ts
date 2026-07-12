@@ -251,7 +251,10 @@ function buildSupabaseOrder(
 }
 
 async function getSupabaseCustomerOrders(orderId?: string) {
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'inventory',
+		writeRequired: false,
+	})
 
 	let query = auth.client
 		.from('orders')
@@ -430,7 +433,10 @@ export const getCustomerOrderDetail = createServerFn({ method: 'POST' })
 export const fillOrderForWarehouse = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ quoteId: z.string() }))
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'inventory',
+			writeRequired: true,
+		})
 		const rawReference = data.quoteId.trim()
 		let orderId: string | null = null
 

@@ -384,7 +384,10 @@ function isToday(iso: string): boolean {
 }
 
 async function getSupabaseDispatchData(orderId?: string) {
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'dispatch',
+		writeRequired: false,
+	})
 
 	let taskQuery = auth.client.from('loading_tasks').select(`
 		id,
@@ -758,7 +761,10 @@ async function getDispatchTerminalProof(
 	if (!isUuid(data.quoteId)) {
 		return { success: false as const, error: 'Order not found' }
 	}
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'dispatch',
+		writeRequired: true,
+	})
 	const advisorProof = await getDispatchAdvisorProof(auth.client, {
 		advisorId: data.advisorId,
 		proofSource,
@@ -1022,7 +1028,10 @@ export const getWarehouseEmployeesForDispatch = createServerFn({
 })
 	.inputValidator(z.object({}))
 	.handler(async () => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'dispatch',
+			writeRequired: false,
+		})
 		const { data, error } = await auth.client
 			.from('employees')
 			.select('id, full_name, employee_roles(role)')

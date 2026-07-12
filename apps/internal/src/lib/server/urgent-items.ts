@@ -26,14 +26,48 @@ async function counted(
 	return count ?? 0
 }
 
+type UrgentItemsClient = Awaited<
+	ReturnType<typeof getInternalSupabaseClient>
+>['client']
+
+type UrgentItemsPanel = 'sales' | 'finance' | 'dispatch' | 'customer_service'
+
+async function canReadPanel(
+	client: UrgentItemsClient,
+	panel: UrgentItemsPanel,
+): Promise<boolean> {
+	const { data, error } = await client.rpc('can_access_panel', {
+		required_panel: panel,
+		write_required: false,
+	})
+	if (error) throw new Error(error.message)
+	return data === true
+}
+
+async function countedWhen(
+	allowed: boolean,
+	query: () => Parameters<typeof counted>[0],
+): Promise<number> {
+	return allowed ? counted(query()) : 0
+}
+
 export const getUrgentItems = createServerFn({ method: 'GET' }).handler(
 	async (): Promise<UrgentItemsResult> => {
-		const { client } = await getInternalSupabaseClient()
+		const { client } = await getInternalSupabaseClient({
+			activeEmployeeOnly: true,
+		})
 		const now = new Date().toISOString()
 		const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
 		const overdue = new Date(
 			Date.now() - 60 * 24 * 60 * 60 * 1000,
 		).toISOString()
+		const [canReadSales, canReadFinance, canReadDispatch, canReadSupport] =
+			await Promise.all([
+				canReadPanel(client, 'sales'),
+				canReadPanel(client, 'finance'),
+				canReadPanel(client, 'dispatch'),
+				canReadPanel(client, 'customer_service'),
+			])
 
 		const [
 			unassignedRfqs,
@@ -43,40 +77,40 @@ export const getUrgentItems = createServerFn({ method: 'GET' }).handler(
 			overdueInvoices,
 			slaBreaches,
 		] = await Promise.all([
-			counted(
+			countedWhen(canReadSales, () =>
 				client
 					.from('quote_requests')
 					.select('id', { count: 'exact', head: true })
 					.eq('status', 'submitted')
 					.lte('eligible_at', now),
 			),
-			counted(
+			countedWhen(canReadSales, () =>
 				client
 					.from('quotes')
 					.select('id', { count: 'exact', head: true })
 					.in('status', ['sent', 'viewed', 'negotiating', 'revised'])
 					.lte('valid_until', tomorrow),
 			),
-			counted(
+			countedWhen(canReadFinance, () =>
 				client
 					.from('approvals')
 					.select('id', { count: 'exact', head: true })
 					.eq('status', 'pending'),
 			),
-			counted(
+			countedWhen(canReadDispatch, () =>
 				client
 					.from('deliveries')
 					.select('id', { count: 'exact', head: true })
 					.eq('status', 'rejected'),
 			),
-			counted(
+			countedWhen(canReadFinance, () =>
 				client
 					.from('orders')
 					.select('id', { count: 'exact', head: true })
 					.neq('status', 'delivered')
 					.lte('created_at', overdue),
 			),
-			counted(
+			countedWhen(canReadSupport, () =>
 				client
 					.from('support_tickets')
 					.select('id', { count: 'exact', head: true })

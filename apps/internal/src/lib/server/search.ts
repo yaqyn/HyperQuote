@@ -304,8 +304,7 @@ const ACTIVITY_DOMAINS = [
 
 async function requireSearchClient() {
 	const { getInternalSupabaseClient } = await import('./_supabase')
-	const auth = await getInternalSupabaseClient()
-	if (!auth) throw new Error('search_employee_session_required')
+	const auth = await getInternalSupabaseClient({ activeEmployeeOnly: true })
 	const { data, error } = await auth.client.rpc('can_access_ceo_search')
 	if (error) throw new Error(error.message)
 	if (data !== true) throw new Error('ceo_search_required')

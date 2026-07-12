@@ -476,13 +476,10 @@ const nullableUrlSchema = z.preprocess((value) => {
 }, z.string().trim().url().nullable())
 
 async function getAdminSupabaseClient(writeRequired = true) {
-	const auth = await getInternalSupabaseClient()
-	const { error } = await auth.client.rpc('require_panel', {
-		required_panel: 'admin',
-		write_required: writeRequired,
+	return getInternalSupabaseClient({
+		panel: 'admin',
+		writeRequired,
 	})
-	if (error) throw new Error(error.message)
-	return auth
 }
 
 function numeric(value: number | string | null | undefined): number {
@@ -999,7 +996,10 @@ async function recordAdminAudit(
 	},
 	client?: Awaited<ReturnType<typeof getInternalSupabaseClient>>['client'],
 ) {
-	const actorClient = client ?? (await getInternalSupabaseClient()).client
+	const actorClient =
+		client ??
+		(await getInternalSupabaseClient({ panel: 'admin', writeRequired: true }))
+			.client
 	const { error } = await actorClient.rpc('admin_record_audit', {
 		p_action: input.action,
 		p_details: input.details ?? {},
@@ -1028,7 +1028,9 @@ async function currentAdminEmployeeId(input?: {
 	service?: InternalSupabaseAdminClient
 }): Promise<string | null> {
 	const actorUserId =
-		input?.actorUserId ?? (await getInternalSupabaseClient()).user.id
+		input?.actorUserId ??
+		(await getInternalSupabaseClient({ panel: 'admin', writeRequired: true }))
+			.user.id
 	const service = input?.service ?? (await getInternalSupabaseAdminClient())
 	const { data, error } = await service
 		.from('employees')

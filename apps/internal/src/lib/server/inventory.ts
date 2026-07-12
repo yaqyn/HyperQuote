@@ -540,7 +540,10 @@ function supplierQuotesForProduct({
 }
 
 async function getSupabaseInventoryOverview() {
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'inventory',
+		writeRequired: false,
+	})
 
 	const { data: productRows, error: productError } = await auth.client
 		.from('catalog_product_hierarchy')
@@ -770,7 +773,10 @@ interface SupplierQuote {
 }
 
 async function getSupabaseInventoryProductDetail(slug: string) {
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'inventory',
+		writeRequired: false,
+	})
 
 	const { data: productData, error: productError } = await auth.client
 		.from('catalog_product_hierarchy')
@@ -899,7 +905,10 @@ export const getInventoryProductDetail = createServerFn({ method: 'POST' })
 export const getSupplierBatchPriceOptions = createServerFn({
 	method: 'GET',
 }).handler(async (): Promise<SupplierBatchPriceOption[]> => {
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'inventory',
+		writeRequired: false,
+	})
 	const { data, error } = await auth.client
 		.from('supplier_product_links')
 		.select(`
@@ -1054,10 +1063,10 @@ export const updateSupplierQuoteBatch = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
-		if (!auth) {
-			return { success: false, error: 'Supabase is required for batch prices' }
-		}
+		const auth = await getInternalSupabaseClient({
+			panel: 'inventory',
+			writeRequired: true,
+		})
 		const proofNote = formatBatchPriceProofNote({
 			proof: data.proof,
 			updatedCount: data.updates.length,
@@ -1081,7 +1090,10 @@ export const updateSupplierQuoteBatch = createServerFn({ method: 'POST' })
 export const markProductPriceOutdated = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({ slug: z.string() }))
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'inventory',
+			writeRequired: true,
+		})
 		const { data: product, error: productError } = await auth.client
 			.from('products')
 			.select('id')
@@ -1112,7 +1124,10 @@ export const updateSupplierQuote = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'inventory',
+			writeRequired: true,
+		})
 		const { data: product, error: productError } = await auth.client
 			.from('products')
 			.select('id, price_range_min')
@@ -1204,7 +1219,10 @@ export const requestInventoryPriceUpdate = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'inventory',
+			writeRequired: true,
+		})
 		if (!isUuid(data.rfqId)) {
 			return {
 				success: false,

@@ -761,7 +761,10 @@ async function buildSupabaseQuoteBuilderData(
 	exchangeRates: QuoteBuilderExchangeRates,
 ) {
 	if (!isUuid(rfqId)) return null
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'sales',
+		writeRequired: false,
+	})
 	const marginThresholds = await getSupabaseMarginThresholds(auth)
 
 	const { data, error } = await auth.client
@@ -919,7 +922,10 @@ async function buildSupabaseManualCustomerQuoteData(
 	if (!rfqId.startsWith('new-')) return null
 	const customerId = rfqId.slice(4)
 	if (!isUuid(customerId)) return null
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'sales',
+		writeRequired: false,
+	})
 	const marginThresholds = await getSupabaseMarginThresholds(auth)
 
 	const { data, error } = await auth.client
@@ -985,7 +991,10 @@ async function buildEmptyManualQuoteData(
 	const customerId = rfqId.slice(4)
 	if (isUuid(customerId)) return null
 
-	const auth = await getInternalSupabaseClient()
+	const auth = await getInternalSupabaseClient({
+		panel: 'sales',
+		writeRequired: false,
+	})
 	const marginThresholds = await getSupabaseMarginThresholds(auth)
 
 	return {
@@ -1081,7 +1090,10 @@ export const saveQuoteDraft = createServerFn({ method: 'POST' })
 		}),
 	)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: true,
+		})
 		const savedQuoteVersion = decodeSupabaseQuoteVersionId(data.quoteId)
 		const supabaseQuoteRequestId =
 			savedQuoteVersion?.quoteRequestId ?? data.rfqId
@@ -1249,7 +1261,10 @@ export const recordSalesCallOutcome = createServerFn({ method: 'POST' })
 				message: 'Call can only be recorded after the quote has a request id.',
 			}
 		}
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: true,
+		})
 		const notes = data.notes?.trim() || null
 		const { error } = await auth.client.rpc('sales_record_call_note', {
 			p_order_id: data.rfqId,
@@ -1269,7 +1284,10 @@ export const recordSalesCallOutcome = createServerFn({ method: 'POST' })
 export const getSalesApprovers = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: false,
+		})
 		const { data, error } = await auth.client
 			.from('employees')
 			.select('id, full_name, is_ceo, employee_roles(role)')
@@ -1298,7 +1316,10 @@ export const validateSalesApproverCredential = createServerFn({
 		}),
 	)
 	.handler(async ({ data }) => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: false,
+		})
 		return verifyEmployeeCredential({
 			allowedRoles: SALES_APPROVER_ROLES,
 			client: auth.client,
@@ -1313,7 +1334,10 @@ export const validateSalesApproverCredential = createServerFn({
 export const getProductCatalog = createServerFn({ method: 'POST' })
 	.inputValidator(z.object({}))
 	.handler(async () => {
-		const auth = await getInternalSupabaseClient()
+		const auth = await getInternalSupabaseClient({
+			panel: 'sales',
+			writeRequired: false,
+		})
 		const { data: products, error } = await auth.client
 			.from('catalog_product_hierarchy')
 			.select(`
