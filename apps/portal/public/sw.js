@@ -1,7 +1,6 @@
-const CACHE_NAME = 'hyperquote-portal-v4'
+const CACHE_NAME = 'hyperquote-portal-v5'
 
-const APP_SHELL = [
-	'/',
+const PRECACHE_PATHS = [
 	'/site.webmanifest',
 	'/manifest.json',
 	'/browserconfig.xml',
@@ -21,13 +20,13 @@ const APP_SHELL = [
 	'/pwa/maskable-512.png',
 ]
 
-const CACHEABLE_PUBLIC_PATHS = new Set(APP_SHELL.filter((path) => path !== '/'))
+const CACHEABLE_PUBLIC_PATHS = new Set(PRECACHE_PATHS)
 
 self.addEventListener('install', (event) => {
 	event.waitUntil(
 		caches
 			.open(CACHE_NAME)
-			.then((cache) => cache.addAll(APP_SHELL))
+			.then((cache) => cache.addAll(PRECACHE_PATHS))
 			.then(() => self.skipWaiting()),
 	)
 })
@@ -56,7 +55,7 @@ self.addEventListener('fetch', (event) => {
 	if (url.pathname.startsWith('/api/')) return
 
 	if (request.mode === 'navigate') {
-		event.respondWith(networkFirstNavigation(request))
+		event.respondWith(networkOnlyNavigation(request))
 		return
 	}
 
@@ -68,15 +67,27 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
 	if (!event.data) return
 
-	const data = event.data.json()
-	const { body, icon, title, url } = data
+	let rawData
+	try {
+		rawData = event.data.json()
+	} catch {
+		return
+	}
+	const data =
+		rawData && typeof rawData === 'object' && !Array.isArray(rawData)
+			? rawData
+			: {}
+	const body = boundedNotificationText(data.body, 500)
+	const title = boundedNotificationText(data.title, 120) || 'Lyon'
+	const icon = sameOriginPath(data.icon, '/pwa/icon-192.png')
+	const url = sameOriginPath(data.url, '/')
 
 	event.waitUntil(
-		self.registration.showNotification(title || 'Lyon', {
-			body: body || '',
-			icon: icon || '/pwa/icon-192.png',
+		self.registration.showNotification(title, {
+			body,
+			icon,
 			badge: '/pwa/icon-192.png',
-			data: { url: url || '/' },
+			data: { url },
 			dir: 'auto',
 		}),
 	)
@@ -85,21 +96,43 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
 	event.notification.close()
 
-	const targetUrl = event.notification.data?.url || '/'
+	const targetPath = sameOriginPath(event.notification.data?.url, '/')
 
 	event.waitUntil(
 		self.clients
 			.matchAll({ type: 'window', includeUncontrolled: true })
 			.then((clientList) => {
 				for (const client of clientList) {
-					if (client.url.includes(targetUrl) && 'focus' in client) {
+					const clientUrl = new URL(client.url)
+					const clientPath =
+						clientUrl.pathname + clientUrl.search + clientUrl.hash
+					if (
+						clientUrl.origin === self.location.origin &&
+						clientPath === targetPath &&
+						'focus' in client
+					) {
 						return client.focus()
 					}
 				}
-				return self.clients.openWindow(targetUrl)
+				return self.clients.openWindow(targetPath)
 			}),
 	)
 })
+
+function boundedNotificationText(value, maxLength) {
+	return typeof value === 'string' ? value.slice(0, maxLength) : ''
+}
+
+function sameOriginPath(value, fallback) {
+	if (typeof value !== 'string') return fallback
+	try {
+		const url = new URL(value, self.location.origin)
+		if (url.origin !== self.location.origin) return fallback
+		return url.pathname + url.search + url.hash
+	} catch {
+		return fallback
+	}
+}
 
 function isCacheableAsset(request, url) {
 	if (CACHEABLE_PUBLIC_PATHS.has(url.pathname)) return true
@@ -113,15 +146,10 @@ function isCacheableAsset(request, url) {
 	)
 }
 
-async function networkFirstNavigation(request) {
-	const cache = await caches.open(CACHE_NAME)
+async function networkOnlyNavigation(request) {
 	try {
-		const response = await fetch(request)
-		if (response.ok) await cache.put('/', response.clone())
-		return response
+		return await fetch(request)
 	} catch {
-		const cached = await cache.match('/')
-		if (cached) return cached
 		return new Response('Lyon is offline.', {
 			status: 503,
 			headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -130,12 +158,12 @@ async function networkFirstNavigation(request) {
 }
 
 async function cacheFirstAsset(request) {
-	const cached = await caches.match(request)
+	const cache = await caches.open(CACHE_NAME)
+	const cached = await cache.match(request)
 	if (cached) return cached
 
 	const response = await fetch(request)
 	if (response.ok) {
-		const cache = await caches.open(CACHE_NAME)
 		await cache.put(request, response.clone())
 	}
 	return response

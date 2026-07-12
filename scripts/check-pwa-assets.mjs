@@ -212,7 +212,10 @@ function validateServiceWorker(app, publicDir) {
 			`${label}: must match scripts/service-worker-source.mjs output`,
 		)
 	}
-	assert(serviceWorker.includes("'/',"), `${label}: must cache the app shell`)
+	assert(
+		!serviceWorker.includes("\t'/',"),
+		`${label}: must not precache navigation HTML`,
+	)
 	assert(
 		serviceWorker.includes("'/browserconfig.xml'"),
 		`${label}: must cache browserconfig.xml`,
@@ -246,13 +249,76 @@ function validateServiceWorker(app, publicDir) {
 		`${label}: must handle fetch events for installability`,
 	)
 	assert(
-		serviceWorker.includes('networkFirstNavigation'),
-		`${label}: installed app launches need a navigation fallback`,
+		serviceWorker.includes('networkOnlyNavigation'),
+		`${label}: installed app launches need a static offline fallback`,
+	)
+	assert(
+		!serviceWorker.includes("cache.put('/',") &&
+			!serviceWorker.includes("cache.match('/')"),
+		`${label}: navigation responses must never enter the app cache`,
+	)
+	assert(
+		serviceWorker.includes('const cached = await cache.match(request)') &&
+			!serviceWorker.includes('caches.match(request)'),
+		`${label}: asset reads must stay isolated to the current app cache`,
 	)
 	assert(
 		serviceWorker.includes("request.destination === 'image'"),
 		`${label}: must cache fetched image assets for installed mode`,
 	)
+	if (app.key === 'portal') {
+		assert(
+			serviceWorker.includes('function sameOriginPath') &&
+				serviceWorker.includes('url.origin !== self.location.origin'),
+			`${label}: push targets must be restricted to same-origin paths`,
+		)
+		assert(
+			serviceWorker.includes('self.clients.openWindow(targetPath)') &&
+				!serviceWorker.includes('self.clients.openWindow(targetUrl)'),
+			`${label}: notification clicks must open the normalized path only`,
+		)
+		assert(
+			serviceWorker.includes('boundedNotificationText(data.body, 500)') &&
+				serviceWorker.includes('boundedNotificationText(data.title, 120)'),
+			`${label}: notification text must be bounded before display`,
+		)
+		validatePortalServiceWorkerRuntime(serviceWorker, label)
+	}
+}
+
+function validatePortalServiceWorkerRuntime(serviceWorker, label) {
+	try {
+		const runtime = new Function(
+			'self',
+			`${serviceWorker}\nreturn { boundedNotificationText, sameOriginPath }`,
+		)({
+			addEventListener: () => undefined,
+			location: { origin: 'https://portal.hyperquote.net' },
+		})
+
+		assert(
+			runtime.sameOriginPath('/orders/42?tab=proof#latest', '/') ===
+				'/orders/42?tab=proof#latest',
+			`${label}: same-origin notification paths must be preserved`,
+		)
+		for (const unsafeTarget of [
+			'https://example.com/phishing',
+			'//example.com/phishing',
+			'javascript:alert(1)',
+			'https://[',
+		]) {
+			assert(
+				runtime.sameOriginPath(unsafeTarget, '/') === '/',
+				`${label}: unsafe notification target must fall back to /`,
+			)
+		}
+		assert(
+			runtime.boundedNotificationText('x'.repeat(600), 500).length === 500,
+			`${label}: notification text helper must enforce its limit`,
+		)
+	} catch (error) {
+		fail(`${label}: notification security runtime failed (${error.message})`)
+	}
 }
 
 function validateBrowserConfig(app, publicDir) {

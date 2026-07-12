@@ -1,7 +1,6 @@
-const CACHE_NAME = 'hyperquote-driver-v4'
+const CACHE_NAME = 'hyperquote-driver-v5'
 
-const APP_SHELL = [
-	'/',
+const PRECACHE_PATHS = [
 	'/browserconfig.xml',
 	'/site.webmanifest',
 	'/favicon.ico',
@@ -20,13 +19,13 @@ const APP_SHELL = [
 	'/pwa/maskable-512.png',
 ]
 
-const CACHEABLE_PUBLIC_PATHS = new Set(APP_SHELL.filter((path) => path !== '/'))
+const CACHEABLE_PUBLIC_PATHS = new Set(PRECACHE_PATHS)
 
 self.addEventListener('install', (event) => {
 	event.waitUntil(
 		caches
 			.open(CACHE_NAME)
-			.then((cache) => cache.addAll(APP_SHELL))
+			.then((cache) => cache.addAll(PRECACHE_PATHS))
 			.then(() => self.skipWaiting()),
 	)
 })
@@ -55,7 +54,7 @@ self.addEventListener('fetch', (event) => {
 	if (url.pathname.startsWith('/api/')) return
 
 	if (request.mode === 'navigate') {
-		event.respondWith(networkFirstNavigation(request))
+		event.respondWith(networkOnlyNavigation(request))
 		return
 	}
 
@@ -76,15 +75,10 @@ function isCacheableAsset(request, url) {
 	)
 }
 
-async function networkFirstNavigation(request) {
-	const cache = await caches.open(CACHE_NAME)
+async function networkOnlyNavigation(request) {
 	try {
-		const response = await fetch(request)
-		if (response.ok) await cache.put('/', response.clone())
-		return response
+		return await fetch(request)
 	} catch {
-		const cached = await cache.match('/')
-		if (cached) return cached
 		return new Response('Drive is offline.', {
 			status: 503,
 			headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -93,12 +87,12 @@ async function networkFirstNavigation(request) {
 }
 
 async function cacheFirstAsset(request) {
-	const cached = await caches.match(request)
+	const cache = await caches.open(CACHE_NAME)
+	const cached = await cache.match(request)
 	if (cached) return cached
 
 	const response = await fetch(request)
 	if (response.ok) {
-		const cache = await caches.open(CACHE_NAME)
 		await cache.put(request, response.clone())
 	}
 	return response

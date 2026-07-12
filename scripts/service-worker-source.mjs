@@ -1,33 +1,32 @@
 export const SERVICE_WORKER_APPS = [
 	{
 		key: 'website',
-		cacheName: 'hyperquote-website-v4',
+		cacheName: 'hyperquote-website-v5',
 		file: 'service-worker.js',
 		offlineText: 'HyperQuote is offline.',
 	},
 	{
 		key: 'portal',
-		cacheName: 'hyperquote-portal-v4',
+		cacheName: 'hyperquote-portal-v5',
 		file: 'sw.js',
 		offlineText: 'Lyon is offline.',
 		pushNotifications: true,
 	},
 	{
 		key: 'internal',
-		cacheName: 'hyperquote-internal-v5',
+		cacheName: 'hyperquote-internal-v6',
 		file: 'service-worker.js',
 		offlineText: 'Base is offline.',
 	},
 	{
 		key: 'driver',
-		cacheName: 'hyperquote-driver-v4',
+		cacheName: 'hyperquote-driver-v5',
 		file: 'service-worker.js',
 		offlineText: 'Drive is offline.',
 	},
 ]
 
-const SHARED_APP_SHELL = [
-	'/',
+const SHARED_PRECACHE_PATHS = [
 	'/browserconfig.xml',
 	'/site.webmanifest',
 	'/favicon.ico',
@@ -46,15 +45,12 @@ const SHARED_APP_SHELL = [
 	'/pwa/maskable-512.png',
 ]
 
-function appShellFor({ key }) {
-	if (key !== 'portal') return SHARED_APP_SHELL
+function precachePathsFor({ key }) {
+	if (key !== 'portal') return SHARED_PRECACHE_PATHS
 	return [
-		'/',
 		'/site.webmanifest',
 		'/manifest.json',
-		...SHARED_APP_SHELL.filter(
-			(path) => path !== '/' && path !== '/site.webmanifest',
-		),
+		...SHARED_PRECACHE_PATHS.filter((path) => path !== '/site.webmanifest'),
 	]
 }
 
@@ -67,15 +63,27 @@ function portalPushHandlers() {
 self.addEventListener('push', (event) => {
 \tif (!event.data) return
 
-\tconst data = event.data.json()
-\tconst { body, icon, title, url } = data
+\tlet rawData
+\ttry {
+\t\trawData = event.data.json()
+\t} catch {
+\t\treturn
+\t}
+\tconst data =
+\t\trawData && typeof rawData === 'object' && !Array.isArray(rawData)
+\t\t\t? rawData
+\t\t\t: {}
+\tconst body = boundedNotificationText(data.body, 500)
+\tconst title = boundedNotificationText(data.title, 120) || 'Lyon'
+\tconst icon = sameOriginPath(data.icon, '/pwa/icon-192.png')
+\tconst url = sameOriginPath(data.url, '/')
 
 \tevent.waitUntil(
-\t\tself.registration.showNotification(title || 'Lyon', {
-\t\t\tbody: body || '',
-\t\t\ticon: icon || '/pwa/icon-192.png',
+\t\tself.registration.showNotification(title, {
+\t\t\tbody,
+\t\t\ticon,
 \t\t\tbadge: '/pwa/icon-192.png',
-\t\t\tdata: { url: url || '/' },
+\t\t\tdata: { url },
 \t\t\tdir: 'auto',
 \t\t}),
 \t)
@@ -84,41 +92,63 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
 \tevent.notification.close()
 
-\tconst targetUrl = event.notification.data?.url || '/'
+\tconst targetPath = sameOriginPath(event.notification.data?.url, '/')
 
 \tevent.waitUntil(
 \t\tself.clients
 \t\t\t.matchAll({ type: 'window', includeUncontrolled: true })
 \t\t\t.then((clientList) => {
 \t\t\t\tfor (const client of clientList) {
-\t\t\t\t\tif (client.url.includes(targetUrl) && 'focus' in client) {
+\t\t\t\t\tconst clientUrl = new URL(client.url)
+\t\t\t\t\tconst clientPath =
+\t\t\t\t\t\tclientUrl.pathname + clientUrl.search + clientUrl.hash
+\t\t\t\t\tif (
+\t\t\t\t\t\tclientUrl.origin === self.location.origin &&
+\t\t\t\t\t\tclientPath === targetPath &&
+\t\t\t\t\t\t'focus' in client
+\t\t\t\t\t) {
 \t\t\t\t\t\treturn client.focus()
 \t\t\t\t\t}
 \t\t\t\t}
-\t\t\t\treturn self.clients.openWindow(targetUrl)
+\t\t\t\treturn self.clients.openWindow(targetPath)
 \t\t\t}),
 \t)
 })
+
+function boundedNotificationText(value, maxLength) {
+\treturn typeof value === 'string' ? value.slice(0, maxLength) : ''
+}
+
+function sameOriginPath(value, fallback) {
+\tif (typeof value !== 'string') return fallback
+\ttry {
+\t\tconst url = new URL(value, self.location.origin)
+\t\tif (url.origin !== self.location.origin) return fallback
+\t\treturn url.pathname + url.search + url.hash
+\t} catch {
+\t\treturn fallback
+\t}
+}
 `
 }
 
 export function serviceWorkerSourceForApp(app) {
-	const appShell = appShellFor(app)
+	const precachePaths = precachePathsFor(app)
 	const pushHandlers = app.pushNotifications ? portalPushHandlers() : ''
 
 	return `const CACHE_NAME = '${app.cacheName}'
 
-const APP_SHELL = [
-${jsArrayLiteral(appShell)}
+const PRECACHE_PATHS = [
+${jsArrayLiteral(precachePaths)}
 ]
 
-const CACHEABLE_PUBLIC_PATHS = new Set(APP_SHELL.filter((path) => path !== '/'))
+const CACHEABLE_PUBLIC_PATHS = new Set(PRECACHE_PATHS)
 
 self.addEventListener('install', (event) => {
 \tevent.waitUntil(
 \t\tcaches
 \t\t\t.open(CACHE_NAME)
-\t\t\t.then((cache) => cache.addAll(APP_SHELL))
+\t\t\t.then((cache) => cache.addAll(PRECACHE_PATHS))
 \t\t\t.then(() => self.skipWaiting()),
 \t)
 })
@@ -147,7 +177,7 @@ self.addEventListener('fetch', (event) => {
 \tif (url.pathname.startsWith('/api/')) return
 
 \tif (request.mode === 'navigate') {
-\t\tevent.respondWith(networkFirstNavigation(request))
+\t\tevent.respondWith(networkOnlyNavigation(request))
 \t\treturn
 \t}
 
@@ -168,15 +198,10 @@ function isCacheableAsset(request, url) {
 \t)
 }
 
-async function networkFirstNavigation(request) {
-\tconst cache = await caches.open(CACHE_NAME)
+async function networkOnlyNavigation(request) {
 \ttry {
-\t\tconst response = await fetch(request)
-\t\tif (response.ok) await cache.put('/', response.clone())
-\t\treturn response
+\t\treturn await fetch(request)
 \t} catch {
-\t\tconst cached = await cache.match('/')
-\t\tif (cached) return cached
 \t\treturn new Response('${app.offlineText}', {
 \t\t\tstatus: 503,
 \t\t\theaders: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -185,12 +210,12 @@ async function networkFirstNavigation(request) {
 }
 
 async function cacheFirstAsset(request) {
-\tconst cached = await caches.match(request)
+\tconst cache = await caches.open(CACHE_NAME)
+\tconst cached = await cache.match(request)
 \tif (cached) return cached
 
 \tconst response = await fetch(request)
 \tif (response.ok) {
-\t\tconst cache = await caches.open(CACHE_NAME)
 \t\tawait cache.put(request, response.clone())
 \t}
 \treturn response
