@@ -24,7 +24,6 @@ import {
 	checkOTPVerifyLimit,
 	checkRateLimit,
 	clearRateLimit,
-	getRateLimitStore,
 } from '@hyperquote/auth/rate-limit'
 import { getServerSession } from '@hyperquote/auth/session'
 import { createServerFn } from '@tanstack/react-start'
@@ -124,8 +123,7 @@ export const requestPhoneChange = createServerFn({ method: 'POST' })
 	.inputValidator(phoneChangeRequestInput)
 	.handler(async ({ data: input }) => {
 		try {
-			const rateLimitStore = await getRateLimitStore()
-			const rateResult = await checkRateLimit(rateLimitStore, {
+			const rateResult = await checkRateLimit({
 				key: `phoneChange:${input.phone}`,
 				limit: 3,
 				windowSeconds: 60,
@@ -193,8 +191,7 @@ export const verifyPhoneChange = createServerFn({ method: 'POST' })
 	.inputValidator(phoneChangeVerifyInput)
 	.handler(async ({ data: input }) => {
 		try {
-			const rateLimitStore = await getRateLimitStore()
-			const rateResult = await checkOTPVerifyLimit(rateLimitStore, input.phone)
+			const rateResult = await checkOTPVerifyLimit(input.phone)
 
 			if (!rateResult.allowed) {
 				return {
@@ -268,7 +265,7 @@ export const verifyPhoneChange = createServerFn({ method: 'POST' })
 			}
 
 			appendContextAuthCookies(context)
-			await clearRateLimit(rateLimitStore, `verify:${input.phone}`)
+			await clearRateLimit(`verify:${input.phone}`)
 
 			return { success: true, phone: formattedPhone }
 		} catch (err) {

@@ -63,6 +63,24 @@ const assertions = [
 			`,
 	},
 	{
+		name: 'service RPC execute privileges for anon/authenticated/public',
+		sql: `
+			select count(*)
+			from pg_proc p
+			join pg_namespace n on n.oid = p.pronamespace
+			cross join lateral aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
+			where n.nspname = 'public'
+			  and left(p.proname, 8) = 'service_'
+			  and acl.privilege_type = 'EXECUTE'
+			  and (
+				acl.grantee = 0
+				or acl.grantee in (
+					select oid from pg_roles where rolname in ('anon', 'authenticated')
+				)
+			  )
+		`,
+	},
+	{
 		name: 'direct CEO search full-refresh cron jobs',
 		sql: `
 			select count(*)

@@ -22,7 +22,6 @@ import {
 	checkOTPVerifyLimit,
 	checkRateLimit,
 	clearRateLimit,
-	getRateLimitStore,
 } from './rate-limit'
 import {
 	appendSetCookieHeaders,
@@ -313,8 +312,7 @@ export function createCustomerAuthServerHandlers({
 
 	const sendOTP = async (input: SendCustomerOtpInput) => {
 		try {
-			const rateLimitStore = await getRateLimitStore()
-			const rateResult = await checkRateLimit(rateLimitStore, {
+			const rateResult = await checkRateLimit({
 				key: `sendOTP:${input.phone}`,
 				limit: 3,
 				windowSeconds: 60,
@@ -353,8 +351,7 @@ export function createCustomerAuthServerHandlers({
 		input: VerifyCustomerOtpInput,
 	): Promise<CustomerOtpVerificationResult> => {
 		try {
-			const rateLimitStore = await getRateLimitStore()
-			const rateResult = await checkOTPVerifyLimit(rateLimitStore, input.phone)
+			const rateResult = await checkOTPVerifyLimit(input.phone)
 
 			if (!rateResult.allowed) {
 				return {
@@ -373,8 +370,7 @@ export function createCustomerAuthServerHandlers({
 				code: input.code,
 				source,
 				appendAuthCookies: () => appendContextAuthCookies(context),
-				clearVerifyLimit: () =>
-					clearRateLimit(rateLimitStore, `verify:${input.phone}`),
+				clearVerifyLimit: () => clearRateLimit(`verify:${input.phone}`),
 				resolveDbClient: createCustomerDataClient,
 				onVerifyError: (error) => logError(events.verifyOtpSupabase, error),
 				onActivityError: (error) => logError(events.activitySupabase, error),

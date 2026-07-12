@@ -1,4 +1,4 @@
-import { checkRateLimit, getRateLimitStore } from '@hyperquote/auth/rate-limit'
+import { checkRateLimit } from '@hyperquote/auth/rate-limit'
 import {
 	createSupabaseServiceRoleClient,
 	resolveSupabaseRuntimeConfig,
@@ -1041,8 +1041,7 @@ function actionButtonEvent(data: WebsiteActionButtonData): WebsiteCustomChunk {
 
 async function checkWebsiteChatRateLimit() {
 	const request = getRequest()
-	const rateLimitStore = await getRateLimitStore()
-	return checkRateLimit(rateLimitStore, {
+	return checkRateLimit({
 		key: websiteChatRateLimitKey(request),
 		limit: CHAT_RATE_LIMIT,
 		windowSeconds: CHAT_RATE_LIMIT_WINDOW_SECONDS,

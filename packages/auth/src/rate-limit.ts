@@ -1,114 +1,106 @@
-import { getInstalledRuntimeEnv } from '@hyperquote/runtime/env'
-
-// Optional key-value backed rate limiting.
-// Key pattern: rate:{action}:{identifier}
-// Local development normally has no store, so callers are allowed through.
+import { createSupabaseServiceRoleClient } from './server'
 
 interface RateLimitStore {
-	get(key: string): Promise<string | null>
-	put(
-		key: string,
-		value: string,
-		options: { expirationTtl: number },
-	): Promise<void>
-	delete(key: string): Promise<void>
+	consume(options: RateLimitOptions): Promise<RateLimitResult>
+	clear(key: string): Promise<void>
 }
 
 interface RateLimitOptions {
-	key: string // e.g., "sendOTP:+201012345678" or "contact:192.168.1.1"
-	limit: number // max attempts in window
-	windowSeconds: number // window duration
+	key: string
+	limit: number
+	windowSeconds: number
+	lockoutSeconds?: number
 }
 
 interface RateLimitResult {
 	allowed: boolean
 	remaining: number
-	retryAfter?: number // seconds until retry allowed
-}
-
-async function getRateLimitStore(): Promise<RateLimitStore | null> {
-	const installedEnv = getInstalledRuntimeEnv()
-	const installedStore = installedEnv?.RATE_LIMIT_STORE
-	return isRateLimitStore(installedStore) ? installedStore : null
-}
-
-function isRateLimitStore(value: unknown): value is RateLimitStore {
-	return (
-		!!value &&
-		typeof value === 'object' &&
-		'get' in value &&
-		'put' in value &&
-		'delete' in value &&
-		typeof value.get === 'function' &&
-		typeof value.put === 'function' &&
-		typeof value.delete === 'function'
-	)
+	retryAfter?: number
 }
 
 export async function checkRateLimit(
-	store: RateLimitStore | null,
 	options: RateLimitOptions,
+	store?: RateLimitStore,
 ): Promise<RateLimitResult> {
-	if (!store) {
-		return { allowed: true, remaining: options.limit }
-	}
-
-	const kvKey = `rate:${options.key}`
-	const current = await store.get(kvKey)
-	const count = current ? parseInt(current, 10) : 0
-
-	if (count >= options.limit) {
-		return { allowed: false, remaining: 0, retryAfter: options.windowSeconds }
-	}
-
-	await store.put(kvKey, String(count + 1), {
-		expirationTtl: options.windowSeconds,
-	})
-	return { allowed: true, remaining: options.limit - count - 1 }
+	return (store ?? (await createDatabaseRateLimitStore())).consume(options)
 }
 
 /**
- * Special handler for OTP verify: 5 attempts per 60s, then 15-minute lockout.
+ * Allow five OTP verification attempts per minute, then lock for 15 minutes.
  */
 export async function checkOTPVerifyLimit(
-	store: RateLimitStore | null,
 	phone: string,
+	store?: RateLimitStore,
 ): Promise<RateLimitResult> {
-	if (!store) {
-		return { allowed: true, remaining: 5 }
+	return checkRateLimit(
+		{
+			key: `verify:${phone}`,
+			limit: 5,
+			lockoutSeconds: 900,
+			windowSeconds: 60,
+		},
+		store,
+	)
+}
+
+export async function clearRateLimit(
+	key: string,
+	store?: RateLimitStore,
+): Promise<void> {
+	await (store ?? (await createDatabaseRateLimitStore())).clear(key)
+}
+
+async function createDatabaseRateLimitStore(): Promise<RateLimitStore> {
+	const client = await createSupabaseServiceRoleClient({})
+	if (!client) throw new Error('Rate limit backend is not configured')
+
+	return {
+		async consume(options) {
+			const { data, error } = await client.rpc(
+				'service_consume_request_rate_limit',
+				{
+					p_key: options.key,
+					p_limit: options.limit,
+					p_lockout_seconds: options.lockoutSeconds ?? 0,
+					p_window_seconds: options.windowSeconds,
+				},
+			)
+			if (error) throw new Error('Rate limit backend request failed')
+
+			const result = parseRateLimitResult(data)
+			if (!result) throw new Error('Rate limit backend returned invalid data')
+			return result
+		},
+		async clear(key) {
+			const { error } = await client.rpc('service_clear_request_rate_limit', {
+				p_key: key,
+			})
+			if (error) throw new Error('Rate limit backend request failed')
+		},
+	}
+}
+
+function parseRateLimitResult(value: unknown): RateLimitResult | null {
+	if (!Array.isArray(value) || value.length !== 1) return null
+	const row = value[0]
+	if (!row || typeof row !== 'object') return null
+	if (
+		!('allowed' in row) ||
+		typeof row.allowed !== 'boolean' ||
+		!('remaining' in row) ||
+		typeof row.remaining !== 'number'
+	) {
+		return null
 	}
 
-	const lockKey = `lock:verify:${phone}`
-	const locked = await store.get(lockKey)
-	if (locked) {
-		return { allowed: false, remaining: 0, retryAfter: 900 } // 15 min
+	const result: RateLimitResult = {
+		allowed: row.allowed,
+		remaining: row.remaining,
 	}
-
-	const result = await checkRateLimit(store, {
-		key: `verify:${phone}`,
-		limit: 5,
-		windowSeconds: 60,
-	})
-
-	// If limit exceeded, set 15-minute lockout
-	if (!result.allowed) {
-		await store.put(lockKey, '1', { expirationTtl: 900 })
-		return { allowed: false, remaining: 0, retryAfter: 900 }
+	if ('retry_after' in row && typeof row.retry_after === 'number') {
+		result.retryAfter = row.retry_after
 	}
-
 	return result
 }
 
-/**
- * Clear rate limit counter on successful verify.
- */
-export async function clearRateLimit(
-	store: RateLimitStore | null,
-	key: string,
-): Promise<void> {
-	if (!store) return
-	await store.delete(`rate:${key}`)
-}
-
 export type { RateLimitOptions, RateLimitResult, RateLimitStore }
-export { getRateLimitStore }

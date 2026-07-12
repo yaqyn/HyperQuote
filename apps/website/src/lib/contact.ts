@@ -1,4 +1,4 @@
-import { checkRateLimit, getRateLimitStore } from '@hyperquote/auth/rate-limit'
+import { checkRateLimit } from '@hyperquote/auth/rate-limit'
 import {
 	appendSetCookieHeaders,
 	createActorServiceRoleClient,
@@ -108,8 +108,7 @@ export const submitContactForm = createServerFn({ method: 'POST' })
 			'unknown'
 
 		// Rate limit: 5 per IP per 60 seconds
-		const rateLimitStore = await getRateLimitStore()
-		const rateCheck = await checkRateLimit(rateLimitStore, {
+		const rateCheck = await checkRateLimit({
 			key: `contact:${ip}`,
 			limit: 5,
 			windowSeconds: 60,

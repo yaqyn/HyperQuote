@@ -8467,6 +8467,23 @@ export type Database = {
 				Args: { p_expected_pending_email: string; p_user_id: string }
 				Returns: boolean
 			}
+			service_clear_request_rate_limit: {
+				Args: { p_key: string }
+				Returns: undefined
+			}
+			service_consume_request_rate_limit: {
+				Args: {
+					p_key: string
+					p_limit: number
+					p_lockout_seconds?: number
+					p_window_seconds: number
+				}
+				Returns: {
+					allowed: boolean
+					remaining: number
+					retry_after: number
+				}[]
+			}
 			service_create_manual_order: {
 				Args: {
 					p_actor_pool: string
