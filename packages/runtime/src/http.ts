@@ -113,7 +113,12 @@ async function prepareBoundedRequest(
 	headers.delete('content-length')
 	return {
 		ok: true,
-		request: new Request(request, { body, headers }),
+		request: new Request(request.url, {
+			body,
+			headers,
+			method: request.method,
+			signal: request.signal,
+		}),
 	}
 }
 

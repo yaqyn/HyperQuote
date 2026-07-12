@@ -112,6 +112,42 @@ describe('worker HTTP boundary', () => {
 		assert.equal(await response.text(), 'accepted')
 	})
 
+	it('accepts request-compatible objects from another runtime', async () => {
+		const nativeRequest = new Request('http://localhost:3001/_serverFn/login', {
+			body: JSON.stringify({ email: 'customer@hyperquote.net' }),
+			headers: {
+				'content-type': 'application/json',
+				cookie: 'hyperquote_customer_auth=stale',
+			},
+			method: 'POST',
+		})
+		// A structural request mirrors TanStack's cross-runtime development request.
+		const crossRuntimeRequest = {
+			body: nativeRequest.body,
+			headers: nativeRequest.headers,
+			method: nativeRequest.method,
+			signal: nativeRequest.signal,
+			url: nativeRequest.url,
+		} as Request
+
+		const response = await handleWorkerHttpRequest(
+			crossRuntimeRequest,
+			async (request) => {
+				assert.equal(
+					request.headers.get('cookie'),
+					'hyperquote_customer_auth=stale',
+				)
+				assert.deepEqual(await request.json(), {
+					email: 'customer@hyperquote.net',
+				})
+				return new Response('accepted')
+			},
+		)
+
+		assert.equal(response.status, 200)
+		assert.equal(await response.text(), 'accepted')
+	})
+
 	it('rejects malformed content lengths', async () => {
 		const response = await handleWorkerHttpRequest(
 			new Request('https://www.hyperquote.net/action', {
