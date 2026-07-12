@@ -12,6 +12,7 @@ import QRCode from 'qrcode'
 import { z } from 'zod'
 import type { OrderDeliveryStatus, OrderStatus } from '../../types/order'
 import { getAuthenticatedPortalCustomer } from './_supabase'
+import { resolveCustomerDocumentUrl } from './document-access'
 import { resolveDriverPlaceName } from './driver-location-place'
 import {
 	firstRelation,
@@ -288,6 +289,7 @@ interface DocumentRow {
 	type: DeliveryDocument['type']
 	title: string
 	download_url: string | null
+	storage_path: string | null
 	created_at: string
 }
 
@@ -921,21 +923,27 @@ async function getOrderDocuments(
 
 	const { data: documents, error } = await supabase
 		.from('documents')
-		.select('id, type, title, download_url, created_at')
+		.select('id, type, title, download_url, storage_path, created_at')
 		.eq('customer_id', customerId)
 		.eq('related_order_ref', orderNumber)
 		.order('created_at', { ascending: false })
 
 	if (error) throw new Error(error.message)
 
-	return ((documents ?? []) as DocumentRow[]).flatMap((document) =>
-		document.download_url
+	const resolved = await Promise.all(
+		((documents ?? []) as DocumentRow[]).map(async (document) => ({
+			document,
+			url: await resolveCustomerDocumentUrl(supabase, customerId, document),
+		})),
+	)
+	return resolved.flatMap(({ document, url }) =>
+		url
 			? [
 					{
 						id: document.id,
 						type: document.type,
 						name: document.title,
-						url: document.download_url,
+						url,
 						createdAt: document.created_at,
 					},
 				]

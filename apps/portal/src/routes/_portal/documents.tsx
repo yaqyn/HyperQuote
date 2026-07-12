@@ -11,7 +11,7 @@ import { DocumentTable } from '../../components/documents/DocumentTable'
 import { FloatingAIButton } from '../../components/windows/FloatingAIButton'
 import { WindowShell } from '../../components/windows/WindowShell'
 import { portalHead } from '../../lib/page-meta'
-import { downloadInvoicePDF, getDocuments } from '../../lib/server/documents'
+import { downloadDocument, getDocuments } from '../../lib/server/documents'
 import type { Document, DocumentType } from '../../types/document'
 
 export const Route = createFileRoute('/_portal/documents')({
@@ -118,16 +118,10 @@ function DocumentsWindow() {
 		fetchDocuments(activeTab, search, newSortBy, newSortDir)
 	}
 
-	function handleView(doc: Document) {
-		if (doc.downloadUrl) {
-			window.open(doc.downloadUrl, '_blank', 'noopener,noreferrer')
-		}
-	}
-
-	async function handleDownload(doc: Document) {
+	async function openDocument(doc: Document) {
 		try {
-			const result = await downloadInvoicePDF({
-				data: { invoiceId: doc.id },
+			const result = await downloadDocument({
+				data: { documentId: doc.id },
 			})
 			if (result.url) {
 				window.open(result.url, '_blank', 'noopener,noreferrer')
@@ -135,6 +129,14 @@ function DocumentsWindow() {
 		} catch {
 			// Keep the document list stable when a download URL cannot be generated.
 		}
+	}
+
+	function handleView(doc: Document) {
+		void openDocument(doc)
+	}
+
+	function handleDownload(doc: Document) {
+		void openDocument(doc)
 	}
 
 	return (

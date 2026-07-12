@@ -3,13 +3,13 @@ import type { getAuthenticatedSupabase } from './_supabase'
 
 export const quoteRequestItemInputSchema = z.object({
 	productId: z.string().uuid().optional(),
-	customerDescription: z.string().min(1),
-	quantity: z.number().positive(),
-	unitOfMeasure: z.string(),
-	unitOfMeasureAr: z.string().optional(),
-	notes: z.string().optional(),
-	sortOrder: z.number(),
-	matchConfidence: z.number().optional(),
+	customerDescription: z.string().trim().min(1).max(500),
+	quantity: z.number().positive().max(1_000_000_000),
+	unitOfMeasure: z.string().trim().min(1).max(80),
+	unitOfMeasureAr: z.string().trim().min(1).max(80).optional(),
+	notes: z.string().max(1000).optional(),
+	sortOrder: z.number().int().min(0).max(99),
+	matchConfidence: z.number().min(0).max(1).optional(),
 	isUnmatched: z.boolean().optional(),
 })
 

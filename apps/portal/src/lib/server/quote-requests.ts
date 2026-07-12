@@ -21,13 +21,16 @@ import {
 
 const quoteRequestDraftInput = z.object({
 	draftId: z.string().uuid().optional(),
-	items: z.array(quoteRequestItemInputSchema).min(1),
+	items: z.array(quoteRequestItemInputSchema).min(1).max(100),
 	deliveryAddressId: z.string().uuid().optional(),
-	deliveryDate: z.string().optional(),
+	deliveryDate: z.iso.date().optional(),
 	name: z.string().max(120).optional(),
-	notes: z.string().optional(),
+	notes: z.string().max(2000).optional(),
 	projectId: z.string().uuid().optional(),
-	attachmentUrls: z.array(z.string()).optional(),
+	attachmentUrls: z
+		.array(z.string().startsWith('storage://quote-attachments/').max(1024))
+		.max(10)
+		.optional(),
 })
 
 const submitQuoteRequestInput = quoteRequestDraftInput.extend({
@@ -36,7 +39,7 @@ const submitQuoteRequestInput = quoteRequestDraftInput.extend({
 
 const saveDraftInput = quoteRequestDraftInput
 const validateQuoteRequestItemsInput = z.object({
-	items: z.array(quoteRequestItemInputSchema),
+	items: z.array(quoteRequestItemInputSchema).max(100),
 })
 
 type PortalCustomerSupabase = Awaited<
@@ -235,6 +238,7 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 			const { data: existing } = await supabase
 				.from('quote_requests')
 				.select('id, request_number, status')
+				.eq('customer_id', customerId)
 				.eq('idempotency_key', input.idempotencyKey)
 				.maybeSingle()
 

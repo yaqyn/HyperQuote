@@ -22,8 +22,6 @@ export interface Document {
 	date: string
 	/** Formatted file size (e.g., "2.4 MB") -- display in readable tabular sans */
 	fileSize: string
-	/** Pre-signed download URL (null if not yet available) */
-	downloadUrl: string | null
 	/** Persisted related order reference */
 	relatedOrderRef: string | null
 }

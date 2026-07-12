@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { getAuthenticatedPortalCustomer } from './_supabase'
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+const MAX_ATTACHMENT_BASE64_LENGTH =
+	Math.ceil(MAX_ATTACHMENT_BYTES / 3) * 4 + 32
 const ALLOWED_ATTACHMENT_TYPES = new Set([
 	'application/pdf',
 	'image/jpeg',
@@ -14,7 +16,7 @@ const uploadQuoteAttachmentInput = z.object({
 	fileName: z.string().min(1).max(180),
 	contentType: z.string().min(1).max(120),
 	size: z.number().int().min(1).max(MAX_ATTACHMENT_BYTES),
-	base64: z.string().min(1),
+	base64: z.string().min(1).max(MAX_ATTACHMENT_BASE64_LENGTH),
 })
 
 export const uploadQuoteAttachment = createServerFn({ method: 'POST' })

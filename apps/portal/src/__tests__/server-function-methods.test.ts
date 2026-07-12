@@ -47,6 +47,10 @@ const mutatingServerFunctions = [
 		exports: ['getDeliverySecret'],
 	},
 	{
+		file: 'lib/server/documents.ts',
+		exports: ['downloadDocument'],
+	},
+	{
 		file: 'lib/server/notifications.ts',
 		exports: ['markNotificationRead', 'markAllNotificationsRead'],
 	},

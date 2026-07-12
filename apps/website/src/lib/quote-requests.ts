@@ -23,7 +23,7 @@ const quoteRequestItemInput = z.object({
 
 const submitWebsiteQuoteInput = z.object({
 	draftId: z.string().uuid().optional(),
-	items: z.array(quoteRequestItemInput).min(1),
+	items: z.array(quoteRequestItemInput).min(1).max(100),
 	name: z.string().max(120).optional(),
 	notes: z.string().max(2000).optional(),
 	idempotencyKey: z.string().uuid(),
@@ -31,13 +31,13 @@ const submitWebsiteQuoteInput = z.object({
 
 const saveWebsiteQuoteDraftInput = z.object({
 	draftId: z.string().uuid().optional(),
-	items: z.array(quoteRequestItemInput).min(1),
+	items: z.array(quoteRequestItemInput).min(1).max(100),
 	name: z.string().max(120).optional(),
 	notes: z.string().max(2000).optional(),
 })
 
 const validateWebsiteQuoteItemsInput = z.object({
-	items: z.array(quoteRequestItemInput),
+	items: z.array(quoteRequestItemInput).max(100),
 })
 
 type QuoteRequestItemInput = z.infer<typeof quoteRequestItemInput>
@@ -431,6 +431,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 				const existing = await auth.client
 					.from('quote_requests')
 					.select('id, request_number, status')
+					.eq('customer_id', auth.customerId)
 					.eq('idempotency_key', input.idempotencyKey)
 					.maybeSingle()
 

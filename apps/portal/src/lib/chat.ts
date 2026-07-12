@@ -336,7 +336,6 @@ interface QuoteRequestRow {
 
 interface DocumentRow {
 	created_at: string
-	download_url: string | null
 	id: string
 	title: string
 	type: string
@@ -3559,15 +3558,13 @@ async function loadOrderDetailContext(
 	if (!order) return { documents: [], order: null }
 	const { data: documents, error } = await supabase
 		.from('documents')
-		.select('id, type, title, download_url, created_at')
+		.select('id, type, title, created_at')
 		.eq('customer_id', customerId)
 		.eq('related_order_ref', order.reference)
 		.order('created_at', { ascending: false })
 	if (error) throw new Error(error.message)
 	return {
-		documents: ((documents ?? []) as DocumentRow[]).filter(
-			(document) => document.download_url,
-		),
+		documents: (documents ?? []) as DocumentRow[],
 		order,
 	}
 }
