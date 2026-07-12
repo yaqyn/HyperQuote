@@ -6,9 +6,11 @@
 	"exports": {
 		".": "./src/env.ts",
 		"./env": "./src/env.ts",
-		"./file": "./src/file.ts"
+		"./file": "./src/file.ts",
+		"./http": "./src/http.ts"
 	},
 	"scripts": {
+		"test": "bun test src/http.test.ts",
 		"typecheck": "tsc --noEmit"
 	}
 }

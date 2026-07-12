@@ -1,4 +1,8 @@
 import { installRuntimeEnv } from '@hyperquote/auth/server'
+import {
+	handleWorkerHttpRequest,
+	LARGE_UPLOAD_MAX_REQUEST_BODY_BYTES,
+} from '@hyperquote/runtime/http'
 import handler from '@tanstack/react-start/server-entry'
 
 export default {
@@ -6,7 +10,13 @@ export default {
 		request: Request,
 		env: Record<string, unknown>,
 	): Promise<Response> {
-		installRuntimeEnv(env)
-		return handler.fetch(request)
+		return handleWorkerHttpRequest(
+			request,
+			(boundedRequest) => {
+				installRuntimeEnv(env)
+				return handler.fetch(boundedRequest)
+			},
+			{ maxRequestBodyBytes: LARGE_UPLOAD_MAX_REQUEST_BODY_BYTES },
+		)
 	},
 }

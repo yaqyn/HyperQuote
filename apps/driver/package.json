@@ -21,6 +21,7 @@
 		"@capacitor/geolocation": "^8.2.0",
 		"@hyperquote/auth": "workspace:*",
 		"@hyperquote/forms": "workspace:*",
+		"@hyperquote/runtime": "workspace:*",
 		"@hyperquote/ui": "workspace:*",
 		"@tanstack/react-query": "^5.100.10",
 		"@tanstack/react-router": "^1.170.8",

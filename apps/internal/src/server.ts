@@ -1,4 +1,5 @@
 import { installRuntimeEnv } from '@hyperquote/auth/server'
+import { handleWorkerHttpRequest } from '@hyperquote/runtime/http'
 import handler from '@tanstack/react-start/server-entry'
 import { handleCloudflareInboundEmail } from './lib/server/support-email-inbound'
 
@@ -16,8 +17,10 @@ export default {
 		request: Request,
 		env: Record<string, unknown>,
 	): Promise<Response> {
-		installRuntimeEnv(env)
-		return handler.fetch(request)
+		return handleWorkerHttpRequest(request, (boundedRequest) => {
+			installRuntimeEnv(env)
+			return handler.fetch(boundedRequest)
+		})
 	},
 	async email(
 		message: ForwardableEmailMessage,
