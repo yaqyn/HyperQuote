@@ -5,6 +5,13 @@ import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
 import { DOC_CATEGORIES, displayName, WIZARDS } from '../../content/registry'
 
+const scrollFadeStyle = {
+	WebkitMaskImage:
+		'linear-gradient(to bottom, transparent 0, black 24px, black calc(100% - 24px), transparent 100%)',
+	maskImage:
+		'linear-gradient(to bottom, transparent 0, black 24px, black calc(100% - 24px), transparent 100%)',
+}
+
 interface DocsSidebarProps {
 	activeCategorySlug?: string
 	activeArticleSlug?: string
@@ -25,74 +32,41 @@ export function DocsSidebar({
 		<nav
 			className={
 				isDrawer
-					? 'w-full'
-					: 'sticky top-24 w-56 shrink-0 self-start overflow-y-auto max-h-[calc(100vh-8rem)]'
+					? 'flex h-full w-full flex-col'
+					: 'sticky top-24 flex h-[calc(100vh-8rem)] w-56 shrink-0 flex-col self-start'
 			}
 		>
-			<div className={isDrawer ? 'space-y-6 pb-6' : 'space-y-8'}>
-				{/* Guides section */}
-				<div>
-					<div className="flex items-baseline gap-2.5 mb-3">
-						<span className="font-[family-name:var(--font-mono)] text-[11px] text-[var(--color-text-subtle)]">
-							00
-						</span>
-						<span className="text-[11px] font-semibold uppercase tracking-normal text-[var(--color-text-subtle)]">
-							{t('docs.guides', { defaultValue: 'Guides' })}
-						</span>
-					</div>
-					<ul className="space-y-0.5">
-						{WIZARDS.map((w) => {
-							const isActive = activeGuideSlug === w.slug
-							return (
-								<li key={w.slug}>
-									<Link
-										to="/docs/guide/$guideSlug"
-										params={{ guideSlug: w.slug }}
-										className={`relative block w-full text-start text-[14px] py-2 ps-4 transition-colors duration-150 ${
-											isActive
-												? 'text-[var(--color-text)] font-medium'
-												: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-										}`}
-									>
-										<span
-											className={`absolute start-0 top-1/2 -translate-y-1/2 h-4 w-px transition-all duration-200 ${
-												isActive
-													? 'bg-[var(--color-primary)] opacity-100'
-													: 'bg-[var(--color-border)] opacity-0'
-											}`}
-										/>
-										{t(w.titleKey, { defaultValue: displayName(w.titleKey) })}
-									</Link>
-								</li>
-							)
-						})}
-					</ul>
-				</div>
+			<Link
+				to="/docs"
+				className="mb-1 inline-flex w-fit shrink-0 items-center gap-2 py-2 text-[13px] font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+			>
+				<ArrowLeft size={14} className="icon-end" />
+				{t('docs.backToDocs', { defaultValue: 'Back to docs' })}
+			</Link>
 
-				{/* Doc categories */}
-				{DOC_CATEGORIES.map((cat, catIdx) => (
-					<div key={cat.slug}>
+			<div
+				className="min-h-0 flex-1 overflow-y-auto pe-2"
+				style={scrollFadeStyle}
+			>
+				<div className={isDrawer ? 'space-y-6 py-6' : 'space-y-8 py-6'}>
+					{/* Guides section */}
+					<div>
 						<div className="flex items-baseline gap-2.5 mb-3">
 							<span className="font-[family-name:var(--font-mono)] text-[11px] text-[var(--color-text-subtle)]">
-								{String(catIdx + 1).padStart(2, '0')}
+								00
 							</span>
 							<span className="text-[11px] font-semibold uppercase tracking-normal text-[var(--color-text-subtle)]">
-								{t(cat.titleKey, { defaultValue: displayName(cat.titleKey) })}
+								{t('docs.guides', { defaultValue: 'Guides' })}
 							</span>
 						</div>
 						<ul className="space-y-0.5">
-							{cat.articles.map((article) => {
-								const isActive =
-									activeCategorySlug === cat.slug &&
-									activeArticleSlug === article.slug
+							{WIZARDS.map((w) => {
+								const isActive = activeGuideSlug === w.slug
 								return (
-									<li key={article.slug}>
+									<li key={w.slug}>
 										<Link
-											to="/docs/$categorySlug/$articleSlug"
-											params={{
-												categorySlug: cat.slug,
-												articleSlug: article.slug,
-											}}
+											to="/docs/guide/$guideSlug"
+											params={{ guideSlug: w.slug }}
 											className={`relative block w-full text-start text-[14px] py-2 ps-4 transition-colors duration-150 ${
 												isActive
 													? 'text-[var(--color-text)] font-medium'
@@ -106,16 +80,62 @@ export function DocsSidebar({
 														: 'bg-[var(--color-border)] opacity-0'
 												}`}
 											/>
-											{t(article.titleKey, {
-												defaultValue: displayName(article.titleKey),
-											})}
+											{t(w.titleKey, { defaultValue: displayName(w.titleKey) })}
 										</Link>
 									</li>
 								)
 							})}
 						</ul>
 					</div>
-				))}
+
+					{/* Doc categories */}
+					{DOC_CATEGORIES.map((cat, catIdx) => (
+						<div key={cat.slug}>
+							<div className="flex items-baseline gap-2.5 mb-3">
+								<span className="font-[family-name:var(--font-mono)] text-[11px] text-[var(--color-text-subtle)]">
+									{String(catIdx + 1).padStart(2, '0')}
+								</span>
+								<span className="text-[11px] font-semibold uppercase tracking-normal text-[var(--color-text-subtle)]">
+									{t(cat.titleKey, { defaultValue: displayName(cat.titleKey) })}
+								</span>
+							</div>
+							<ul className="space-y-0.5">
+								{cat.articles.map((article) => {
+									const isActive =
+										activeCategorySlug === cat.slug &&
+										activeArticleSlug === article.slug
+									return (
+										<li key={article.slug}>
+											<Link
+												to="/docs/$categorySlug/$articleSlug"
+												params={{
+													categorySlug: cat.slug,
+													articleSlug: article.slug,
+												}}
+												className={`relative block w-full text-start text-[14px] py-2 ps-4 transition-colors duration-150 ${
+													isActive
+														? 'text-[var(--color-text)] font-medium'
+														: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+												}`}
+											>
+												<span
+													className={`absolute start-0 top-1/2 -translate-y-1/2 h-4 w-px transition-all duration-200 ${
+														isActive
+															? 'bg-[var(--color-primary)] opacity-100'
+															: 'bg-[var(--color-border)] opacity-0'
+													}`}
+												/>
+												{t(article.titleKey, {
+													defaultValue: displayName(article.titleKey),
+												})}
+											</Link>
+										</li>
+									)
+								})}
+							</ul>
+						</div>
+					))}
+				</div>
 			</div>
 		</nav>
 	)
@@ -162,7 +182,7 @@ export function DocsMobileSidebar({
 							{t('docs.browseAll')}
 						</p>
 					</div>
-					<div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">
+					<div className="min-h-0 flex-1 px-4 py-5 sm:px-6">
 						<DocsSidebar
 							activeCategorySlug={activeCategorySlug}
 							activeArticleSlug={activeArticleSlug}
