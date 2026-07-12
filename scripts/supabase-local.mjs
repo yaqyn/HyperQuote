@@ -80,6 +80,8 @@ function maybeRelaunchWithInfisical() {
 		'infisical',
 		[
 			'run',
+			'--silent',
+			'--log-level=error',
 			'--env=dev',
 			`--path=${HYPERQUOTE_INFISICAL_PATH}`,
 			'--recursive',

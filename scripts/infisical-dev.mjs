@@ -46,6 +46,8 @@ export function requireInfisicalReady(label) {
 export function infisicalDevRunArgs(commandArgs) {
 	return [
 		'run',
+		'--silent',
+		'--log-level=error',
 		`--env=${INFISICAL_DEV_ENV}`,
 		`--path=${HYPERQUOTE_INFISICAL_PATH}`,
 		'--recursive',

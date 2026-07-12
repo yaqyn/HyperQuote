@@ -22,6 +22,8 @@ if (shouldLoadInfisical()) {
 		'infisical',
 		[
 			'run',
+			'--silent',
+			'--log-level=error',
 			'--env=dev',
 			`--path=${HYPERQUOTE_INFISICAL_PATH}`,
 			'--recursive',

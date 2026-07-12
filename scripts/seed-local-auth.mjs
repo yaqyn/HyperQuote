@@ -204,6 +204,9 @@ const production = process.argv.includes('--production')
 const primaryOnly = process.argv.includes('--primary-only')
 const cleanAuth = process.argv.includes('--clean-auth')
 const skipSearchRefresh = process.argv.includes('--skip-search-refresh')
+const preserveExistingPasswords = process.argv.includes(
+	'--preserve-existing-passwords',
+)
 
 main().catch((error) => {
 	console.error(
@@ -439,7 +442,7 @@ async function upsertAuthUser(
 	}
 
 	if (existing) {
-		payload.password = password
+		if (!preserveExistingPasswords) payload.password = password
 		const { data, error } = await supabase.auth.admin.updateUserById(
 			existing.id,
 			payload,

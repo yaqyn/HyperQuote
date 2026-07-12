@@ -9,6 +9,8 @@
 	],
 	"scripts": {
 		"dev": "node scripts/dev-smart.mjs",
+		"dev:doctor": "node scripts/dev-smart.mjs --doctor --no-update",
+		"dev:tools:update": "node scripts/update-dev-tools.mjs --force",
 		"build": "turbo build",
 		"build:workers": "bunx turbo run build:worker --force",
 		"test": "turbo test",

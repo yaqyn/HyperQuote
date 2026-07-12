@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from 'node:child_process'
-import { writeFileSync } from 'node:fs'
+import { rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import process from 'node:process'
+import { createInterface } from 'node:readline'
 import {
 	INFISICAL_DEV_SENTINEL,
 	infisicalDevRunArgs,
@@ -15,6 +16,8 @@ const DEFAULT_GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const LOCAL_AI_PROXY_KEY = 'local-groq-proxy'
 const SUPABASE_READY_TIMEOUT_MS = 90_000
 const SUPABASE_READY_INTERVAL_MS = 1_000
+const APP_READY_TIMEOUT_MS = 30_000
+const useColor = Boolean(process.stdout.isTTY && !process.env.NO_COLOR)
 
 const APPS = [
 	{
@@ -99,9 +102,11 @@ async function main() {
 		process.exit(1)
 	}
 
-	const seeded = spawnSync('node', ['scripts/seed-local-auth.mjs', '--quiet'], {
-		stdio: 'inherit',
-	})
+	const seeded = spawnSync(
+		'node',
+		['scripts/seed-local-auth.mjs', '--preserve-existing-passwords', '--quiet'],
+		{ stdio: 'inherit' },
+	)
 	if (seeded.status !== 0) process.exit(seeded.status ?? 1)
 	const aiProxy = await startLocalAiProxy()
 
@@ -125,19 +130,16 @@ async function main() {
 		aiProxy,
 	)
 
-	console.log('Local Supabase is available.')
-	console.log(`API: ${localEnv.API_URL}`)
-	if (localEnv.STUDIO_URL) console.log(`Studio: ${localEnv.STUDIO_URL}`)
+	renderRuntimeHeader(localEnv, aiProxy)
 	if (!hasConfiguredTwilioVerifyEnv(process.env)) {
 		console.log(
 			'Twilio Verify credentials are missing; real phone OTP delivery is disabled for this local run.',
 		)
 	}
-	if (aiProxy) console.log('Local AI proxy is available.')
-	for (const app of APPS) console.log(`${app.name}: ${app.url}`)
 
 	let shuttingDown = false
 	const children = []
+	let teardownControls = () => undefined
 	for (const app of APPS) {
 		const appEnv = {
 			...baseEnv,
@@ -147,7 +149,15 @@ async function main() {
 		const child = spawn('bun', ['run', 'dev'], {
 			cwd: app.cwd,
 			env: appEnv,
-			stdio: 'inherit',
+			stdio: ['ignore', 'pipe', 'pipe'],
+		})
+		pipeAppLogs(child.stdout, app.name, false, () => shuttingDown)
+		pipeAppLogs(child.stderr, app.name, true, () => shuttingDown)
+		child.on('error', (error) => {
+			if (!shuttingDown) {
+				console.error(`[${app.name}] could not start: ${error.message}`)
+				shutdown(1)
+			}
 		})
 		child.on('exit', (code, signal) => {
 			if (shuttingDown) return
@@ -157,11 +167,16 @@ async function main() {
 			shutdown(code ?? 1)
 		})
 		children.push(child)
+		void reportAppReady(app)
 		await sleep(750)
 	}
+	teardownControls = setupTerminalControls(shutdown, localEnv, aiProxy)
+	renderControls()
 
 	function shutdown(exitCode = 0) {
+		if (shuttingDown) return
 		shuttingDown = true
+		teardownControls()
 		for (const child of children) {
 			if (!child.killed) child.kill('SIGTERM')
 		}
@@ -178,9 +193,144 @@ function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function writeLocalAppEnv(runtimeEnv = {}, aiProxy = null) {
+function pipeAppLogs(stream, appName, isError, isShuttingDown) {
+	if (!stream) return
+	const reader = createInterface({ input: stream })
+	reader.on('line', (line) => {
+		if (!line.trim() || isShuttingDown()) return
+		const prefix = appLogPrefix(appName)
+		const output = `${prefix} ${line}`
+		if (isError) console.error(output)
+		else console.log(output)
+	})
+}
+
+async function reportAppReady(app) {
+	const deadline = Date.now() + APP_READY_TIMEOUT_MS
+	while (Date.now() < deadline) {
+		try {
+			const response = await fetch(app.url, { redirect: 'manual' })
+			if (response.status > 0 && response.status < 500) {
+				console.log(
+					`${appLogPrefix(app.name)} ${paint('32', 'READY')} ${app.url}`,
+				)
+				return
+			}
+		} catch {
+			// The app is still starting.
+		}
+		await sleep(500)
+	}
+	console.warn(
+		`${appLogPrefix(app.name)} did not become reachable within 30 seconds.`,
+	)
+}
+
+function setupTerminalControls(shutdown, localEnv, aiProxy) {
+	if (!process.stdin.isTTY || typeof process.stdin.setRawMode !== 'function') {
+		return () => undefined
+	}
+
+	process.stdin.setRawMode(true)
+	process.stdin.resume()
+	const onData = (chunk) => {
+		const key = chunk.toString().toLowerCase()
+		if (key === 'q' || key === '\u0003') {
+			shutdown(0)
+			return
+		}
+		if (key === 'c') {
+			process.stdout.write('\u001b[2J\u001b[H')
+			renderRuntimeHeader(localEnv, aiProxy)
+			renderControls()
+			return
+		}
+		const appIndex = Number(key) - 1
+		if (Number.isInteger(appIndex) && APPS[appIndex]) {
+			openUrl(APPS[appIndex].url)
+			return
+		}
+		if (key === 's') openUrl('http://localhost:54323')
+	}
+	process.stdin.on('data', onData)
+
+	return () => {
+		process.stdin.off('data', onData)
+		if (process.stdin.isTTY) {
+			try {
+				process.stdin.setRawMode(false)
+			} catch {
+				// The terminal may already be detached during process shutdown.
+			}
+		}
+		process.stdin.pause()
+	}
+}
+
+function openUrl(url) {
+	const opener = spawn('xdg-open', [url], {
+		detached: true,
+		stdio: 'ignore',
+	})
+	opener.on('error', () => {
+		console.warn(`Could not open ${url}.`)
+	})
+	opener.unref()
+}
+
+function renderRuntimeHeader(localEnv, aiProxy) {
+	const rule = paint(
+		'2',
+		'----------------------------------------------------------------',
+	)
+	console.log('')
+	console.log(rule)
+	console.log(`${paint('38;2;37;99;235', 'HYPERQUOTE DEV')}  Dev. by qvOS`)
+	console.log(rule)
+	if (localEnv) {
+		console.log(`Backend  ${localEnv.API_URL}`)
+		if (localEnv.STUDIO_URL) console.log(`Studio   ${localEnv.STUDIO_URL}`)
+		console.log(
+			`AI       ${aiProxy ? paint('32', 'READY') : paint('33', 'DISABLED')}`,
+		)
+	}
+	for (const [index, app] of APPS.entries()) {
+		console.log(`${index + 1}        ${app.name.padEnd(9)} ${app.url}`)
+	}
+	console.log(rule)
+}
+
+function renderControls() {
+	if (!process.stdin.isTTY) return
+	console.log(
+		paint('2', 'Controls  [1-4] open app  [s] Studio  [c] clear  [q] stop'),
+	)
+}
+
+function appLogPrefix(appName) {
+	const colors = {
+		website: '36',
+		portal: '38;2;37;99;235',
+		internal: '35',
+		driver: '33',
+	}
+	return paint(colors[appName] ?? '37', `[${appName.padEnd(8)}]`)
+}
+
+function paint(code, value) {
+	return useColor ? `\u001b[${code}m${value}\u001b[0m` : value
+}
+
+function writeLocalAppEnv(runtimeEnv = null, aiProxy = null) {
 	const serverApps = APPS.filter((app) => app.name !== 'driver')
 	for (const app of serverApps) {
+		const legacyDevVarsPath = `${app.cwd}/.dev.vars`
+		const localEnvPath = `${app.cwd}/.env.local`
+		rmSync(legacyDevVarsPath, { force: true })
+		if (!runtimeEnv) {
+			rmSync(localEnvPath, { force: true })
+			continue
+		}
 		const next = {
 			...localAppAiEnv(aiProxy),
 			SUPABASE_ANON_KEY: 'placeholder',
@@ -194,7 +344,7 @@ function writeLocalAppEnv(runtimeEnv = {}, aiProxy = null) {
 			VITE_SUPABASE_COOKIE_NAME: app.cookieName,
 		}
 		writeFileSync(
-			`${app.cwd}/.dev.vars`,
+			localEnvPath,
 			`${Object.entries(next)
 				.map(([key, value]) => `${key}=${quoteEnvValue(value)}`)
 				.join('\n')}\n`,

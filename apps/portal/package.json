@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "NODE_OPTIONS=--max-http-header-size=32768 node ../../scripts/with-dev-secrets.mjs vite dev --port 3001",
+		"dev": "NODE_OPTIONS='--max-http-header-size=32768 --no-experimental-webstorage' node ../../scripts/with-dev-secrets.mjs vite dev --port 3001",
 		"build": "vite build",
 		"build:worker": "node ../../scripts/build-worker.mjs portal",
 		"cf-typegen": "wrangler types",
@@ -12,7 +12,7 @@
 		"routes:generate": "tsr generate",
 		"typecheck": "bun run routes:generate && tsc --noEmit",
 		"preview": "vite preview",
-		"test": "vitest run"
+		"test": "NODE_OPTIONS=--localstorage-file=/tmp/hyperquote-portal-vitest-localstorage vitest run"
 	},
 	"dependencies": {
 		"@hyperquote/ai": "workspace:*",

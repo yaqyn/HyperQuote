@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from 'node:child_process'
+import { readFileSync, realpathSync } from 'node:fs'
 import { connect } from 'node:net'
+import { dirname, join } from 'node:path'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 import {
 	INFISICAL_DEV_SENTINEL,
 	infisicalDevRunArgs,
@@ -9,61 +12,118 @@ import {
 	skipInfisical,
 } from './infisical-dev.mjs'
 
+const repoRoot = realpathSync(
+	join(dirname(fileURLToPath(import.meta.url)), '..'),
+)
 const SUPABASE_READY_TIMEOUT_MS = 90_000
 const SUPABASE_READY_INTERVAL_MS = 1_000
+const OWNED_PORT_SHUTDOWN_TIMEOUT_MS = 8_000
+const DEV_UI_SENTINEL = 'HYPERQUOTE_DEV_UI_RENDERED'
+const doctorOnly = process.argv.includes('--doctor')
+const skipToolUpdates = process.argv.includes('--no-update')
+const useColor = Boolean(process.stdout.isTTY && !process.env.NO_COLOR)
+
 const APP_PORTS = [
-	{ name: 'website', port: 3000, url: 'http://localhost:3000' },
-	{ name: 'portal', port: 3001, url: 'http://localhost:3001' },
-	{ name: 'internal', port: 3002, url: 'http://localhost:3002' },
-	{ name: 'driver', port: 3003, url: 'http://localhost:3003' },
+	{ name: 'Website', port: 3000, url: 'http://localhost:3000' },
+	{ name: 'Portal', port: 3001, url: 'http://localhost:3001' },
+	{ name: 'Internal', port: 3002, url: 'http://localhost:3002' },
+	{ name: 'Driver', port: 3003, url: 'http://localhost:3003' },
 ]
+
+const color = {
+	accent: (value) => paint('38;2;37;99;235', value),
+	dim: (value) => paint('2', value),
+	error: (value) => paint('31', value),
+	success: (value) => paint('32', value),
+	warning: (value) => paint('33', value),
+}
 
 main().catch((error) => {
 	fail(error instanceof Error ? error.message : String(error))
 })
 
 async function main() {
-	log('HyperQuote local dev launcher')
-	log('Checking required CLIs...')
-	requireCommand('bun', 'Install Bun, then run this again.')
-	requireCommand('node', 'Node is required by the repo scripts.')
-	requireCommand('supabase', 'Install Supabase CLI, then run this again.')
+	if (!process.env[DEV_UI_SENTINEL]) {
+		renderBanner()
+		status('Runtime', 'CHECK', 'validating Bun and Node')
+	}
+	requireCommand('bun', 'Install the repo-pinned Bun runtime, then retry.')
+	requireCommand('node', 'Node is required by the repository scripts.')
+
+	if (!process.env[INFISICAL_DEV_SENTINEL] && !skipToolUpdates) {
+		status('Dev tools', 'CHECK', 'official GitHub releases, at most daily')
+		const updated = spawnSync(
+			process.execPath,
+			['scripts/update-dev-tools.mjs', '--quiet'],
+			{ cwd: repoRoot, stdio: 'inherit' },
+		)
+		if (updated.status !== 0) {
+			warn(
+				'Automatic CLI update check failed; continuing with installed tools.',
+			)
+		} else {
+			status('Dev tools', 'OK', 'integrity-checked')
+		}
+	}
 
 	if (!skipInfisical()) {
 		loadInfisicalDevSecrets()
 	} else {
-		warn('Skipping Infisical because HYPERQUOTE_SKIP_INFISICAL is set.')
+		warn('Infisical loading is disabled by HYPERQUOTE_SKIP_INFISICAL.')
 	}
 
-	const busyPorts = await busyAppPorts()
+	requireCommand('supabase', 'Run `bun run dev:tools:update`, then retry.')
+	if (!skipInfisical()) {
+		requireCommand('infisical', 'Run `bun run dev:tools:update`, then retry.')
+	}
+
+	ensureWorkspaceDependencies()
+	await ensureSupabase()
+	ensureLocalMigrations()
+
+	let busyPorts = await busyAppPorts()
 	if (busyPorts.length === APP_PORTS.length) {
-		log('HyperQuote dev stack already appears to be running.')
-		log('URLs:')
-		for (const app of APP_PORTS) log(`  ${app.name.padEnd(8)} ${app.url}`)
-		log(
-			'Use the existing browser tabs, or press Ctrl+C in the terminal running dev before starting a fresh stack.',
-		)
+		assertOwnedListeners(busyPorts)
+		const unhealthyApps = await unhealthyAppPorts()
+		if (unhealthyApps.length === 0) {
+			status('Application stack', 'READY', 'already running and healthy')
+			renderUrls()
+			return
+		}
+		if (doctorOnly) {
+			fail(
+				`Unhealthy app responses: ${unhealthyApps.map((app) => app.name).join(', ')}.`,
+			)
+		} else {
+			await recoverOwnedListeners(busyPorts)
+			busyPorts = []
+		}
+	}
+
+	if (busyPorts.length > 0) {
+		if (doctorOnly) {
+			fail(
+				`Partial app stack detected on ${busyPorts.map((app) => app.port).join(', ')}.`,
+			)
+		} else {
+			await recoverOwnedListeners(busyPorts)
+		}
+	}
+
+	if (doctorOnly) {
+		status('Doctor', 'OK', 'workspace is ready for local development')
+		renderUrls()
 		return
 	}
-	if (busyPorts.length > 0) {
-		fail(
-			[
-				'Some app ports are already in use:',
-				...busyPorts.map((app) => `  ${app.name}: ${app.url}`),
-				'Stop the process using those ports, then run `bun run dev` again.',
-			].join('\n'),
-		)
-	}
-	await ensureSupabase()
 
-	log('Starting apps. Leave this terminal open; press Ctrl+C to stop.')
-	log('URLs:')
-	for (const app of APP_PORTS) log(`  ${app.name.padEnd(8)} ${app.url}`)
-	log('Supabase Studio: http://localhost:54323')
-
+	status('Application stack', 'START', 'launching four isolated app servers')
 	const child = spawn(process.execPath, ['scripts/dev-local.mjs'], {
+		cwd: repoRoot,
 		stdio: 'inherit',
 	})
+	child.on('error', (error) =>
+		fail(`Could not launch app stack: ${error.message}`),
+	)
 	child.on('exit', (code, signal) => {
 		if (signal) process.kill(process.pid, signal)
 		process.exit(code ?? 0)
@@ -72,25 +132,160 @@ async function main() {
 
 function loadInfisicalDevSecrets() {
 	if (process.env[INFISICAL_DEV_SENTINEL]) {
-		log('Infisical dev secrets are loaded.')
+		status('Secrets', 'OK', 'Infisical dev /Projects/HyperQuote')
 		return
 	}
 
-	log('Checking Infisical dev login...')
+	status('Secrets', 'CHECK', 'authenticated Infisical session')
 	requireInfisicalReady('HyperQuote dev secrets')
-	log('Loading HyperQuote dev secrets from Infisical...')
 	const relaunched = spawnSync(
 		'infisical',
 		infisicalDevRunArgs([process.execPath, ...process.argv.slice(1)]),
 		{
+			cwd: repoRoot,
 			env: {
 				...process.env,
+				[DEV_UI_SENTINEL]: '1',
 				[INFISICAL_DEV_SENTINEL]: '1',
 			},
 			stdio: 'inherit',
 		},
 	)
 	process.exit(relaunched.status ?? 1)
+}
+
+function ensureWorkspaceDependencies() {
+	status('Dependencies', 'REPAIR', 'synchronizing the committed bun.lock')
+	const result = spawnSync('bun', ['install', '--frozen-lockfile'], {
+		cwd: repoRoot,
+		encoding: 'utf8',
+		stdio: ['ignore', 'pipe', 'pipe'],
+	})
+	if (result.status !== 0) {
+		failWithOutput(
+			'Committed dependencies could not be restored.',
+			result.stderr || result.stdout,
+		)
+	}
+	status('Dependencies', 'OK', 'lockfile-consistent')
+}
+
+async function ensureSupabase() {
+	status('Local backend', 'CHECK', 'Supabase services')
+	if (readLocalSupabaseEnv()) {
+		status('Local backend', 'OK', 'Supabase is healthy')
+		return
+	}
+
+	status('Local backend', 'START', 'starting Supabase containers')
+	const started = spawnSync('bun', ['run', 'db:start'], {
+		cwd: repoRoot,
+		encoding: 'utf8',
+		stdio: ['ignore', 'pipe', 'pipe'],
+	})
+	if (started.status !== 0 && !(await waitForLocalSupabaseEnv())) {
+		failWithOutput(
+			'Could not start local Supabase. Confirm Docker is running.',
+			started.stderr || started.stdout,
+		)
+	}
+
+	if (!(await waitForLocalSupabaseEnv())) {
+		fail('Supabase started, but its local API credentials are unavailable.')
+	}
+	status('Local backend', 'OK', 'Supabase is healthy')
+}
+
+function ensureLocalMigrations() {
+	status('Database', 'CHECK', 'applying pending local migrations')
+	const result = spawnSync('bun', ['run', 'db:migrate'], {
+		cwd: repoRoot,
+		encoding: 'utf8',
+		stdio: ['ignore', 'pipe', 'pipe'],
+	})
+	if (result.status !== 0) {
+		failWithOutput(
+			'Local database migrations could not be applied.',
+			result.stderr || result.stdout,
+		)
+	}
+	status('Database', 'OK', 'migration history is current')
+}
+
+async function recoverOwnedListeners(busyPorts) {
+	const pids = assertOwnedListeners(busyPorts)
+	status(
+		'Application stack',
+		'REPAIR',
+		`stopping partial HyperQuote stack on ${busyPorts.map((app) => app.port).join(', ')}`,
+	)
+	for (const pid of pids) {
+		try {
+			process.kill(pid, 'SIGTERM')
+		} catch (error) {
+			if (error?.code !== 'ESRCH') throw error
+		}
+	}
+
+	const deadline = Date.now() + OWNED_PORT_SHUTDOWN_TIMEOUT_MS
+	while (Date.now() < deadline) {
+		if ((await busyAppPorts()).length === 0) {
+			status('Application stack', 'OK', 'stale listeners recovered')
+			return
+		}
+		await sleep(250)
+	}
+	fail(
+		'HyperQuote-owned dev listeners did not stop cleanly. Stop the existing terminal and retry.',
+	)
+}
+
+function assertOwnedListeners(apps) {
+	const pids = new Set()
+	for (const app of apps) {
+		const listeners = listenerPids(app.port)
+		if (
+			listeners.length === 0 ||
+			listeners.some((pid) => !isOwnedDevPid(pid))
+		) {
+			fail(
+				`Port ${app.port} is owned by another process. It was left untouched for safety.`,
+			)
+		}
+		for (const pid of listeners) pids.add(pid)
+	}
+	return [...pids]
+}
+
+function listenerPids(port) {
+	const result = spawnSync(
+		'lsof',
+		['-nP', '-t', `-iTCP:${port}`, '-sTCP:LISTEN'],
+		{ encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+	)
+	if (result.status !== 0 && result.status !== 1) {
+		fail('lsof is required to recover occupied local development ports safely.')
+	}
+	return result.stdout
+		.split('\n')
+		.map((value) => Number(value.trim()))
+		.filter((value) => Number.isSafeInteger(value) && value > 1)
+}
+
+function isOwnedDevPid(pid) {
+	try {
+		const cwd = realpathSync(`/proc/${pid}/cwd`)
+		const command = readFileSync(`/proc/${pid}/cmdline`, 'utf8').replaceAll(
+			'\0',
+			' ',
+		)
+		return (
+			(cwd === repoRoot || cwd.startsWith(`${repoRoot}/`)) &&
+			/\b(?:bun|node|vite)\b/i.test(command)
+		)
+	} catch {
+		return false
+	}
 }
 
 function requireCommand(command, hint) {
@@ -100,46 +295,6 @@ function requireCommand(command, hint) {
 	})
 	if (result.status === 0) return
 	fail(`Missing required command: ${command}\n${hint}`)
-}
-
-async function ensureSupabase() {
-	log('Checking local Supabase...')
-	if (readLocalSupabaseEnv()) {
-		log('Local Supabase is already running.')
-		return
-	}
-
-	log('Starting local Supabase with repo script...')
-	const started = spawnSync('bun', ['run', 'db:start'], {
-		stdio: 'inherit',
-	})
-	if (started.status !== 0) {
-		warn(
-			'Supabase start returned non-zero; waiting for local Supabase readiness before failing.',
-		)
-		if (await waitForLocalSupabaseEnv()) {
-			log('Local Supabase is ready.')
-			return
-		}
-		fail(
-			[
-				'Could not start local Supabase.',
-				'Try `bun run db:start` to inspect the full Supabase output.',
-				'If Docker is stopped, start Docker and retry.',
-			].join('\n'),
-		)
-	}
-
-	if (await waitForLocalSupabaseEnv()) {
-		log('Local Supabase is ready.')
-		return
-	}
-	fail(
-		[
-			'Supabase start finished, but local API keys were not readable.',
-			'Run `supabase status -o env` and check for API_URL, ANON_KEY, and SERVICE_ROLE_KEY.',
-		].join('\n'),
-	)
 }
 
 async function waitForLocalSupabaseEnv() {
@@ -154,6 +309,7 @@ async function waitForLocalSupabaseEnv() {
 
 function readLocalSupabaseEnv() {
 	const result = spawnSync('supabase', ['status', '-o', 'env'], {
+		cwd: repoRoot,
 		encoding: 'utf8',
 		stdio: ['ignore', 'pipe', 'ignore'],
 	})
@@ -178,16 +334,31 @@ function stripEnvQuotes(value) {
 	return value
 }
 
-function sleep(ms) {
-	return new Promise((resolve) => setTimeout(resolve, ms))
+async function busyAppPorts() {
+	const checks = await Promise.all(
+		APP_PORTS.map(async (app) => ({
+			...app,
+			busy: await isPortOpen(app.port),
+		})),
+	)
+	return checks.filter((app) => app.busy)
 }
 
-async function busyAppPorts() {
-	const busy = []
-	for (const app of APP_PORTS) {
-		if (await isPortOpen(app.port)) busy.push(app)
-	}
-	return busy
+async function unhealthyAppPorts() {
+	const checks = await Promise.all(
+		APP_PORTS.map(async (app) => {
+			try {
+				const response = await fetch(app.url, {
+					redirect: 'manual',
+					signal: AbortSignal.timeout(3_000),
+				})
+				return response.status >= 500 ? app : null
+			} catch {
+				return app
+			}
+		}),
+	)
+	return checks.filter(Boolean)
 }
 
 function isPortOpen(port) {
@@ -213,15 +384,64 @@ function isHostPortOpen(host, port) {
 	})
 }
 
-function log(message) {
-	console.log(`dev: ${message}`)
+function renderBanner() {
+	const rule = color.dim(
+		'----------------------------------------------------------------',
+	)
+	console.log('')
+	console.log(rule)
+	console.log(
+		`${color.accent('HYPERQUOTE')}  ${color.dim('/')}  LOCAL DEVELOPMENT`,
+	)
+	console.log(`${color.dim('Secure workspace orchestration')}  Dev. by qvOS`)
+	console.log(rule)
+}
+
+function renderUrls() {
+	console.log('')
+	for (const app of APP_PORTS) {
+		console.log(`  ${color.dim(app.name.padEnd(10))} ${color.accent(app.url)}`)
+	}
+	console.log(
+		`  ${color.dim('Studio'.padEnd(10))} ${color.accent('http://localhost:54323')}`,
+	)
+	console.log('')
+}
+
+function status(label, state, detail) {
+	const stateColor =
+		state === 'OK' || state === 'READY'
+			? color.success
+			: state === 'REPAIR'
+				? color.warning
+				: color.accent
+	console.log(
+		`${color.dim(label.padEnd(19))} ${stateColor(state.padEnd(6))} ${detail}`,
+	)
+}
+
+function sleep(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function paint(code, value) {
+	return useColor ? `\u001b[${code}m${value}\u001b[0m` : value
 }
 
 function warn(message) {
-	console.warn(`dev warning: ${message}`)
+	console.warn(`${color.warning('WARN')}  ${message}`)
+}
+
+function failWithOutput(message, output) {
+	const details = String(output ?? '')
+		.trim()
+		.split('\n')
+		.slice(-12)
+		.join('\n')
+	fail([message, details].filter(Boolean).join('\n'))
 }
 
 function fail(message) {
-	console.error(`dev error: ${message}`)
+	console.error(`${color.error('ERROR')} ${message}`)
 	process.exit(1)
 }
