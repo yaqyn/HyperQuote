@@ -7,6 +7,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest, getResponse } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import {
+	getInternalEmployeeActor,
 	getInternalSupabaseClient,
 	getInternalSupabasePasswordClient,
 } from './_supabase'
@@ -44,6 +45,8 @@ export const submitInternalLogin = createServerFn({ method: 'POST' })
 				client,
 				input,
 				requestUrl: request.url,
+				validateUser: async (user) =>
+					Boolean(await getInternalEmployeeActor(user.id)),
 			})
 
 			appendSetCookieHeaders(

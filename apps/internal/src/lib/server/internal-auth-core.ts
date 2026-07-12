@@ -54,10 +54,12 @@ export async function authenticateInternalPassword({
 	client,
 	input,
 	requestUrl,
+	validateUser,
 }: {
 	client: SupabasePasswordAuthClient
 	input: InternalLoginInput
 	requestUrl: string
+	validateUser(user: User): Promise<boolean>
 }): Promise<InternalLoginResult> {
 	const { data, error } = await client.auth.signInWithPassword({
 		email: input.email.trim(),
@@ -69,6 +71,10 @@ export async function authenticateInternalPassword({
 	}
 
 	if (getUserPool(data.user) !== 'internal') {
+		await client.auth.signOut({ scope: 'local' })
+		return { ok: false, error: 'wrong_pool' }
+	}
+	if (!(await validateUser(data.user))) {
 		await client.auth.signOut({ scope: 'local' })
 		return { ok: false, error: 'wrong_pool' }
 	}

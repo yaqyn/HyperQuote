@@ -35,25 +35,38 @@ export async function getInternalSupabaseClient() {
 		throw new Error('Internal Supabase session is required')
 	}
 
+	const actor = await getInternalEmployeeActor(user.id)
+	if (!actor) {
+		throw new Error('Active internal employee is required')
+	}
+
 	appendSetCookieHeaders(
 		getResponse().headers,
 		responseCookies.values(),
 		responseHeaders.entries(),
 	)
 
+	return {
+		...actor,
+		user,
+	}
+}
+
+export async function getInternalEmployeeActor(userId: string) {
 	const service = await createSupabaseServiceRoleClient(process.env)
 	if (!service) {
 		throw new Error('Supabase service role is required for internal app')
 	}
 
-	return {
-		client: createActorServiceRoleClient({
-			actorPool: 'internal',
-			actorUserId: user.id,
-			client: service,
-		}),
-		user,
-	}
+	const client = createActorServiceRoleClient({
+		actorPool: 'internal',
+		actorUserId: userId,
+		client: service,
+	})
+	const { data: employeeId, error } = await client.rpc('current_employee_id')
+	if (error) throw new Error(error.message)
+	if (typeof employeeId !== 'string') return null
+	return { client, employeeId }
 }
 
 export async function getInternalSupabasePasswordClient() {

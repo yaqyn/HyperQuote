@@ -35,6 +35,7 @@ describe('internal auth runtime policy', () => {
 				password: 'correct-password',
 			},
 			requestUrl: 'https://internal.hyperquote.net/login?redirect=%2F',
+			validateUser: vi.fn().mockResolvedValue(true),
 		})
 
 		expect(result).toEqual({ ok: false, error: 'wrong_pool' })
@@ -63,6 +64,7 @@ describe('internal auth runtime policy', () => {
 				redirect: 'https://internal.hyperquote.net/?module=search',
 			},
 			requestUrl: 'https://internal.hyperquote.net/login',
+			validateUser: vi.fn().mockResolvedValue(true),
 		})
 		const headers = new Headers()
 		const appended = appendSetCookieHeaders(headers, [
@@ -74,6 +76,35 @@ describe('internal auth runtime policy', () => {
 		expect(appended).toBe(2)
 		expect(headers.get('set-cookie')).toContain('sb-access-token=one')
 		expect(headers.get('set-cookie')).toContain('sb-refresh-token=two')
+	})
+
+	it('signs out internal users without an active employee record', async () => {
+		const signOut = vi.fn().mockResolvedValue(undefined)
+		const client = {
+			auth: {
+				signInWithPassword: vi.fn().mockResolvedValue({
+					data: {
+						session: mockSession(),
+						user: mockUser('internal'),
+					},
+					error: null,
+				}),
+				signOut,
+			},
+		}
+
+		const result = await authenticateInternalPassword({
+			client,
+			input: {
+				email: 'disabled@hyperquote.net',
+				password: 'correct-password',
+			},
+			requestUrl: 'https://internal.hyperquote.net/login',
+			validateUser: vi.fn().mockResolvedValue(false),
+		})
+
+		expect(result).toEqual({ ok: false, error: 'wrong_pool' })
+		expect(signOut).toHaveBeenCalledWith({ scope: 'local' })
 	})
 
 	it('gates internal module permissions from app roles', () => {
