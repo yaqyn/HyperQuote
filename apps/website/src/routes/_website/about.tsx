@@ -25,72 +25,77 @@ function AboutPage() {
 
 	return (
 		<div className="min-h-screen">
-			{/* Hero */}
 			<motion.section
 				initial="hidden"
 				animate="visible"
 				variants={revealUp}
-				className="px-4 pt-24 pb-12 sm:px-6 sm:pt-28 md:px-8 md:pt-32 md:pb-16 lg:px-16 lg:pt-40 lg:pb-20"
+				className="px-4 pb-10 pt-28 sm:px-6 sm:pt-32 lg:px-12 lg:pb-14 lg:pt-40"
 			>
-				<div className="mx-auto max-w-[1400px] text-center lg:text-start">
-					<span className="mb-8 block font-mono text-[12px] uppercase tracking-normal text-[var(--color-text-subtle)] sm:mb-10">
-						{t('about.established')}
-					</span>
-					<h1 className="mx-auto max-w-[920px] text-[clamp(2.65rem,13vw,4.75rem)] leading-[1.04] tracking-normal lg:mx-0 lg:text-[clamp(3.75rem,7vw,6rem)]">
-						<span className="block font-light">{t('about.heroLine1')}</span>
-						<span className="block font-bold">{t('about.heroLine2')}</span>
-					</h1>
-					<p className="mx-auto mt-8 max-w-[560px] text-[15px] leading-[1.85] text-[var(--color-text-muted)] sm:mt-10 sm:text-[16px] lg:mx-0">
-						{t('about.heroSubheadline')}
-					</p>
+				<div className="mx-auto grid max-w-[1400px] gap-10 border-t border-[var(--site-rule)] pt-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end lg:gap-20">
+					<div>
+						<p className="hq-kicker mb-5 text-[var(--color-primary)]">
+							{t('about.established')}
+						</p>
+						<h1 className="hq-display max-w-[1000px] text-[clamp(3.35rem,9vw,8.5rem)] font-bold leading-[0.88] text-[var(--color-text)]">
+							<span className="block">{t('about.heroLine1')}</span>
+							<span className="block text-[var(--color-primary)]">
+								{t('about.heroLine2')}
+							</span>
+						</h1>
+					</div>
+					<div className="border-s border-[var(--site-rule)] ps-5">
+						<p className="text-[15px] leading-7 text-[var(--color-text-muted)]">
+							{t('about.heroSubheadline')}
+						</p>
+						<div className="mt-7 grid grid-cols-2 gap-4 border-t border-[var(--site-rule)] pt-4 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+							<span>HQ / EG</span>
+							<span className="text-end">B2B / BUILD</span>
+						</div>
+					</div>
 				</div>
 			</motion.section>
 
-			{/* Image */}
-			<motion.div
-				initial="hidden"
-				whileInView="visible"
-				viewport={viewportOnce}
-				variants={revealUp}
-				className="px-4 sm:px-6 md:px-8 lg:px-16"
-			>
-				<div className="max-w-[1400px] mx-auto">
-					<div className="aspect-[16/10] overflow-hidden rounded-xl sm:aspect-[16/7] sm:rounded-2xl lg:aspect-[21/8]">
-						<img
-							src="/images/day.webp"
-							alt=""
-							className="h-full w-full object-cover dark:hidden"
-						/>
-						<img
-							src="/images/night.webp"
-							alt=""
-							className="hidden h-full w-full object-cover dark:block"
-						/>
-					</div>
-				</div>
-			</motion.div>
-
-			{/* Story */}
 			<motion.section
 				initial="hidden"
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={revealUp}
-				className="px-4 sm:px-6 md:px-8 lg:px-16"
+				className="px-4 sm:px-6 lg:px-12"
 			>
-				<div className="max-w-[1400px] mx-auto border-t border-[var(--color-text)]/[0.06] py-14 sm:py-16 lg:py-24">
-					<div className="grid grid-cols-1 gap-8 lg:grid-cols-[0.35fr_0.65fr] lg:gap-24">
-						<h2 className="text-center text-[24px] font-bold leading-tight tracking-normal lg:sticky lg:top-24 lg:text-start lg:text-[28px]">
+				<figure className="hq-photo-frame relative mx-auto max-w-[1400px] overflow-hidden">
+					<img
+						src="/images/cairo-material-yard.webp"
+						alt={t('about.imageAlt')}
+						className="aspect-[4/3] w-full object-cover sm:aspect-[16/8] lg:aspect-[21/8]"
+					/>
+					<figcaption className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-4 bg-black/70 px-4 py-3 font-mono text-[9px] uppercase tracking-[0.12em] text-white/70 backdrop-blur-sm sm:px-5">
+						<span>{t('about.imageCaption')}</span>
+						<span>30.0444° N / 31.2357° E</span>
+					</figcaption>
+				</figure>
+			</motion.section>
+
+			<motion.section
+				initial="hidden"
+				whileInView="visible"
+				viewport={viewportOnce}
+				variants={revealUp}
+				className="px-4 sm:px-6 lg:px-12"
+			>
+				<div className="mx-auto grid max-w-[1400px] gap-10 border-b border-[var(--site-rule)] py-16 lg:grid-cols-[minmax(260px,0.34fr)_minmax(0,0.66fr)] lg:gap-24 lg:py-24">
+					<div>
+						<p className="hq-kicker text-[var(--color-primary)]">
+							{t('about.story.label')}
+						</p>
+						<h2 className="hq-display mt-4 max-w-[360px] text-[clamp(2.25rem,4vw,4rem)] font-bold leading-[0.96]">
 							{t('about.story.heading')}
 						</h2>
-						<div className="space-y-5 sm:space-y-6">
-							<p className="text-[15px] leading-[1.85] text-[var(--color-text-muted)]">
-								{t('about.story.p1')}
-							</p>
-							<p className="text-[15px] leading-[1.85] text-[var(--color-text-muted)]">
-								{t('about.story.p2')}
-							</p>
-							<p className="text-[15px] leading-[1.85] text-[var(--color-text)]">
+					</div>
+					<div className="grid gap-6 text-[15px] leading-[1.85] text-[var(--color-text-muted)] sm:grid-cols-2">
+						<p>{t('about.story.p1')}</p>
+						<div className="space-y-6">
+							<p>{t('about.story.p2')}</p>
+							<p className="border-s-2 border-[var(--color-primary)] ps-5 font-semibold text-[var(--color-text)]">
 								{t('about.story.p3')}
 							</p>
 						</div>
@@ -98,28 +103,41 @@ function AboutPage() {
 				</div>
 			</motion.section>
 
-			{/* Values */}
 			<motion.section
 				initial="hidden"
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={revealUp}
-				className="bg-[#0A0A0A]"
+				data-theme="dark"
+				className="bg-[#101010] text-white"
 			>
-				<div className="max-w-[1400px] mx-auto px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-16 lg:py-24">
-					<h2 className="mb-10 text-center text-[24px] font-bold tracking-normal text-white md:mb-12 lg:mb-14 lg:text-start lg:text-[28px]">
-						{t('about.mission.heading')}
-					</h2>
-					<div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:gap-6">
-						{VALUE_KEYS.map((key) => (
+				<div className="hq-page-shell py-16 lg:py-24">
+					<div className="mb-10 flex flex-col gap-4 border-b border-white/15 pb-6 sm:flex-row sm:items-end sm:justify-between lg:mb-14">
+						<div>
+							<p className="hq-kicker text-[#75a2ff]">
+								{t('about.mission.label')}
+							</p>
+							<h2 className="hq-display mt-4 text-[clamp(2.4rem,5vw,5rem)] font-bold leading-[0.94]">
+								{t('about.mission.heading')}
+							</h2>
+						</div>
+						<span className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/35">
+							HQ / OPERATING PRINCIPLES
+						</span>
+					</div>
+					<div className="grid border-t border-white/15 lg:grid-cols-3">
+						{VALUE_KEYS.map((key, index) => (
 							<div
 								key={key}
-								className="rounded-xl bg-[#161616] p-6 text-center lg:p-8 lg:text-start"
+								className="border-b border-white/15 py-7 lg:border-e lg:px-7 lg:first:ps-0 lg:last:border-e-0 lg:last:pe-0"
 							>
-								<h3 className="mb-3 text-[17px] font-semibold text-white">
+								<span className="font-mono text-[10px] text-[#75a2ff]">
+									0{index + 1}
+								</span>
+								<h3 className="hq-display mt-10 text-[26px] font-bold leading-tight text-white">
 									{t(`about.mission.${key}.title` as ParseKeys<'website'>)}
 								</h3>
-								<p className="text-[14px] leading-[1.75] text-[#707070]">
+								<p className="mt-4 max-w-[380px] text-[14px] leading-7 text-white/50">
 									{t(
 										`about.mission.${key}.description` as ParseKeys<'website'>,
 									)}
@@ -130,61 +148,65 @@ function AboutPage() {
 				</div>
 			</motion.section>
 
-			{/* Team */}
 			<motion.section
 				initial="hidden"
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={revealUp}
-				className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-16 lg:py-24"
+				className="hq-page-shell py-16 lg:py-24"
 			>
-				<div className="max-w-[1400px] mx-auto">
-					<h2 className="mb-10 text-center text-[24px] font-bold tracking-normal md:mb-12 lg:mb-14 lg:text-start lg:text-[28px]">
-						{t('about.team.heading')}
-					</h2>
-					<div className="grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-4 lg:gap-x-8 lg:gap-y-10">
-						{TEAM_KEYS.map((key) => (
-							<div key={key} className="text-center lg:text-start">
-								<p className="text-[15px] font-semibold">
-									{t(`about.team.${key}.name` as ParseKeys<'website'>)}
-								</p>
-								<p className="text-[13px] text-[var(--color-text-muted)] mt-1">
-									{t(`about.team.${key}.role` as ParseKeys<'website'>)}
-								</p>
+				<div className="grid gap-10 lg:grid-cols-[0.34fr_0.66fr] lg:gap-24">
+					<div>
+						<p className="hq-kicker text-[var(--color-primary)]">
+							{t('about.team.label')}
+						</p>
+						<h2 className="hq-display mt-4 text-[clamp(2.4rem,4vw,4rem)] font-bold">
+							{t('about.team.heading')}
+						</h2>
+					</div>
+					<div className="grid sm:grid-cols-2">
+						{TEAM_KEYS.map((key, index) => (
+							<div
+								key={key}
+								className="flex items-start gap-5 border-t border-[var(--site-rule)] py-5 sm:odd:pe-6 sm:even:ps-6"
+							>
+								<span className="font-mono text-[9px] text-[var(--color-text-subtle)]">
+									0{index + 1}
+								</span>
+								<div>
+									<p className="text-[15px] font-semibold">
+										{t(`about.team.${key}.name` as ParseKeys<'website'>)}
+									</p>
+									<p className="mt-1 text-[12px] text-[var(--color-text-muted)]">
+										{t(`about.team.${key}.role` as ParseKeys<'website'>)}
+									</p>
+								</div>
 							</div>
 						))}
 					</div>
 				</div>
 			</motion.section>
 
-			{/* Careers CTA */}
-			<motion.section
-				initial="hidden"
-				whileInView="visible"
-				viewport={viewportOnce}
-				variants={revealUp}
-				className="px-4 pb-14 sm:px-6 sm:pb-16 md:px-8 lg:px-16 lg:pb-24"
-			>
-				<div className="max-w-[1400px] mx-auto">
-					<div className="flex flex-col items-center gap-8 rounded-xl bg-[var(--color-surface)] px-6 py-9 text-center sm:px-8 sm:py-12 lg:flex-row lg:items-center lg:justify-between lg:px-14 lg:py-16 lg:text-start">
-						<div>
-							<h2 className="text-[24px] font-bold leading-tight tracking-normal lg:text-[32px]">
-								{t('about.careers.heading')}
-							</h2>
-							<p className="mx-auto mt-3 max-w-[480px] text-[15px] leading-[1.7] text-[var(--color-text-muted)] lg:mx-0">
-								{t('about.careers.description')}
-							</p>
-						</div>
-						<Link
-							to="/careers"
-							className="inline-flex h-12 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--color-primary)] px-6 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] sm:w-auto"
-						>
-							{t('about.careers.cta')}
-							<ArrowRight size={16} className="icon-end" />
-						</Link>
+			<section className="bg-[var(--color-primary)] text-white">
+				<div className="hq-page-shell flex flex-col gap-8 py-14 sm:flex-row sm:items-end sm:justify-between lg:py-20">
+					<div>
+						<p className="hq-kicker text-white/65">HQ / CAIRO</p>
+						<h2 className="hq-display mt-4 text-[clamp(2.5rem,6vw,5.5rem)] font-bold leading-[0.92]">
+							{t('about.careers.heading')}
+						</h2>
+						<p className="mt-5 max-w-[640px] text-[15px] leading-7 text-white/70">
+							{t('about.careers.description')}
+						</p>
 					</div>
+					<Link
+						to="/careers"
+						className="inline-flex h-13 min-w-[220px] items-center justify-between border border-white/35 px-5 text-[14px] font-semibold transition-colors hover:bg-white hover:text-[var(--color-primary)]"
+					>
+						{t('about.careers.cta')}
+						<ArrowRight size={17} className="icon-end" />
+					</Link>
 				</div>
-			</motion.section>
+			</section>
 		</div>
 	)
 }

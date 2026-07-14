@@ -258,9 +258,9 @@ export function WebsiteHeader() {
 	}, [quoteRequestItems])
 
 	const navLinkClass =
-		'text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors'
+		'rounded-full px-3 py-2 text-[12px] font-semibold text-[var(--color-text-muted)] transition-colors hover:bg-[var(--site-concrete)] hover:text-[var(--color-text)]'
 	const navLinkActiveClass =
-		'text-sm font-medium text-[var(--color-primary)] border-b-2 border-[var(--color-primary)] pb-1'
+		'rounded-full bg-[var(--site-blue-wash)] px-3 py-2 text-[12px] font-semibold text-[var(--color-primary)]'
 
 	const scrollToProcess = useCallback(() => {
 		document
@@ -278,11 +278,11 @@ export function WebsiteHeader() {
 
 	return (
 		<>
-			{/* Hero bar — wordmark left, toggles right. Visible on home before scroll */}
+			{/* Quiet home bar. The transformed hero owns the primary navigation. */}
 			{isHome && (
 				<div
 					dir="ltr"
-					className="fixed top-0 inset-x-0 z-39 h-16 max-md:h-14 flex items-center justify-between px-6 pointer-events-none overflow-hidden"
+					className="pointer-events-none fixed inset-x-0 top-0 z-39 flex h-[68px] items-center justify-between overflow-hidden px-4 sm:px-6 lg:px-8"
 					style={{
 						opacity: scrolled ? 0 : 1,
 						transition: 'opacity 0.7s ease-out',
@@ -296,7 +296,7 @@ export function WebsiteHeader() {
 							transform: scrolled ? 'translateY(-100%)' : 'translateY(0)',
 						}}
 					>
-						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-normal text-[var(--color-text)] block overflow-hidden">
+						<span className="block overflow-hidden text-[18px] font-extrabold tracking-[-0.035em] text-[var(--color-text)] sm:text-[20px]">
 							<span
 								className="block"
 								style={{
@@ -322,15 +322,24 @@ export function WebsiteHeader() {
 					>
 						<LanguageToggle />
 						<ThemeToggle />
+						<button
+							type="button"
+							onClick={() => setMobileNavOpen(true)}
+							aria-label={t('a11y.openNav')}
+							className="rounded-lg p-2 text-[var(--color-text)] transition-colors hover:bg-[var(--site-concrete)] md:hidden"
+						>
+							<Menu size={22} />
+						</button>
 					</div>
 				</div>
 			)}
 
-			{/* Full header — slides down from top on scroll */}
+			{/* Full header — a precise procurement rail, shared by every route. */}
 			<header
 				dir="ltr"
-				data-theme="dark"
-				className="fixed top-0 inset-x-0 z-40 h-16 max-md:h-14 flex items-center justify-between px-6 bg-[#101010] transition-all duration-700 ease-out"
+				aria-hidden={heroMode || atPageBottom}
+				inert={heroMode || atPageBottom}
+				className="fixed inset-x-0 top-0 z-40 flex h-[68px] items-center justify-between border-b border-[var(--site-rule)] bg-[var(--color-base)]/92 px-4 shadow-[0_1px_0_rgba(16,16,16,0.02)] backdrop-blur-xl transition-transform duration-500 ease-out sm:px-6 lg:px-8"
 				style={{
 					transform:
 						heroMode || atPageBottom ? 'translateY(-100%)' : 'translateY(0)',
@@ -343,7 +352,7 @@ export function WebsiteHeader() {
 						onClick={handleHomeLogoClick}
 						className="flex items-center gap-3"
 					>
-						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-normal text-white">
+						<span className="text-[18px] font-extrabold tracking-[-0.035em] text-[var(--color-text)] sm:text-[20px]">
 							HyperQuote
 						</span>
 					</button>
@@ -353,14 +362,14 @@ export function WebsiteHeader() {
 						aria-label={t('a11y.home')}
 						className="flex items-center gap-3"
 					>
-						<span className="text-[20px] max-md:text-[17px] font-extrabold tracking-normal text-white">
+						<span className="text-[18px] font-extrabold tracking-[-0.035em] text-[var(--color-text)] sm:text-[20px]">
 							HyperQuote
 						</span>
 					</Link>
 				)}
 
 				{/* Desktop Nav — absolute center, unaffected by siblings */}
-				<nav className="hidden md:flex items-center gap-6 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+				<nav className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-1 md:flex">
 					<Link
 						to="/market"
 						className={navLinkClass}
@@ -437,7 +446,7 @@ export function WebsiteHeader() {
 						type="button"
 						onClick={() => setMobileNavOpen(true)}
 						aria-label={t('a11y.openNav')}
-						className="rounded-lg p-2 text-white transition-colors hover:bg-white/10 md:hidden"
+						className="rounded-lg p-2 text-[var(--color-text)] transition-colors hover:bg-[var(--site-concrete)] md:hidden"
 					>
 						<Menu size={24} />
 					</button>

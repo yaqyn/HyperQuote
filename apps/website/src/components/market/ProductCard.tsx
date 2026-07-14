@@ -2,7 +2,7 @@ import { formatWeightKg } from '@hyperquote/i18n'
 import { useQuantityPopoverDismiss } from '@hyperquote/ui/market/QuantityPopover'
 import { Link } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
-import { Package, Plus, Undo2 } from 'lucide-react'
+import { Plus, Undo2 } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -16,6 +16,63 @@ interface ProductCardProps {
 	product: Product
 	variant: 'grid' | 'list'
 	categoryLabel?: string
+}
+
+function ProductSpecimen({
+	product,
+	name,
+	categoryLabel,
+	unit,
+	compact = false,
+}: {
+	product: Product
+	name: string
+	categoryLabel: string
+	unit: string
+	compact?: boolean
+}) {
+	const { t } = useTranslation('website')
+
+	if (compact) {
+		return (
+			<div
+				aria-hidden="true"
+				className="hq-docket-lines flex h-14 w-14 shrink-0 flex-col justify-between border border-[var(--site-rule)] bg-[var(--site-concrete)] p-2"
+			>
+				<span className="font-mono text-[7px] uppercase tracking-[0.12em] text-[var(--color-primary)]">
+					{t('market.materialRecord')}
+				</span>
+				<span className="truncate font-mono text-[8px] text-[var(--color-text-muted)]">
+					{product.sku}
+				</span>
+			</div>
+		)
+	}
+
+	return (
+		<div
+			aria-hidden="true"
+			className="hq-docket-lines flex h-full flex-col justify-between bg-[var(--site-concrete)] p-4 sm:p-5"
+		>
+			<div className="flex items-start justify-between gap-4">
+				<span className="hq-kicker text-[var(--color-primary)]">
+					{t('market.materialRecord')}
+				</span>
+				<span className="font-mono text-[9px] text-[var(--color-text-subtle)]">
+					{product.sku}
+				</span>
+			</div>
+			<div>
+				<p className="max-w-[88%] text-[15px] font-semibold leading-snug text-[var(--color-text)] sm:text-[17px]">
+					{name}
+				</p>
+				<div className="mt-4 flex items-end justify-between gap-3 border-t border-[var(--site-rule)] pt-3 font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+					<span className="line-clamp-1">{categoryLabel}</span>
+					<span className="shrink-0 text-[var(--color-primary)]">{unit}</span>
+				</div>
+			</div>
+		</div>
+	)
 }
 
 function productUnitLabel(product: Product, locale: 'ar' | 'en') {
@@ -209,22 +266,23 @@ export function ProductCard({
 			<Link
 				to="/market/$productSlug"
 				params={{ productSlug: product.slug }}
-				className="flex items-center gap-4 py-3 px-4 rounded-xl bg-[var(--color-card)] border border-[var(--color-border)] hover:border-[var(--color-primary)]/40 transition-colors"
+				className="flex items-center gap-4 border-b border-[var(--site-rule)] px-1 py-3 transition-colors hover:bg-[var(--site-blue-wash)]"
 			>
 				{image ? (
 					<img
 						src={image}
 						alt={name}
-						className="w-14 h-14 rounded-lg object-cover bg-[var(--color-surface)]"
+						className="h-14 w-14 object-cover bg-[var(--color-surface)]"
 						loading="lazy"
 					/>
 				) : (
-					<div
-						aria-hidden="true"
-						className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface)] text-[var(--color-text-muted)]"
-					>
-						<Package size={18} />
-					</div>
+					<ProductSpecimen
+						product={product}
+						name={name}
+						categoryLabel={categoryLabel}
+						unit={unit}
+						compact
+					/>
 				)}
 				<div className="flex-1 min-w-0">
 					<p className="text-[14px] font-medium text-[var(--color-text)] line-clamp-1">
@@ -275,9 +333,9 @@ export function ProductCard({
 		<Link
 			to="/market/$productSlug"
 			params={{ productSlug: product.slug }}
-			className="group block"
+			className="group block border-t border-[var(--site-rule)] pt-3"
 		>
-			<div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-[var(--color-surface)] sm:aspect-[3/2]">
+			<div className="relative aspect-[4/3] overflow-hidden border border-[var(--site-rule)] bg-[var(--color-surface)] sm:aspect-[3/2]">
 				{image ? (
 					<img
 						src={image}
@@ -286,16 +344,19 @@ export function ProductCard({
 						loading="lazy"
 					/>
 				) : (
-					<div className="flex h-full w-full items-center justify-center text-[var(--color-text-muted)]">
-						<Package size={34} />
-					</div>
+					<ProductSpecimen
+						product={product}
+						name={name}
+						categoryLabel={categoryLabel}
+						unit={unit}
+					/>
 				)}
 				<button
 					ref={btnRef}
 					type="button"
 					onClick={handleBtnClick}
 					disabled={!isOrderable && !inCart}
-					className={`absolute bottom-2 end-2 flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 ring-1 shadow-lg disabled:pointer-events-none sm:bottom-3 sm:end-3 sm:h-10 sm:w-10 ${
+					className={`absolute bottom-2 end-2 flex h-9 w-9 items-center justify-center rounded-sm transition-all duration-200 ring-1 shadow-lg disabled:pointer-events-none sm:bottom-3 sm:end-3 sm:h-10 sm:w-10 ${
 						inCart
 							? 'backdrop-blur-md bg-white ring-white/40'
 							: isOrderable
@@ -330,8 +391,8 @@ export function ProductCard({
 					/>
 				)}
 			</AnimatePresence>
-			<div className="mt-2.5 px-0.5 sm:mt-3">
-				<h3 className="text-[14px] font-medium text-[var(--color-text)] line-clamp-2 leading-snug sm:text-[15px]">
+			<div className="mt-3 px-0.5">
+				<h3 className="line-clamp-2 text-[14px] font-semibold leading-snug text-[var(--color-text)] transition-colors group-hover:text-[var(--color-primary)] sm:text-[15px]">
 					{name}
 				</h3>
 				<p className="mt-1 text-[12px] text-[var(--color-text-muted)] sm:text-[13px]">

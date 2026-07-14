@@ -97,6 +97,7 @@ function LoginPage() {
 			/>
 
 			<div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[var(--color-border)]" />
+			<div className="pointer-events-none absolute inset-y-0 end-0 hidden w-[42%] bg-[var(--site-blue-wash)] lg:block" />
 
 			<div className="relative z-10 mx-auto grid min-h-[calc(100svh-8rem)] w-full max-w-[1180px] grid-cols-1 gap-8 lg:min-h-[min(760px,calc(100svh-8rem))] lg:grid-cols-[minmax(0,1fr)_minmax(420px,460px)] lg:items-center lg:gap-12 xl:gap-16">
 				<div className="order-2 lg:order-1">
@@ -104,7 +105,7 @@ function LoginPage() {
 				</div>
 
 				<div className="order-1 mx-auto flex min-h-[calc(100svh-8rem)] w-full max-w-[460px] items-center justify-center lg:order-2 lg:mx-0 lg:min-h-0 lg:block">
-					<div className="rounded-[28px] border border-[var(--color-border)] bg-[var(--color-base)]/88 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.08)] backdrop-blur-xl sm:p-5 md:p-6 lg:p-7">
+					<div className="hq-docket-lines border border-[var(--site-rule)] bg-[var(--color-base)]/94 p-4 shadow-[var(--site-shadow)] backdrop-blur-xl sm:p-5 md:p-6 lg:p-7">
 						<div className="mb-7 flex items-start justify-between gap-4 border-b border-[var(--color-border)] pb-5">
 							<div className="min-w-0">
 								<p className="text-[12px] font-semibold uppercase tracking-normal text-[var(--color-primary)]">
@@ -196,18 +197,18 @@ function AuthContextPanel() {
 	const { t } = useTranslation('website')
 
 	return (
-		<section className="mx-auto flex w-full max-w-[660px] flex-col text-center lg:mx-0 lg:text-start">
-			<p className="text-[12px] font-semibold uppercase tracking-normal text-[var(--color-primary)]">
+		<section className="mx-auto flex w-full max-w-[660px] flex-col text-start lg:mx-0">
+			<p className="hq-kicker text-[var(--color-primary)]">
 				{t('login.context.eyebrow')}
 			</p>
-			<h1 className="mt-4 text-[clamp(2.25rem,8vw,4.75rem)] font-extrabold leading-[0.98] tracking-normal text-[var(--color-text)]">
+			<h1 className="hq-display mt-4 text-[clamp(3rem,7vw,6.6rem)] font-bold leading-[0.9] text-[var(--color-text)]">
 				{t('login.context.heading')}
 			</h1>
 			<p className="mx-auto mt-5 max-w-[560px] text-[15px] leading-[1.75] text-[var(--color-text-muted)] sm:text-[16px] lg:mx-0">
 				{t('login.context.body')}
 			</p>
 
-			<div className="mt-8 grid grid-cols-1 overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/40 text-start sm:grid-cols-3 lg:mt-10">
+			<div className="mt-8 grid grid-cols-1 overflow-hidden border-y border-[var(--site-rule)] text-start sm:grid-cols-3 lg:mt-10">
 				<AuthBenefit
 					icon={<FileCheck2 size={18} />}
 					title={t('login.context.benefits.quotes.title')}
@@ -244,8 +245,8 @@ function AuthBenefit({
 	description: string
 }) {
 	return (
-		<div className="border-b border-[var(--color-border)] p-4 last:border-b-0 sm:border-e sm:border-b-0 sm:last:border-e-0 md:p-5">
-			<div className="mb-4 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
+		<div className="border-b border-[var(--site-rule)] p-4 last:border-b-0 sm:border-e sm:border-b-0 sm:last:border-e-0 md:p-5">
+			<div className="mb-5 flex h-9 w-9 items-center justify-center border border-[var(--color-primary)]/25 bg-[var(--site-blue-wash)] text-[var(--color-primary)]">
 				{icon}
 			</div>
 			<p className="text-[14px] font-semibold text-[var(--color-text)]">

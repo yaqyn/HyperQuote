@@ -7,7 +7,6 @@ import {
 	ChevronRight,
 	Copy,
 	MessageSquare,
-	Package,
 	PackageX,
 	Pencil,
 	Share2,
@@ -210,9 +209,9 @@ function ProductDetailPage() {
 				sku={product.sku}
 				url={absoluteWebsiteUrl(`/market/${product.slug}`)}
 			/>
-			<div className="pt-[72px] pb-24 md:pt-[88px] md:pb-16">
+			<div className="pb-24 pt-[88px] md:pb-20 md:pt-[104px]">
 				{/* Breadcrumb */}
-				<div className="mx-auto mb-6 max-w-[1400px] px-4 sm:px-6 md:mb-8 lg:px-16">
+				<div className="mx-auto mb-7 max-w-[1400px] px-4 sm:px-6 md:mb-10 lg:px-12">
 					<Link
 						to="/market"
 						className="inline-flex items-center gap-2 text-[13px] text-[var(--color-text-subtle)] hover:text-[var(--color-text)] transition-colors"
@@ -230,13 +229,19 @@ function ProductDetailPage() {
 				</div>
 
 				{/* Hero: Image + Info */}
-				<div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-16">
-					<div className="grid grid-cols-1 gap-7 lg:grid-cols-[1fr_1fr] lg:gap-20">
+				<div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-12">
+					<div className="grid grid-cols-1 gap-8 border-t border-[var(--site-rule)] pt-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:gap-20 lg:pt-8">
 						{/* Image */}
-						<ProductImage images={images} name={productName} />
+						<ProductImage
+							images={images}
+							name={productName}
+							sku={product.sku}
+							category={categoryLabel}
+							unit={unitLabel}
+						/>
 
 						{/* Info column */}
-						<div className="flex flex-col items-center text-center lg:items-start lg:py-2 lg:text-start">
+						<div className="flex flex-col items-start text-start lg:py-2">
 							{/* Category */}
 							<motion.div
 								initial={{ opacity: 0, y: 10 }}
@@ -257,7 +262,7 @@ function ProductDetailPage() {
 								initial={{ opacity: 0, y: 20 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ ...spring, delay: 0.04 }}
-								className="mt-4 text-[30px] font-bold leading-[1.08] tracking-normal text-[var(--color-text)] sm:text-[36px] lg:text-[44px]"
+								className="hq-display mt-4 text-[clamp(2.4rem,5vw,5rem)] font-bold leading-[0.96] text-[var(--color-text)]"
 							>
 								{productName}
 							</motion.h1>
@@ -267,7 +272,7 @@ function ProductDetailPage() {
 								initial={{ opacity: 0, y: 10 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ ...spring, delay: 0.08 }}
-								className="mt-5 flex flex-wrap items-center justify-center gap-4 lg:justify-start"
+								className="mt-6 flex flex-wrap items-center gap-4 border-y border-[var(--site-rule)] py-3"
 							>
 								<span className="font-mono text-[12px] text-[var(--color-text-subtle)]">
 									{product.sku}
@@ -297,7 +302,7 @@ function ProductDetailPage() {
 									initial={{ opacity: 0, y: 10 }}
 									animate={{ opacity: 1, y: 0 }}
 									transition={{ ...spring, delay: 0.16 }}
-									className="mx-auto mt-5 max-w-[560px] text-[15px] leading-[1.75] text-[var(--color-text-muted)] lg:mx-0 lg:mt-6"
+									className="mt-6 max-w-[560px] text-[15px] leading-[1.75] text-[var(--color-text-muted)]"
 								>
 									{locale === 'ar' && product.description_ar
 										? product.description_ar
@@ -310,7 +315,7 @@ function ProductDetailPage() {
 								initial={{ opacity: 0, y: 10 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ ...spring, delay: 0.2 }}
-								className="mx-auto mt-8 hidden w-full max-w-[560px] md:block lg:mx-0 lg:mt-10 lg:max-w-none"
+								className="mt-8 hidden w-full max-w-[560px] border-t border-[var(--site-rule)] pt-6 md:block lg:mt-10 lg:max-w-none"
 							>
 								<QuoteAction
 									product={{
@@ -390,7 +395,20 @@ function ProductDetailPage() {
 // Product Image — hover zoom, thumbnail strip
 // --------------------------------------------------------------------------
 
-function ProductImage({ images, name }: { images: string[]; name: string }) {
+function ProductImage({
+	images,
+	name,
+	sku,
+	category,
+	unit,
+}: {
+	images: string[]
+	name: string
+	sku: string
+	category: string
+	unit: string
+}) {
+	const { t } = useTranslation('website')
 	const [activeIndex, setActiveIndex] = useState(0)
 	const activeImage = images[activeIndex]
 
@@ -399,10 +417,10 @@ function ProductImage({ images, name }: { images: string[]; name: string }) {
 			initial={{ opacity: 0, scale: 0.97 }}
 			animate={{ opacity: 1, scale: 1 }}
 			transition={spring}
-			className="lg:sticky lg:top-24 lg:self-start"
+			className="lg:sticky lg:top-28 lg:self-start"
 		>
 			{/* Main image */}
-			<div className="group aspect-[16/10] overflow-hidden rounded-2xl bg-[var(--color-surface)] lg:aspect-[5/6]">
+			<div className="group aspect-[16/10] overflow-hidden border border-[var(--site-rule)] bg-[var(--color-surface)] lg:aspect-[5/6]">
 				{activeImage ? (
 					<img
 						src={activeImage}
@@ -411,8 +429,26 @@ function ProductImage({ images, name }: { images: string[]; name: string }) {
 						loading="eager"
 					/>
 				) : (
-					<div className="flex h-full w-full items-center justify-center text-[var(--color-text-muted)]">
-						<Package size={42} />
+					<div className="hq-docket-lines flex h-full flex-col justify-between bg-[var(--site-concrete)] p-6 sm:p-8">
+						<div className="flex items-start justify-between gap-5">
+							<span className="hq-kicker text-[var(--color-primary)]">
+								{t('market.materialRecord')}
+							</span>
+							<span className="font-mono text-[10px] text-[var(--color-text-subtle)]">
+								{sku}
+							</span>
+						</div>
+						<div>
+							<p className="hq-display max-w-[80%] text-[clamp(2rem,5vw,4.5rem)] font-bold leading-[0.96] text-[var(--color-text)]">
+								{name}
+							</p>
+							<div className="mt-7 flex items-end justify-between gap-5 border-t border-[var(--site-rule)] pt-4 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+								<span>{category}</span>
+								<span className="shrink-0 text-[var(--color-primary)]">
+									{unit}
+								</span>
+							</div>
+						</div>
 					</div>
 				)}
 			</div>
@@ -893,19 +929,19 @@ function SpecsSection({
 	if (items.length === 0) return null
 
 	return (
-		<div className="mx-auto mt-16 max-w-[1400px] px-4 sm:px-6 lg:mt-24 lg:px-16">
+		<div className="mx-auto mt-16 max-w-[1400px] px-4 sm:px-6 lg:mt-24 lg:px-12">
 			<SectionReveal>
-				<div className="text-center lg:text-start">
+				<div className="border-t border-[var(--site-rule)] pt-5 text-start">
 					<p className="mb-3 text-[12px] font-semibold uppercase tracking-normal text-[var(--color-primary)]">
 						{t('product.specsLabel')}
 					</p>
-					<h2 className="mb-8 text-[28px] font-bold tracking-normal text-[var(--color-text)] lg:mb-12 lg:text-[36px]">
+					<h2 className="hq-display mb-8 text-[32px] font-bold text-[var(--color-text)] lg:mb-10 lg:text-[44px]">
 						{t('product.specsHeading')}
 					</h2>
 				</div>
 			</SectionReveal>
 
-			<div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-border)] sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+			<div className="grid grid-cols-1 gap-px overflow-hidden border border-[var(--site-rule)] bg-[var(--site-rule)] sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
 				{items.map((item, i) => (
 					<SectionReveal key={item.label} delay={i * 0.03}>
 						<div className="bg-[var(--color-base)] px-5 py-5 text-center lg:text-start">
@@ -936,13 +972,13 @@ function RelatedSection({ products }: { products: PublicProduct[] }) {
 	if (products.length === 0) return null
 
 	return (
-		<div className="mx-auto mt-16 max-w-[1400px] px-4 sm:px-6 lg:mt-24 lg:px-16">
+		<div className="mx-auto mt-16 max-w-[1400px] px-4 sm:px-6 lg:mt-24 lg:px-12">
 			<SectionReveal>
-				<div className="text-center lg:text-start">
+				<div className="border-t border-[var(--site-rule)] pt-5 text-start">
 					<p className="mb-3 text-[12px] font-semibold uppercase tracking-normal text-[var(--color-primary)]">
 						{t('product.relatedLabel')}
 					</p>
-					<h2 className="mb-8 text-[28px] font-bold tracking-normal text-[var(--color-text)] lg:mb-12 lg:text-[36px]">
+					<h2 className="hq-display mb-8 text-[32px] font-bold text-[var(--color-text)] lg:mb-10 lg:text-[44px]">
 						{t('product.relatedHeading')}
 					</h2>
 				</div>
@@ -970,7 +1006,7 @@ function RelatedSection({ products }: { products: PublicProduct[] }) {
 								params={{ productSlug: product.slug }}
 								className="group block"
 							>
-								<div className="aspect-[4/3] overflow-hidden rounded-2xl bg-[var(--color-surface)]">
+								<div className="aspect-[4/3] overflow-hidden border border-[var(--site-rule)] bg-[var(--color-surface)]">
 									{image ? (
 										<img
 											src={image}
@@ -979,8 +1015,13 @@ function RelatedSection({ products }: { products: PublicProduct[] }) {
 											loading="lazy"
 										/>
 									) : (
-										<div className="flex h-full w-full items-center justify-center text-[var(--color-text-muted)]">
-											<Package size={30} />
+										<div className="hq-docket-lines flex h-full flex-col justify-between bg-[var(--site-concrete)] p-5">
+											<span className="hq-kicker text-[var(--color-primary)]">
+												{t('market.materialRecord')}
+											</span>
+											<span className="font-mono text-[10px] text-[var(--color-text-subtle)]">
+												{product.sku}
+											</span>
 										</div>
 									)}
 								</div>

@@ -30,13 +30,19 @@ export function LegalDocumentPage({
 }: LegalDocumentPageProps) {
 	return (
 		<div dir="ltr" className="min-h-screen">
-			<header className="px-4 pt-24 pb-10 sm:px-6 sm:pb-12 md:px-8 lg:px-12 lg:pt-36 lg:pb-16">
+			<header className="px-4 pt-28 pb-10 sm:px-6 sm:pb-12 md:px-8 lg:px-12 lg:pt-40 lg:pb-16">
 				<div className="mx-auto max-w-[720px]">
-					<motion.div initial="hidden" animate="visible" variants={reveal}>
-						<h1 className="text-center text-[32px] font-bold leading-tight tracking-normal lg:text-start lg:text-[40px]">
+					<motion.div
+						initial="hidden"
+						animate="visible"
+						variants={reveal}
+						className="border-t border-[var(--site-rule)] pt-5"
+					>
+						<p className="hq-kicker text-[var(--color-primary)]">HQ / LEGAL</p>
+						<h1 className="hq-display mt-5 text-[clamp(3rem,7vw,5.5rem)] font-bold leading-[0.94]">
 							{title}
 						</h1>
-						<p className="mt-4 text-center font-mono text-[12px] tracking-normal text-[var(--color-text-subtle)] lg:text-start">
+						<p className="mt-5 font-mono text-[11px] text-[var(--color-text-subtle)]">
 							{effectiveDate}
 						</p>
 					</motion.div>
@@ -58,10 +64,15 @@ export function LegalDocumentPage({
 									: ''
 							}
 						>
-							<h2 className="text-center text-[18px] font-semibold tracking-normal lg:text-start">
-								{section.title}
-							</h2>
-							<div className="mt-4 space-y-4">
+							<div className="flex items-start gap-5">
+								<span className="mt-1 font-mono text-[9px] text-[var(--color-primary)]">
+									{section.number}
+								</span>
+								<h2 className="hq-display text-[20px] font-bold">
+									{section.title}
+								</h2>
+							</div>
+							<div className="mt-5 space-y-4 ps-8">
 								{section.content.map((paragraph) => (
 									<p
 										key={paragraph}

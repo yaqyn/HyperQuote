@@ -5,10 +5,101 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 @plugin "tailwindcss-react-aria-components";
 
+:root {
+	--site-blue-wash: #eef4ff;
+	--site-concrete: #f3f4f6;
+	--site-steel: #73777d;
+	--site-rule: rgba(16, 16, 16, 0.1);
+	--site-soft-rule: rgba(16, 16, 16, 0.055);
+	--site-shadow: 0 28px 80px rgba(16, 16, 16, 0.1);
+}
+
+[data-theme="dark"] {
+	--site-blue-wash: rgba(37, 99, 235, 0.12);
+	--site-concrete: #151515;
+	--site-steel: #a0a4aa;
+	--site-rule: rgba(255, 255, 255, 0.12);
+	--site-soft-rule: rgba(255, 255, 255, 0.065);
+	--site-shadow: 0 28px 80px rgba(0, 0, 0, 0.34);
+}
+
+.hq-display {
+	font-family: var(--font-display);
+	font-variation-settings: "wght" 760;
+	letter-spacing: -0.05em;
+}
+
+[dir="rtl"] .hq-display {
+	letter-spacing: 0;
+	line-height: 1.16;
+}
+
+.hq-kicker {
+	font-family: var(--font-mono);
+	font-size: 0.6875rem;
+	font-weight: 600;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+[dir="rtl"] .hq-kicker {
+	font-family: var(--font-arabic);
+	letter-spacing: 0;
+	text-transform: none;
+}
+
+.hq-page-shell {
+	margin-inline: auto;
+	width: min(100% - 2rem, 86rem);
+}
+
+.hq-section-rule {
+	border-block-start: 1px solid var(--site-rule);
+}
+
+.hq-docket-lines {
+	background-image: repeating-linear-gradient(
+		to bottom,
+		transparent 0,
+		transparent 47px,
+		var(--site-soft-rule) 48px
+	);
+}
+
+.hq-photo-frame {
+	box-shadow: var(--site-shadow);
+}
+
+@media (min-width: 768px) {
+	.hq-page-shell {
+		width: min(100% - 4rem, 86rem);
+	}
+}
+
+@media (min-width: 1280px) {
+	.hq-page-shell {
+		width: min(100% - 8rem, 86rem);
+	}
+}
+
 /* Force default cursor everywhere — no I-beam on text, no not-allowed on disabled */
 *,
 *::before,
 *::after {
+	cursor: default !important;
+}
+
+a,
+button,
+[role="button"],
+summary,
+select,
+label[for] {
+	cursor: pointer !important;
+}
+
+button:disabled,
+[aria-disabled="true"] {
 	cursor: default !important;
 }
 /* I-beam only in text fields */
@@ -87,38 +178,19 @@ main > * {
 		stroke 0.12s ease !important;
 }
 
-/* View Transitions — wipe left-to-right with traveling shadow */
+/* View Transitions — quiet crossfade keeps language/theme changes legible. */
 ::view-transition-old(root) {
-	animation: 1s ease-in-out both vt-old-darken;
+	animation: 0.18s ease-out both page-exit;
 }
 ::view-transition-new(root) {
-	animation: 1s ease-in-out both vt-wipe-in;
+	animation: 0.24s ease-out both page-enter;
 }
-@keyframes vt-old-darken {
-	0% {
-		filter: brightness(1);
-		clip-path: inset(0 0 0 0);
-	}
-	30% {
-		filter: brightness(0.85);
-	}
-	60% {
-		filter: brightness(0.55);
-	}
-	80% {
-		filter: brightness(0.3);
-	}
-	100% {
-		filter: brightness(0.15);
-		clip-path: inset(0 100% 0 0);
-	}
-}
-@keyframes vt-wipe-in {
+@keyframes page-exit {
 	from {
-		clip-path: inset(0 0 0 100%);
+		opacity: 1;
 	}
 	to {
-		clip-path: inset(0 0 0 0);
+		opacity: 0;
 	}
 }
 

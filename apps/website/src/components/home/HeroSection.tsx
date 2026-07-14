@@ -1,457 +1,373 @@
-import { Link, useNavigate } from '@tanstack/react-router'
-import { AnimatePresence, cubicBezier, motion } from 'motion/react'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { Link } from '@tanstack/react-router'
+import { ArrowDown, ArrowLeft, ArrowUpRight } from 'lucide-react'
+import {
+	AnimatePresence,
+	cubicBezier,
+	motion,
+	useReducedMotion,
+} from 'motion/react'
+import { lazy, Suspense, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DOC_CATEGORIES, WIZARDS } from '../../content/registry'
 import { useChatWidget } from '../../hooks/useChatWidget'
-import { useWebsiteAccountState } from '../../hooks/useWebsiteAccountState'
-import { getPortalHref } from '../../lib/portal-url'
+import { useQuoteCart } from '../../hooks/useQuoteCart'
+import type { PublicMarketPreviewCategory } from '../../lib/catalog'
 import { DocsSearch as RealDocsSearch } from '../docs/DocsSearch'
 import { ContactForm } from '../support/ContactForm'
 import { ContactInfo } from '../support/ContactInfo'
 
-const MAPS_URL = 'https://maps.google.com/?q=Arkan+Plaza+Sheikh+Zayed+Egypt'
-
 type HeroMode = 'hero' | 'contact' | 'docs' | 'chat'
 
-const EASE = cubicBezier(0.25, 0.1, 0.25, 1)
-const transition = { duration: 0.5, ease: EASE }
+const EASE = cubicBezier(0.22, 1, 0.36, 1)
 const LyonHeroChat = lazy(() =>
 	import('./LyonHeroChat').then((module) => ({
 		default: module.LyonHeroChat,
 	})),
 )
 
-export function HeroSection() {
+export function HeroSection({
+	categories,
+}: {
+	categories: PublicMarketPreviewCategory[]
+}) {
 	const { t, i18n } = useTranslation('website')
-	const navigateTo = useNavigate()
-	const [stage, setStage] = useState(0)
+	const shouldReduceMotion = useReducedMotion()
 	const [mode, setMode] = useState<HeroMode>('hero')
 	const [chatInitialMessage, setChatInitialMessage] = useState('')
-	const { accountState } = useWebsiteAccountState()
 	const isArabic = i18n.language === 'ar'
+	const closeBubble = useChatWidget((state) => state.close)
+	const requestChatRuntime = useChatWidget((state) => state.requestRuntime)
 
-	const closeBubble = useChatWidget((s) => s.close)
-	const requestChatRuntime = useChatWidget((s) => s.requestRuntime)
+	const transition = {
+		duration: shouldReduceMotion ? 0.01 : 0.44,
+		ease: EASE,
+	}
+
+	function openMode(nextMode: Exclude<HeroMode, 'hero'>) {
+		if (nextMode === 'chat') requestChatRuntime()
+		setMode(nextMode)
+		closeBubble()
+		window.scrollTo({
+			top: 0,
+			behavior: shouldReduceMotion ? 'auto' : 'smooth',
+		})
+	}
 
 	function openChat(initialMessage = '') {
 		setChatInitialMessage(initialMessage)
-		requestChatRuntime()
-		setMode('chat')
-		closeBubble()
-		window.scrollTo({ top: 0, behavior: 'smooth' })
+		openMode('chat')
 	}
 
-	useEffect(() => {
-		const t1 = setTimeout(() => setStage(1), 500)
-		const t2 = setTimeout(() => setStage(2), 650)
-		const t3 = setTimeout(() => setStage(3), 1200)
-		return () => {
-			clearTimeout(t1)
-			clearTimeout(t2)
-			clearTimeout(t3)
-		}
-	}, [])
-
-	const isExpanded = mode !== 'hero'
-
 	return (
-		<>
-			{/* Intro overlay */}
-			<div
-				className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-base)]"
-				style={{
-					opacity: stage >= 2 ? 0 : 1,
-					transition: 'opacity 0.6s ease-out',
-					pointerEvents: stage >= 2 ? 'none' : 'auto',
-				}}
-			>
-				<div className="overflow-hidden">
-					<span
-						className="block text-[56px] max-md:text-[40px] font-extrabold tracking-normal text-[var(--color-text)]"
-						style={{
-							transform: stage >= 1 ? 'translateY(-120%)' : 'translateY(0)',
-							transition: 'transform 0.7s cubic-bezier(0.4, 0, 0.2, 1)',
-						}}
-					>
-						HyperQuote
-					</span>
-				</div>
-			</div>
-
-			{/* Hero section — compact default, full screen when a mode is active */}
-			<section
-				className="relative flex flex-col bg-[var(--color-base)] overflow-hidden"
-				style={{
-					height: stage < 2 || isExpanded ? '100svh' : 'min(820px, 78svh)',
-					transition: 'height 0.8s cubic-bezier(0.4, 0, 0.2, 1)',
-				}}
-			>
-				{/* Rings */}
-				<div
-					className="absolute inset-0 flex items-center justify-center pointer-events-none"
-					aria-hidden="true"
-				>
-					<div className="relative h-[min(800px,120vw)] w-[min(800px,120vw)]">
-						<div
-							className="absolute inset-0 rounded-full border border-[var(--color-text)] opacity-[0.03]"
-							style={{ animation: 'hero-ring 12s linear infinite' }}
-						/>
-						<div
-							className="absolute inset-0 rounded-full border border-[var(--color-text)] opacity-[0.03]"
-							style={{ animation: 'hero-ring 12s linear infinite 4s' }}
-						/>
-						<div
-							className="absolute inset-0 rounded-full border border-[var(--color-text)] opacity-[0.03]"
-							style={{ animation: 'hero-ring 12s linear infinite 8s' }}
-						/>
-					</div>
-				</div>
-
-				{/* Content area */}
-				<div className="flex-1 min-h-0 flex items-center justify-center relative px-5 sm:px-8">
-					<AnimatePresence mode="wait">
-						{mode === 'hero' && (
-							<motion.div
-								key="hero"
-								initial={{ opacity: 0, y: 20 }}
-								animate={{ opacity: 1, y: 0 }}
-								exit={{ opacity: 0, y: -30 }}
-								transition={transition}
-								className="text-center"
-							>
-								<h1 className="text-[48px] sm:text-[56px] md:text-[64px] lg:text-[80px] leading-[1.08] font-extrabold tracking-normal">
-									<span
-										className={`block overflow-hidden ${isArabic ? 'pb-[0.12em]' : ''}`}
-									>
-										<span
-											className="block text-[var(--color-text)]"
-											style={{
-												transform:
-													stage >= 2 ? 'translateY(0)' : 'translateY(110%)',
-												transition:
-													'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)',
-											}}
-										>
-											{t('hero.headlinePart1')}
-										</span>
-									</span>
-									<span
-										className={`block overflow-hidden ${isArabic ? 'pb-[0.12em]' : ''}`}
-									>
-										<span
-											className="block bg-clip-text text-transparent"
-											style={{
-												backgroundImage:
-													'linear-gradient(135deg, #2563EB 0%, #3B82F6 50%, #1D4ED8 100%)',
-												transform:
-													stage >= 2 ? 'translateY(0)' : 'translateY(110%)',
-												transition:
-													'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1) 0.15s',
-											}}
-										>
+		<section className="relative flex min-h-svh flex-col overflow-hidden bg-[var(--color-base)]">
+			<div className="relative flex min-h-0 flex-1">
+				<AnimatePresence mode="wait">
+					{mode === 'hero' && (
+						<motion.div
+							key="hero"
+							initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 18 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -18 }}
+							transition={transition}
+							className="flex w-full items-center pb-8 pt-24 sm:pb-10 sm:pt-28 lg:pb-14 lg:pt-32"
+						>
+							<div className="hq-page-shell grid items-center gap-12 lg:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)] lg:gap-16 xl:gap-24">
+								<div className="max-w-[760px] text-center lg:text-start">
+									<p className="hq-kicker mb-6 text-[var(--color-primary)]">
+										{t('hero.eyebrow')}
+									</p>
+									<h1 className="hq-display text-[clamp(3.2rem,8.2vw,8.2rem)] font-bold leading-[0.9] text-[var(--color-text)]">
+										<span className="block">{t('hero.headlinePart1')}</span>
+										<span className="mt-[0.08em] block text-[var(--color-primary)]">
 											{t('hero.headlinePart2')}
 										</span>
-									</span>
-								</h1>
-
-								{/* Mode buttons */}
-								<div
-									dir="ltr"
-									className="mt-7 flex flex-wrap items-center justify-center gap-x-1 gap-y-2 sm:mt-8"
-									style={{
-										opacity: stage >= 3 ? 1 : 0,
-										transform:
-											stage >= 3 ? 'translateY(0)' : 'translateY(12px)',
-										transition:
-											'opacity 0.5s ease-out 0.1s, transform 0.5s ease-out 0.1s',
-									}}
-								>
-									<button
-										type="button"
-										onClick={() => {
-											setMode('contact')
-											window.scrollTo({ top: 0, behavior: 'smooth' })
-										}}
-										className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors px-3 py-1.5 rounded-lg hover:bg-[var(--color-surface)]"
-									>
-										{t('support.sectionContact')}
-									</button>
-									<span className="text-[var(--color-border)] text-[10px]">
-										|
-									</span>
-									<button
-										type="button"
-										onClick={() => {
-											setMode('docs')
-											window.scrollTo({ top: 0, behavior: 'smooth' })
-										}}
-										className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors px-3 py-1.5 rounded-lg hover:bg-[var(--color-surface)]"
-									>
-										{t('nav.docs')}
-									</button>
-									<span className="text-[var(--color-border)] text-[10px]">
-										|
-									</span>
-									<button
-										type="button"
-										onClick={() => openChat()}
-										className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors px-3 py-1.5 rounded-lg hover:bg-[var(--color-subtle)]"
-									>
-										{t('chat.header')}
-									</button>
-								</div>
-							</motion.div>
-						)}
-
-						{mode === 'contact' && (
-							<motion.div
-								key="contact"
-								initial={{ opacity: 0, y: 40 }}
-								animate={{ opacity: 1, y: 0 }}
-								exit={{ opacity: 0, y: -30 }}
-								transition={transition}
-								className="w-full h-full flex flex-col"
-							>
-								<div className="flex-1 overflow-y-auto">
-									<div className="mx-auto max-w-[1200px] px-4 pb-12 pt-24 sm:px-6 md:px-8 lg:px-12">
-										{/* Header */}
-										<div className="mb-10 text-center md:mb-12 lg:text-start">
-											<p className="mb-2 text-[12px] font-semibold uppercase tracking-normal text-[var(--color-primary)]">
-												{t('support.sectionContact')}
-											</p>
-											<h2 className="text-[32px] lg:text-[44px] font-extrabold text-[var(--color-text)] tracking-normal leading-[1.05]">
-												{t('support.formHeading')}
-											</h2>
-										</div>
-
-										{/* Two-column: form + info */}
-										<div className="grid grid-cols-1 gap-12 lg:grid-cols-[1fr_1fr] lg:gap-24">
-											<ContactForm />
-											<ContactInfo />
-										</div>
-									</div>
-								</div>
-							</motion.div>
-						)}
-
-						{mode === 'docs' && (
-							<motion.div
-								key="docs"
-								initial={{ opacity: 0, y: 40 }}
-								animate={{ opacity: 1, y: 0 }}
-								exit={{ opacity: 0, y: -30 }}
-								transition={transition}
-								className="w-full h-full flex flex-col items-center justify-center px-6"
-							>
-								<div className="w-full max-w-[600px] text-center">
-									<h2 className="text-[48px] lg:text-[64px] font-extrabold tracking-normal text-[var(--color-text)] leading-[1]">
-										{t('docs.heroHeading')}
-									</h2>
-									<p className="mt-5 text-[16px] text-[var(--color-text-muted)] leading-relaxed mx-auto max-w-[440px]">
-										{t('docs.heroSubheading')}
+									</h1>
+									<p className="mx-auto mt-7 max-w-[580px] text-[16px] leading-7 text-[var(--color-text-muted)] sm:text-[18px] sm:leading-8 lg:mx-0">
+										{t('hero.subheadline')}
 									</p>
-									<p className="mt-2 font-mono text-[12px] tracking-normal text-[var(--color-text-subtle)]">
-										{DOC_CATEGORIES.reduce((n, c) => n + c.articles.length, 0)}{' '}
-										{t('docs.articles')} · {WIZARDS.length} {t('docs.guides')}
-									</p>
-									<div className="mt-10 flex justify-center">
-										<div className="w-full max-w-[480px]">
-											<RealDocsSearch onAskLyon={(q) => openChat(q)} />
-										</div>
-									</div>
-								</div>
-							</motion.div>
-						)}
 
-						{mode === 'chat' && (
-							<motion.div
-								key="chat"
-								initial={{ opacity: 0, y: 40 }}
-								animate={{ opacity: 1, y: 0 }}
-								exit={{ opacity: 0, y: -30 }}
-								transition={transition}
-								className="w-full h-full flex flex-col"
-							>
-								<Suspense fallback={null}>
-									<LyonHeroChat initialMessage={chatInitialMessage} />
-								</Suspense>
-							</motion.div>
-						)}
-					</AnimatePresence>
-				</div>
-
-				{/* Bottom bar */}
-				<div
-					dir="ltr"
-					className="w-full border-t border-[var(--color-border)] shrink-0"
-					style={{
-						opacity: stage >= 3 ? 1 : 0,
-						transform: stage >= 3 ? 'translateY(0)' : 'translateY(8px)',
-						transition: 'opacity 0.6s ease-out, transform 0.6s ease-out',
-					}}
-				>
-					<div className="max-w-7xl mx-auto px-6 lg:px-12 py-5">
-						<AnimatePresence mode="wait">
-							{isExpanded ? (
-								<motion.div
-									key="expanded-bar"
-									initial={{ opacity: 0, y: 6 }}
-									animate={{ opacity: 1, y: 0 }}
-									exit={{ opacity: 0, y: -6 }}
-									transition={{ duration: 0.3, ease: EASE }}
-									className="flex items-center justify-between gap-4 max-sm:flex-col"
-								>
-									<button
-										type="button"
-										onClick={() => setMode('hero')}
-										className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-									>
-										← {t('product.back')}
-									</button>
-									<div className="flex items-center gap-1">
-										<button
-											type="button"
-											onClick={() => {
-												setMode('contact')
-												window.scrollTo({ top: 0, behavior: 'smooth' })
-											}}
-											className={`text-[13px] px-3 py-1 rounded-lg transition-colors ${mode === 'contact' ? 'text-[var(--color-text)] font-semibold bg-[var(--color-surface)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
-										>
-											{t('support.sectionContact')}
-										</button>
-										<button
-											type="button"
-											onClick={() => {
-												setMode('docs')
-												window.scrollTo({ top: 0, behavior: 'smooth' })
-											}}
-											className={`text-[13px] px-3 py-1 rounded-lg transition-colors ${mode === 'docs' ? 'text-[var(--color-text)] font-semibold bg-[var(--color-surface)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'}`}
-										>
-											{t('nav.docs')}
-										</button>
-										<button
-											type="button"
-											onClick={() => openChat()}
-											className={`text-[13px] px-3 py-1 rounded-lg transition-colors ${mode === 'chat' ? 'text-[var(--color-primary)] font-semibold bg-[var(--color-subtle)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-primary)]'}`}
-										>
-											{t('chat.header')}
-										</button>
-									</div>
-								</motion.div>
-							) : (
-								<motion.div
-									key="default-bar"
-									initial={{ opacity: 0, y: 6 }}
-									animate={{ opacity: 1, y: 0 }}
-									exit={{ opacity: 0, y: -6 }}
-									transition={{ duration: 0.3, ease: EASE }}
-									className="flex items-center justify-center gap-4 md:justify-between"
-								>
-									<div className="hidden flex-wrap items-center justify-center gap-x-4 gap-y-2 md:flex">
-										<Link
-											to="/support"
-											hash="faq"
-											className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-										>
-											{t('support.sectionFaq')}
-										</Link>
-										<AddressCycle />
-									</div>
-									<div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
+									<div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
 										<Link
 											to="/market"
-											className="inline-flex items-center text-[13px] font-semibold text-[var(--color-primary)] hover:text-white rounded-full border border-[var(--color-primary)]/30 hover:border-[var(--color-primary)] hover:bg-[var(--color-primary)] px-3 py-1 transition-colors"
+											className="group inline-flex h-13 w-full items-center justify-between rounded-xl bg-[var(--color-primary)] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] sm:w-[210px]"
 										>
 											{t('cta.browseMarket')}
+											<ArrowUpRight
+												size={17}
+												className="icon-end transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+											/>
 										</Link>
-										{accountState.authenticated ? (
-											<a
-												href={getPortalHref()}
-												className="hidden text-[13px] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] md:inline-flex"
-											>
-												{t('nav.portal')}
-											</a>
-										) : (
-											<button
-												type="button"
-												onClick={() => navigateTo({ to: '/login' })}
-												className="hidden text-[13px] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] md:inline-flex"
-											>
-												{t('login.step1.heading')}
-											</button>
-										)}
+										<button
+											type="button"
+											onClick={() =>
+												document.getElementById('process')?.scrollIntoView({
+													behavior: shouldReduceMotion ? 'auto' : 'smooth',
+												})
+											}
+											className="inline-flex h-13 w-full items-center justify-between rounded-xl border border-[var(--site-rule)] px-5 text-[14px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--site-concrete)] sm:w-[230px]"
+										>
+											{t('hero.seeProcess')}
+											<ArrowDown size={16} />
+										</button>
 									</div>
-								</motion.div>
-							)}
-						</AnimatePresence>
-					</div>
-				</div>
-			</section>
-		</>
+
+									<p className="mt-5 text-[12px] text-[var(--color-text-subtle)]">
+										{t('cta.noCreditCard')}
+									</p>
+								</div>
+
+								<MaterialDocket categories={categories} isArabic={isArabic} />
+							</div>
+						</motion.div>
+					)}
+
+					{mode === 'contact' && (
+						<motion.div
+							key="contact"
+							initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 28 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -18 }}
+							transition={transition}
+							className="h-full w-full overflow-y-auto"
+						>
+							<div className="hq-page-shell pb-12 pt-24 sm:pt-28 lg:pt-32">
+								<div className="mb-10 max-w-[720px] text-center lg:text-start">
+									<p className="hq-kicker mb-4 text-[var(--color-primary)]">
+										{t('support.sectionContact')}
+									</p>
+									<h2 className="hq-display text-[clamp(2.7rem,7vw,6rem)] font-bold leading-[0.96] text-[var(--color-text)]">
+										{t('support.formHeading')}
+									</h2>
+								</div>
+								<div className="grid grid-cols-1 gap-12 border-t border-[var(--site-rule)] pt-10 lg:grid-cols-[1fr_1fr] lg:gap-24">
+									<ContactForm />
+									<ContactInfo />
+								</div>
+							</div>
+						</motion.div>
+					)}
+
+					{mode === 'docs' && (
+						<motion.div
+							key="docs"
+							initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 28 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -18 }}
+							transition={transition}
+							className="flex h-full w-full items-center justify-center px-5 pb-20 pt-24 sm:px-8"
+						>
+							<div className="w-full max-w-[720px] text-center">
+								<p className="hq-kicker mb-5 text-[var(--color-primary)]">
+									HyperQuote / {t('nav.docs')}
+								</p>
+								<h2 className="hq-display text-[clamp(3rem,8vw,7rem)] font-bold leading-[0.92] text-[var(--color-text)]">
+									{t('docs.heroHeading')}
+								</h2>
+								<p className="mx-auto mt-6 max-w-[500px] text-[16px] leading-7 text-[var(--color-text-muted)]">
+									{t('docs.heroSubheading')}
+								</p>
+								<p className="mt-3 font-mono text-[11px] text-[var(--color-text-subtle)]">
+									{DOC_CATEGORIES.reduce(
+										(total, category) => total + category.articles.length,
+										0,
+									)}{' '}
+									{t('docs.articles')} · {WIZARDS.length} {t('docs.guides')}
+								</p>
+								<div className="mx-auto mt-9 max-w-[520px]">
+									<RealDocsSearch onAskLyon={(query) => openChat(query)} />
+								</div>
+							</div>
+						</motion.div>
+					)}
+
+					{mode === 'chat' && (
+						<motion.div
+							key="chat"
+							initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 28 }}
+							animate={{ opacity: 1, y: 0 }}
+							exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -18 }}
+							transition={transition}
+							className="flex h-full w-full flex-col"
+						>
+							<Suspense fallback={null}>
+								<LyonHeroChat initialMessage={chatInitialMessage} />
+							</Suspense>
+						</motion.div>
+					)}
+				</AnimatePresence>
+			</div>
+
+			<HeroModeRail
+				mode={mode}
+				onBack={() => setMode('hero')}
+				onOpen={(nextMode) => {
+					if (nextMode === 'chat') openChat()
+					else openMode(nextMode)
+				}}
+			/>
+		</section>
 	)
 }
 
-/* ── Address Cycle ── */
-function AddressCycle() {
+function MaterialDocket({
+	categories,
+	isArabic,
+}: {
+	categories: PublicMarketPreviewCategory[]
+	isArabic: boolean
+}) {
 	const { t } = useTranslation('website')
-	const [index, setIndex] = useState(0)
-	const [prevIndex, setPrevIndex] = useState(-1)
-	const [ready, setReady] = useState(false)
-	const items = [t('hero.address'), t('hero.visitUs')]
-
-	// Delay cycle start so it doesn't animate during the bar's fade-in
-	useEffect(() => {
-		const delay = setTimeout(() => setReady(true), 600)
-		return () => clearTimeout(delay)
-	}, [])
-
-	useEffect(() => {
-		if (!ready) return
-		const id = setInterval(() => {
-			setIndex((p) => {
-				setPrevIndex(p)
-				return (p + 1) % items.length
-			})
-		}, 3000)
-		return () => clearInterval(id)
-	}, [items.length, ready])
-
-	useEffect(() => {
-		if (prevIndex === -1) return
-		const timeout = setTimeout(() => setPrevIndex(-1), 500)
-		return () => clearTimeout(timeout)
-	}, [prevIndex])
+	const items = useQuoteCart((state) => state.items)
+	const visibleItems = items.slice(0, 4)
+	const visibleCategories = categories.slice(0, 4)
+	const hasItems = visibleItems.length > 0
 
 	return (
-		<a
-			href={MAPS_URL}
-			target="_blank"
-			rel="noopener noreferrer"
-			className="text-[13px] text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors relative h-5 overflow-hidden inline-flex items-center"
-		>
-			{items.map((text, i) => {
-				const isActive = i === index
-				const isLeaving = i === prevIndex
-				let y = '100%'
-				let t2 = 'none'
-				if (isActive) {
-					y = '0%'
-					t2 = 'transform 0.5s ease-in-out'
-				} else if (isLeaving) {
-					y = '-100%'
-					t2 = 'transform 0.5s ease-in-out'
-				}
-				return (
-					<span
-						key={text}
-						className={`block ${i === 0 ? '' : 'absolute inset-x-0'}`}
-						style={{ transform: `translateY(${y})`, transition: t2 }}
+		<div className="hq-photo-frame overflow-hidden rounded-[24px] border border-[var(--site-rule)] bg-[var(--color-card)] text-start lg:rotate-[0.7deg]">
+			<div className="flex items-center justify-between border-b border-[var(--site-rule)] px-5 py-4 sm:px-6">
+				<div>
+					<p className="hq-kicker text-[var(--color-primary)]">
+						{t('hero.docket.label')}
+					</p>
+					<p className="mt-1 font-mono text-[10px] text-[var(--color-text-subtle)]">
+						{t('hero.docket.reference')}
+					</p>
+				</div>
+				<span className="flex items-center gap-2 text-[11px] font-semibold text-[var(--color-text-muted)]">
+					<span className="h-2 w-2 rounded-full bg-[var(--color-success)]" />
+					{t('hero.docket.live')}
+				</span>
+			</div>
+
+			<div className="border-b border-[var(--site-rule)] bg-[var(--site-concrete)]/70 px-5 py-5 sm:px-6">
+				<h2 className="hq-display text-[24px] font-bold leading-tight text-[var(--color-text)] sm:text-[28px]">
+					{hasItems ? t('hero.docket.cartTitle') : t('hero.docket.emptyTitle')}
+				</h2>
+				{!hasItems && (
+					<p className="mt-2 max-w-[440px] text-[13px] leading-6 text-[var(--color-text-muted)]">
+						{t('hero.docket.emptyDescription')}
+					</p>
+				)}
+			</div>
+
+			<div className="hq-docket-lines min-h-[236px]">
+				<div className="grid grid-cols-[1fr_auto_auto] gap-4 border-b border-[var(--site-rule)] px-5 py-3 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)] sm:px-6">
+					<span>{t('hero.docket.categoryColumn')}</span>
+					<span>{hasItems ? t('hero.docket.quantityColumn') : ''}</span>
+					<span>{hasItems ? t('hero.docket.unitColumn') : ''}</span>
+				</div>
+
+				{hasItems
+					? visibleItems.map((item) => (
+							<Link
+								key={item.productId}
+								to="/market/$productSlug"
+								params={{ productSlug: item.slug }}
+								className="group grid min-h-12 grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-3 text-[13px] transition-colors hover:bg-[var(--site-blue-wash)] sm:px-6"
+							>
+								<span className="min-w-0 truncate font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)]">
+									{isArabic && item.nameAr ? item.nameAr : item.name}
+								</span>
+								<span className="font-mono text-[12px] text-[var(--color-text-muted)]">
+									{item.quantity}
+								</span>
+								<span className="min-w-12 text-end font-mono text-[10px] text-[var(--color-text-subtle)]">
+									{isArabic && item.unitOfMeasureAr
+										? item.unitOfMeasureAr
+										: item.unitOfMeasure}
+								</span>
+							</Link>
+						))
+					: visibleCategories.map((category) => (
+							<Link
+								key={category.slug}
+								to="/market"
+								search={{ category: category.slug }}
+								className="group flex min-h-12 items-center justify-between gap-4 px-5 py-3 text-[13px] transition-colors hover:bg-[var(--site-blue-wash)] sm:px-6"
+							>
+								<span className="font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)]">
+									{isArabic && category.name_ar
+										? category.name_ar
+										: category.name}
+								</span>
+								<span className="flex items-center gap-2 text-[10px] text-[var(--color-text-subtle)]">
+									{t('hero.docket.browse')}
+									<ArrowUpRight size={13} className="icon-end" />
+								</span>
+							</Link>
+						))}
+			</div>
+
+			<div className="flex items-center justify-between gap-4 border-t border-[var(--site-rule)] px-5 py-4 sm:px-6">
+				<span className="font-mono text-[10px] text-[var(--color-text-subtle)]">
+					{items.length} {t('hero.docket.items')}
+				</span>
+				<Link
+					to="/market"
+					className="inline-flex items-center gap-2 text-[12px] font-semibold text-[var(--color-primary)]"
+				>
+					{hasItems ? t('hero.docket.continue') : t('cta.browseMarket')}
+					<ArrowUpRight size={14} className="icon-end" />
+				</Link>
+			</div>
+		</div>
+	)
+}
+
+function HeroModeRail({
+	mode,
+	onBack,
+	onOpen,
+}: {
+	mode: HeroMode
+	onBack: () => void
+	onOpen: (mode: Exclude<HeroMode, 'hero'>) => void
+}) {
+	const { t } = useTranslation('website')
+	const modes: Array<{
+		id: Exclude<HeroMode, 'hero'>
+		label: string
+	}> = [
+		{ id: 'contact', label: t('support.sectionContact') },
+		{ id: 'docs', label: t('nav.docs') },
+		{ id: 'chat', label: t('chat.header') },
+	]
+
+	return (
+		<div className="shrink-0 border-t border-[var(--site-rule)] bg-[var(--color-base)]">
+			<div className="hq-page-shell flex min-h-[76px] flex-col justify-center gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:py-0">
+				{mode === 'hero' ? (
+					<p className="hq-kicker hidden text-[var(--color-text-subtle)] sm:block">
+						{t('hero.serviceRail')}
+					</p>
+				) : (
+					<button
+						type="button"
+						onClick={onBack}
+						className="inline-flex items-center gap-2 text-[12px] font-semibold text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
 					>
-						{text}
-					</span>
-				)
-			})}
-		</a>
+						<ArrowLeft size={14} className="rtl:rotate-180" />
+						{t('hero.backToOverview')}
+					</button>
+				)}
+
+				<div className="grid grid-cols-3 overflow-hidden rounded-xl border border-[var(--site-rule)]">
+					{modes.map((item) => (
+						<button
+							key={item.id}
+							type="button"
+							onClick={() => onOpen(item.id)}
+							className={`min-h-10 border-e border-[var(--site-rule)] px-3 text-[11px] font-semibold transition-colors last:border-e-0 sm:min-w-[112px] ${
+								mode === item.id
+									? 'bg-[var(--site-blue-wash)] text-[var(--color-primary)]'
+									: 'text-[var(--color-text-muted)] hover:bg-[var(--site-concrete)] hover:text-[var(--color-text)]'
+							}`}
+						>
+							{item.label}
+						</button>
+					))}
+				</div>
+			</div>
+		</div>
 	)
 }

@@ -1,14 +1,21 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import type { PublicMarketPreviewCategory } from '../../lib/catalog'
 import { SectionReveal } from '../shared/SectionReveal'
 
-function categoryLabel(
+function categoryCopy(
 	category: PublicMarketPreviewCategory,
 	locale: 'ar' | 'en',
 ) {
-	return locale === 'ar' && category.name_ar ? category.name_ar : category.name
+	return {
+		description:
+			locale === 'ar' && category.description_ar
+				? category.description_ar
+				: category.description,
+		name:
+			locale === 'ar' && category.name_ar ? category.name_ar : category.name,
+	}
 }
 
 export function MarketPreviewSection({
@@ -22,68 +29,98 @@ export function MarketPreviewSection({
 	if (categories.length === 0) return null
 
 	return (
-		<section className="px-5 py-20 sm:px-8 md:px-12 md:py-24 lg:px-24 lg:py-28 xl:px-32">
-			<SectionReveal>
-				<div className="mb-10 flex flex-col items-center justify-between gap-4 text-center sm:mb-12 lg:mb-14 lg:flex-row lg:items-end lg:text-start">
-					<h2 className="text-[28px] lg:text-[36px] font-extrabold text-[var(--color-text)] tracking-normal leading-tight">
-						{t('marketPreview.heading')}
-					</h2>
-					<Link
-						to="/market"
-						className="inline-flex items-center gap-2 text-[13px] font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-					>
-						{t('marketPreview.viewAll')}
-						<ArrowRight size={14} className="icon-end" aria-hidden="true" />
-					</Link>
-				</div>
-			</SectionReveal>
+		<section className="bg-[var(--color-base)] py-16 sm:py-20 lg:py-28">
+			<div className="hq-page-shell">
+				<SectionReveal>
+					<div className="mb-10 grid items-end gap-6 sm:mb-12 lg:grid-cols-[1fr_auto]">
+						<div>
+							<p className="hq-kicker mb-4 text-[var(--color-primary)]">
+								{t('marketPreview.label')}
+							</p>
+							<h2 className="hq-display text-[clamp(2.8rem,7vw,6.5rem)] font-bold leading-[0.94] text-[var(--color-text)]">
+								{t('marketPreview.heading')}
+							</h2>
+						</div>
+						<Link
+							to="/market"
+							className="group inline-flex items-center gap-2 text-[13px] font-semibold text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-primary)]"
+						>
+							{t('marketPreview.viewAll')}
+							<ArrowUpRight
+								size={15}
+								className="icon-end transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+							/>
+						</Link>
+					</div>
+				</SectionReveal>
 
-			{/* 3-col grid on desktop, 2-col tablet, 1-col mobile */}
-			<div className="grid grid-cols-1 gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-6 lg:gap-y-10">
-				{categories.map((category, i) => {
-					const label = categoryLabel(category, locale)
-					return (
-						<SectionReveal key={category.slug} delay={i * 0.06}>
-							<Link
-								to="/market"
-								search={{ category: category.slug }}
-								className="group block"
-							>
-								{/* Image — clean, no overlay */}
-								<div className="aspect-[4/3] rounded-xl overflow-hidden bg-[var(--color-surface)]">
-									{category.imageUrl ? (
-										<img
-											src={category.imageUrl}
-											alt=""
-											width={600}
-											height={450}
-											loading="lazy"
-											className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+				<div className="border-t border-[var(--site-rule)]">
+					{categories.map((category, index) => {
+						const copy = categoryCopy(category, locale)
+						return (
+							<SectionReveal key={category.slug} delay={index * 0.04}>
+								<Link
+									to="/market"
+									search={{ category: category.slug }}
+									className="group grid gap-5 border-b border-[var(--site-rule)] py-6 transition-colors hover:bg-[var(--site-blue-wash)] sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.65fr)_112px] sm:items-center sm:px-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)_152px] lg:py-7"
+								>
+									<h3 className="hq-display text-[clamp(2rem,4.5vw,4.8rem)] font-bold leading-none text-[var(--color-text)] transition-colors group-hover:text-[var(--color-primary)]">
+										{copy.name}
+									</h3>
+									<p className="max-w-[480px] text-[13px] leading-6 text-[var(--color-text-muted)]">
+										{copy.description}
+									</p>
+									<div className="flex items-center justify-between gap-4 sm:justify-end">
+										<CategorySample
+											imageUrl={category.imageUrl}
+											index={index}
 										/>
-									) : (
-										<div className="flex h-full w-full items-center justify-center bg-[var(--color-surface)] px-6 text-center">
-											<span className="text-[28px] font-extrabold tracking-normal text-[var(--color-text)]">
-												{label}
-											</span>
-										</div>
-									)}
-								</div>
-
-								{/* Title + arrow beneath */}
-								<div className="mt-4 flex items-center justify-center gap-3 text-center lg:justify-between lg:text-start">
-									<span className="text-[16px] font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)] transition-colors">
-										{label}
-									</span>
-									<ArrowRight
-										size={16}
-										className="text-[var(--color-text-subtle)] group-hover:text-[var(--color-primary)] group-hover:translate-x-1 transition-all duration-200 icon-end"
-									/>
-								</div>
-							</Link>
-						</SectionReveal>
-					)
-				})}
+										<ArrowUpRight
+											size={18}
+											className="icon-end shrink-0 text-[var(--color-text-subtle)] transition-all group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-[var(--color-primary)]"
+										/>
+									</div>
+								</Link>
+							</SectionReveal>
+						)
+					})}
+				</div>
 			</div>
 		</section>
+	)
+}
+
+function CategorySample({
+	imageUrl,
+	index,
+}: {
+	imageUrl: string | null
+	index: number
+}) {
+	if (imageUrl) {
+		return (
+			<div className="h-16 w-24 overflow-hidden rounded-lg bg-[var(--site-concrete)] lg:h-20 lg:w-32">
+				<img
+					src={imageUrl}
+					alt=""
+					width={256}
+					height={160}
+					loading="lazy"
+					className="h-full w-full object-cover grayscale transition duration-500 group-hover:grayscale-0"
+				/>
+			</div>
+		)
+	}
+
+	return (
+		<div className="relative h-16 w-24 overflow-hidden rounded-lg border border-[var(--site-rule)] bg-[var(--site-concrete)] lg:h-20 lg:w-32">
+			<div
+				className="absolute inset-x-3 top-3 h-2 rounded-full bg-[var(--color-primary)]/70"
+				style={{ transform: `translateX(${(index % 3) * 4}px)` }}
+			/>
+			<div className="absolute inset-x-3 top-7 h-px bg-[var(--site-steel)]/35" />
+			<div className="absolute inset-x-3 top-10 h-px bg-[var(--site-steel)]/35" />
+			<div className="absolute inset-x-3 top-13 h-px bg-[var(--site-steel)]/35" />
+		</div>
 	)
 }

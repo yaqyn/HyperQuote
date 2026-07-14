@@ -1,107 +1,74 @@
-import {
-	motion,
-	useMotionTemplate,
-	useScroll,
-	useTransform,
-} from 'motion/react'
-import { useEffect, useRef, useState } from 'react'
+import { ArrowDownRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { SectionReveal } from '../shared/SectionReveal'
 
 const STEP_KEYS = ['step1', 'step2', 'step3', 'step4'] as const
-const HERO_IMAGE = '/images/paper.webp'
 
 export function HowItWorksSection() {
 	const { t } = useTranslation('website')
-	const sectionRef = useRef<HTMLElement>(null)
-	const [isCompactViewport, setIsCompactViewport] = useState(false)
-
-	useEffect(() => {
-		const query = window.matchMedia('(max-width: 1023px)')
-		const update = () => setIsCompactViewport(query.matches)
-		update()
-		query.addEventListener('change', update)
-		return () => query.removeEventListener('change', update)
-	}, [])
-
-	const { scrollYProgress } = useScroll({
-		target: sectionRef,
-		offset: ['start end', 'center center'],
-	})
-
-	// clip-path inset shrinks from edges → 0. Content never moves.
-	const inset = useTransform(scrollYProgress, [0.5, 1], [40, 0])
-	const radius = useTransform(scrollYProgress, [0.5, 1], [24, 0])
-	const clipPath = useMotionTemplate`inset(0px ${inset}px 0px ${inset}px round ${radius}px)`
 
 	return (
-		<section
-			ref={sectionRef}
-			id="process"
-			className="relative scroll-mt-14 md:scroll-mt-16 lg:scroll-mt-0"
-		>
-			<motion.div
-				style={{
-					clipPath: isCompactViewport
-						? 'inset(0px 0px 0px 0px round 0px)'
-						: clipPath,
-				}}
-				className="relative overflow-hidden bg-[#101010]"
-			>
-				{/* Fixed image */}
-				<div className="absolute top-0 bottom-0 max-lg:hidden start-[55%] end-0">
-					<img
-						src={HERO_IMAGE}
-						alt=""
-						className="absolute inset-0 h-full w-full object-cover object-center"
-					/>
-				</div>
-
-				{/* Content — left side */}
-				<div className="relative z-10 mx-auto px-14 sm:px-16 md:px-20 lg:px-32 xl:px-40 2xl:px-52">
-					<div className="pt-10 pb-14 sm:pt-14 sm:pb-16 lg:w-[55%] lg:py-24 lg:pe-16">
-						<SectionReveal>
-							<div className="text-center lg:text-start">
-								<p className="mb-3 text-[12px] font-semibold uppercase tracking-normal text-[#3B82F6]">
-									{t('howItWorks.label')}
-								</p>
-								<h2 className="text-[32px] sm:text-[36px] lg:text-[48px] font-extrabold text-white leading-[1.08] tracking-normal whitespace-pre-line">
-									{t('howItWorks.heading')}
-								</h2>
-							</div>
-						</SectionReveal>
-
-						<div className="mt-10 grid grid-cols-1 gap-0 sm:mt-12 sm:grid-cols-2">
-							{STEP_KEYS.map((key, i) => (
-								<SectionReveal key={key} delay={i * 0.06}>
-									<div className="border-t border-[#1E1E1E] py-5 text-center lg:pe-6 lg:text-start">
-										<span className="font-mono text-[12px] text-[#505050] block mb-2">
-											{String(i + 1).padStart(2, '0')}
-										</span>
-										<h3 className="text-[16px] font-semibold text-white mb-1">
-											{t(`howItWorks.${key}.title`)}
-										</h3>
-										<p className="text-[14px] text-[#808080] leading-relaxed">
-											{t(`howItWorks.${key}.description`)}
-										</p>
-									</div>
-								</SectionReveal>
-							))}
+		<section id="process" className="scroll-mt-[68px] bg-[#101010] text-white">
+			<div className="hq-page-shell py-16 sm:py-20 lg:py-28">
+				<SectionReveal>
+					<div className="grid items-end gap-8 lg:grid-cols-[1fr_0.7fr] lg:gap-24">
+						<div>
+							<p className="hq-kicker mb-5 text-[#75a2ff]">
+								{t('howItWorks.label')}
+							</p>
+							<h2 className="hq-display whitespace-pre-line text-[clamp(2.8rem,7vw,7rem)] font-bold leading-[0.94]">
+								{t('howItWorks.heading')}
+							</h2>
 						</div>
+						<p className="max-w-[500px] text-[15px] leading-7 text-white/50 sm:text-[16px] lg:justify-self-end">
+							{t('hero.subheadline')}
+						</p>
 					</div>
-				</div>
+				</SectionReveal>
 
-				{/* Mobile image */}
-				<div className="lg:hidden relative aspect-[16/9]">
-					<img
-						src={HERO_IMAGE}
-						alt={t('hero.imageAlt')}
-						width={800}
-						height={450}
-						className="h-full w-full object-cover object-center"
-					/>
+				<SectionReveal className="mt-12 sm:mt-16 lg:mt-20">
+					<figure className="overflow-hidden rounded-[24px] border border-white/10 bg-[#181818]">
+						<div className="relative aspect-[4/3] overflow-hidden sm:aspect-[16/8] lg:aspect-[16/7]">
+							<img
+								src="/images/cairo-site-delivery.webp"
+								alt={t('hero.imageAlt')}
+								width={1672}
+								height={941}
+								loading="lazy"
+								className="h-full w-full object-cover object-center saturate-[0.9]"
+							/>
+							<div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+							<figcaption className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-5 p-5 sm:p-7">
+								<p className="max-w-[420px] text-[13px] leading-6 text-white/75">
+									{t('howItWorks.step4.description')}
+								</p>
+								<span className="hidden items-center gap-2 font-mono text-[10px] text-white/55 sm:flex">
+									{t('howItWorks.imageCaption')}
+									<ArrowDownRight size={14} />
+								</span>
+							</figcaption>
+						</div>
+					</figure>
+				</SectionReveal>
+
+				<div className="mt-10 grid border-t border-white/12 sm:grid-cols-2 lg:mt-14 lg:grid-cols-4">
+					{STEP_KEYS.map((key, index) => (
+						<SectionReveal key={key} delay={index * 0.05}>
+							<article className="min-h-full border-b border-white/12 py-7 sm:border-e sm:px-6 lg:border-b-0 lg:px-7 first:ps-0 last:border-e-0 last:pe-0">
+								<span className="font-mono text-[11px] text-[#75a2ff]">
+									{String(index + 1).padStart(2, '0')}
+								</span>
+								<h3 className="mt-6 text-[18px] font-semibold text-white">
+									{t(`howItWorks.${key}.title`)}
+								</h3>
+								<p className="mt-3 text-[13px] leading-6 text-white/45">
+									{t(`howItWorks.${key}.description`)}
+								</p>
+							</article>
+						</SectionReveal>
+					))}
 				</div>
-			</motion.div>
+			</div>
 		</section>
 	)
 }

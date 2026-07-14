@@ -15,6 +15,7 @@
 /* Tailwind v4 design tokens — generates utilities (font-sans, rounded-lg, etc.) */
 @theme {
 	/* Typography */
+	--font-display: "Alexandria", "Tajawal", "Inter", system-ui, sans-serif;
 	--font-sans: "Inter", system-ui, sans-serif;
 	--font-arabic: "Tajawal", system-ui, sans-serif;
 	--font-mono: "Geist Mono", ui-monospace, monospace;

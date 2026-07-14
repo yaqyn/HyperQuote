@@ -352,15 +352,26 @@ function MarketPage() {
 	)
 
 	return (
-		<div className="min-h-screen pt-[72px] pb-12 md:pt-[88px]">
+		<div className="min-h-screen pb-16 pt-[88px] md:pt-[104px]">
 			{/* Top bar */}
-			<section className="px-4 pb-5 sm:px-6 lg:px-12 lg:pb-6">
+			<section className="border-b border-[var(--site-rule)] px-4 pb-8 sm:px-6 md:pb-10 lg:px-12 lg:pb-12">
 				<div className="mx-auto max-w-[1400px]">
-					<div className="flex flex-col items-center gap-4 text-center lg:flex-row lg:items-center lg:justify-between lg:text-start">
-						<h1 className="w-full text-[28px] font-extrabold tracking-normal lg:w-auto lg:text-[36px]">
-							{t('market.pageTitle')}
-						</h1>
-						<div className="mx-auto w-full max-w-[520px] lg:mx-0 lg:w-[420px]">
+					<div className="grid items-end gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(360px,520px)] lg:gap-16">
+						<div>
+							<p className="hq-kicker mb-4 text-[var(--color-primary)]">
+								{t('market.eyebrow')}
+							</p>
+							<h1 className="hq-display max-w-[780px] text-[clamp(3rem,7vw,6.25rem)] font-bold leading-[0.92] text-[var(--color-text)]">
+								{t('market.pageTitle')}
+							</h1>
+							<p className="mt-5 max-w-[590px] text-[14px] leading-7 text-[var(--color-text-muted)] sm:text-[15px]">
+								{t('market.subtitle')}
+							</p>
+						</div>
+						<div className="w-full border-t border-[var(--site-rule)] pt-4 lg:border-t-0 lg:pt-0">
+							<p className="hq-kicker mb-3 text-[var(--color-text-subtle)]">
+								{t('market.searchLabel')}
+							</p>
 							<MarketSearch
 								items={data.items}
 								categories={data.categories}
@@ -373,8 +384,8 @@ function MarketPage() {
 			</section>
 
 			{/* Product grid */}
-			<section className="px-4 py-6 sm:px-6 sm:py-8 lg:px-12">
-				<div className="mx-auto grid max-w-[1400px] gap-8 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+			<section className="px-4 py-8 sm:px-6 sm:py-10 lg:px-12 lg:py-12">
+				<div className="mx-auto grid max-w-[1400px] gap-8 lg:grid-cols-[250px_minmax(0,1fr)] lg:items-start lg:gap-12">
 					<HierarchySidebar
 						categories={data.categories}
 						locale={locale}
@@ -389,14 +400,14 @@ function MarketPage() {
 						<button
 							type="button"
 							onClick={() => setCatalogOpen(true)}
-							className="mb-5 flex h-11 w-full items-center justify-between rounded-sm border border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-start text-[13px] font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--color-text)]/20 hover:bg-[var(--color-text)]/[0.04] lg:hidden"
+							className="mb-6 flex h-12 w-full items-center justify-between border border-[var(--site-rule)] bg-[var(--site-concrete)] px-4 text-start text-[13px] font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--color-primary)]/40 lg:hidden"
 						>
 							<span className="inline-flex items-center gap-2">
 								<SlidersHorizontal size={16} strokeWidth={1.8} />
-								Catalog
+								{t('market.catalog')}
 							</span>
 							<span className="font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.14em]">
-								Browse
+								{t('market.browse')}
 							</span>
 						</button>
 						{data.items.length === 0 ? (
@@ -416,7 +427,7 @@ function MarketPage() {
 							/>
 						) : (
 							<>
-								<div className="flex items-center justify-between mb-8">
+								<div className="mb-7 flex items-center justify-between border-b border-[var(--site-rule)] pb-4">
 									<p className="text-[13px] text-[var(--color-text-subtle)]">
 										{t('market.resultCount', { count: data.total })}
 									</p>
@@ -462,7 +473,7 @@ function MarketPage() {
 									initial={{ opacity: 0 }}
 									animate={{ opacity: 1 }}
 									transition={{ duration: 0.25, ease: 'easeOut' }}
-									className="grid grid-cols-2 gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-8 lg:grid-cols-3 lg:gap-x-6"
+									className="grid grid-cols-1 gap-x-5 gap-y-9 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-6 lg:gap-y-11"
 								>
 									{data.items.map((item: PublicProduct) => (
 										<ProductCard
@@ -572,6 +583,8 @@ function MobileHierarchySheet({
 	onToggleCategory: (slug: string) => void
 	onToggleGroup: (slug: string) => void
 }) {
+	const { t } = useTranslation('website')
+
 	return (
 		<AnimatePresence>
 			{open && (
@@ -583,7 +596,7 @@ function MobileHierarchySheet({
 				>
 					<button
 						type="button"
-						aria-label="Close catalog"
+						aria-label={t('market.closeCatalog')}
 						onClick={onClose}
 						className="absolute inset-0 h-full w-full cursor-default"
 					/>
@@ -596,7 +609,7 @@ function MobileHierarchySheet({
 					>
 						<div className="mb-4 flex items-center justify-between">
 							<p className="font-[family-name:var(--font-plex-mono)] text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-								Catalog
+								{t('market.catalog')}
 							</p>
 							<div className="flex items-center gap-1">
 								{selectedCategories.length > 0 || selectedGroups.length > 0 ? (
@@ -605,14 +618,14 @@ function MobileHierarchySheet({
 										onClick={onClear}
 										className="h-9 px-2 text-[12px] font-semibold text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
 									>
-										Clear
+										{t('market.clearFilters')}
 									</button>
 								) : null}
 								<button
 									type="button"
 									onClick={onClose}
 									className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-text)]/[0.06] hover:text-[var(--color-text)]"
-									aria-label="Close catalog"
+									aria-label={t('market.closeCatalog')}
 								>
 									<X size={17} strokeWidth={1.8} />
 								</button>
@@ -688,7 +701,7 @@ function HierarchyPanelContent({
 			{!compact && (
 				<div className="mb-5 flex items-center justify-between gap-3">
 					<p className="font-[family-name:var(--font-plex-mono)] text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
-						Catalog
+						{t('market.catalog')}
 					</p>
 					{!isAllActive && (
 						<button
@@ -848,6 +861,7 @@ function WebsiteHierarchyProductRow({
 	label: string
 	product?: PublicProduct
 }) {
+	const { t } = useTranslation('website')
 	const { add, updateQuantity, items } = useQuoteCart()
 	const [editing, setEditing] = useState(false)
 	const existing = product
@@ -927,7 +941,7 @@ function WebsiteHierarchyProductRow({
 					onClick={submit}
 					className="h-7 rounded-sm bg-[#2563eb] px-2 font-[family-name:var(--font-plex-mono)] text-[10px] uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#1d4ed8]"
 				>
-					Add
+					{t('market.add')}
 				</button>
 			</motion.div>
 		)

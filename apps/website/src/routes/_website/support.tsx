@@ -8,7 +8,6 @@ import {
 	SearchDropdown,
 	type SearchEntry,
 } from '../../components/shared/SearchDropdown'
-import { SectionNumber } from '../../components/shared/SectionNumber'
 import { ContactForm } from '../../components/support/ContactForm'
 import { ContactInfo } from '../../components/support/ContactInfo'
 import { FAQ_DATA, FAQAccordion } from '../../components/support/FAQAccordion'
@@ -27,8 +26,7 @@ export const Route = createFileRoute('/_website/support')({
 })
 
 function SupportPage() {
-	const { t, i18n } = useTranslation('website')
-	const isArabic = i18n.language === 'ar'
+	const { t } = useTranslation('website')
 	const [expandFaqId, setExpandFaqId] = useState<string | null>(null)
 	const contactHeadingRef = useRef<HTMLDivElement | null>(null)
 	const openWithMessage = useChatWidget((s) => s.openWithMessage)
@@ -82,42 +80,48 @@ function SupportPage() {
 				initial="hidden"
 				animate="visible"
 				variants={revealUp}
-				className="flex min-h-[56svh] items-center justify-center px-4 pb-12 pt-28 sm:min-h-[52svh] sm:px-6 md:px-8 lg:min-h-[64vh] lg:px-12"
+				className="px-4 pb-12 pt-28 sm:px-6 sm:pt-32 lg:px-12 lg:pb-16 lg:pt-40"
 			>
-				<div className="mx-auto max-w-[1200px] text-center">
-					<h1 className="text-[clamp(2.4rem,11vw,4.5rem)] font-extrabold leading-[1] tracking-normal md:text-[clamp(3rem,6vw,4.5rem)]">
-						{t('support.heading')}
-					</h1>
-					<p className="mx-auto mt-5 max-w-[400px] text-[15px] leading-[1.7] text-[var(--color-text-muted)]">
-						{t('support.responseTime')}
-					</p>
-					<p className="mx-auto mt-2 max-w-[320px] font-[family-name:var(--font-mono)] text-[11px] leading-relaxed tracking-normal text-[var(--color-text-subtle)] sm:max-w-none sm:text-[12px]">
-						{isArabic
-							? '\u0627\u0644\u0623\u062D\u062F \u2013 \u0627\u0644\u062E\u0645\u064A\u0633 \u060C \u0668:\u0660\u0660 \u0635 \u2013 \u0666:\u0660\u0660 \u0645 \u0628\u062A\u0648\u0642\u064A\u062A \u0627\u0644\u0642\u0627\u0647\u0631\u0629'
-							: 'Sun\u2013Thu, 8:00 AM \u2013 6:00 PM Cairo time'}
-					</p>
-
-					{/* Search */}
-					<div className="mt-10 flex justify-center">
-						<SearchDropdown
-							items={faqItems}
-							placeholder={t('support.searchPlaceholder', {
-								defaultValue: 'Search for help...',
-							})}
-							askLyonLabel={t('support.askAI', { defaultValue: 'Ask Lyon' })}
-							onSelect={handleSelect}
-							onAskLyon={handleAskLyon}
-							className="w-full max-w-[480px] [&_input]:placeholder:opacity-50 [&_svg]:opacity-40"
-							idPrefix="support-search"
-						/>
+				<div className="mx-auto grid max-w-[1400px] gap-10 border-t border-[var(--site-rule)] pt-6 lg:grid-cols-[minmax(0,1fr)_460px] lg:items-end lg:gap-20">
+					<div>
+						<p className="hq-kicker mb-5 text-[var(--color-primary)]">
+							{t('support.sectionMessage')}
+						</p>
+						<h1 className="hq-display max-w-[900px] text-[clamp(3.4rem,9vw,8rem)] font-bold leading-[0.88] text-[var(--color-text)]">
+							{t('support.heading')}
+						</h1>
+					</div>
+					<div className="border-s border-[var(--site-rule)] ps-5">
+						<div className="flex items-center justify-between gap-5 border-b border-[var(--site-rule)] pb-4">
+							<p className="text-[14px] font-semibold text-[var(--color-text)]">
+								{t('support.responseTime')}
+							</p>
+							<span className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+								<span className="h-2 w-2 rounded-full bg-[var(--color-success)]" />
+								{t('support.status')}
+							</span>
+						</div>
+						<p className="mt-4 font-mono text-[11px] leading-relaxed text-[var(--color-text-subtle)]">
+							{t('support.hoursLine')}
+						</p>
+						<div className="mt-7">
+							<SearchDropdown
+								items={faqItems}
+								placeholder={t('support.searchPlaceholder', {
+									defaultValue: 'Search for help...',
+								})}
+								askLyonLabel={t('support.askAI', {
+									defaultValue: 'Ask Lyon',
+								})}
+								onSelect={handleSelect}
+								onAskLyon={handleAskLyon}
+								className="w-full [&_input]:placeholder:opacity-50 [&_svg]:opacity-40"
+								idPrefix="support-search"
+							/>
+						</div>
 					</div>
 				</div>
 			</motion.section>
-
-			{/* Divider */}
-			<div className="mx-auto max-w-[1200px] px-4 sm:px-6 md:px-8 lg:px-12">
-				<div className="h-px bg-[var(--color-text)] opacity-[0.07]" />
-			</div>
 
 			{/* Contact */}
 			<motion.section
@@ -126,32 +130,29 @@ function SupportPage() {
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={revealUp}
-				className="scroll-mt-24 px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-12 lg:py-24"
+				className="scroll-mt-24 border-t border-[var(--site-rule)] px-4 py-16 sm:px-6 lg:px-12 lg:py-24"
 			>
-				<div className="mx-auto max-w-[1200px]">
+				<div className="mx-auto max-w-[1400px]">
 					<div
 						id="support-contact-heading"
 						ref={contactHeadingRef}
-						className="mb-10 scroll-mt-24 text-center md:mb-12 lg:mb-14 lg:text-start"
+						className="mb-10 scroll-mt-24 border-b border-[var(--site-rule)] pb-6 md:mb-12 lg:mb-14"
 					>
-						<SectionNumber n={1} />
-						<h2 className="mt-3 text-[clamp(1.5rem,3vw,2rem)] font-bold tracking-normal">
+						<p className="hq-kicker text-[var(--color-primary)]">
+							HQ / CONTACT
+						</p>
+						<h2 className="hq-display mt-4 text-[clamp(2.5rem,5vw,5rem)] font-bold leading-[0.94]">
 							{t('support.sectionContact')}
 						</h2>
 					</div>
 
-					<div className="grid grid-cols-1 items-start justify-items-center gap-12 lg:grid-cols-[1fr_1fr] lg:justify-items-stretch lg:gap-24">
+					<div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-[minmax(0,0.62fr)_minmax(320px,0.38fr)] lg:gap-24">
 						<ContactForm onSubmitted={handleContactSubmitted} />
 						<div className="h-px bg-[var(--color-text)] opacity-[0.07] lg:hidden" />
 						<ContactInfo />
 					</div>
 				</div>
 			</motion.section>
-
-			{/* Divider */}
-			<div className="mx-auto max-w-[1200px] px-4 sm:px-6 md:px-8 lg:px-12">
-				<div className="h-px bg-[var(--color-text)] opacity-[0.07]" />
-			</div>
 
 			{/* FAQ */}
 			<motion.section
@@ -160,16 +161,18 @@ function SupportPage() {
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={revealUp}
-				className="scroll-mt-24 px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-12 lg:py-24"
+				className="scroll-mt-24 bg-[var(--site-concrete)] px-4 py-16 sm:px-6 lg:px-12 lg:py-24"
 			>
-				<div className="mx-auto max-w-[1200px]">
-					<div className="mb-10 text-center md:mb-12 lg:mb-14 lg:text-start">
-						<SectionNumber n={2} />
-						<h2 className="mt-3 text-[clamp(1.5rem,3vw,2rem)] font-bold tracking-normal">
+				<div className="mx-auto max-w-[1400px]">
+					<div className="mb-10 border-b border-[var(--site-rule)] pb-6 md:mb-12 lg:mb-14">
+						<p className="hq-kicker text-[var(--color-primary)]">
+							{t('support.sectionFaq')}
+						</p>
+						<h2 className="hq-display mt-4 text-[clamp(2.5rem,5vw,5rem)] font-bold leading-[0.94]">
 							{t('support.faq.heading')}
 						</h2>
 					</div>
-					<div className="mx-auto max-w-[760px] lg:max-w-none">
+					<div className="mx-auto max-w-[920px] lg:mx-0">
 						<FAQAccordion expandId={expandFaqId} />
 					</div>
 
@@ -180,10 +183,8 @@ function SupportPage() {
 						variants={revealUp}
 						className="mt-16 border-t border-[var(--color-text)]/[0.07] pt-10 text-center"
 					>
-						<p className="text-[15px] opacity-40">
-							{isArabic
-								? '\u0644\u0633\u0647 \u0645\u062D\u062A\u0627\u062C \u0645\u0633\u0627\u0639\u062F\u0629\u061F'
-								: 'Still need help?'}
+						<p className="text-[15px] text-[var(--color-text-muted)]">
+							{t('support.stillNeedHelp')}
 						</p>
 						<button
 							type="button"

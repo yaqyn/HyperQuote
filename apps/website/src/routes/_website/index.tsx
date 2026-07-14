@@ -33,7 +33,7 @@ function HomePage() {
 		<>
 			<OrganizationJsonLd />
 			<WebsiteJsonLd />
-			<HeroSection />
+			<HeroSection categories={marketPreviewCategories} />
 			<HowItWorksSection />
 			<MarketPreviewSection categories={marketPreviewCategories} />
 			<CTASection />

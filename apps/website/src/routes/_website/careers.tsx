@@ -47,23 +47,34 @@ function CareersPage() {
 				initial="hidden"
 				animate="visible"
 				variants={revealUp}
-				className="px-4 pb-12 pt-24 sm:px-6 sm:pb-14 sm:pt-28 md:px-8 lg:px-12 lg:pb-24 lg:pt-36"
+				className="px-4 pb-12 pt-28 sm:px-6 sm:pt-32 lg:px-12 lg:pb-16 lg:pt-40"
 			>
-				<div className="mx-auto max-w-[1200px] text-center lg:text-start">
-					<p className="mb-5 font-[family-name:var(--font-mono)] text-[12px] uppercase tracking-normal text-[var(--color-text-subtle)] sm:mb-6">
-						{t('careers.location')}
-					</p>
-					<h1 className="mx-auto max-w-[900px] lg:mx-0">
-						<span className="block text-[clamp(2.25rem,10vw,3.8rem)] font-light leading-[1.05] tracking-normal text-[var(--color-text-muted)]">
-							{t('careers.heroLine1')}
-						</span>
-						<span className="mt-2 block text-[clamp(2.25rem,10vw,3.8rem)] font-bold leading-[1.05] tracking-normal">
-							{t('careers.heroLine2')}
-						</span>
-					</h1>
-					<p className="mt-6 font-[family-name:var(--font-mono)] text-[12px] tracking-normal text-[var(--color-primary)] opacity-80">
-						{t('careers.openCount')}
-					</p>
+				<div className="mx-auto grid max-w-[1400px] gap-10 border-t border-[var(--site-rule)] pt-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-end lg:gap-20">
+					<div>
+						<p className="hq-kicker mb-5 text-[var(--color-primary)]">
+							{t('careers.location')}
+						</p>
+						<h1 className="hq-display max-w-[1000px] text-[clamp(3.3rem,8vw,7.6rem)] font-bold leading-[0.89] text-[var(--color-text)]">
+							<span className="block">{t('careers.heroLine1')}</span>
+							<span className="block text-[var(--color-primary)]">
+								{t('careers.heroLine2')}
+							</span>
+						</h1>
+					</div>
+					<div className="hq-docket-lines border border-[var(--site-rule)] bg-[var(--site-concrete)] p-5">
+						<p className="hq-kicker text-[var(--color-text-subtle)]">
+							HQ / TALENT
+						</p>
+						<p className="hq-display mt-14 text-[44px] font-bold leading-none text-[var(--color-primary)]">
+							{String(JOB_KEYS.length).padStart(2, '0')}
+						</p>
+						<p className="mt-2 text-[13px] font-semibold text-[var(--color-text)]">
+							{t('careers.openCount')}
+						</p>
+						<div className="mt-5 border-t border-[var(--site-rule)] pt-3 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
+							{t('careers.location')} / 2026
+						</div>
+					</div>
 				</div>
 			</motion.section>
 
@@ -73,44 +84,30 @@ function CareersPage() {
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={revealUp}
-				className="px-4 py-12 sm:px-6 sm:py-14 md:px-8 lg:px-12 lg:py-24"
+				className="border-t border-[var(--site-rule)] px-4 py-16 sm:px-6 lg:px-12 lg:py-24"
 			>
-				<div className="mx-auto max-w-[720px] text-center lg:text-start">
-					<p className="text-[15px] leading-[1.85] text-[var(--color-text-muted)]">
-						{t('careers.why.p1')}
-					</p>
-
+				<div className="mx-auto grid max-w-[1400px] gap-12 lg:grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)] lg:gap-24">
 					<motion.blockquote
 						initial="hidden"
 						whileInView="visible"
 						viewport={viewportOnce}
 						variants={staggerUp(0.1)}
-						className="my-9 sm:my-11 lg:my-14"
 					>
-						<p className="text-[clamp(1.35rem,6vw,2rem)] font-bold leading-[1.2] tracking-normal">
+						<p className="hq-kicker text-[var(--color-primary)]">
+							HQ / MANIFESTO
+						</p>
+						<p className="hq-display mt-5 text-[clamp(2.25rem,4vw,4.25rem)] font-bold leading-[0.98]">
 							{t('careers.why.pullquote1')}
 						</p>
 					</motion.blockquote>
-
-					<p className="text-[15px] leading-[1.85] text-[var(--color-text-muted)]">
-						{t('careers.why.p2')}
-					</p>
-
-					<motion.blockquote
-						initial="hidden"
-						whileInView="visible"
-						viewport={viewportOnce}
-						variants={staggerUp(0.1)}
-						className="my-9 sm:my-11 lg:my-14"
-					>
-						<p className="text-[clamp(1.35rem,6vw,2rem)] font-bold leading-[1.2] tracking-normal">
+					<div className="space-y-7 border-s border-[var(--site-rule)] ps-6 text-[15px] leading-[1.85] text-[var(--color-text-muted)] sm:ps-8">
+						<p>{t('careers.why.p1')}</p>
+						<p>{t('careers.why.p2')}</p>
+						<p className="border-y border-[var(--site-rule)] py-6 text-[clamp(1.35rem,3vw,2rem)] font-bold leading-[1.2] text-[var(--color-primary)]">
 							{t('careers.why.pullquote2')}
 						</p>
-					</motion.blockquote>
-
-					<p className="text-[15px] leading-[1.85] text-[var(--color-text-muted)]">
-						{t('careers.why.p3')}
-					</p>
+						<p>{t('careers.why.p3')}</p>
+					</div>
 				</div>
 			</motion.section>
 
@@ -120,19 +117,19 @@ function CareersPage() {
 			</div>
 
 			{/* Open Positions */}
-			<section className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-12 lg:py-24">
-				<div className="mx-auto max-w-[1200px]">
+			<section className="px-4 py-16 sm:px-6 lg:px-12 lg:py-24">
+				<div className="mx-auto max-w-[1400px]">
 					<motion.h2
 						initial="hidden"
 						whileInView="visible"
 						viewport={viewportOnce}
 						variants={revealUp}
-						className="mb-8 text-center text-[clamp(1.5rem,3vw,2rem)] font-bold tracking-normal sm:mb-10 lg:mb-12 lg:text-start"
+						className="hq-display mb-10 border-b border-[var(--site-rule)] pb-6 text-[clamp(2.5rem,5vw,5rem)] font-bold leading-[0.94]"
 					>
 						{t('careers.positions.heading')}
 					</motion.h2>
 
-					<div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
+					<div className="grid grid-cols-1">
 						{JOB_KEYS.map((key, i) => (
 							<motion.div
 								key={key}
@@ -146,19 +143,19 @@ function CareersPage() {
 									type="button"
 									onClick={() => handleJobSelect(key)}
 									aria-expanded={selectedJob === key}
-									className={`w-full cursor-pointer rounded-xl border p-5 text-center transition-colors sm:p-6 lg:text-start ${
+									className={`grid w-full cursor-pointer gap-3 border-b border-[var(--site-rule)] px-1 py-5 text-start transition-colors sm:grid-cols-[160px_minmax(0,1fr)_auto] sm:items-center sm:gap-6 sm:py-6 ${
 										selectedJob === key
-											? 'border-[var(--color-primary)] bg-[var(--color-subtle)]'
-											: 'border-[var(--color-border)] hover:border-[var(--color-primary)]'
+											? 'bg-[var(--site-blue-wash)]'
+											: 'hover:bg-[var(--site-concrete)]'
 									}`}
 								>
-									<span className="mb-3 block font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-normal text-[var(--color-primary)]">
+									<span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--color-primary)]">
 										{t(`careers.positions.${key}.department`)}
 									</span>
-									<h3 className="text-[17px] font-semibold tracking-normal">
+									<h3 className="hq-display text-[20px] font-bold sm:text-[24px]">
 										{t(`careers.positions.${key}.title`)}
 									</h3>
-									<div className="mt-2 flex flex-wrap items-baseline justify-center gap-3 text-[13px] text-[var(--color-text-muted)] lg:justify-start">
+									<div className="flex flex-wrap items-baseline gap-3 text-[12px] text-[var(--color-text-muted)] sm:justify-end">
 										<span>{t(`careers.positions.${key}.location`)}</span>
 										<span className="opacity-30">&middot;</span>
 										<span>{t(`careers.positions.${key}.type`)}</span>
@@ -189,15 +186,15 @@ function CareersPage() {
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={revealUp}
-				className="px-4 py-16 sm:px-6 md:px-8 lg:px-12 lg:py-28"
+				className="bg-[var(--color-primary)] px-4 py-16 text-white sm:px-6 lg:px-12 lg:py-24"
 			>
 				<div className="mx-auto max-w-[1200px] text-center">
-					<p className="mb-6 text-[clamp(2.35rem,10vw,4rem)] font-bold tracking-normal">
+					<p className="hq-display mb-6 text-[clamp(3rem,9vw,7rem)] font-bold leading-[0.9]">
 						{t('careers.cta.headline')}
 					</p>
 					<a
 						href="mailto:careers@hyperquote.net"
-						className="inline-flex items-center gap-2 text-[15px] font-medium text-[var(--color-primary)] transition-opacity hover:opacity-70"
+						className="inline-flex items-center gap-2 border-b border-white/40 pb-2 text-[15px] font-medium text-white transition-opacity hover:opacity-70"
 					>
 						careers@hyperquote.net
 						<ArrowRight size={15} className="icon-end" />

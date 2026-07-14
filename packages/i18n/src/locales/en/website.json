@@ -11,37 +11,57 @@
 	"cta": {
 		"getQuote": "Get a Quote",
 		"browseMarket": "Browse Market",
-		"readyToBuild": "Start Building",
+		"readyToBuild": "Build the list. We’ll source the rest.",
 		"getStartedFree": "Get Started",
-		"noCreditCard": "Free to use. No commitment."
+		"noCreditCard": "Keep a guest cart. Sign in only when you are ready.",
+		"status": "RFQ / Ready"
 	},
 	"hero": {
-		"headline": "Build the Future, Faster.",
-		"headlinePart1": "Build the Future,",
-		"headlinePart2": "Faster.",
+		"headline": "One material list. One consolidated quote.",
+		"headlinePart1": "One material list.",
+		"headlinePart2": "One consolidated quote.",
+		"eyebrow": "Building-material procurement / Egypt",
 		"address": "Arkan Plaza, Sheikh Zayed, Egypt",
 		"subheadline": "We source your building materials and deliver them to your site. You focus on building.",
 		"imageAlt": "Cairo construction site",
-		"visitUs": "Visit us ↗"
+		"visitUs": "Visit us ↗",
+		"seeProcess": "See how quotes work",
+		"serviceRail": "Open a workspace",
+		"backToOverview": "Back to overview",
+		"docket": {
+			"label": "Live material docket",
+			"reference": "RFQ / START",
+			"live": "Live",
+			"emptyTitle": "Start with a real material",
+			"emptyDescription": "Choose a category, add products, and keep the list while you browse.",
+			"cartTitle": "Your current material list",
+			"categoryColumn": "Material family",
+			"quantityColumn": "Quantity",
+			"unitColumn": "Unit",
+			"browse": "Open category",
+			"continue": "Continue building list",
+			"items": "items"
+		}
 	},
 	"howItWorks": {
-		"label": "HyperQuote",
-		"heading": "We move the materials.\nYou move the world.",
+		"label": "Quote workflow",
+		"heading": "From material list\nto site handoff.",
+		"imageCaption": "Cairo / Site handoff",
 		"step1": {
-			"title": "500+ products",
-			"description": "Cement, steel, aggregates, timber, finishing — everything a site needs, from verified suppliers across Egypt."
+			"title": "Build your list",
+			"description": "Browse the live catalog, choose exact specifications, and add the quantities your site needs."
 		},
 		"step2": {
-			"title": "Multi-supplier quotes",
-			"description": "Send your list in any format. Receive competitive pricing from multiple suppliers before the day is over."
+			"title": "Send one request",
+			"description": "Keep the list as a guest, then sign in once to save or send it to the HyperQuote team."
 		},
 		"step3": {
-			"title": "Tracked delivery",
-			"description": "Every truck on a map. Every order with a timeline. No more calling to ask where your materials are."
+			"title": "Review one quote",
+			"description": "We source across verified suppliers and return one clear, consolidated quote for your approval."
 		},
 		"step4": {
-			"title": "One platform",
-			"description": "Quotes, orders, invoices, deliveries — managed in one place. Built for how Egyptian construction actually works."
+			"title": "Track the handoff",
+			"description": "Follow the confirmed order and delivery through to the final site handoff in the customer portal."
 		}
 	},
 	"valueProps": {
@@ -75,19 +95,21 @@
 	},
 	"marketPreview": {
 		"label": "Catalog",
-		"heading": "Browse by Category",
+		"heading": "Material index",
 		"viewAll": "View All Products"
 	},
 	"about": {
 		"label": "About",
 		"established": "Cairo, Egypt — Est. 2026",
-		"heroLine1": "Orchestrating",
-		"heroLine2": "the physical world",
+		"heroLine1": "Built around",
+		"heroLine2": "the material list.",
 		"heroHeadline": "The supply chain, rebuilt",
-		"heroSubheadline": "HyperQuote connects contractors with verified suppliers through a single platform. One quote request, multiple supplier bids, delivered to your site.",
+		"heroSubheadline": "HyperQuote turns one project material list into a sourced, consolidated quote and a coordinated site delivery.",
+		"imageAlt": "Building materials arranged in a supplier yard in Greater Cairo",
+		"imageCaption": "Supplier network / Greater Cairo",
 		"story": {
 			"label": "Our Story",
-			"heading": "The problem",
+			"heading": "Procurement, made legible.",
 			"p1": "Egyptian construction runs on relationships, phone calls, and handshake deals. Contractors spend days calling suppliers for prices, comparing quotes on paper, and coordinating deliveries with no visibility. There's no standard platform, no price transparency, and no way to track an order once it's placed.",
 			"p2": "HyperQuote replaces that chaos with a structured, transparent system while preserving the relationship-driven way Egyptian business works. We source from multiple suppliers, consolidate pricing, handle logistics, and give every stakeholder real-time visibility into the process.",
 			"p3": "Based in Cairo, HyperQuote works with supplier networks across Egypt and supports professional procurement teams from sourcing through delivery."
@@ -195,6 +217,16 @@
 	},
 	"market": {
 		"pageTitle": "Building Materials",
+		"eyebrow": "Live material index / Egypt",
+		"subtitle": "Search verified materials, set exact quantities, and assemble one quote request for the whole site.",
+		"searchLabel": "Search the index",
+		"catalog": "Catalog",
+		"browse": "Browse",
+		"add": "Add",
+		"clearFilters": "Clear",
+		"closeCatalog": "Close catalog",
+		"categoryLabel": "Material catalog",
+		"materialRecord": "Material record",
 		"filtersTitle": "Filters",
 		"groupStructural": "Structural",
 		"groupFinishing": "Finishing",
@@ -280,7 +312,8 @@
 		"termsOfUse": "Terms",
 		"copyright": "© 2026 HyperQuote",
 		"regionEn": "Egypt · English",
-		"regionAr": "Egypt · العربية"
+		"regionAr": "Egypt · العربية",
+		"docketLocation": "HyperQuote / Cairo"
 	},
 	"offline": "You're offline",
 	"contextMenu": {
@@ -503,6 +536,9 @@
 	"support": {
 		"heading": "How can we help?",
 		"responseTime": "Average response: 2 hours",
+		"status": "Team online",
+		"hoursLine": "Sun–Thu / 08:00–18:00 / Cairo time",
+		"stillNeedHelp": "Still need help?",
 		"formHeading": "Send us a message",
 		"formSubheading": "We'll get back to you within a few hours.",
 		"searchPlaceholder": "Search for answers...",

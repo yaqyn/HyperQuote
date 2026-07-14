@@ -4,8 +4,9 @@
    Self-hosted WOFF2 font files. NO external font loading.
 
    Sources:
-     Inter v4.1        — https://github.com/rsms/inter/releases/tag/v4.1
-     IBM Plex Arabic    — https://github.com/IBM/plex/releases/tag/%40ibm%2Fplex-sans-arabic%401.1.0
+     Alexandria         — https://github.com/google/fonts/tree/main/ofl/alexandria
+     Inter v4.1         — https://github.com/rsms/inter/releases/tag/v4.1
+     Tajawal            — https://github.com/google/fonts/tree/main/ofl/tajawal
      Geist Mono v1.4.01 — https://github.com/vercel/geist-font/releases/tag/1.4.01
 
    Static WOFF2 files chosen over variable fonts for maximum
@@ -13,6 +14,19 @@
 
    Import this file in your app's global CSS to load all brand fonts.
    ================================================================ */
+
+/* ========================================
+   ALEXANDRIA — Bilingual Display
+   Variable weight, used selectively for expressive headings.
+   ======================================== */
+
+@font-face {
+	font-family: "Alexandria";
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url("./alexandria/Alexandria-Variable.woff2") format("woff2");
+}
 
 /* ========================================
    INTER — Latin Text
