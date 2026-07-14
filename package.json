@@ -8,8 +8,10 @@
 		"packages/*"
 	],
 	"scripts": {
-		"dev": "node scripts/dev-smart.mjs",
+		"dev": "bun scripts/dev-tui.mjs",
 		"dev:doctor": "node scripts/dev-smart.mjs --doctor --no-update",
+		"dev:plain": "node scripts/dev-smart.mjs",
+		"dev:tui:test": "bun test scripts/dev-tui.test.mjs",
 		"dev:tools:update": "node scripts/update-dev-tools.mjs --force",
 		"build": "turbo build",
 		"build:workers": "bunx turbo run build:worker --force",
@@ -62,6 +64,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.15",
 		"@cloudflare/vite-plugin": "^1.37.1",
+		"@opentui/core": "0.4.3",
 		"@playwright/test": "^1.60.0",
 		"@supabase/ssr": "^0.9.0",
 		"@supabase/supabase-js": "^2.106.1",

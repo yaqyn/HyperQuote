@@ -121,7 +121,7 @@ async function writeFetchResponse(
 }
 
 export default defineConfig({
-	server: { port: 3003 },
+	server: { port: 3003, strictPort: true },
 	preview: { port: 3003 },
 	build: {
 		rollupOptions: {

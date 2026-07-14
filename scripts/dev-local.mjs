@@ -2,8 +2,15 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
+import { connect } from 'node:net'
 import process from 'node:process'
 import { createInterface } from 'node:readline'
+import {
+	devProtocolEnabled,
+	emitDevEvent,
+	parseDevCommand,
+	sanitizeDevText,
+} from './dev-protocol.mjs'
 import {
 	INFISICAL_DEV_SENTINEL,
 	infisicalDevRunArgs,
@@ -17,6 +24,8 @@ const LOCAL_AI_PROXY_KEY = 'local-groq-proxy'
 const SUPABASE_READY_TIMEOUT_MS = 90_000
 const SUPABASE_READY_INTERVAL_MS = 1_000
 const APP_READY_TIMEOUT_MS = 30_000
+const APP_STOP_TIMEOUT_MS = 8_000
+const protocolMode = devProtocolEnabled()
 const useColor = Boolean(process.stdout.isTTY && !process.env.NO_COLOR)
 
 const APPS = [
@@ -49,7 +58,9 @@ const APPS = [
 maybeRelaunchWithInfisical()
 
 main().catch((error) => {
-	console.error(error)
+	const message = error instanceof Error ? error.message : String(error)
+	if (protocolMode) emitDevEvent({ type: 'error', message })
+	else console.error(message)
 	process.exit(1)
 })
 
@@ -58,7 +69,11 @@ function maybeRelaunchWithInfisical() {
 	if (process.env.CI) return
 	if (skipInfisical()) return
 
-	console.log('Loading local development secrets from Infisical dev...')
+	logDev(
+		'system',
+		'info',
+		'Loading local development secrets from Infisical dev...',
+	)
 	requireInfisicalReady('local dev secrets')
 	const relaunched = spawnSync(
 		'infisical',
@@ -77,20 +92,23 @@ function maybeRelaunchWithInfisical() {
 async function main() {
 	let localEnv = readLocalSupabaseEnv()
 	if (!localEnv) {
-		console.log('Starting local Supabase...')
+		logDev('supabase', 'info', 'Starting local Supabase...')
 		const started = spawnSync(
 			'node',
 			['scripts/supabase-local.mjs', 'start', '--quiet'],
 			{ stdio: 'ignore' },
 		)
 		if (started.status !== 0) {
-			console.error(
+			logDev(
+				'supabase',
+				'warning',
 				'Supabase start returned non-zero; waiting for local Supabase readiness before failing.',
 			)
 			localEnv = await waitForLocalSupabaseEnv()
 			if (!localEnv) {
-				console.error('Could not start local Supabase. Run `bun run db:start`.')
-				process.exit(started.status ?? 1)
+				throw new Error(
+					'Could not start local Supabase. Run `bun run db:start`.',
+				)
 			}
 		} else {
 			localEnv = await waitForLocalSupabaseEnv()
@@ -98,91 +116,253 @@ async function main() {
 	}
 
 	if (!localEnv) {
-		console.error('Could not read local Supabase status after start.')
-		process.exit(1)
+		throw new Error('Could not read local Supabase status after start.')
 	}
 
 	const seeded = spawnSync(
 		'node',
 		['scripts/seed-local-auth.mjs', '--preserve-existing-passwords', '--quiet'],
-		{ stdio: 'inherit' },
+		{
+			encoding: protocolMode ? 'utf8' : undefined,
+			stdio: protocolMode ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+		},
 	)
-	if (seeded.status !== 0) process.exit(seeded.status ?? 1)
+	if (seeded.status !== 0) {
+		throw new Error(
+			lastOutputLine(seeded.stderr || seeded.stdout) ||
+				'Could not seed local development accounts.',
+		)
+	}
 	const aiProxy = await startLocalAiProxy()
 
-	const baseEnv = {
-		...process.env,
-		SUPABASE_ANON_KEY: localEnv.ANON_KEY,
-		SUPABASE_SERVICE_ROLE_KEY: localEnv.SERVICE_ROLE_KEY,
-		SUPABASE_URL: localEnv.API_URL,
-		VITE_INTERNAL_URL: 'http://localhost:3002',
-		VITE_SUPABASE_ANON_KEY: localEnv.ANON_KEY,
-		VITE_SUPABASE_URL: localEnv.API_URL,
-	}
-	writeLocalAppEnv(
-		{
-			SUPABASE_ANON_KEY: localEnv.ANON_KEY,
-			SUPABASE_SERVICE_ROLE_KEY: localEnv.SERVICE_ROLE_KEY,
-			SUPABASE_URL: localEnv.API_URL,
-			VITE_SUPABASE_ANON_KEY: localEnv.ANON_KEY,
-			VITE_SUPABASE_URL: localEnv.API_URL,
-		},
-		aiProxy,
-	)
+	writeRuntimeEnv(localEnv, aiProxy)
 
 	renderRuntimeHeader(localEnv, aiProxy)
 	if (!hasConfiguredTwilioVerifyEnv(process.env)) {
-		console.log(
+		logDev(
+			'system',
+			'warning',
 			'Twilio Verify credentials are missing; real phone OTP delivery is disabled for this local run.',
 		)
 	}
 
 	let shuttingDown = false
-	const children = []
+	let activeOperation = null
+	const children = new Map()
+	const expectedStops = new Set()
 	let teardownControls = () => undefined
+	const readiness = []
 	for (const app of APPS) {
-		const appEnv = {
-			...baseEnv,
-			SUPABASE_COOKIE_NAME: app.cookieName,
-			VITE_SUPABASE_COOKIE_NAME: app.cookieName,
+		readiness.push(startApp(app))
+		await sleep(750)
+	}
+	teardownControls = setupTerminalControls({
+		handleCommand,
+		localEnv,
+		aiProxy,
+		shutdown,
+	})
+	renderControls()
+	void Promise.all(readiness).then((results) => {
+		if (shuttingDown) return
+		const healthy = results.every(Boolean)
+		if (protocolMode) {
+			emitDevEvent({
+				type: 'stack',
+				status: healthy ? 'ready' : 'degraded',
+			})
 		}
+	})
+
+	function startApp(app) {
+		if (!localEnv) {
+			throw new Error('Start local Supabase before starting app servers.')
+		}
+		emitService(app.name, 'starting', app.url)
 		const child = spawn('bun', ['run', 'dev'], {
 			cwd: app.cwd,
-			env: appEnv,
+			detached: true,
+			env: appRuntimeEnv(app, localEnv),
 			stdio: ['ignore', 'pipe', 'pipe'],
 		})
+		children.set(app.name, child)
 		pipeAppLogs(child.stdout, app.name, false, () => shuttingDown)
 		pipeAppLogs(child.stderr, app.name, true, () => shuttingDown)
 		child.on('error', (error) => {
-			if (!shuttingDown) {
-				console.error(`[${app.name}] could not start: ${error.message}`)
-				shutdown(1)
-			}
+			if (shuttingDown) return
+			emitService(app.name, 'error', app.url, error.message)
+			logDev(app.name, 'error', `Could not start: ${error.message}`)
 		})
 		child.on('exit', (code, signal) => {
+			if (children.get(app.name) === child) children.delete(app.name)
 			if (shuttingDown) return
-			console.error(
-				`${app.name} dev server exited${signal ? ` with ${signal}` : ` with code ${code}`}.`,
-			)
-			shutdown(code ?? 1)
+			if (expectedStops.delete(app.name)) {
+				emitService(app.name, 'stopped', app.url)
+				return
+			}
+			const detail = signal ? `signal ${signal}` : `exit code ${code}`
+			emitService(app.name, 'error', app.url, detail)
+			logDev(app.name, 'error', `Dev server exited with ${detail}.`)
 		})
-		children.push(child)
-		void reportAppReady(app)
-		await sleep(750)
+		return reportAppReady(app, child, () => children.get(app.name) === child)
 	}
-	teardownControls = setupTerminalControls(shutdown, localEnv, aiProxy)
-	renderControls()
+
+	async function stopApp(app) {
+		const child = children.get(app.name)
+		if (!child) return
+		expectedStops.add(app.name)
+		emitService(app.name, 'stopping', app.url)
+		const exited = waitForChildExit(child)
+		signalAppProcessGroup(child, 'SIGTERM')
+		try {
+			await Promise.all([exited, waitForAppPortRelease(app)])
+		} catch (error) {
+			signalAppProcessGroup(child, 'SIGKILL')
+			expectedStops.delete(app.name)
+			throw error
+		}
+	}
+
+	async function restartApp(appName) {
+		const app = APPS.find((candidate) => candidate.name === appName)
+		if (!app) throw new Error(`Unknown app: ${appName}`)
+		await stopApp(app)
+		await startApp(app)
+	}
+
+	async function restartAllApps() {
+		for (const app of APPS) await stopApp(app)
+		const nextReadiness = []
+		for (const app of APPS) {
+			nextReadiness.push(startApp(app))
+			await sleep(500)
+		}
+		const results = await Promise.all(nextReadiness)
+		if (results.some((healthy) => !healthy)) {
+			throw new Error('One or more app servers did not become ready.')
+		}
+	}
+
+	async function handleCommand(command) {
+		if (!command || typeof command.action !== 'string') return
+		switch (command.action) {
+			case 'quit':
+				shutdown(0)
+				return
+			case 'restart-app':
+				await withOperation(`Restart ${command.app ?? 'app'}`, () =>
+					restartApp(command.app),
+				)
+				return
+			case 'restart-all':
+				await withOperation('Restart application stack', restartAllApps)
+				return
+			case 'supabase-start':
+				await withOperation('Start local Supabase', async () => {
+					await runRepoScript('db:start')
+					const nextEnv = await waitForLocalSupabaseEnv()
+					if (!nextEnv) throw new Error('Local Supabase did not become ready.')
+					localEnv = nextEnv
+					writeRuntimeEnv(localEnv, aiProxy)
+					emitBackendStatus(localEnv)
+				})
+				return
+			case 'supabase-stop':
+				await withOperation('Stop local Supabase', async () => {
+					await runRepoScript('db:stop')
+					localEnv = null
+					emitBackendStatus(null)
+				})
+				return
+			case 'supabase-migrate':
+				await withOperation('Apply local migrations', async () => {
+					if (!readLocalSupabaseEnv()) {
+						throw new Error('Start local Supabase before applying migrations.')
+					}
+					await runRepoScript('db:migrate')
+				})
+				return
+			case 'supabase-reset':
+				if (command.confirmation !== 'RESET LOCAL') {
+					emitWarning('Local database reset requires RESET LOCAL confirmation.')
+					return
+				}
+				await withOperation('Reset local database', async () => {
+					if (!readLocalSupabaseEnv()) {
+						throw new Error('Start local Supabase before resetting it.')
+					}
+					await runRepoScript('db:reset')
+					const nextEnv = readLocalSupabaseEnv()
+					if (!nextEnv) {
+						throw new Error('Local Supabase is unavailable after reset.')
+					}
+					localEnv = nextEnv
+					writeRuntimeEnv(localEnv, aiProxy)
+					emitBackendStatus(localEnv)
+				})
+				return
+			case 'doctor':
+				await withOperation('Run local doctor', runDoctor)
+				return
+		}
+	}
+
+	async function runDoctor() {
+		const backendEnv = readLocalSupabaseEnv()
+		emitBackendStatus(backendEnv)
+		const checks = await Promise.all(
+			APPS.map(async (app) => {
+				const healthy = await appIsHealthy(app)
+				emitService(
+					app.name,
+					healthy ? 'ready' : 'error',
+					app.url,
+					healthy ? undefined : 'HTTP readiness check failed',
+				)
+				return healthy
+			}),
+		)
+		if (!backendEnv || checks.some((healthy) => !healthy)) {
+			throw new Error('Doctor found unavailable local services.')
+		}
+	}
+
+	async function withOperation(label, operation) {
+		if (activeOperation) {
+			emitWarning(`Wait for ${activeOperation} to finish.`)
+			return
+		}
+		activeOperation = label
+		emitOperation(label, 'running')
+		try {
+			await operation()
+			emitOperation(label, 'success')
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error)
+			emitOperation(label, 'error', message)
+			logDev('system', 'error', message)
+		} finally {
+			activeOperation = null
+		}
+	}
 
 	function shutdown(exitCode = 0) {
 		if (shuttingDown) return
 		shuttingDown = true
+		if (protocolMode) emitDevEvent({ type: 'shutdown', status: 'stopping' })
 		teardownControls()
-		for (const child of children) {
-			if (!child.killed) child.kill('SIGTERM')
-		}
 		aiProxy?.server.close()
 		writeLocalAppEnv()
-		setTimeout(() => process.exit(exitCode), 250)
+		const forceExit = setTimeout(() => {
+			for (const child of children.values()) {
+				signalAppProcessGroup(child, 'SIGKILL')
+			}
+			process.exit(exitCode)
+		}, APP_STOP_TIMEOUT_MS + 1_000)
+		void Promise.allSettled(APPS.map((app) => stopApp(app))).then(() => {
+			clearTimeout(forceExit)
+			process.exit(exitCode)
+		})
 	}
 
 	process.on('SIGINT', () => shutdown(0))
@@ -198,6 +378,15 @@ function pipeAppLogs(stream, appName, isError, isShuttingDown) {
 	const reader = createInterface({ input: stream })
 	reader.on('line', (line) => {
 		if (!line.trim() || isShuttingDown()) return
+		if (protocolMode) {
+			emitDevEvent({
+				type: 'log',
+				source: appName,
+				level: isError ? 'error' : 'info',
+				message: sanitizeDevText(line),
+			})
+			return
+		}
 		const prefix = appLogPrefix(appName)
 		const output = `${prefix} ${line}`
 		if (isError) console.error(output)
@@ -205,28 +394,87 @@ function pipeAppLogs(stream, appName, isError, isShuttingDown) {
 	})
 }
 
-async function reportAppReady(app) {
+async function reportAppReady(app, child, isCurrent) {
 	const deadline = Date.now() + APP_READY_TIMEOUT_MS
 	while (Date.now() < deadline) {
-		try {
-			const response = await fetch(app.url, { redirect: 'manual' })
-			if (response.status > 0 && response.status < 500) {
+		if (!isCurrent() || child.exitCode !== null) return false
+		if (await appIsHealthy(app)) {
+			emitService(app.name, 'ready', app.url)
+			if (!protocolMode) {
 				console.log(
 					`${appLogPrefix(app.name)} ${paint('32', 'READY')} ${app.url}`,
 				)
-				return
 			}
-		} catch {
-			// The app is still starting.
+			return true
 		}
 		await sleep(500)
 	}
-	console.warn(
-		`${appLogPrefix(app.name)} did not become reachable within 30 seconds.`,
-	)
+	const message = 'Did not become reachable within 30 seconds.'
+	emitService(app.name, 'error', app.url, message)
+	if (!protocolMode) console.warn(`${appLogPrefix(app.name)} ${message}`)
+	return false
 }
 
-function setupTerminalControls(shutdown, localEnv, aiProxy) {
+async function appIsHealthy(app) {
+	try {
+		const response = await fetch(app.url, {
+			redirect: 'manual',
+			signal: AbortSignal.timeout(3_000),
+		})
+		return response.status > 0 && response.status < 500
+	} catch {
+		return false
+	}
+}
+
+async function waitForAppPortRelease(app) {
+	const deadline = Date.now() + APP_STOP_TIMEOUT_MS
+	while (Date.now() < deadline) {
+		if (!(await appPortIsOpen(app))) return
+		await sleep(100)
+	}
+	throw new Error(`${app.name} did not release ${app.url} within 8 seconds.`)
+}
+
+async function appPortIsOpen(app) {
+	const { port } = new URL(app.url)
+	const checks = await Promise.all([
+		isHostPortOpen('127.0.0.1', Number(port)),
+		isHostPortOpen('::1', Number(port)),
+	])
+	return checks.some(Boolean)
+}
+
+function isHostPortOpen(host, port) {
+	return new Promise((resolve) => {
+		const socket = connect({ host, port })
+		let settled = false
+		const finish = (open) => {
+			if (settled) return
+			settled = true
+			socket.destroy()
+			resolve(open)
+		}
+		socket.once('connect', () => finish(true))
+		socket.once('error', () => finish(false))
+		socket.setTimeout(500, () => finish(false))
+	})
+}
+
+function setupTerminalControls({ handleCommand, shutdown, localEnv, aiProxy }) {
+	if (protocolMode) {
+		const reader = createInterface({ input: process.stdin })
+		reader.on('line', (line) => {
+			const command = parseDevCommand(line)
+			if (command) void handleCommand(command)
+		})
+		const onClose = () => shutdown(0)
+		reader.on('close', onClose)
+		return () => {
+			reader.off('close', onClose)
+			reader.close()
+		}
+	}
 	if (!process.stdin.isTTY || typeof process.stdin.setRawMode !== 'function') {
 		return () => undefined
 	}
@@ -279,6 +527,22 @@ function openUrl(url) {
 }
 
 function renderRuntimeHeader(localEnv, aiProxy) {
+	if (protocolMode) {
+		emitDevEvent({
+			type: 'runtime',
+			backendUrl: localEnv?.API_URL ?? null,
+			studioUrl: localEnv?.STUDIO_URL ?? 'http://localhost:54323',
+			aiEnabled: Boolean(aiProxy),
+		})
+		emitBackendStatus(localEnv)
+		emitService(
+			'ai',
+			aiProxy ? 'ready' : 'disabled',
+			undefined,
+			aiProxy ? undefined : 'No local Groq proxy',
+		)
+		return
+	}
 	const rule = paint(
 		'2',
 		'----------------------------------------------------------------',
@@ -301,6 +565,10 @@ function renderRuntimeHeader(localEnv, aiProxy) {
 }
 
 function renderControls() {
+	if (protocolMode) {
+		emitDevEvent({ type: 'controls', status: 'ready' })
+		return
+	}
 	if (!process.stdin.isTTY) return
 	console.log(
 		paint('2', 'Controls  [1-4] open app  [s] Studio  [c] clear  [q] stop'),
@@ -319,6 +587,136 @@ function appLogPrefix(appName) {
 
 function paint(code, value) {
 	return useColor ? `\u001b[${code}m${value}\u001b[0m` : value
+}
+
+function appRuntimeEnv(app, localEnv) {
+	return {
+		...process.env,
+		SUPABASE_ANON_KEY: localEnv.ANON_KEY,
+		SUPABASE_COOKIE_NAME: app.cookieName,
+		SUPABASE_SERVICE_ROLE_KEY: localEnv.SERVICE_ROLE_KEY,
+		SUPABASE_URL: localEnv.API_URL,
+		VITE_INTERNAL_URL: 'http://localhost:3002',
+		VITE_SUPABASE_ANON_KEY: localEnv.ANON_KEY,
+		VITE_SUPABASE_COOKIE_NAME: app.cookieName,
+		VITE_SUPABASE_URL: localEnv.API_URL,
+	}
+}
+
+function writeRuntimeEnv(localEnv, aiProxy) {
+	writeLocalAppEnv(
+		{
+			SUPABASE_ANON_KEY: localEnv.ANON_KEY,
+			SUPABASE_SERVICE_ROLE_KEY: localEnv.SERVICE_ROLE_KEY,
+			SUPABASE_URL: localEnv.API_URL,
+			VITE_SUPABASE_ANON_KEY: localEnv.ANON_KEY,
+			VITE_SUPABASE_URL: localEnv.API_URL,
+		},
+		aiProxy,
+	)
+}
+
+function waitForChildExit(child) {
+	if (child.exitCode !== null || child.signalCode) return Promise.resolve()
+	return new Promise((resolve, reject) => {
+		const timeout = setTimeout(() => {
+			child.off('exit', onExit)
+			reject(new Error('App server did not stop within 8 seconds.'))
+		}, APP_STOP_TIMEOUT_MS)
+		const onExit = () => {
+			clearTimeout(timeout)
+			resolve()
+		}
+		child.once('exit', onExit)
+	})
+}
+
+function signalAppProcessGroup(child, signal) {
+	if (!child.pid) return
+	try {
+		process.kill(-child.pid, signal)
+	} catch {
+		if (child.exitCode === null && !child.signalCode) child.kill(signal)
+	}
+}
+
+function runRepoScript(script) {
+	return new Promise((resolve, reject) => {
+		const child = spawn('bun', ['run', script], {
+			stdio: ['ignore', 'pipe', 'pipe'],
+		})
+		pipeCommandLogs(child.stdout, 'info')
+		pipeCommandLogs(child.stderr, 'error')
+		child.once('error', reject)
+		child.once('exit', (code, signal) => {
+			if (code === 0) {
+				resolve()
+				return
+			}
+			reject(
+				new Error(
+					signal
+						? `${script} stopped with ${signal}.`
+						: `${script} exited with code ${code}.`,
+				),
+			)
+		})
+	})
+}
+
+function pipeCommandLogs(stream, level) {
+	if (!stream) return
+	const reader = createInterface({ input: stream })
+	reader.on('line', (line) => {
+		if (line.trim()) logDev('supabase', level, line)
+	})
+}
+
+function emitBackendStatus(localEnv) {
+	if (!protocolMode) return
+	emitService('supabase', localEnv ? 'ready' : 'stopped', localEnv?.API_URL)
+	emitService(
+		'studio',
+		localEnv ? 'ready' : 'stopped',
+		localEnv?.STUDIO_URL ?? 'http://localhost:54323',
+	)
+}
+
+function emitService(id, status, url, detail) {
+	if (!protocolMode) return
+	emitDevEvent({ type: 'service', id, status, url, detail })
+}
+
+function emitOperation(label, status, detail) {
+	if (!protocolMode) return
+	emitDevEvent({ type: 'operation', label, status, detail })
+}
+
+function emitWarning(message) {
+	if (protocolMode) emitDevEvent({ type: 'warning', message })
+	else console.warn(message)
+}
+
+function logDev(source, level, message) {
+	if (protocolMode) {
+		emitDevEvent({
+			type: 'log',
+			source,
+			level,
+			message: sanitizeDevText(message),
+		})
+		return
+	}
+	const output = source === 'system' ? message : `[${source}] ${message}`
+	if (level === 'error' || level === 'warning') console.error(output)
+	else console.log(output)
+}
+
+function lastOutputLine(output) {
+	return String(output ?? '')
+		.trim()
+		.split('\n')
+		.at(-1)
 }
 
 function writeLocalAppEnv(runtimeEnv = null, aiProxy = null) {

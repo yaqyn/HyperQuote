@@ -5,6 +5,7 @@ import { connect } from 'node:net'
 import { dirname, join } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import { devProtocolEnabled, emitDevEvent } from './dev-protocol.mjs'
 import {
 	INFISICAL_DEV_SENTINEL,
 	infisicalDevRunArgs,
@@ -21,6 +22,7 @@ const OWNED_PORT_SHUTDOWN_TIMEOUT_MS = 8_000
 const DEV_UI_SENTINEL = 'HYPERQUOTE_DEV_UI_RENDERED'
 const doctorOnly = process.argv.includes('--doctor')
 const skipToolUpdates = process.argv.includes('--no-update')
+const protocolMode = devProtocolEnabled()
 const useColor = Boolean(process.stdout.isTTY && !process.env.NO_COLOR)
 
 const APP_PORTS = [
@@ -49,13 +51,18 @@ async function main() {
 	}
 	requireCommand('bun', 'Install the repo-pinned Bun runtime, then retry.')
 	requireCommand('node', 'Node is required by the repository scripts.')
+	status('Runtime', 'OK', 'Bun and Node are available')
 
 	if (!process.env[INFISICAL_DEV_SENTINEL] && !skipToolUpdates) {
 		status('Dev tools', 'CHECK', 'official GitHub releases, at most daily')
 		const updated = spawnSync(
 			process.execPath,
 			['scripts/update-dev-tools.mjs', '--quiet'],
-			{ cwd: repoRoot, stdio: 'inherit' },
+			{
+				cwd: repoRoot,
+				encoding: protocolMode ? 'utf8' : undefined,
+				stdio: protocolMode ? ['ignore', 'pipe', 'pipe'] : 'inherit',
+			},
 		)
 		if (updated.status !== 0) {
 			warn(
@@ -385,6 +392,10 @@ function isHostPortOpen(host, port) {
 }
 
 function renderBanner() {
+	if (protocolMode) {
+		emitDevEvent({ type: 'banner' })
+		return
+	}
 	const rule = color.dim(
 		'----------------------------------------------------------------',
 	)
@@ -398,6 +409,24 @@ function renderBanner() {
 }
 
 function renderUrls() {
+	if (protocolMode) {
+		emitDevEvent({
+			type: 'urls',
+			services: [
+				...APP_PORTS.map((app) => ({
+					id: app.name.toLowerCase(),
+					label: app.name,
+					url: app.url,
+				})),
+				{
+					id: 'studio',
+					label: 'Studio',
+					url: 'http://localhost:54323',
+				},
+			],
+		})
+		return
+	}
 	console.log('')
 	for (const app of APP_PORTS) {
 		console.log(`  ${color.dim(app.name.padEnd(10))} ${color.accent(app.url)}`)
@@ -409,6 +438,10 @@ function renderUrls() {
 }
 
 function status(label, state, detail) {
+	if (protocolMode) {
+		emitDevEvent({ type: 'status', label, state, detail })
+		return
+	}
 	const stateColor =
 		state === 'OK' || state === 'READY'
 			? color.success
@@ -429,6 +462,10 @@ function paint(code, value) {
 }
 
 function warn(message) {
+	if (protocolMode) {
+		emitDevEvent({ type: 'warning', message })
+		return
+	}
 	console.warn(`${color.warning('WARN')}  ${message}`)
 }
 
@@ -442,6 +479,10 @@ function failWithOutput(message, output) {
 }
 
 function fail(message) {
+	if (protocolMode) {
+		emitDevEvent({ type: 'error', message })
+		process.exit(1)
+	}
 	console.error(`${color.error('ERROR')} ${message}`)
 	process.exit(1)
 }
