@@ -448,7 +448,7 @@ export function DeliveryStep({
 							{(date) => (
 								<CalendarCell
 									date={date}
-									className="h-9 rounded-[8px] p-0 text-center align-middle text-[12px] font-medium leading-none tabular-nums outline-none transition-colors data-[disabled]:opacity-20 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/35 data-[hovered]:bg-[var(--site-blue-wash,var(--color-surface))] data-[outside-month]:invisible data-[selected]:bg-[var(--color-primary)] data-[selected]:font-semibold data-[selected]:text-white data-[unavailable]:line-through data-[unavailable]:opacity-25"
+									className="mx-auto flex h-9 w-9 items-center justify-center rounded-[8px] p-0 text-center text-[12px] font-medium leading-none tabular-nums outline-none transition-colors data-[disabled]:opacity-20 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/35 data-[hovered]:bg-[var(--site-blue-wash,var(--color-surface))] data-[outside-month]:invisible data-[selected]:bg-[var(--color-primary)] data-[selected]:font-semibold data-[selected]:text-white data-[unavailable]:line-through data-[unavailable]:opacity-25"
 								/>
 							)}
 						</CalendarGridBody>
