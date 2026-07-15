@@ -28,6 +28,15 @@ export interface QuoteRequestAddress {
 	street: string
 }
 
+export interface QuoteDeliveryLocation {
+	area: string
+	city: string
+	governorate: string
+	latitude: number
+	longitude: number
+	street: string
+}
+
 export interface QuoteLocationSearchResult {
 	area: string
 	city: string
@@ -95,7 +104,7 @@ export function isValidQuoteDeliveryDate(
 
 export function formatQuoteRequestAddress(
 	address: Pick<
-		QuoteRequestAddress,
+		QuoteDeliveryLocation,
 		'area' | 'city' | 'governorate' | 'street'
 	>,
 ): string {

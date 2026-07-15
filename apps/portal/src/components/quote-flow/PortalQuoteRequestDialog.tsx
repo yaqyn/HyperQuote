@@ -1,7 +1,7 @@
 import type {
+	QuoteDeliveryLocation,
 	QuoteDeliveryWindow,
 	QuoteLocationSearchResult,
-	QuoteRequestAddress,
 } from '@hyperquote/quote-cart/checkout'
 import {
 	isEgyptMobileInput,
@@ -21,15 +21,10 @@ import {
 } from '@hyperquote/ui/quote-flow/QuoteFlowSteps'
 import type { QuoteLocationPoint } from '@hyperquote/ui/quote-flow/QuoteLocationMap'
 import { type CalendarDate, today } from '@internationalized/date'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { DateValue } from 'react-aria-components/DateField'
 import { useTranslation } from 'react-i18next'
 import { toDraftQuoteRequestItemPayloads } from '../../lib/draft-quote-cart'
-import {
-	type CustomerAddress,
-	createAddress,
-	getCustomerAddresses,
-} from '../../lib/server/addresses'
 import {
 	reversePortalQuoteLocation,
 	searchPortalQuoteLocations,
@@ -69,20 +64,6 @@ function firstDeliveryDay(): CalendarDate {
 	return date
 }
 
-function toFlowAddress(address: CustomerAddress): QuoteRequestAddress {
-	return {
-		area: address.area,
-		city: address.city,
-		governorate: address.governorate,
-		id: address.id,
-		isDefault: address.isDefault,
-		label: address.label,
-		latitude: address.latitude,
-		longitude: address.longitude,
-		street: address.street,
-	}
-}
-
 export function PortalQuoteRequestDialog({
 	draftId,
 	isOpen,
@@ -106,19 +87,19 @@ export function PortalQuoteRequestDialog({
 		[i18n.language, items],
 	)
 	const [phase, setPhase] = useState<PortalQuoteFlowPhase>('loading')
-	const [addresses, setAddresses] = useState<QuoteRequestAddress[]>([])
-	const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+	const [deliveryAddress, setDeliveryAddress] =
+		useState<QuoteDeliveryLocation | null>(null)
+	const [newAddress, setNewAddress] = useState<NewAddressDraft>(EMPTY_ADDRESS)
+	const [mapFocusPoint, setMapFocusPoint] = useState<QuoteLocationPoint | null>(
 		null,
 	)
-	const [deliveryAddress, setDeliveryAddress] =
-		useState<QuoteRequestAddress | null>(null)
-	const [newAddress, setNewAddress] = useState<NewAddressDraft>(EMPTY_ADDRESS)
 	const [locationQuery, setLocationQuery] = useState('')
 	const [locationResults, setLocationResults] = useState<
 		QuoteLocationSearchResult[]
 	>([])
 	const [locationSearching, setLocationSearching] = useState(false)
 	const [locationResolving, setLocationResolving] = useState(false)
+	const reverseRequestRef = useRef(0)
 	const [deliveryDate, setDeliveryDate] = useState<DateValue>(() =>
 		firstDeliveryDay(),
 	)
@@ -147,22 +128,16 @@ export function PortalQuoteRequestDialog({
 		setLocationQuery('')
 		setLocationResults([])
 		setNewAddress(EMPTY_ADDRESS)
+		setMapFocusPoint(null)
 		setDeliveryAddress(null)
 		setDeliveryDate(firstDeliveryDay())
 		setDeliveryWindow(null)
 		setAgreementAccepted(false)
 		setIdempotencyKey(window.crypto.randomUUID())
 
-		void Promise.all([getCustomerAddresses(), getCustomerProfile()])
-			.then(([addressRows, profile]) => {
+		void getCustomerProfile()
+			.then((profile) => {
 				if (!active) return
-				const nextAddresses = addressRows.map(toFlowAddress)
-				const defaultAddress =
-					nextAddresses.find((address) => address.isDefault) ??
-					nextAddresses[0] ??
-					null
-				setAddresses(nextAddresses)
-				setSelectedAddressId(defaultAddress?.id ?? null)
 				setContactEmail(profile.email ?? '')
 				setContactPhone(toEgyptMobileInput(profile.phone ?? ''))
 				setPhase('location')
@@ -210,22 +185,21 @@ export function PortalQuoteRequestDialog({
 	}
 
 	function chooseLocationResult(result: QuoteLocationSearchResult) {
-		setSelectedAddressId(null)
-		setNewAddress({
-			area: result.area,
-			city: result.city,
-			governorate: result.governorate,
+		setMapFocusPoint({
 			latitude: result.latitude,
 			longitude: result.longitude,
-			street: result.street,
 		})
+		setNewAddress(EMPTY_ADDRESS)
+		setDeliveryAddress(null)
 		setLocationResults([])
 		setLocationQuery(result.displayName)
 		setError(null)
 	}
 
 	async function chooseMapPoint(point: QuoteLocationPoint) {
-		setSelectedAddressId(null)
+		const requestId = ++reverseRequestRef.current
+		setMapFocusPoint(point)
+		setDeliveryAddress(null)
 		setNewAddress((current) => ({
 			...current,
 			latitude: point.latitude,
@@ -241,6 +215,7 @@ export function PortalQuoteRequestDialog({
 					longitude: point.longitude,
 				},
 			})
+			if (requestId !== reverseRequestRef.current) return
 			if (!result.success) {
 				setError(
 					result.error === 'rate_limited'
@@ -258,22 +233,15 @@ export function PortalQuoteRequestDialog({
 				street: result.result.street,
 			})
 		} catch {
+			if (requestId !== reverseRequestRef.current) return
 			setError(t('quoteFlow.location.reverseError'))
 		} finally {
-			setLocationResolving(false)
+			if (requestId === reverseRequestRef.current) setLocationResolving(false)
 		}
 	}
 
-	async function continueFromLocation() {
+	function continueFromLocation() {
 		setError(null)
-		const selectedAddress = addresses.find(
-			(address) => address.id === selectedAddressId,
-		)
-		if (selectedAddress) {
-			setDeliveryAddress(selectedAddress)
-			setPhase('delivery')
-			return
-		}
 		if (
 			newAddress.latitude === null ||
 			newAddress.longitude === null ||
@@ -284,28 +252,15 @@ export function PortalQuoteRequestDialog({
 			setError(t('quoteFlow.location.addressRequired'))
 			return
 		}
-		setPending(true)
-		try {
-			const result = await createAddress({
-				data: {
-					area: newAddress.area.trim() || newAddress.city.trim(),
-					city: newAddress.city.trim(),
-					governorate: newAddress.governorate.trim(),
-					latitude: newAddress.latitude,
-					longitude: newAddress.longitude,
-					street: newAddress.street.trim(),
-				},
-			})
-			const address = toFlowAddress(result)
-			setAddresses((current) => [...current, address])
-			setSelectedAddressId(address.id)
-			setDeliveryAddress(address)
-			setPhase('delivery')
-		} catch {
-			setError(t('quoteFlow.location.createError'))
-		} finally {
-			setPending(false)
-		}
+		setDeliveryAddress({
+			area: newAddress.area.trim() || newAddress.city.trim(),
+			city: newAddress.city.trim(),
+			governorate: newAddress.governorate.trim(),
+			latitude: newAddress.latitude,
+			longitude: newAddress.longitude,
+			street: newAddress.street.trim(),
+		})
+		setPhase('delivery')
 	}
 
 	function continueFromDelivery() {
@@ -350,7 +305,7 @@ export function PortalQuoteRequestDialog({
 					agreementAccepted: true,
 					contactEmail,
 					contactPhone: `+20${contactPhone}`,
-					deliveryAddressId: deliveryAddress.id,
+					deliveryLocation: deliveryAddress,
 					deliveryDate: deliveryDate.toString(),
 					draftId: draftId ?? undefined,
 					idempotencyKey: idempotencyKey || window.crypto.randomUUID(),
@@ -391,7 +346,7 @@ export function PortalQuoteRequestDialog({
 					latitude: newAddress.latitude,
 					longitude: newAddress.longitude,
 				}
-			: selectedAddressPoint(addresses, selectedAddressId)
+			: null
 	const nextAction =
 		currentStep === 'location'
 			? continueFromLocation
@@ -425,26 +380,17 @@ export function PortalQuoteRequestDialog({
 				{phase === 'loading' && <FlowLoading />}
 				{phase === 'location' && (
 					<LocationStep
-						addresses={addresses}
 						locationQuery={locationQuery}
 						locationResolving={locationResolving}
 						locationResults={locationResults}
 						locationSearching={locationSearching}
+						mapFocusPoint={mapFocusPoint}
 						mapPoint={mapPoint}
 						newAddress={newAddress}
-						onAddressFieldChange={(field, value) =>
-							setNewAddress((current) => ({ ...current, [field]: value }))
-						}
 						onLocationQueryChange={setLocationQuery}
 						onMapPointChange={chooseMapPoint}
 						onSearch={searchLocation}
 						onSearchResult={chooseLocationResult}
-						onSelectAddress={(address) => {
-							setSelectedAddressId(address.id)
-							setNewAddress(EMPTY_ADDRESS)
-							setError(null)
-						}}
-						selectedAddressId={selectedAddressId}
 					/>
 				)}
 				{phase === 'delivery' && (
@@ -499,15 +445,4 @@ function isFlowStep(phase: PortalQuoteFlowPhase): phase is PortalQuoteFlowStep {
 		phase === 'contact' ||
 		phase === 'agreement'
 	)
-}
-
-function selectedAddressPoint(
-	addresses: QuoteRequestAddress[],
-	selectedAddressId: string | null,
-): QuoteLocationPoint | null {
-	const address = addresses.find((entry) => entry.id === selectedAddressId)
-	if (!address || address.latitude === null || address.longitude === null) {
-		return null
-	}
-	return { latitude: address.latitude, longitude: address.longitude }
 }

@@ -3791,7 +3791,10 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					delivery_address_id: string | null
+					delivery_address_text: string | null
 					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -3820,7 +3823,10 @@ export type Database = {
 					created_at?: string
 					customer_id?: string | null
 					delivery_address_id?: string | null
+					delivery_address_text?: string | null
 					delivery_date?: string | null
+					delivery_latitude?: number | null
+					delivery_longitude?: number | null
 					draft_name?: string | null
 					eligible_at?: string
 					id?: string
@@ -3849,7 +3855,10 @@ export type Database = {
 					created_at?: string
 					customer_id?: string | null
 					delivery_address_id?: string | null
+					delivery_address_text?: string | null
 					delivery_date?: string | null
+					delivery_latitude?: number | null
+					delivery_longitude?: number | null
 					draft_name?: string | null
 					eligible_at?: string
 					id?: string
@@ -6146,7 +6155,10 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					delivery_address_id: string | null
+					delivery_address_text: string | null
 					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -6184,7 +6196,10 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					delivery_address_id: string | null
+					delivery_address_text: string | null
 					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -6433,7 +6448,10 @@ export type Database = {
 							created_at: string
 							customer_id: string | null
 							delivery_address_id: string | null
+							delivery_address_text: string | null
 							delivery_date: string | null
+							delivery_latitude: number | null
+							delivery_longitude: number | null
 							draft_name: string | null
 							eligible_at: string
 							id: string
@@ -6471,7 +6489,10 @@ export type Database = {
 							created_at: string
 							customer_id: string | null
 							delivery_address_id: string | null
+							delivery_address_text: string | null
 							delivery_date: string | null
+							delivery_latitude: number | null
+							delivery_longitude: number | null
 							draft_name: string | null
 							eligible_at: string
 							id: string
@@ -7995,7 +8016,10 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					delivery_address_id: string | null
+					delivery_address_text: string | null
 					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -8033,7 +8057,10 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					delivery_address_id: string | null
+					delivery_address_text: string | null
 					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -8172,7 +8199,10 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					delivery_address_id: string | null
+					delivery_address_text: string | null
 					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -8210,7 +8240,10 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					delivery_address_id: string | null
+					delivery_address_text: string | null
 					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -8255,6 +8288,56 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'sales_quote_versions'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			sales_set_quote_delivery_location: {
+				Args: {
+					p_address_text: string
+					p_area: string
+					p_city: string
+					p_governorate: string
+					p_latitude: number
+					p_longitude: number
+					p_quote_request_id: string
+					p_street: string
+				}
+				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_address_text: string | null
+					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
+					draft_name: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					preferred_delivery_window: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -8497,7 +8580,10 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					delivery_address_id: string | null
+					delivery_address_text: string | null
 					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -8562,7 +8648,10 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					delivery_address_id: string | null
+					delivery_address_text: string | null
 					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -8862,7 +8951,10 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					delivery_address_id: string | null
+					delivery_address_text: string | null
 					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -10386,7 +10478,10 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					delivery_address_id: string | null
+					delivery_address_text: string | null
 					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -10428,7 +10523,10 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					delivery_address_id: string | null
+					delivery_address_text: string | null
 					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -10585,7 +10683,10 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					delivery_address_id: string | null
+					delivery_address_text: string | null
 					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -10629,7 +10730,10 @@ export type Database = {
 					created_at: string
 					customer_id: string | null
 					delivery_address_id: string | null
+					delivery_address_text: string | null
 					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
 					id: string
@@ -10680,6 +10784,58 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'sales_quote_versions'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_sales_set_quote_delivery_location: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_address_text: string
+					p_area: string
+					p_city: string
+					p_governorate: string
+					p_latitude: number
+					p_longitude: number
+					p_quote_request_id: string
+					p_street: string
+				}
+				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_address_text: string | null
+					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_longitude: number | null
+					draft_name: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					preferred_delivery_window: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
 					isOneToOne: true
 					isSetofReturn: false
 				}

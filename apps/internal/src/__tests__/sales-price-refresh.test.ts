@@ -20,7 +20,7 @@ describe('sales quote price refresh', () => {
 		const salesStore = readWorkspaceFile('apps/internal/src/stores/sales.ts')
 		const refreshHandler = source.slice(
 			source.indexOf('const handleRefreshQuotePrices'),
-			source.indexOf('const handleManualDeliveryAddressChange'),
+			source.indexOf('const handleMappedDeliveryAddressChange'),
 		)
 
 		expect(source).toContain('function refreshQuoteLineFromCatalog')

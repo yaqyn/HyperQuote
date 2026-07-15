@@ -126,6 +126,9 @@ async function assertCustomerToSalesToDeliveryFlow(
 		.from('quote_requests')
 		.insert({
 			customer_id: customerRow.id,
+			delivery_address_text: 'Flow smoke map point, Cairo, Cairo Governorate',
+			delivery_latitude: 30.0444,
+			delivery_longitude: 31.2357,
 			notes: `flow-smoke:${runId}`,
 			status: 'draft',
 		})
@@ -416,6 +419,20 @@ async function assertCustomerToSalesToDeliveryFlow(
 	if (deliveryReadError || !delivery) {
 		throw new Error(deliveryReadError?.message ?? 'Delivery assignment missing')
 	}
+	const assignedDashboard = await driver.client.rpc('driver_app_dashboard')
+	if (assignedDashboard.error) {
+		throw new Error(
+			`Assigned driver dashboard failed: ${assignedDashboard.error.message}`,
+		)
+	}
+	const assignedDelivery = (assignedDashboard.data?.deliveries ?? []).find(
+		(candidate) => candidate.id === delivery.id,
+	)
+	assert(
+		Number(assignedDelivery?.address?.latitude) === 30.0444 &&
+			Number(assignedDelivery?.address?.longitude) === 31.2357,
+		'driver must receive the exact map-selected quote coordinates',
+	)
 
 	const otherDeliveryLocation = await driver.client.rpc(
 		'driver_update_location',

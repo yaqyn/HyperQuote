@@ -3620,12 +3620,6 @@ export function QuoteBuilderView({
 		],
 	)
 
-	const handleManualDeliveryAddressChange = useCallback((address: string) => {
-		setDeliveryAddress(address)
-		setDeliveryCoordinates(null)
-		setDeliveryAddressOverride(true)
-	}, [])
-
 	const handleMappedDeliveryAddressChange = useCallback(
 		(address: string, coordinates?: DeliveryCoordinates | null) => {
 			setDeliveryAddress(address)
@@ -3662,8 +3656,8 @@ export function QuoteBuilderView({
 		if (step === 2) {
 			if (!values.lineItems || values.lineItems.length === 0)
 				errors.push('Add at least one item')
-			if (!isValidText(deliveryAddress, 4, 300))
-				errors.push('Please enter a full delivery address')
+			if (!isValidText(deliveryAddress, 4, 300) || !deliveryCoordinates)
+				errors.push('Select the exact delivery point on the map')
 			if (!values.deliveryDate) errors.push(DELIVERY_DATE_REQUIRED_MESSAGE)
 			const hasZeroPrice = (values.lineItems ?? []).some(
 				(item) => !item.sellPrice || item.sellPrice <= 0,
@@ -4682,7 +4676,6 @@ export function QuoteBuilderView({
 										<div className="mt-4 border-t-2 border-[var(--color-border)]">
 											<DeliveryTerms
 												deliveryAddress={deliveryAddress}
-												onAddressChange={handleManualDeliveryAddressChange}
 												highlightDate={isDeliveryDateAttentionVisible}
 												datePickerOpenSignal={deliveryDatePickerOpenSignal}
 												onAddressPress={() => {
@@ -5169,6 +5162,7 @@ export function QuoteBuilderView({
 						>
 							<DeliveryMap
 								address={deliveryAddress}
+								coordinates={deliveryCoordinates}
 								onAddressChange={handleMappedDeliveryAddressChange}
 								onDeliveryConfirmed={() => setMapOpen(false)}
 							/>

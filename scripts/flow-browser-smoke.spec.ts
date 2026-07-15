@@ -1101,6 +1101,18 @@ async function completeGuidedQuoteFlow(page: Page) {
 			name: /Delivery location|موقع التوصيل/i,
 		}),
 	).toBeVisible({ timeout: 15_000 })
+	await expect(flowDialog.locator('#quote-address-street')).toHaveCount(0)
+	await expect(flowDialog.locator('#delivery-address-manual')).toHaveCount(0)
+	const mapCanvas = flowDialog.locator('.maplibregl-canvas')
+	await expect(mapCanvas).toBeVisible({ timeout: 15_000 })
+	const mapBox = await mapCanvas.boundingBox()
+	if (!mapBox) throw new Error('Quote location map has no clickable bounds')
+	await mapCanvas.click({
+		position: { x: mapBox.width * 0.55, y: mapBox.height * 0.52 },
+	})
+	await expect(
+		flowDialog.getByText(/Selected delivery point|نقطة التوصيل المختارة/i),
+	).toBeVisible({ timeout: 15_000 })
 	await flowDialog.getByRole('button', { name: /Continue|متابعة/i }).click()
 
 	await expect(
@@ -1218,7 +1230,7 @@ async function expectGuidedQuoteArtifactsSince(
 				const { data, error } = await service
 					.from('quote_requests')
 					.select(
-						'agreement_accepted_at, agreement_version, delivery_address_id, delivery_date, preferred_delivery_window, request_contact_email, request_contact_phone, submitted_at',
+						'agreement_accepted_at, agreement_version, delivery_address_text, delivery_latitude, delivery_longitude, delivery_date, preferred_delivery_window, request_contact_email, request_contact_phone, submitted_at',
 					)
 					.gte('submitted_at', sinceIso)
 				if (error) return -1
@@ -1226,7 +1238,9 @@ async function expectGuidedQuoteArtifactsSince(
 					(row) =>
 						Boolean(row.agreement_accepted_at) &&
 						Boolean(row.agreement_version) &&
-						Boolean(row.delivery_address_id) &&
+						Boolean(row.delivery_address_text) &&
+						row.delivery_latitude !== null &&
+						row.delivery_longitude !== null &&
 						Boolean(row.delivery_date) &&
 						Boolean(row.preferred_delivery_window) &&
 						Boolean(row.request_contact_email) &&

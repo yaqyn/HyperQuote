@@ -1,9 +1,9 @@
 import {
 	formatQuoteRequestAddress,
 	QUOTE_DELIVERY_WINDOWS,
+	type QuoteDeliveryLocation,
 	type QuoteDeliveryWindow,
 	type QuoteLocationSearchResult,
-	type QuoteRequestAddress,
 } from '@hyperquote/quote-cart/checkout'
 import {
 	Check,
@@ -96,41 +96,31 @@ function ClientOnly({
 }
 
 export function LocationStep({
-	addresses,
 	locationQuery,
 	locationResolving,
 	locationResults,
 	locationSearching,
+	mapFocusPoint,
 	mapPoint,
 	newAddress,
-	onAddressFieldChange,
 	onLocationQueryChange,
 	onMapPointChange,
 	onSearch,
 	onSearchResult,
-	onSelectAddress,
-	selectedAddressId,
 }: {
-	addresses: QuoteRequestAddress[]
 	locationQuery: string
 	locationResolving: boolean
 	locationResults: QuoteLocationSearchResult[]
 	locationSearching: boolean
+	mapFocusPoint: QuoteLocationPoint | null
 	mapPoint: QuoteLocationPoint | null
 	newAddress: NewAddressDraft
-	onAddressFieldChange: (
-		field: 'area' | 'city' | 'governorate' | 'street',
-		value: string,
-	) => void
 	onLocationQueryChange: (value: string) => void
 	onMapPointChange: (point: QuoteLocationPoint) => void
 	onSearch: () => void
 	onSearchResult: (result: QuoteLocationSearchResult) => void
-	onSelectAddress: (address: QuoteRequestAddress) => void
-	selectedAddressId: string | null
 }) {
 	const { t } = useQuoteFlowTranslation()
-	const usingNewAddress = selectedAddressId === null && mapPoint !== null
 
 	return (
 		<div className="grid min-h-full lg:grid-cols-[minmax(320px,0.82fr)_minmax(360px,1.18fr)]">
@@ -188,55 +178,11 @@ export function LocationStep({
 					)}
 				</form>
 
-				{addresses.length > 0 && (
-					<div className="mt-6">
-						<p className="mb-2 font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
-							{t('quoteFlow.location.savedAddresses')}
-						</p>
-						<div className="grid gap-2">
-							{addresses.map((address) => {
-								const selected = selectedAddressId === address.id
-								return (
-									<button
-										key={address.id}
-										type="button"
-										onClick={() => onSelectAddress(address)}
-										aria-pressed={selected}
-										className={`flex items-start gap-3 rounded-[10px] border px-3 py-3 text-start transition-colors ${
-											selected
-												? 'border-[var(--color-primary)] bg-[var(--site-blue-wash,var(--color-surface))]'
-												: 'border-[var(--site-rule,var(--color-border))] hover:border-[var(--color-primary)]/35'
-										}`}
-									>
-										<span
-											className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
-												selected
-													? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
-													: 'border-[var(--site-rule,var(--color-border))]'
-											}`}
-										>
-											{selected && <Check size={11} strokeWidth={2.5} />}
-										</span>
-										<span className="min-w-0">
-											<span className="block text-[12px] font-semibold text-[var(--color-text)]">
-												{address.label || t('quoteFlow.location.siteAddress')}
-											</span>
-											<span className="mt-0.5 block text-[11px] leading-5 text-[var(--color-text-muted)]">
-												{formatQuoteRequestAddress(address)}
-											</span>
-										</span>
-									</button>
-								)
-							})}
-						</div>
-					</div>
-				)}
-
-				{usingNewAddress && (
-					<div className="mt-6">
+				{mapPoint ? (
+					<div className="mt-6 rounded-[10px] border border-[var(--color-primary)]/25 bg-[var(--site-blue-wash,var(--color-surface))]/65 p-3.5">
 						<div className="mb-2 flex items-center justify-between">
 							<p className="font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
-								{t('quoteFlow.location.newLocation')}
+								{t('quoteFlow.location.selectedPoint')}
 							</p>
 							{locationResolving && (
 								<span className="inline-flex items-center gap-1 text-[9px] text-[var(--color-text-subtle)]">
@@ -245,30 +191,22 @@ export function LocationStep({
 								</span>
 							)}
 						</div>
-						<div className="grid grid-cols-2 gap-2">
-							<AddressInput
-								label={t('quoteFlow.location.street')}
-								onChange={(value) => onAddressFieldChange('street', value)}
-								value={newAddress.street}
-								wide
-							/>
-							<AddressInput
-								label={t('quoteFlow.location.area')}
-								onChange={(value) => onAddressFieldChange('area', value)}
-								value={newAddress.area}
-							/>
-							<AddressInput
-								label={t('quoteFlow.location.city')}
-								onChange={(value) => onAddressFieldChange('city', value)}
-								value={newAddress.city}
-							/>
-							<AddressInput
-								label={t('quoteFlow.location.governorate')}
-								onChange={(value) => onAddressFieldChange('governorate', value)}
-								value={newAddress.governorate}
-								wide
-							/>
-						</div>
+						<p className="text-[12px] font-semibold leading-5 text-[var(--color-text)]">
+							{formatQuoteRequestAddress(newAddress) ||
+								t('quoteFlow.location.resolving')}
+						</p>
+						<p className="mt-2 font-mono text-[10px] tabular-nums text-[var(--color-text-subtle)]">
+							{t('quoteFlow.location.coordinates')}:{' '}
+							{mapPoint.latitude.toFixed(6)}, {mapPoint.longitude.toFixed(6)}
+						</p>
+					</div>
+				) : (
+					<div className="mt-6 flex items-start gap-3 rounded-[10px] border border-dashed border-[var(--site-rule,var(--color-border))] p-3.5 text-[11px] leading-5 text-[var(--color-text-muted)]">
+						<MapPin
+							size={15}
+							className="mt-0.5 shrink-0 text-[var(--color-primary)]"
+						/>
+						<p>{t('quoteFlow.location.searchHint')}</p>
 					</div>
 				)}
 			</div>
@@ -277,6 +215,7 @@ export function LocationStep({
 				<ClientOnly fallback={<MapFallback />}>
 					<Suspense fallback={<MapFallback />}>
 						<QuoteLocationMap
+							focusPoint={mapFocusPoint}
 							point={mapPoint}
 							onPointChange={onMapPointChange}
 						/>
@@ -466,7 +405,7 @@ export function AgreementStep({
 	windowId,
 }: {
 	accepted: boolean
-	address: QuoteRequestAddress
+	address: QuoteDeliveryLocation
 	date: DateValue
 	email: string
 	itemCount: number
@@ -551,30 +490,6 @@ function StepHeading({ body, heading }: { body: string; heading: string }) {
 				{body}
 			</p>
 		</div>
-	)
-}
-
-function AddressInput({
-	label,
-	onChange,
-	value,
-	wide = false,
-}: {
-	label: string
-	onChange: (value: string) => void
-	value: string
-	wide?: boolean
-}) {
-	return (
-		<label className={wide ? 'col-span-2' : undefined}>
-			<span className="sr-only">{label}</span>
-			<input
-				value={value}
-				onChange={(event) => onChange(event.currentTarget.value)}
-				placeholder={label}
-				className="h-10 w-full rounded-[9px] border border-[var(--site-rule,var(--color-border))] bg-transparent px-3 text-[12px] outline-none placeholder:text-[var(--color-text-subtle)] focus:border-[var(--color-primary)]"
-			/>
-		</label>
 	)
 }
 

@@ -14,7 +14,6 @@ import {
 	formatSupabaseAddress,
 	isSalesQuoteAddress,
 	normalizeAddressText,
-	SALES_QUOTE_ADDRESS_LABEL,
 } from './address-format'
 import { verifyEmployeeCredential } from './employee-credentials'
 
@@ -257,6 +256,9 @@ interface SupabaseQuoteBuilderRequestRow {
 	id: string
 	customer_id: string | null
 	delivery_address_id: string | null
+	delivery_address_text: string | null
+	delivery_latitude: number | string | null
+	delivery_longitude: number | string | null
 	status: string
 	delivery_date: string | null
 	preferred_delivery_window: string | null
@@ -567,73 +569,31 @@ async function persistQuoteDeliveryAddress(
 	selection: DeliveryAddressSelection,
 ): Promise<string | null> {
 	const addressText = cleanDeliveryAddressText(selection.address)
-	if (!quoteRequest.customer_id) {
-		return quoteRequest.delivery_address_id
+	if (!quoteRequest.customer_id || !addressText) {
+		throw new Error('A map-selected delivery point is required')
 	}
-	if (!addressText) return await clearQuoteDeliveryAddress(client, quoteRequest)
 
 	const addressFields = parseSalesDeliveryAddress(addressText, selection.city)
 	const latitude = normalizeLatitude(selection.latitude)
 	const longitude = normalizeLongitude(selection.longitude)
-	const addressPatch = {
-		...addressFields,
-		latitude,
-		longitude,
+	if (latitude === null || longitude === null) {
+		throw new Error('A map-selected delivery point is required')
 	}
-
-	const linkedAddressId = quoteRequest.delivery_address_id
-	if (linkedAddressId) {
-		const { data: linkedAddress, error: linkedAddressError } = await client
-			.from('customer_addresses')
-			.select('id, label, customer_id')
-			.eq('id', linkedAddressId)
-			.eq('customer_id', quoteRequest.customer_id)
-			.maybeSingle()
-		if (linkedAddressError) throw new Error(linkedAddressError.message)
-
-		if (linkedAddress?.label === SALES_QUOTE_ADDRESS_LABEL) {
-			const { error: updateAddressError } = await client
-				.from('customer_addresses')
-				.update(addressPatch)
-				.eq('id', linkedAddress.id)
-				.eq('customer_id', quoteRequest.customer_id)
-			if (updateAddressError) throw new Error(updateAddressError.message)
-			return linkedAddress.id
-		}
-	}
-
-	const { data: insertedAddress, error: insertAddressError } = await client
-		.from('customer_addresses')
-		.insert({
-			...addressPatch,
-			customer_id: quoteRequest.customer_id,
-			is_default: false,
-			label: SALES_QUOTE_ADDRESS_LABEL,
-		})
-		.select('id')
-		.single()
-	if (insertAddressError) throw new Error(insertAddressError.message)
-
-	const { error: requestUpdateError } = await client
-		.from('quote_requests')
-		.update({ delivery_address_id: insertedAddress.id })
-		.eq('id', quoteRequest.id)
-	if (requestUpdateError) throw new Error(requestUpdateError.message)
-
-	return insertedAddress.id
-}
-
-async function clearQuoteDeliveryAddress(
-	client: InternalSupabaseClient,
-	quoteRequest: QuoteDeliveryAddressTarget,
-): Promise<null> {
-	if (!quoteRequest.delivery_address_id) return null
-	const { error } = await client
-		.from('quote_requests')
-		.update({ delivery_address_id: null })
-		.eq('id', quoteRequest.id)
+	const { data, error } = await client.rpc(
+		'sales_set_quote_delivery_location',
+		{
+			p_address_text: addressText,
+			p_area: addressFields.area ?? '',
+			p_city: addressFields.city,
+			p_governorate: addressFields.governorate,
+			p_latitude: latitude,
+			p_longitude: longitude,
+			p_quote_request_id: quoteRequest.id,
+			p_street: addressFields.street,
+		},
+	)
 	if (error) throw new Error(error.message)
-	return null
+	return data?.delivery_address_id ?? quoteRequest.delivery_address_id
 }
 
 function buildSupabaseSuggestedProductFromSavedItem(
@@ -776,6 +736,9 @@ async function buildSupabaseQuoteBuilderData(
 			id,
 			customer_id,
 			delivery_address_id,
+			delivery_address_text,
+			delivery_latitude,
+			delivery_longitude,
 			status,
 			delivery_date,
 			preferred_delivery_window,
@@ -872,7 +835,9 @@ async function buildSupabaseQuoteBuilderData(
 	const address = firstRelation(request.customer_addresses)
 	const salesAddress = isSalesQuoteAddress(address) ? address : null
 	const deliveryAddress =
-		savedNotes.deliveryAddress ?? formatSupabaseAddress(salesAddress)
+		request.delivery_address_text ??
+		savedNotes.deliveryAddress ??
+		formatSupabaseAddress(salesAddress)
 
 	return {
 		rfqId,
@@ -890,8 +855,11 @@ async function buildSupabaseQuoteBuilderData(
 		deliveryCity: savedNotes.deliveryCity ?? salesAddress?.city ?? '',
 		deliveryAddressOverride: Boolean(deliveryAddress),
 		deliveryLatitude:
-			savedNotes.deliveryLatitude ?? normalizeLatitude(salesAddress?.latitude),
+			normalizeLatitude(request.delivery_latitude) ??
+			savedNotes.deliveryLatitude ??
+			normalizeLatitude(salesAddress?.latitude),
 		deliveryLongitude:
+			normalizeLongitude(request.delivery_longitude) ??
 			savedNotes.deliveryLongitude ??
 			normalizeLongitude(salesAddress?.longitude),
 		deliveryDate: savedNotes.deliveryDate ?? request.delivery_date ?? '',

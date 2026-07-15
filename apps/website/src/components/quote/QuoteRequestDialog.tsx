@@ -4,9 +4,9 @@ import {
 } from '@hyperquote/quote-cart'
 import {
 	isEgyptMobileInput,
+	type QuoteDeliveryLocation,
 	type QuoteDeliveryWindow,
 	type QuoteLocationSearchResult,
-	type QuoteRequestAddress,
 	toEgyptMobileInput,
 } from '@hyperquote/quote-cart/checkout'
 import { QuoteFlowDialog } from '@hyperquote/ui/quote-flow/QuoteFlowDialog'
@@ -32,7 +32,6 @@ import { useQuoteCart } from '../../hooks/useQuoteCart'
 import { useQuoteRequestFlow } from '../../hooks/useQuoteRequestFlow'
 import { useWebsiteQuoteDraftSave } from '../../hooks/useWebsiteQuoteDraftSave'
 import {
-	createQuoteRequestAddress,
 	getWebsiteQuoteCheckoutDefaults,
 	reverseWebsiteQuoteLocation,
 	searchWebsiteQuoteLocations,
@@ -89,19 +88,19 @@ export function QuoteRequestDialog() {
 	const openSessionRef = useRef('')
 
 	const [phase, setPhase] = useState<QuoteFlowPhase>('loading')
-	const [addresses, setAddresses] = useState<QuoteRequestAddress[]>([])
-	const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
+	const [deliveryAddress, setDeliveryAddress] =
+		useState<QuoteDeliveryLocation | null>(null)
+	const [newAddress, setNewAddress] = useState<NewAddressDraft>(EMPTY_ADDRESS)
+	const [mapFocusPoint, setMapFocusPoint] = useState<QuoteLocationPoint | null>(
 		null,
 	)
-	const [deliveryAddress, setDeliveryAddress] =
-		useState<QuoteRequestAddress | null>(null)
-	const [newAddress, setNewAddress] = useState<NewAddressDraft>(EMPTY_ADDRESS)
 	const [locationQuery, setLocationQuery] = useState('')
 	const [locationResults, setLocationResults] = useState<
 		QuoteLocationSearchResult[]
 	>([])
 	const [locationSearching, setLocationSearching] = useState(false)
 	const [locationResolving, setLocationResolving] = useState(false)
+	const reverseRequestRef = useRef(0)
 	const [deliveryDate, setDeliveryDate] = useState<DateValue>(() =>
 		firstDeliveryDay(),
 	)
@@ -150,6 +149,7 @@ export function QuoteRequestDialog() {
 		setLocationResults([])
 		setLocationQuery('')
 		setNewAddress(EMPTY_ADDRESS)
+		setMapFocusPoint(null)
 		setDeliveryAddress(null)
 		setDeliveryDate(firstDeliveryDay())
 		setDeliveryWindow(null)
@@ -163,12 +163,6 @@ export function QuoteRequestDialog() {
 					setPhase('auth')
 					return
 				}
-				setAddresses(result.addresses)
-				const defaultAddress =
-					result.addresses.find((address) => address.isDefault) ??
-					result.addresses[0] ??
-					null
-				setSelectedAddressId(defaultAddress?.id ?? null)
 				setContactEmail(result.email)
 				setContactPhone(toEgyptMobileInput(result.phone))
 
@@ -215,12 +209,6 @@ export function QuoteRequestDialog() {
 				setError(t('quoteFlow.errors.defaults'))
 				return
 			}
-			setAddresses(result.addresses)
-			const defaultAddress =
-				result.addresses.find((address) => address.isDefault) ??
-				result.addresses[0] ??
-				null
-			setSelectedAddressId(defaultAddress?.id ?? null)
 			setContactEmail(result.email)
 			setContactPhone(toEgyptMobileInput(result.phone))
 
@@ -283,22 +271,21 @@ export function QuoteRequestDialog() {
 	}
 
 	function chooseLocationResult(result: QuoteLocationSearchResult) {
-		setSelectedAddressId(null)
-		setNewAddress({
-			area: result.area,
-			city: result.city,
-			governorate: result.governorate,
+		setMapFocusPoint({
 			latitude: result.latitude,
 			longitude: result.longitude,
-			street: result.street,
 		})
+		setNewAddress(EMPTY_ADDRESS)
+		setDeliveryAddress(null)
 		setLocationResults([])
 		setLocationQuery(result.displayName)
 		setError(null)
 	}
 
 	async function chooseMapPoint(point: QuoteLocationPoint) {
-		setSelectedAddressId(null)
+		const requestId = ++reverseRequestRef.current
+		setMapFocusPoint(point)
+		setDeliveryAddress(null)
 		setNewAddress((current) => ({
 			...current,
 			latitude: point.latitude,
@@ -314,6 +301,7 @@ export function QuoteRequestDialog() {
 					longitude: point.longitude,
 				},
 			})
+			if (requestId !== reverseRequestRef.current) return
 			if (!result.success) {
 				if (result.error === 'not_authenticated') {
 					setPhase('auth')
@@ -335,22 +323,15 @@ export function QuoteRequestDialog() {
 				street: result.result.street,
 			})
 		} catch {
+			if (requestId !== reverseRequestRef.current) return
 			setError(t('quoteFlow.location.reverseError'))
 		} finally {
-			setLocationResolving(false)
+			if (requestId === reverseRequestRef.current) setLocationResolving(false)
 		}
 	}
 
-	async function continueFromLocation() {
+	function continueFromLocation() {
 		setError(null)
-		const selectedAddress = addresses.find(
-			(address) => address.id === selectedAddressId,
-		)
-		if (selectedAddress) {
-			setDeliveryAddress(selectedAddress)
-			setPhase('delivery')
-			return
-		}
 		if (
 			newAddress.latitude === null ||
 			newAddress.longitude === null ||
@@ -361,38 +342,15 @@ export function QuoteRequestDialog() {
 			setError(t('quoteFlow.location.addressRequired'))
 			return
 		}
-		setPending(true)
-		try {
-			const result = await createQuoteRequestAddress({
-				data: {
-					area: newAddress.area.trim(),
-					city: newAddress.city.trim(),
-					governorate: newAddress.governorate.trim(),
-					latitude: newAddress.latitude,
-					longitude: newAddress.longitude,
-					street: newAddress.street.trim(),
-				},
-			})
-			if (!result.success) {
-				if (
-					result.error === 'not_authenticated' ||
-					result.error === 'customer_required'
-				) {
-					setPhase('auth')
-					return
-				}
-				setError(t('quoteFlow.location.createError'))
-				return
-			}
-			setAddresses((current) => [...current, result.address])
-			setSelectedAddressId(result.address.id)
-			setDeliveryAddress(result.address)
-			setPhase('delivery')
-		} catch {
-			setError(t('quoteFlow.location.createError'))
-		} finally {
-			setPending(false)
-		}
+		setDeliveryAddress({
+			area: newAddress.area.trim(),
+			city: newAddress.city.trim(),
+			governorate: newAddress.governorate.trim(),
+			latitude: newAddress.latitude,
+			longitude: newAddress.longitude,
+			street: newAddress.street.trim(),
+		})
+		setPhase('delivery')
 	}
 
 	function continueFromDelivery() {
@@ -437,7 +395,7 @@ export function QuoteRequestDialog() {
 					agreementAccepted: true,
 					contactEmail,
 					contactPhone: `+20${contactPhone}`,
-					deliveryAddressId: deliveryAddress.id,
+					deliveryLocation: deliveryAddress,
 					deliveryDate: deliveryDate.toString(),
 					draftId:
 						savedDraft?.fingerprint === cartFingerprint
@@ -499,7 +457,7 @@ export function QuoteRequestDialog() {
 					latitude: newAddress.latitude,
 					longitude: newAddress.longitude,
 				}
-			: selectedAddressPoint(addresses, selectedAddressId)
+			: null
 
 	if (!isOpen) return null
 
@@ -545,26 +503,17 @@ export function QuoteRequestDialog() {
 				)}
 				{phase === 'location' && (
 					<LocationStep
-						addresses={addresses}
 						locationQuery={locationQuery}
 						locationResolving={locationResolving}
 						locationResults={locationResults}
 						locationSearching={locationSearching}
+						mapFocusPoint={mapFocusPoint}
 						mapPoint={mapPoint}
 						newAddress={newAddress}
-						onAddressFieldChange={(field, value) =>
-							setNewAddress((current) => ({ ...current, [field]: value }))
-						}
 						onLocationQueryChange={setLocationQuery}
 						onMapPointChange={chooseMapPoint}
 						onSearch={searchLocation}
 						onSearchResult={chooseLocationResult}
-						onSelectAddress={(address) => {
-							setSelectedAddressId(address.id)
-							setNewAddress(EMPTY_ADDRESS)
-							setError(null)
-						}}
-						selectedAddressId={selectedAddressId}
 					/>
 				)}
 				{phase === 'delivery' && (
@@ -626,15 +575,4 @@ function isQuoteFlowStep(phase: QuoteFlowPhase): phase is QuoteFlowStep {
 		phase === 'contact' ||
 		phase === 'agreement'
 	)
-}
-
-function selectedAddressPoint(
-	addresses: QuoteRequestAddress[],
-	selectedAddressId: string | null,
-): QuoteLocationPoint | null {
-	const address = addresses.find((entry) => entry.id === selectedAddressId)
-	if (!address || address.latitude === null || address.longitude === null) {
-		return null
-	}
-	return { latitude: address.latitude, longitude: address.longitude }
 }

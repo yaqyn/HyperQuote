@@ -1,5 +1,6 @@
 import { createSupabaseServiceRoleClient } from '@hyperquote/auth/server'
 import {
+	formatQuoteRequestAddress,
 	isValidQuoteDeliveryDate,
 	QUOTE_DELIVERY_WINDOW_IDS,
 	QUOTE_REQUEST_AGREEMENT_VERSION,
@@ -26,11 +27,20 @@ const quoteRequestItemInput = z.object({
 	sortOrder: z.number().int().min(0),
 })
 
+const quoteDeliveryLocationInput = z.object({
+	area: z.string().trim().max(160),
+	city: z.string().trim().min(1).max(160),
+	governorate: z.string().trim().min(1).max(160),
+	latitude: z.number().min(21.7).max(31.8),
+	longitude: z.number().min(24.6).max(36.9),
+	street: z.string().trim().min(1).max(500),
+})
+
 const submitWebsiteQuoteInput = z.object({
 	agreementAccepted: z.literal(true),
 	contactEmail: z.string().trim().toLowerCase().email().max(254),
 	contactPhone: z.string().regex(/^\+20(10|11|12|15)\d{8}$/),
-	deliveryAddressId: z.string().uuid(),
+	deliveryLocation: quoteDeliveryLocationInput,
 	deliveryDate: z.iso.date(),
 	draftId: z.string().uuid().optional(),
 	idempotencyKey: z.string().uuid(),
@@ -147,21 +157,6 @@ function normalizeNotes(value: string | undefined): string | null {
 	if (value === undefined) return null
 	const notes = value.trim()
 	return notes || null
-}
-
-async function isOwnedQuoteRequestAddress(
-	client: WebsiteCustomerSupabaseClient,
-	customerId: string,
-	addressId: string,
-): Promise<boolean> {
-	const { data, error } = await client
-		.from('customer_addresses')
-		.select('id')
-		.eq('id', addressId)
-		.eq('customer_id', customerId)
-		.maybeSingle()
-	if (error) throw error
-	return Boolean(data)
 }
 
 function firstRelation<T>(relation: T | T[] | null | undefined): T | null {
@@ -453,15 +448,16 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 				if ('error' in auth) {
 					return { success: false, error: auth.error ?? 'submit_failed' }
 				}
-				if (
-					!isValidQuoteDeliveryDate(input.deliveryDate) ||
-					!(await isOwnedQuoteRequestAddress(
-						auth.client,
-						auth.customerId,
-						input.deliveryAddressId,
-					))
-				) {
+				if (!isValidQuoteDeliveryDate(input.deliveryDate)) {
 					return { success: false, error: 'invalid_details' }
+				}
+				const deliverySnapshot = {
+					delivery_address_id: null,
+					delivery_address_text: formatQuoteRequestAddress(
+						input.deliveryLocation,
+					),
+					delivery_latitude: input.deliveryLocation.latitude,
+					delivery_longitude: input.deliveryLocation.longitude,
 				}
 				await assertQuoteRequestItemsOrderable(auth.client, input.items)
 				const agreementAcceptedAt = new Date().toISOString()
@@ -513,7 +509,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 						approval_required: false,
 						agreement_accepted_at: agreementAcceptedAt,
 						agreement_version: QUOTE_REQUEST_AGREEMENT_VERSION,
-						delivery_address_id: input.deliveryAddressId,
+						...deliverySnapshot,
 						delivery_date: input.deliveryDate,
 						idempotency_key: input.idempotencyKey,
 						preferred_delivery_window: input.preferredDeliveryWindow,
@@ -572,7 +568,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 						approval_required: false,
 						attachment_urls: [],
 						customer_id: auth.customerId,
-						delivery_address_id: input.deliveryAddressId,
+						...deliverySnapshot,
 						delivery_date: input.deliveryDate,
 						draft_name: null,
 						idempotency_key: input.idempotencyKey,

@@ -496,6 +496,7 @@ const ACTOR_RPC_NAMES = new Set([
 	'sales_reject_order',
 	'sales_save_and_requeue',
 	'sales_save_quote_version',
+	'sales_set_quote_delivery_location',
 	'sales_start_quote_session',
 	'send_support_conversation_reply',
 	'send_support_reply',

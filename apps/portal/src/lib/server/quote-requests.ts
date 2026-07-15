@@ -4,6 +4,7 @@
  */
 
 import {
+	formatQuoteRequestAddress,
 	isValidQuoteDeliveryDate,
 	QUOTE_DELIVERY_WINDOW_IDS,
 	QUOTE_REQUEST_AGREEMENT_VERSION,
@@ -28,6 +29,16 @@ const quoteRequestDraftInput = z.object({
 	draftId: z.string().uuid().optional(),
 	items: z.array(quoteRequestItemInputSchema).min(1).max(100),
 	deliveryAddressId: z.string().uuid().optional(),
+	deliveryLocation: z
+		.object({
+			area: z.string().trim().max(160),
+			city: z.string().trim().min(1).max(160),
+			governorate: z.string().trim().min(1).max(160),
+			latitude: z.number().min(21.7).max(31.8),
+			longitude: z.number().min(24.6).max(36.9),
+			street: z.string().trim().min(1).max(500),
+		})
+		.optional(),
 	deliveryDate: z.iso.date().optional(),
 	name: z.string().max(120).optional(),
 	notes: z.string().max(2000).optional(),
@@ -63,7 +74,7 @@ type PortalQuoteSubmitInput = z.infer<typeof submitQuoteRequestInput>
 interface GuidedQuoteDetails {
 	contactEmail: string
 	contactPhone: string
-	deliveryAddressId: string
+	deliveryLocation: NonNullable<PortalQuoteSubmitInput['deliveryLocation']>
 	deliveryDate: string
 	preferredDeliveryWindow: (typeof QUOTE_DELIVERY_WINDOW_IDS)[number]
 }
@@ -74,6 +85,9 @@ interface QuoteRequestUpdate {
 	approval_required?: boolean
 	attachment_urls?: string[]
 	delivery_address_id?: string | null
+	delivery_address_text?: string | null
+	delivery_latitude?: number | null
+	delivery_longitude?: number | null
 	delivery_date?: string | null
 	draft_name?: string | null
 	idempotency_key?: string
@@ -96,21 +110,6 @@ function normalizeNotes(value: string | undefined): string | null {
 	return notes || null
 }
 
-async function isOwnedAddress(
-	supabase: PortalCustomerSupabase,
-	customerId: string,
-	addressId: string,
-): Promise<boolean> {
-	const { data, error } = await supabase
-		.from('customer_addresses')
-		.select('id')
-		.eq('id', addressId)
-		.eq('customer_id', customerId)
-		.maybeSingle()
-	if (error) throw new Error(error.message)
-	return Boolean(data)
-}
-
 function guidedQuoteDetailsFrom(
 	input: PortalQuoteSubmitInput,
 ): GuidedQuoteDetails | null {
@@ -124,7 +123,7 @@ function guidedQuoteDetailsFrom(
 		input.agreementAccepted !== true ||
 		!input.contactEmail ||
 		!input.contactPhone ||
-		!input.deliveryAddressId ||
+		!input.deliveryLocation ||
 		!input.deliveryDate ||
 		!input.preferredDeliveryWindow
 	) {
@@ -133,7 +132,7 @@ function guidedQuoteDetailsFrom(
 	return {
 		contactEmail: input.contactEmail,
 		contactPhone: input.contactPhone,
-		deliveryAddressId: input.deliveryAddressId,
+		deliveryLocation: input.deliveryLocation,
 		deliveryDate: input.deliveryDate,
 		preferredDeliveryWindow: input.preferredDeliveryWindow,
 	}
@@ -305,12 +304,7 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 			const guidedDetails = guidedQuoteDetailsFrom(input)
 			if (
 				guidedDetails &&
-				(!isValidQuoteDeliveryDate(guidedDetails.deliveryDate) ||
-					!(await isOwnedAddress(
-						supabase,
-						customerId,
-						guidedDetails.deliveryAddressId,
-					)))
+				!isValidQuoteDeliveryDate(guidedDetails.deliveryDate)
 			) {
 				throw new Error('Invalid quote request delivery details')
 			}
@@ -318,6 +312,16 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 			const agreementAcceptedAt = guidedDetails
 				? new Date().toISOString()
 				: null
+			const deliverySnapshot = guidedDetails
+				? {
+						delivery_address_id: null,
+						delivery_address_text: formatQuoteRequestAddress(
+							guidedDetails.deliveryLocation,
+						),
+						delivery_latitude: guidedDetails.deliveryLocation.latitude,
+						delivery_longitude: guidedDetails.deliveryLocation.longitude,
+					}
+				: {}
 
 			const { data: existing } = await supabase
 				.from('quote_requests')
@@ -360,6 +364,7 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 						idempotency_key: input.idempotencyKey,
 						...(guidedDetails
 							? {
+									...deliverySnapshot,
 									agreement_accepted_at: agreementAcceptedAt,
 									agreement_version: QUOTE_REQUEST_AGREEMENT_VERSION,
 									preferred_delivery_window:
@@ -388,7 +393,9 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 					approval_required: false,
 					attachment_urls: input.attachmentUrls ?? [],
 					customer_id: customerId,
-					delivery_address_id: input.deliveryAddressId ?? null,
+					...(guidedDetails
+						? deliverySnapshot
+						: { delivery_address_id: input.deliveryAddressId ?? null }),
 					delivery_date: input.deliveryDate ?? null,
 					draft_name: null,
 					idempotency_key: input.idempotencyKey,

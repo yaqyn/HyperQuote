@@ -86,6 +86,7 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
 
 interface DeliveryMapProps {
 	address: string
+	coordinates: { latitude: number; longitude: number } | null
 	onAddressChange: (
 		address: string,
 		coordinates?: { latitude: number; longitude: number } | null,
@@ -95,6 +96,7 @@ interface DeliveryMapProps {
 
 export function DeliveryMap({
 	address,
+	coordinates,
 	onAddressChange,
 	onDeliveryConfirmed,
 }: DeliveryMapProps) {
@@ -103,7 +105,11 @@ export function DeliveryMap({
 	const [markerPos, setMarkerPos] = useState<{
 		lat: number
 		lng: number
-	} | null>(null)
+	} | null>(() =>
+		coordinates
+			? { lat: coordinates.latitude, lng: coordinates.longitude }
+			: null,
+	)
 	const [clickedPoint, setClickedPoint] = useState<{
 		lat: number
 		lng: number
@@ -116,8 +122,7 @@ export function DeliveryMap({
 	const [interactiveMapReady, setInteractiveMapReady] = useState<
 		boolean | null
 	>(null)
-	const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-	const committedFromClickRef = useRef<Set<string>>(new Set())
+	const reverseRequestRef = useRef(0)
 
 	useEffect(() => {
 		setInteractiveMapReady(canUseInteractiveMap())
@@ -131,28 +136,13 @@ export function DeliveryMap({
 		return () => clearTimeout(timer)
 	}, [])
 
-	// Forward geocode: address text → map position (debounced)
 	useEffect(() => {
-		if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
-		if (committedFromClickRef.current.has(address)) return
-		geocodeTimerRef.current = setTimeout(async () => {
-			if (!address.trim()) return
-			setSearchError(null)
-			const coords = await forwardGeocode(address)
-			if (coords) {
-				setMarkerPos(coords)
-				setClickedPoint(null)
-				mapRef.current?.flyTo({
-					center: [coords.lng, coords.lat],
-					zoom: 14,
-					duration: 1200,
-				})
-			}
-		}, 800)
-		return () => {
-			if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
-		}
-	}, [address])
+		setMarkerPos(
+			coordinates
+				? { lat: coordinates.latitude, lng: coordinates.longitude }
+				: null,
+		)
+	}, [coordinates])
 
 	useEffect(() => {
 		const target = clickedPoint ?? markerPos
@@ -166,12 +156,14 @@ export function DeliveryMap({
 
 	// Map click → show pin + reverse geocode
 	const handleMapClick = useCallback(async (e: MapLayerMouseEvent) => {
+		const requestId = ++reverseRequestRef.current
 		const point = { lat: e.lngLat.lat, lng: e.lngLat.lng }
 		setSearchError(null)
 		setClickedPoint(point)
 		setReverseResult(null)
 		setIsReversing(true)
 		const result = await reverseGeocode(point.lat, point.lng)
+		if (requestId !== reverseRequestRef.current) return
 		setReverseResult(result)
 		setIsReversing(false)
 	}, [])
@@ -179,7 +171,6 @@ export function DeliveryMap({
 	// "Change delivery here" → commit clicked coord as the new marker + address
 	const handleChangeDelivery = useCallback(() => {
 		if (!clickedPoint || !reverseResult) return
-		committedFromClickRef.current.add(reverseResult)
 		setMarkerPos(clickedPoint)
 		setSearchInput(reverseResult)
 		setSearchError(null)
@@ -208,10 +199,8 @@ export function DeliveryMap({
 			zoom: 15,
 			duration: 1200,
 		})
-		const pretty = await reverseGeocode(coords.lat, coords.lng)
-		setClickedPoint(coords)
-		setReverseResult(pretty)
-		setSearchInput(pretty)
+		setClickedPoint(null)
+		setReverseResult(null)
 		setIsReversing(false)
 	}, [searchInput])
 
@@ -222,27 +211,6 @@ export function DeliveryMap({
 			void findSearchAddress()
 		},
 		[findSearchAddress],
-	)
-
-	const handleFallbackAddressSubmit = useCallback(
-		async (e: React.FormEvent) => {
-			e.preventDefault()
-			const q = searchInput.trim()
-			if (!q) return
-			setSearchError(null)
-			setIsReversing(true)
-			const coords = await forwardGeocode(q)
-			const nextAddress = coords
-				? await reverseGeocode(coords.lat, coords.lng)
-				: q
-			onAddressChange(
-				nextAddress,
-				coords ? { latitude: coords.lat, longitude: coords.lng } : null,
-			)
-			setIsReversing(false)
-			onDeliveryConfirmed?.()
-		},
-		[searchInput, onAddressChange, onDeliveryConfirmed],
 	)
 
 	const routeGeoJSON: GeoJSON.FeatureCollection = useMemo(
@@ -275,41 +243,9 @@ export function DeliveryMap({
 						map view unavailable on this renderer
 					</span>
 				</div>
-				<form
-					onSubmit={handleFallbackAddressSubmit}
-					className="flex min-h-0 flex-1 flex-col justify-center gap-4 px-5"
-				>
-					<label htmlFor="delivery-map-search" className="block">
-						<span className="sr-only">Search for an address</span>
-						<input
-							ref={searchInputRef}
-							id="delivery-map-search"
-							type="text"
-							value={searchInput}
-							onChange={(e) => setSearchInput(e.target.value)}
-							placeholder="search an address, or paste it here..."
-							className="w-full rounded-md border border-[var(--color-border)] bg-transparent px-3 py-2 font-[family-name:var(--font-archivo)] text-[var(--color-text)] outline-none placeholder:italic placeholder:text-[var(--color-text-subtle)]/65 focus:border-[var(--color-primary)]/45 focus:ring-2 focus:ring-[var(--color-primary)]/20"
-							style={{ fontSize: '13px', letterSpacing: '0' }}
-						/>
-					</label>
-					<div className="min-w-0">
-						<p className="truncate font-[family-name:var(--font-archivo)] text-[13px] font-medium text-[var(--color-text)]">
-							{searchInput.trim() || address || 'no address yet'}
-						</p>
-						<p className="mt-1 font-[family-name:var(--font-archivo)] text-[11px] italic text-[var(--color-text-subtle)]">
-							address will be saved without opening the WebGL map
-						</p>
-					</div>
-					<EmployeeActionButton
-						type="submit"
-						tone="success"
-						disabled={!searchInput.trim() || isReversing}
-						aria-disabled={!searchInput.trim() || isReversing}
-						trailing={<span aria-hidden="true">→</span>}
-					>
-						{isReversing ? 'Finding address' : 'Use address'}
-					</EmployeeActionButton>
-				</form>
+				<div className="flex min-h-0 flex-1 items-center justify-center px-5 text-center font-[family-name:var(--font-archivo)] text-[12px] text-[var(--color-text-subtle)]">
+					The interactive map is required to change the delivery point.
+				</div>
 			</div>
 		)
 	}

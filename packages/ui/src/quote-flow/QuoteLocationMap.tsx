@@ -14,22 +14,25 @@ export interface QuoteLocationPoint {
 }
 
 export function QuoteLocationMap({
+	focusPoint,
 	onPointChange,
 	point,
 }: {
+	focusPoint: QuoteLocationPoint | null
 	onPointChange: (point: QuoteLocationPoint) => void
 	point: QuoteLocationPoint | null
 }) {
 	const mapRef = useRef<MapRef>(null)
 
 	useEffect(() => {
-		if (!point) return
+		const target = focusPoint ?? point
+		if (!target) return
 		mapRef.current?.flyTo({
-			center: [point.longitude, point.latitude],
+			center: [target.longitude, target.latitude],
 			duration: 420,
 			zoom: Math.max(mapRef.current.getZoom(), 14),
 		})
-	}, [point])
+	}, [focusPoint, point])
 
 	function handleMapClick(event: MapLayerMouseEvent) {
 		onPointChange({
