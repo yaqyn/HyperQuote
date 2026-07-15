@@ -1,3 +1,4 @@
+import { getProcessRuntimeEnv } from '@hyperquote/runtime/env'
 import { createSupabaseServiceRoleClient } from './server'
 
 interface RateLimitStore {
@@ -51,7 +52,11 @@ export async function clearRateLimit(
 }
 
 async function createDatabaseRateLimitStore(): Promise<RateLimitStore> {
-	const client = await createSupabaseServiceRoleClient({})
+	// Workers install their bindings on the shared runtime env. Nitro development
+	// receives the same server-only values through the spawned process instead.
+	const client = await createSupabaseServiceRoleClient(
+		getProcessRuntimeEnv() ?? {},
+	)
 	if (!client) throw new Error('Rate limit backend is not configured')
 
 	return {

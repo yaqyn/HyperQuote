@@ -28,6 +28,28 @@ export function getInstalledRuntimeEnv(): RuntimeEnvRecord | undefined {
 	return runtimeEnvHost()[RUNTIME_ENV_KEY]
 }
 
+export function getProcessRuntimeEnv():
+	| Record<string, RuntimeEnvValue>
+	| undefined {
+	const runtimeProcess: unknown = Reflect.get(globalThis, 'process')
+	if (
+		!runtimeProcess ||
+		typeof runtimeProcess !== 'object' ||
+		!('env' in runtimeProcess)
+	) {
+		return undefined
+	}
+	return isProcessRuntimeEnv(runtimeProcess.env)
+		? runtimeProcess.env
+		: undefined
+}
+
+function isProcessRuntimeEnv(
+	value: unknown,
+): value is Record<string, string | undefined> {
+	return Boolean(value && typeof value === 'object')
+}
+
 export async function runtimeEnvValue(
 	value: RuntimeEnvValue,
 ): Promise<string | undefined> {
