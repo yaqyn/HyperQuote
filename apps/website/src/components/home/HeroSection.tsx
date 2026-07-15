@@ -86,7 +86,7 @@ export function HeroSection({
 						>
 							<HeroMaterialAccents />
 							<div className="relative z-[1] flex min-h-full items-center pb-8 pt-24 sm:pb-10 sm:pt-28 lg:pb-14 lg:pt-32">
-								<div className="hq-page-shell grid items-center gap-12 lg:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)] lg:gap-16 xl:gap-24">
+								<div className="hq-page-shell hq-hero-shell grid items-center gap-12 lg:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)] lg:gap-16 xl:gap-24">
 									<div className="max-w-[760px] text-center lg:text-start">
 										<p className="hq-kicker mb-6 text-[var(--color-primary)]">
 											{t('hero.eyebrow')}
@@ -104,7 +104,7 @@ export function HeroSection({
 										<div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
 											<Link
 												to="/market"
-												className="hq-action hq-action--primary h-13 w-full sm:w-[210px]"
+												className="hq-action hq-action--primary h-13 w-full max-w-[210px]"
 											>
 												{t('cta.browseMarket')}
 												<ArrowUpRight
@@ -119,7 +119,7 @@ export function HeroSection({
 														behavior: shouldReduceMotion ? 'auto' : 'smooth',
 													})
 												}
-												className="hq-action hq-action--outline h-13 w-full sm:w-[230px]"
+												className="hq-action hq-action--outline h-13 w-full max-w-[230px]"
 											>
 												{t('hero.seeProcess')}
 												<ArrowDown size={16} className="hq-action__icon" />
@@ -305,7 +305,7 @@ function MaterialDocket({
 	const hasItems = items.length > 0
 
 	return (
-		<div className="hq-material-docket hq-photo-frame overflow-hidden rounded-[24px] border border-[var(--site-rule)] bg-[var(--color-card)] text-start lg:rotate-[0.7deg]">
+		<div className="hq-material-docket hq-photo-frame hidden overflow-hidden rounded-[24px] border border-[var(--site-rule)] bg-[var(--color-card)] text-start md:block lg:rotate-[0.7deg]">
 			<div className="flex items-center justify-between border-b border-[var(--site-rule)] px-5 py-3.5 sm:px-6">
 				<p className="hq-kicker text-[var(--color-primary)]">
 					{t('hero.docket.label')}
@@ -527,7 +527,7 @@ function HeroModeRail({
 					</button>
 				)}
 
-				<div className="grid grid-cols-3 overflow-hidden rounded-xl border border-[var(--site-rule)]">
+				<div className="grid w-fit grid-cols-3 self-center overflow-hidden rounded-xl border border-[var(--site-rule)] sm:self-auto">
 					{modes.map((item) => (
 						<button
 							key={item.id}

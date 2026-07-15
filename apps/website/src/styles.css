@@ -339,6 +339,15 @@
 	}
 }
 
+@media (min-width: 1536px) {
+	.hq-page-shell.hq-hero-shell {
+		width: min(100% - 8rem, 112rem);
+		grid-template-columns: minmax(0, 760px) minmax(540px, 590px);
+		justify-content: center;
+		column-gap: clamp(3.5rem, 4vw, 4.5rem);
+	}
+}
+
 /* Keep text non-selectable by cursor unless it is interactive or editable. */
 * {
 	cursor: default !important;
