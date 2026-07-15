@@ -76,7 +76,7 @@ export function HeroSection({
 									<p className="hq-kicker mb-6 text-[var(--color-primary)]">
 										{t('hero.eyebrow')}
 									</p>
-									<h1 className="hq-display text-[clamp(3.2rem,8.2vw,8.2rem)] font-bold leading-[0.9] text-[var(--color-text)]">
+									<h1 className="hq-display hq-title-hero font-bold text-[var(--color-text)]">
 										<span className="block">{t('hero.headlinePart1')}</span>
 										<span className="mt-[0.08em] block text-[var(--color-primary)]">
 											{t('hero.headlinePart2')}
@@ -110,10 +110,6 @@ export function HeroSection({
 											<ArrowDown size={16} />
 										</button>
 									</div>
-
-									<p className="mt-5 text-[12px] text-[var(--color-text-subtle)]">
-										{t('cta.noCreditCard')}
-									</p>
 								</div>
 
 								<MaterialDocket categories={categories} isArabic={isArabic} />
@@ -135,7 +131,7 @@ export function HeroSection({
 									<p className="hq-kicker mb-4 text-[var(--color-primary)]">
 										{t('support.sectionContact')}
 									</p>
-									<h2 className="hq-display text-[clamp(2.7rem,7vw,6rem)] font-bold leading-[0.96] text-[var(--color-text)]">
+									<h2 className="hq-display hq-title-section font-bold text-[var(--color-text)]">
 										{t('support.formHeading')}
 									</h2>
 								</div>
@@ -160,7 +156,7 @@ export function HeroSection({
 								<p className="hq-kicker mb-5 text-[var(--color-primary)]">
 									HyperQuote / {t('nav.docs')}
 								</p>
-								<h2 className="hq-display text-[clamp(3rem,8vw,7rem)] font-bold leading-[0.92] text-[var(--color-text)]">
+								<h2 className="hq-display hq-title-section font-bold text-[var(--color-text)]">
 									{t('docs.heroHeading')}
 								</h2>
 								<p className="mx-auto mt-6 max-w-[500px] text-[16px] leading-7 text-[var(--color-text-muted)]">
@@ -224,19 +220,10 @@ function MaterialDocket({
 
 	return (
 		<div className="hq-photo-frame overflow-hidden rounded-[24px] border border-[var(--site-rule)] bg-[var(--color-card)] text-start lg:rotate-[0.7deg]">
-			<div className="flex items-center justify-between border-b border-[var(--site-rule)] px-5 py-4 sm:px-6">
-				<div>
-					<p className="hq-kicker text-[var(--color-primary)]">
-						{t('hero.docket.label')}
-					</p>
-					<p className="mt-1 font-mono text-[10px] text-[var(--color-text-subtle)]">
-						{t('hero.docket.reference')}
-					</p>
-				</div>
-				<span className="flex items-center gap-2 text-[11px] font-semibold text-[var(--color-text-muted)]">
-					<span className="h-2 w-2 rounded-full bg-[var(--color-success)]" />
-					{t('hero.docket.live')}
-				</span>
+			<div className="border-b border-[var(--site-rule)] px-5 py-4 sm:px-6">
+				<p className="hq-kicker text-[var(--color-primary)]">
+					{t('hero.docket.label')}
+				</p>
 			</div>
 
 			<div className="border-b border-[var(--site-rule)] bg-[var(--site-concrete)]/70 px-5 py-5 sm:px-6">
@@ -250,12 +237,14 @@ function MaterialDocket({
 				)}
 			</div>
 
-			<div className="hq-docket-lines min-h-[236px]">
-				<div className="grid grid-cols-[1fr_auto_auto] gap-4 border-b border-[var(--site-rule)] px-5 py-3 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)] sm:px-6">
-					<span>{t('hero.docket.categoryColumn')}</span>
-					<span>{hasItems ? t('hero.docket.quantityColumn') : ''}</span>
-					<span>{hasItems ? t('hero.docket.unitColumn') : ''}</span>
-				</div>
+			<div className="hq-docket-lines min-h-[216px]">
+				{hasItems && (
+					<div className="grid grid-cols-[1fr_auto_auto] gap-4 border-b border-[var(--site-rule)] px-5 py-3 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)] sm:px-6">
+						<span>{t('hero.docket.categoryColumn')}</span>
+						<span>{t('hero.docket.quantityColumn')}</span>
+						<span>{t('hero.docket.unitColumn')}</span>
+					</div>
+				)}
 
 				{hasItems
 					? visibleItems.map((item) => (
@@ -298,10 +287,12 @@ function MaterialDocket({
 						))}
 			</div>
 
-			<div className="flex items-center justify-between gap-4 border-t border-[var(--site-rule)] px-5 py-4 sm:px-6">
-				<span className="font-mono text-[10px] text-[var(--color-text-subtle)]">
-					{items.length} {t('hero.docket.items')}
-				</span>
+			<div className="flex items-center justify-end gap-4 border-t border-[var(--site-rule)] px-5 py-4 sm:px-6">
+				{hasItems && (
+					<span className="me-auto font-mono text-[10px] text-[var(--color-text-subtle)]">
+						{items.length} {t('hero.docket.items')}
+					</span>
+				)}
 				<Link
 					to="/market"
 					className="inline-flex items-center gap-2 text-[12px] font-semibold text-[var(--color-primary)]"

@@ -37,7 +37,7 @@ export function MarketPreviewSection({
 							<p className="hq-kicker mb-4 text-[var(--color-primary)]">
 								{t('marketPreview.label')}
 							</p>
-							<h2 className="hq-display text-[clamp(2.8rem,7vw,6.5rem)] font-bold leading-[0.94] text-[var(--color-text)]">
+							<h2 className="hq-display hq-title-section font-bold text-[var(--color-text)]">
 								{t('marketPreview.heading')}
 							</h2>
 						</div>
@@ -62,19 +62,15 @@ export function MarketPreviewSection({
 								<Link
 									to="/market"
 									search={{ category: category.slug }}
-									className="group grid gap-5 border-b border-[var(--site-rule)] py-6 transition-colors hover:bg-[var(--site-blue-wash)] sm:grid-cols-[minmax(0,1fr)_minmax(220px,0.65fr)_112px] sm:items-center sm:px-5 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)_152px] lg:py-7"
+									className="group grid gap-4 border-b border-[var(--site-rule)] py-6 transition-colors hover:bg-[var(--site-blue-wash)] sm:grid-cols-[minmax(0,1fr)_minmax(240px,0.7fr)_auto] sm:items-center sm:px-5 lg:py-7"
 								>
-									<h3 className="hq-display text-[clamp(2rem,4.5vw,4.8rem)] font-bold leading-none text-[var(--color-text)] transition-colors group-hover:text-[var(--color-primary)]">
+									<h3 className="hq-display hq-title-record font-bold text-[var(--color-text)] transition-colors group-hover:text-[var(--color-primary)]">
 										{copy.name}
 									</h3>
 									<p className="max-w-[480px] text-[13px] leading-6 text-[var(--color-text-muted)]">
 										{copy.description}
 									</p>
-									<div className="flex items-center justify-between gap-4 sm:justify-end">
-										<CategorySample
-											imageUrl={category.imageUrl}
-											index={index}
-										/>
+									<div className="flex items-center justify-end">
 										<ArrowUpRight
 											size={18}
 											className="icon-end shrink-0 text-[var(--color-text-subtle)] transition-all group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-[var(--color-primary)]"
@@ -87,40 +83,5 @@ export function MarketPreviewSection({
 				</div>
 			</div>
 		</section>
-	)
-}
-
-function CategorySample({
-	imageUrl,
-	index,
-}: {
-	imageUrl: string | null
-	index: number
-}) {
-	if (imageUrl) {
-		return (
-			<div className="h-16 w-24 overflow-hidden rounded-lg bg-[var(--site-concrete)] lg:h-20 lg:w-32">
-				<img
-					src={imageUrl}
-					alt=""
-					width={256}
-					height={160}
-					loading="lazy"
-					className="h-full w-full object-cover grayscale transition duration-500 group-hover:grayscale-0"
-				/>
-			</div>
-		)
-	}
-
-	return (
-		<div className="relative h-16 w-24 overflow-hidden rounded-lg border border-[var(--site-rule)] bg-[var(--site-concrete)] lg:h-20 lg:w-32">
-			<div
-				className="absolute inset-x-3 top-3 h-2 rounded-full bg-[var(--color-primary)]/70"
-				style={{ transform: `translateX(${(index % 3) * 4}px)` }}
-			/>
-			<div className="absolute inset-x-3 top-7 h-px bg-[var(--site-steel)]/35" />
-			<div className="absolute inset-x-3 top-10 h-px bg-[var(--site-steel)]/35" />
-			<div className="absolute inset-x-3 top-13 h-px bg-[var(--site-steel)]/35" />
-		</div>
 	)
 }

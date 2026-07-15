@@ -87,19 +87,15 @@ function SupportPage() {
 						<p className="hq-kicker mb-5 text-[var(--color-primary)]">
 							{t('support.sectionMessage')}
 						</p>
-						<h1 className="hq-display max-w-[900px] text-[clamp(3.4rem,9vw,8rem)] font-bold leading-[0.88] text-[var(--color-text)]">
+						<h1 className="hq-display hq-title-hero max-w-[900px] font-bold text-[var(--color-text)]">
 							{t('support.heading')}
 						</h1>
 					</div>
 					<div className="border-s border-[var(--site-rule)] ps-5">
-						<div className="flex items-center justify-between gap-5 border-b border-[var(--site-rule)] pb-4">
+						<div className="border-b border-[var(--site-rule)] pb-4">
 							<p className="text-[14px] font-semibold text-[var(--color-text)]">
 								{t('support.responseTime')}
 							</p>
-							<span className="flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
-								<span className="h-2 w-2 rounded-full bg-[var(--color-success)]" />
-								{t('support.status')}
-							</span>
 						</div>
 						<p className="mt-4 font-mono text-[11px] leading-relaxed text-[var(--color-text-subtle)]">
 							{t('support.hoursLine')}
@@ -138,10 +134,7 @@ function SupportPage() {
 						ref={contactHeadingRef}
 						className="mb-10 scroll-mt-24 border-b border-[var(--site-rule)] pb-6 md:mb-12 lg:mb-14"
 					>
-						<p className="hq-kicker text-[var(--color-primary)]">
-							HQ / CONTACT
-						</p>
-						<h2 className="hq-display mt-4 text-[clamp(2.5rem,5vw,5rem)] font-bold leading-[0.94]">
+						<h2 className="hq-display hq-title-subsection font-bold">
 							{t('support.sectionContact')}
 						</h2>
 					</div>
@@ -165,10 +158,7 @@ function SupportPage() {
 			>
 				<div className="mx-auto max-w-[1400px]">
 					<div className="mb-10 border-b border-[var(--site-rule)] pb-6 md:mb-12 lg:mb-14">
-						<p className="hq-kicker text-[var(--color-primary)]">
-							{t('support.sectionFaq')}
-						</p>
-						<h2 className="hq-display mt-4 text-[clamp(2.5rem,5vw,5rem)] font-bold leading-[0.94]">
+						<h2 className="hq-display hq-title-subsection font-bold">
 							{t('support.faq.heading')}
 						</h2>
 					</div>

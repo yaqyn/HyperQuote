@@ -201,7 +201,7 @@ function AuthContextPanel() {
 			<p className="hq-kicker text-[var(--color-primary)]">
 				{t('login.context.eyebrow')}
 			</p>
-			<h1 className="hq-display mt-4 text-[clamp(3rem,7vw,6.6rem)] font-bold leading-[0.9] text-[var(--color-text)]">
+			<h1 className="hq-display hq-title-section mt-4 font-bold text-[var(--color-text)]">
 				{t('login.context.heading')}
 			</h1>
 			<p className="mx-auto mt-5 max-w-[560px] text-[15px] leading-[1.75] text-[var(--color-text-muted)] sm:text-[16px] lg:mx-0">
@@ -224,12 +224,6 @@ function AuthContextPanel() {
 					title={t('login.context.benefits.delivery.title')}
 					description={t('login.context.benefits.delivery.description')}
 				/>
-			</div>
-
-			<div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[12px] text-[var(--color-text-subtle)] lg:justify-start">
-				<span className="font-mono">{t('login.context.stat1')}</span>
-				<span className="h-1 w-1 rounded-full bg-[var(--color-border)]" />
-				<span className="font-mono">{t('login.context.stat2')}</span>
 			</div>
 		</section>
 	)

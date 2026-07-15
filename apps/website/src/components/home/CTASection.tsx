@@ -8,12 +8,12 @@ export function CTASection() {
 
 	return (
 		<section className="bg-[var(--color-primary)] text-white">
-			<div className="hq-page-shell py-14 sm:py-16 lg:py-20">
+			<div className="hq-page-shell py-12 sm:py-14 lg:py-16">
 				<SectionReveal>
 					<div className="grid items-end gap-9 lg:grid-cols-[1fr_auto] lg:gap-20">
 						<div className="max-w-[920px]">
 							<p className="hq-kicker mb-5 text-white/65">{t('cta.status')}</p>
-							<h2 className="hq-display text-[clamp(2.7rem,7vw,6.6rem)] font-bold leading-[0.94] text-white">
+							<h2 className="hq-display hq-title-section font-bold text-white">
 								{t('cta.readyToBuild')}
 							</h2>
 							<p className="mt-5 text-[14px] text-white/70 sm:text-[15px]">

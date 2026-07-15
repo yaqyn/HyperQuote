@@ -69,7 +69,7 @@ export function MobileNavOverlay({ isOpen, onClose }: MobileNavOverlayProps) {
 										onClick={onClose}
 										className="group flex items-center justify-between border-b border-[var(--site-rule)] py-5 text-[var(--color-text)]"
 									>
-										<span className="hq-display text-[clamp(2.25rem,11vw,4rem)] font-bold">
+										<span className="hq-display text-[clamp(2rem,9vw,3rem)] font-bold">
 											{t('nav.market')}
 										</span>
 										<ArrowUpRight className="text-[var(--color-primary)] transition-transform group-hover:-translate-y-1 group-hover:translate-x-1" />
@@ -79,7 +79,7 @@ export function MobileNavOverlay({ isOpen, onClose }: MobileNavOverlayProps) {
 										onClick={onClose}
 										className="group flex items-center justify-between border-b border-[var(--site-rule)] py-5 text-[var(--color-text)]"
 									>
-										<span className="hq-display text-[clamp(2.25rem,11vw,4rem)] font-bold">
+										<span className="hq-display text-[clamp(2rem,9vw,3rem)] font-bold">
 											{t('nav.about')}
 										</span>
 										<ArrowUpRight className="text-[var(--color-primary)] transition-transform group-hover:-translate-y-1 group-hover:translate-x-1" />
@@ -89,7 +89,7 @@ export function MobileNavOverlay({ isOpen, onClose }: MobileNavOverlayProps) {
 										onClick={onClose}
 										className="group flex items-center justify-between border-b border-[var(--site-rule)] py-5 text-[var(--color-text)]"
 									>
-										<span className="hq-display text-[clamp(2.25rem,11vw,4rem)] font-bold">
+										<span className="hq-display text-[clamp(2rem,9vw,3rem)] font-bold">
 											{t('nav.support')}
 										</span>
 										<ArrowUpRight className="text-[var(--color-primary)] transition-transform group-hover:-translate-y-1 group-hover:translate-x-1" />
@@ -99,7 +99,7 @@ export function MobileNavOverlay({ isOpen, onClose }: MobileNavOverlayProps) {
 										onClick={onClose}
 										className="group flex items-center justify-between border-b border-[var(--site-rule)] py-5 text-[var(--color-text)]"
 									>
-										<span className="hq-display text-[clamp(2.25rem,11vw,4rem)] font-bold">
+										<span className="hq-display text-[clamp(2rem,9vw,3rem)] font-bold">
 											{t('nav.docs')}
 										</span>
 										<ArrowUpRight className="text-[var(--color-primary)] transition-transform group-hover:-translate-y-1 group-hover:translate-x-1" />

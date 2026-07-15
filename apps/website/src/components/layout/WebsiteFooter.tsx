@@ -1,5 +1,4 @@
 import { Link, useRouter } from '@tanstack/react-router'
-import { ArrowUpRight } from 'lucide-react'
 import { useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -32,31 +31,7 @@ export function WebsiteFooter() {
 	return (
 		<footer data-theme="dark" className="relative z-0 bg-[#101010] text-white">
 			<div className="hq-page-shell">
-				<div className="grid gap-10 border-b border-white/10 py-14 sm:py-16 lg:grid-cols-[1fr_auto] lg:items-end lg:gap-20 lg:py-20">
-					<div className="max-w-[760px]">
-						<p className="hq-kicker mb-5 text-[#75a2ff]">
-							{t('footer.docketLocation')}
-						</p>
-						<h2 className="hq-display text-[clamp(2.5rem,7vw,6.5rem)] font-bold leading-[0.94] text-white">
-							{t('cta.readyToBuild')}
-						</h2>
-						<p className="mt-5 max-w-[480px] text-[15px] leading-7 text-white/55 sm:text-[16px]">
-							{t('hero.subheadline')}
-						</p>
-					</div>
-					<Link
-						to="/market"
-						className="group inline-flex h-14 w-full items-center justify-between rounded-xl bg-[#2563eb] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[#3b82f6] sm:w-[240px]"
-					>
-						{t('cta.browseMarket')}
-						<ArrowUpRight
-							size={18}
-							className="icon-end transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-						/>
-					</Link>
-				</div>
-
-				<div className="grid gap-12 py-12 sm:grid-cols-[1fr_auto] sm:items-start lg:py-16">
+				<div className="grid gap-12 py-12 sm:grid-cols-[1fr_auto] sm:items-start lg:py-14">
 					<div className="flex items-start gap-4">
 						<img
 							src="/LyonWhite.svg"

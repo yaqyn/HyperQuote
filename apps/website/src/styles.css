@@ -34,6 +34,33 @@
 	line-height: 1.16;
 }
 
+.hq-title-hero {
+	font-size: clamp(2.75rem, 5.8vw, 5.75rem);
+	line-height: 0.94;
+}
+
+.hq-title-section {
+	font-size: clamp(2.25rem, 4.25vw, 4.25rem);
+	line-height: 0.98;
+}
+
+.hq-title-subsection {
+	font-size: clamp(1.875rem, 3vw, 3.25rem);
+	line-height: 1;
+}
+
+.hq-title-record {
+	font-size: clamp(1.75rem, 3vw, 3rem);
+	line-height: 1;
+}
+
+[dir="rtl"] .hq-title-hero,
+[dir="rtl"] .hq-title-section,
+[dir="rtl"] .hq-title-subsection,
+[dir="rtl"] .hq-title-record {
+	line-height: 1.18;
+}
+
 .hq-kicker {
 	font-family: var(--font-mono);
 	font-size: 0.6875rem;
@@ -310,75 +337,6 @@ input[type="search"]::-webkit-search-decoration {
 .scrollbar-none {
 	-ms-overflow-style: none;
 	scrollbar-width: none;
-}
-
-/* Full-screen compact footer. Uses document scroll so the footer never traps touch gestures. */
-@media (max-width: 1023px) {
-	.website-footer {
-		min-height: 100svh;
-	}
-
-	.website-footer__inner {
-		min-height: 100svh;
-		padding-block-start: max(1rem, env(safe-area-inset-top));
-		padding-block-end: max(0.75rem, env(safe-area-inset-bottom));
-	}
-
-	.website-footer__main {
-		gap: clamp(1.25rem, 5svh, 2.5rem);
-		padding-block: clamp(1.5rem, 7svh, 3.5rem);
-	}
-
-	.website-footer__brand {
-		gap: clamp(0.75rem, 2.5svh, 1rem);
-	}
-
-	.website-footer__logo {
-		height: clamp(4.75rem, 16svh, 7rem);
-	}
-
-	.website-footer__summary {
-		margin-block-start: clamp(0.45rem, 1.6svh, 0.75rem);
-	}
-
-	.website-footer__actions {
-		margin-block-start: clamp(0.75rem, 2.6svh, 1.25rem);
-	}
-
-	.website-footer__links {
-		gap: clamp(1.25rem, 6vw, 3rem);
-		padding-block-start: clamp(1.125rem, 4svh, 2rem);
-	}
-
-	.website-footer__navlist {
-		gap: clamp(0.35rem, 1.4svh, 0.75rem);
-	}
-
-	.website-footer__navlink,
-	.website-footer__legal-link {
-		min-height: clamp(1.75rem, 5svh, 2rem);
-	}
-
-	.website-footer__bottom {
-		gap: clamp(0.5rem, 1.7svh, 1rem);
-		padding-block: clamp(0.75rem, 2.8svh, 1.5rem);
-	}
-}
-
-@media (max-width: 1023px) and (max-height: 680px) {
-	.website-footer__inner {
-		justify-content: flex-start;
-	}
-
-	.website-footer__main {
-		flex: none;
-		align-content: start;
-	}
-
-	.website-footer__summary,
-	.website-footer__actions {
-		display: none;
-	}
 }
 
 /* Drop cap — novel-style initial letter, top-aligned with first line */

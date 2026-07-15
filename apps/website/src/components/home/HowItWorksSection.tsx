@@ -1,4 +1,3 @@
-import { ArrowDownRight } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { SectionReveal } from '../shared/SectionReveal'
 
@@ -11,18 +10,15 @@ export function HowItWorksSection() {
 		<section id="process" className="scroll-mt-[68px] bg-[#101010] text-white">
 			<div className="hq-page-shell py-16 sm:py-20 lg:py-28">
 				<SectionReveal>
-					<div className="grid items-end gap-8 lg:grid-cols-[1fr_0.7fr] lg:gap-24">
+					<div className="max-w-[820px]">
 						<div>
 							<p className="hq-kicker mb-5 text-[#75a2ff]">
 								{t('howItWorks.label')}
 							</p>
-							<h2 className="hq-display whitespace-pre-line text-[clamp(2.8rem,7vw,7rem)] font-bold leading-[0.94]">
+							<h2 className="hq-display hq-title-section whitespace-pre-line font-bold">
 								{t('howItWorks.heading')}
 							</h2>
 						</div>
-						<p className="max-w-[500px] text-[15px] leading-7 text-white/50 sm:text-[16px] lg:justify-self-end">
-							{t('hero.subheadline')}
-						</p>
 					</div>
 				</SectionReveal>
 
@@ -37,16 +33,6 @@ export function HowItWorksSection() {
 								loading="lazy"
 								className="h-full w-full object-cover object-center saturate-[0.9]"
 							/>
-							<div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
-							<figcaption className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-5 p-5 sm:p-7">
-								<p className="max-w-[420px] text-[13px] leading-6 text-white/75">
-									{t('howItWorks.step4.description')}
-								</p>
-								<span className="hidden items-center gap-2 font-mono text-[10px] text-white/55 sm:flex">
-									{t('howItWorks.imageCaption')}
-									<ArrowDownRight size={14} />
-								</span>
-							</figcaption>
 						</div>
 					</figure>
 				</SectionReveal>

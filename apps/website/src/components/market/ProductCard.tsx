@@ -20,15 +20,9 @@ interface ProductCardProps {
 
 function ProductSpecimen({
 	product,
-	name,
-	categoryLabel,
-	unit,
 	compact = false,
 }: {
 	product: Product
-	name: string
-	categoryLabel: string
-	unit: string
 	compact?: boolean
 }) {
 	const { t } = useTranslation('website')
@@ -62,15 +56,7 @@ function ProductSpecimen({
 					{product.sku}
 				</span>
 			</div>
-			<div>
-				<p className="max-w-[88%] text-[15px] font-semibold leading-snug text-[var(--color-text)] sm:text-[17px]">
-					{name}
-				</p>
-				<div className="mt-4 flex items-end justify-between gap-3 border-t border-[var(--site-rule)] pt-3 font-mono text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-					<span className="line-clamp-1">{categoryLabel}</span>
-					<span className="shrink-0 text-[var(--color-primary)]">{unit}</span>
-				</div>
-			</div>
+			<div className="h-2 w-16 bg-[var(--color-primary)]/70" />
 		</div>
 	)
 }
@@ -276,13 +262,7 @@ export function ProductCard({
 						loading="lazy"
 					/>
 				) : (
-					<ProductSpecimen
-						product={product}
-						name={name}
-						categoryLabel={categoryLabel}
-						unit={unit}
-						compact
-					/>
+					<ProductSpecimen product={product} compact />
 				)}
 				<div className="flex-1 min-w-0">
 					<p className="text-[14px] font-medium text-[var(--color-text)] line-clamp-1">
@@ -344,12 +324,7 @@ export function ProductCard({
 						loading="lazy"
 					/>
 				) : (
-					<ProductSpecimen
-						product={product}
-						name={name}
-						categoryLabel={categoryLabel}
-						unit={unit}
-					/>
+					<ProductSpecimen product={product} />
 				)}
 				<button
 					ref={btnRef}

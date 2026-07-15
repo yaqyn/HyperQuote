@@ -30,8 +30,6 @@
 		"backToOverview": "Back to overview",
 		"docket": {
 			"label": "Live material docket",
-			"reference": "RFQ / START",
-			"live": "Live",
 			"emptyTitle": "Start with a real material",
 			"emptyDescription": "Choose a category, add products, and keep the list while you browse.",
 			"cartTitle": "Your current material list",
@@ -46,7 +44,6 @@
 	"howItWorks": {
 		"label": "Quote workflow",
 		"heading": "From material list\nto site handoff.",
-		"imageCaption": "Cairo / Site handoff",
 		"step1": {
 			"title": "Build your list",
 			"description": "Browse the live catalog, choose exact specifications, and add the quantities your site needs."
@@ -312,8 +309,7 @@
 		"termsOfUse": "Terms",
 		"copyright": "© 2026 HyperQuote",
 		"regionEn": "Egypt · English",
-		"regionAr": "Egypt · العربية",
-		"docketLocation": "HyperQuote / Cairo"
+		"regionAr": "Egypt · العربية"
 	},
 	"offline": "You're offline",
 	"contextMenu": {
@@ -536,7 +532,6 @@
 	"support": {
 		"heading": "How can we help?",
 		"responseTime": "Average response: 2 hours",
-		"status": "Team online",
 		"hoursLine": "Sun–Thu / 08:00–18:00 / Cairo time",
 		"stillNeedHelp": "Still need help?",
 		"formHeading": "Send us a message",
@@ -651,8 +646,6 @@
 			"eyebrow": "Customer access",
 			"heading": "Your purchasing desk for building materials.",
 			"body": "Sign in with email and password to request quotes, track orders, and manage project purchasing from one secure workspace.",
-			"stat1": "Email/password access",
-			"stat2": "Built for Egyptian contractors",
 			"benefits": {
 				"quotes": {
 					"title": "Quote faster",

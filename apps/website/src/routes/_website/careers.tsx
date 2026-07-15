@@ -54,26 +54,20 @@ function CareersPage() {
 						<p className="hq-kicker mb-5 text-[var(--color-primary)]">
 							{t('careers.location')}
 						</p>
-						<h1 className="hq-display max-w-[1000px] text-[clamp(3.3rem,8vw,7.6rem)] font-bold leading-[0.89] text-[var(--color-text)]">
+						<h1 className="hq-display hq-title-hero max-w-[1000px] font-bold text-[var(--color-text)]">
 							<span className="block">{t('careers.heroLine1')}</span>
 							<span className="block text-[var(--color-primary)]">
 								{t('careers.heroLine2')}
 							</span>
 						</h1>
 					</div>
-					<div className="hq-docket-lines border border-[var(--site-rule)] bg-[var(--site-concrete)] p-5">
-						<p className="hq-kicker text-[var(--color-text-subtle)]">
-							HQ / TALENT
-						</p>
-						<p className="hq-display mt-14 text-[44px] font-bold leading-none text-[var(--color-primary)]">
+					<div className="border-s border-[var(--site-rule)] py-2 ps-6">
+						<p className="hq-display text-[38px] font-bold leading-none text-[var(--color-primary)]">
 							{String(JOB_KEYS.length).padStart(2, '0')}
 						</p>
 						<p className="mt-2 text-[13px] font-semibold text-[var(--color-text)]">
 							{t('careers.openCount')}
 						</p>
-						<div className="mt-5 border-t border-[var(--site-rule)] pt-3 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
-							{t('careers.location')} / 2026
-						</div>
 					</div>
 				</div>
 			</motion.section>
@@ -93,17 +87,14 @@ function CareersPage() {
 						viewport={viewportOnce}
 						variants={staggerUp(0.1)}
 					>
-						<p className="hq-kicker text-[var(--color-primary)]">
-							HQ / MANIFESTO
-						</p>
-						<p className="hq-display mt-5 text-[clamp(2.25rem,4vw,4.25rem)] font-bold leading-[0.98]">
+						<p className="hq-display hq-title-subsection font-bold">
 							{t('careers.why.pullquote1')}
 						</p>
 					</motion.blockquote>
 					<div className="space-y-7 border-s border-[var(--site-rule)] ps-6 text-[15px] leading-[1.85] text-[var(--color-text-muted)] sm:ps-8">
 						<p>{t('careers.why.p1')}</p>
 						<p>{t('careers.why.p2')}</p>
-						<p className="border-y border-[var(--site-rule)] py-6 text-[clamp(1.35rem,3vw,2rem)] font-bold leading-[1.2] text-[var(--color-primary)]">
+						<p className="text-[18px] font-semibold leading-[1.45] text-[var(--color-primary)] sm:text-[20px]">
 							{t('careers.why.pullquote2')}
 						</p>
 						<p>{t('careers.why.p3')}</p>
@@ -111,20 +102,15 @@ function CareersPage() {
 				</div>
 			</motion.section>
 
-			{/* Divider */}
-			<div className="mx-auto max-w-[1200px] px-4 sm:px-6 md:px-8 lg:px-12">
-				<div className="h-px bg-[var(--color-text)] opacity-[0.07]" />
-			</div>
-
 			{/* Open Positions */}
-			<section className="px-4 py-16 sm:px-6 lg:px-12 lg:py-24">
+			<section className="border-t border-[var(--site-rule)] px-4 py-16 sm:px-6 lg:px-12 lg:py-24">
 				<div className="mx-auto max-w-[1400px]">
 					<motion.h2
 						initial="hidden"
 						whileInView="visible"
 						viewport={viewportOnce}
 						variants={revealUp}
-						className="hq-display mb-10 border-b border-[var(--site-rule)] pb-6 text-[clamp(2.5rem,5vw,5rem)] font-bold leading-[0.94]"
+						className="hq-display hq-title-section mb-10 border-b border-[var(--site-rule)] pb-6 font-bold"
 					>
 						{t('careers.positions.heading')}
 					</motion.h2>
@@ -152,7 +138,7 @@ function CareersPage() {
 									<span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--color-primary)]">
 										{t(`careers.positions.${key}.department`)}
 									</span>
-									<h3 className="hq-display text-[20px] font-bold sm:text-[24px]">
+									<h3 className="text-[18px] font-semibold sm:text-[20px]">
 										{t(`careers.positions.${key}.title`)}
 									</h3>
 									<div className="flex flex-wrap items-baseline gap-3 text-[12px] text-[var(--color-text-muted)] sm:justify-end">
@@ -175,21 +161,16 @@ function CareersPage() {
 				</div>
 			</section>
 
-			{/* Divider */}
-			<div className="mx-auto max-w-[1200px] px-4 sm:px-6 md:px-8 lg:px-12">
-				<div className="h-px bg-[var(--color-text)] opacity-[0.07]" />
-			</div>
-
 			{/* Bottom CTA */}
 			<motion.section
 				initial="hidden"
 				whileInView="visible"
 				viewport={viewportOnce}
 				variants={revealUp}
-				className="bg-[var(--color-primary)] px-4 py-16 text-white sm:px-6 lg:px-12 lg:py-24"
+				className="bg-[var(--color-primary)] px-4 py-12 text-white sm:px-6 lg:px-12 lg:py-16"
 			>
 				<div className="mx-auto max-w-[1200px] text-center">
-					<p className="hq-display mb-6 text-[clamp(3rem,9vw,7rem)] font-bold leading-[0.9]">
+					<p className="hq-display hq-title-section mb-6 font-bold">
 						{t('careers.cta.headline')}
 					</p>
 					<a

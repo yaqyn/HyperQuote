@@ -361,7 +361,7 @@ function MarketPage() {
 							<p className="hq-kicker mb-4 text-[var(--color-primary)]">
 								{t('market.eyebrow')}
 							</p>
-							<h1 className="hq-display max-w-[780px] text-[clamp(3rem,7vw,6.25rem)] font-bold leading-[0.92] text-[var(--color-text)]">
+							<h1 className="hq-display hq-title-section max-w-[780px] font-bold text-[var(--color-text)]">
 								{t('market.pageTitle')}
 							</h1>
 							<p className="mt-5 max-w-[590px] text-[14px] leading-7 text-[var(--color-text-muted)] sm:text-[15px]">

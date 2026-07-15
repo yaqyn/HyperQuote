@@ -39,7 +39,7 @@ export function LegalDocumentPage({
 						className="border-t border-[var(--site-rule)] pt-5"
 					>
 						<p className="hq-kicker text-[var(--color-primary)]">HQ / LEGAL</p>
-						<h1 className="hq-display mt-5 text-[clamp(3rem,7vw,5.5rem)] font-bold leading-[0.94]">
+						<h1 className="hq-display hq-title-subsection mt-5 font-bold">
 							{title}
 						</h1>
 						<p className="mt-5 font-mono text-[11px] text-[var(--color-text-subtle)]">

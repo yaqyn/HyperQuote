@@ -36,21 +36,17 @@ function AboutPage() {
 						<p className="hq-kicker mb-5 text-[var(--color-primary)]">
 							{t('about.established')}
 						</p>
-						<h1 className="hq-display max-w-[1000px] text-[clamp(3.35rem,9vw,8.5rem)] font-bold leading-[0.88] text-[var(--color-text)]">
+						<h1 className="hq-display hq-title-hero max-w-[1000px] font-bold text-[var(--color-text)]">
 							<span className="block">{t('about.heroLine1')}</span>
 							<span className="block text-[var(--color-primary)]">
 								{t('about.heroLine2')}
 							</span>
 						</h1>
 					</div>
-					<div className="border-s border-[var(--site-rule)] ps-5">
+					<div className="max-w-[360px] lg:justify-self-end">
 						<p className="text-[15px] leading-7 text-[var(--color-text-muted)]">
 							{t('about.heroSubheadline')}
 						</p>
-						<div className="mt-7 grid grid-cols-2 gap-4 border-t border-[var(--site-rule)] pt-4 font-mono text-[10px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)]">
-							<span>HQ / EG</span>
-							<span className="text-end">B2B / BUILD</span>
-						</div>
 					</div>
 				</div>
 			</motion.section>
@@ -68,9 +64,8 @@ function AboutPage() {
 						alt={t('about.imageAlt')}
 						className="aspect-[4/3] w-full object-cover sm:aspect-[16/8] lg:aspect-[21/8]"
 					/>
-					<figcaption className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-4 bg-black/70 px-4 py-3 font-mono text-[9px] uppercase tracking-[0.12em] text-white/70 backdrop-blur-sm sm:px-5">
+					<figcaption className="absolute inset-x-0 bottom-0 bg-black/70 px-4 py-3 font-mono text-[9px] uppercase tracking-[0.12em] text-white/70 backdrop-blur-sm sm:px-5">
 						<span>{t('about.imageCaption')}</span>
-						<span>30.0444° N / 31.2357° E</span>
 					</figcaption>
 				</figure>
 			</motion.section>
@@ -87,7 +82,7 @@ function AboutPage() {
 						<p className="hq-kicker text-[var(--color-primary)]">
 							{t('about.story.label')}
 						</p>
-						<h2 className="hq-display mt-4 max-w-[360px] text-[clamp(2.25rem,4vw,4rem)] font-bold leading-[0.96]">
+						<h2 className="hq-display hq-title-subsection mt-4 max-w-[360px] font-bold">
 							{t('about.story.heading')}
 						</h2>
 					</div>
@@ -112,29 +107,23 @@ function AboutPage() {
 				className="bg-[#101010] text-white"
 			>
 				<div className="hq-page-shell py-16 lg:py-24">
-					<div className="mb-10 flex flex-col gap-4 border-b border-white/15 pb-6 sm:flex-row sm:items-end sm:justify-between lg:mb-14">
+					<div className="mb-10 border-b border-white/15 pb-6 lg:mb-14">
 						<div>
 							<p className="hq-kicker text-[#75a2ff]">
 								{t('about.mission.label')}
 							</p>
-							<h2 className="hq-display mt-4 text-[clamp(2.4rem,5vw,5rem)] font-bold leading-[0.94]">
+							<h2 className="hq-display hq-title-subsection mt-4 font-bold">
 								{t('about.mission.heading')}
 							</h2>
 						</div>
-						<span className="font-mono text-[10px] uppercase tracking-[0.14em] text-white/35">
-							HQ / OPERATING PRINCIPLES
-						</span>
 					</div>
 					<div className="grid border-t border-white/15 lg:grid-cols-3">
-						{VALUE_KEYS.map((key, index) => (
+						{VALUE_KEYS.map((key) => (
 							<div
 								key={key}
 								className="border-b border-white/15 py-7 lg:border-e lg:px-7 lg:first:ps-0 lg:last:border-e-0 lg:last:pe-0"
 							>
-								<span className="font-mono text-[10px] text-[#75a2ff]">
-									0{index + 1}
-								</span>
-								<h3 className="hq-display mt-10 text-[26px] font-bold leading-tight text-white">
+								<h3 className="hq-display text-[22px] font-bold leading-tight text-white sm:text-[24px]">
 									{t(`about.mission.${key}.title` as ParseKeys<'website'>)}
 								</h3>
 								<p className="mt-4 max-w-[380px] text-[14px] leading-7 text-white/50">
@@ -160,19 +149,16 @@ function AboutPage() {
 						<p className="hq-kicker text-[var(--color-primary)]">
 							{t('about.team.label')}
 						</p>
-						<h2 className="hq-display mt-4 text-[clamp(2.4rem,4vw,4rem)] font-bold">
+						<h2 className="hq-display hq-title-subsection mt-4 font-bold">
 							{t('about.team.heading')}
 						</h2>
 					</div>
 					<div className="grid sm:grid-cols-2">
-						{TEAM_KEYS.map((key, index) => (
+						{TEAM_KEYS.map((key) => (
 							<div
 								key={key}
-								className="flex items-start gap-5 border-t border-[var(--site-rule)] py-5 sm:odd:pe-6 sm:even:ps-6"
+								className="border-t border-[var(--site-rule)] py-5 sm:odd:pe-6 sm:even:ps-6"
 							>
-								<span className="font-mono text-[9px] text-[var(--color-text-subtle)]">
-									0{index + 1}
-								</span>
 								<div>
 									<p className="text-[15px] font-semibold">
 										{t(`about.team.${key}.name` as ParseKeys<'website'>)}
@@ -190,8 +176,7 @@ function AboutPage() {
 			<section className="bg-[var(--color-primary)] text-white">
 				<div className="hq-page-shell flex flex-col gap-8 py-14 sm:flex-row sm:items-end sm:justify-between lg:py-20">
 					<div>
-						<p className="hq-kicker text-white/65">HQ / CAIRO</p>
-						<h2 className="hq-display mt-4 text-[clamp(2.5rem,6vw,5.5rem)] font-bold leading-[0.92]">
+						<h2 className="hq-display hq-title-section font-bold">
 							{t('about.careers.heading')}
 						</h2>
 						<p className="mt-5 max-w-[640px] text-[15px] leading-7 text-white/70">

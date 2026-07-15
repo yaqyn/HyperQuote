@@ -236,8 +236,6 @@ function ProductDetailPage() {
 							images={images}
 							name={productName}
 							sku={product.sku}
-							category={categoryLabel}
-							unit={unitLabel}
 						/>
 
 						{/* Info column */}
@@ -262,7 +260,7 @@ function ProductDetailPage() {
 								initial={{ opacity: 0, y: 20 }}
 								animate={{ opacity: 1, y: 0 }}
 								transition={{ ...spring, delay: 0.04 }}
-								className="hq-display mt-4 text-[clamp(2.4rem,5vw,5rem)] font-bold leading-[0.96] text-[var(--color-text)]"
+								className="hq-display hq-title-section mt-4 font-bold text-[var(--color-text)]"
 							>
 								{productName}
 							</motion.h1>
@@ -399,14 +397,10 @@ function ProductImage({
 	images,
 	name,
 	sku,
-	category,
-	unit,
 }: {
 	images: string[]
 	name: string
 	sku: string
-	category: string
-	unit: string
 }) {
 	const { t } = useTranslation('website')
 	const [activeIndex, setActiveIndex] = useState(0)
@@ -438,17 +432,7 @@ function ProductImage({
 								{sku}
 							</span>
 						</div>
-						<div>
-							<p className="hq-display max-w-[80%] text-[clamp(2rem,5vw,4.5rem)] font-bold leading-[0.96] text-[var(--color-text)]">
-								{name}
-							</p>
-							<div className="mt-7 flex items-end justify-between gap-5 border-t border-[var(--site-rule)] pt-4 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-								<span>{category}</span>
-								<span className="shrink-0 text-[var(--color-primary)]">
-									{unit}
-								</span>
-							</div>
-						</div>
+						<div className="h-2 w-20 bg-[var(--color-primary)]/70" />
 					</div>
 				)}
 			</div>
