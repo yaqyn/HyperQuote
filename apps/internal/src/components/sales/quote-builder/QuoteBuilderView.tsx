@@ -3143,43 +3143,48 @@ function CustomerProjectsPanel({
 
 	return (
 		<div className="flex h-full min-h-0 flex-col bg-[var(--color-surface)] text-[var(--color-text)]">
-			<header className="shrink-0 border-b border-[var(--color-border)] px-5 py-5">
+			<header className="shrink-0 border-b border-[var(--color-border)] px-5 py-6">
 				<div className="flex items-start justify-between gap-4">
 					<div className="min-w-0">
-						<p className="font-[family-name:var(--font-plex-mono)] text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary)]">
+						<p className="font-[family-name:var(--font-geist-mono)] text-[10px] font-medium tracking-[-0.01em] text-[var(--color-primary)]">
 							Customer workspace
 						</p>
-						<h2 className="mt-1.5 font-[family-name:var(--font-archivo)] text-[18px] font-semibold tracking-[-0.02em]">
+						<h2 className="mt-1.5 font-[family-name:var(--font-bricolage)] text-[26px] font-semibold leading-none tracking-[-0.035em]">
 							Projects
 						</h2>
-						<p className="mt-1 max-w-[330px] font-[family-name:var(--font-archivo)] text-[11px] leading-5 text-[var(--color-text-muted)]">
+						<p className="mt-2 max-w-[360px] font-[family-name:var(--font-inter)] text-[12px] leading-[1.55] text-[var(--color-text-muted)]">
 							Open a project to inspect its orders, items, and current status.
 						</p>
 					</div>
-					<span className="shrink-0 font-[family-name:var(--font-plex-mono)] text-[9px] uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
-						{projects.length} projects · {recordCount} records
-					</span>
+					<div className="shrink-0 text-end">
+						<p className="font-[family-name:var(--font-bricolage)] text-[18px] font-semibold leading-none tabular-nums text-[var(--color-text)]">
+							{projects.length}
+						</p>
+						<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[9px] tracking-[-0.02em] text-[var(--color-text-subtle)]">
+							projects · {recordCount} records
+						</p>
+					</div>
 				</div>
 			</header>
 
 			<div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
 				{!canAssign && (
-					<p className="mb-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 font-[family-name:var(--font-archivo)] text-[11px] leading-5 text-[var(--color-text-muted)]">
+					<p className="mb-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 font-[family-name:var(--font-inter)] text-[12px] leading-5 text-[var(--color-text-muted)]">
 						Save this new quote once before assigning it to a project.
 					</p>
 				)}
 				{assignError && (
-					<p className="mb-3 rounded-md border border-red-500/20 bg-red-500/[0.06] px-3 py-2 font-[family-name:var(--font-archivo)] text-[11px] text-red-700 dark:text-red-300">
+					<p className="mb-3 rounded-md border border-red-500/20 bg-red-500/[0.06] px-3 py-2 font-[family-name:var(--font-inter)] text-[12px] text-red-700 dark:text-red-300">
 						{assignError}
 					</p>
 				)}
 
-				<div className="mb-4 flex items-center justify-between gap-3 border-b border-[var(--color-border)] pb-4">
+				<div className="mb-4 flex items-center justify-between gap-3 rounded-lg bg-[var(--color-surface-muted)] px-3.5 py-3">
 					<div className="min-w-0">
-						<p className="font-[family-name:var(--font-plex-mono)] text-[8px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-subtle)]">
+						<p className="font-[family-name:var(--font-geist-mono)] text-[9px] font-medium text-[var(--color-text-subtle)]">
 							Current placement
 						</p>
-						<p className="mt-1 truncate font-[family-name:var(--font-archivo)] text-[12px] font-semibold">
+						<p className="mt-1 truncate font-[family-name:var(--font-bricolage)] text-[14px] font-semibold tracking-[-0.015em]">
 							{currentProject?.name ?? 'Independent request'}
 						</p>
 					</div>
@@ -3188,7 +3193,7 @@ function CustomerProjectsPanel({
 							type="button"
 							disabled={!canAssign || assigning}
 							onClick={() => onAssign(null)}
-							className="shrink-0 rounded-sm px-2 py-1 font-[family-name:var(--font-archivo)] text-[10px] font-semibold text-[var(--color-text-muted)] outline-none transition-colors hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-45"
+							className="shrink-0 rounded-md bg-[var(--color-surface)] px-2.5 py-1.5 font-[family-name:var(--font-inter)] text-[10px] font-medium text-[var(--color-text-muted)] outline-none transition-colors hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-45"
 						>
 							{assigning ? 'Removing' : 'Remove from project'}
 						</button>
@@ -3202,7 +3207,7 @@ function CustomerProjectsPanel({
 							strokeWidth={1.4}
 							className="mx-auto text-[var(--color-text-subtle)]"
 						/>
-						<p className="mt-3 font-[family-name:var(--font-archivo)] text-[12px] text-[var(--color-text-muted)]">
+						<p className="mt-3 font-[family-name:var(--font-inter)] text-[12px] text-[var(--color-text-muted)]">
 							This customer has no projects yet.
 						</p>
 					</div>
@@ -3219,7 +3224,7 @@ function CustomerProjectsPanel({
 							return (
 								<section
 									key={project.id}
-									className={`relative overflow-hidden rounded-md border transition-colors ${
+									className={`relative overflow-hidden rounded-lg border transition-colors ${
 										isOpen || isCurrent
 											? 'border-[var(--color-primary)]/30'
 											: 'border-[var(--color-border)]'
@@ -3232,23 +3237,23 @@ function CustomerProjectsPanel({
 										type="button"
 										aria-expanded={isOpen}
 										onClick={() => setOpenProjectId(isOpen ? null : project.id)}
-										className={`flex w-full items-center justify-between gap-4 px-4 py-3.5 text-start outline-none transition-colors hover:bg-[var(--color-surface-muted)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-primary)]/35 ${
+										className={`flex w-full items-center justify-between gap-4 px-4 py-4 text-start outline-none transition-colors hover:bg-[var(--color-surface-muted)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-primary)]/35 ${
 											isOpen ? 'bg-[var(--color-surface-muted)]/65' : ''
 										}`}
 									>
 										<span className="min-w-0">
 											<span className="flex items-center gap-2">
-												<span className="truncate font-[family-name:var(--font-archivo)] text-[12px] font-semibold">
+												<span className="truncate font-[family-name:var(--font-bricolage)] text-[15px] font-semibold tracking-[-0.018em]">
 													{project.name}
 												</span>
 												{isCurrent && (
-													<span className="shrink-0 font-[family-name:var(--font-plex-mono)] text-[8px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
+													<span className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[9px] font-medium text-[var(--color-primary)]">
 														Current
 													</span>
 												)}
 											</span>
-											<span className="mt-1 block font-[family-name:var(--font-plex-mono)] text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
-												{project.records.length} records
+											<span className="mt-1 block font-[family-name:var(--font-inter)] text-[11px] text-[var(--color-text-subtle)]">
+												{project.records.length} order records
 											</span>
 										</span>
 										<ChevronDown
@@ -3261,34 +3266,35 @@ function CustomerProjectsPanel({
 									{isOpen && (
 										<div className="border-t border-[var(--color-border)] px-3 pb-3 pt-3">
 											{project.description && (
-												<p className="mb-3 px-1 font-[family-name:var(--font-archivo)] text-[11px] leading-5 text-[var(--color-text-muted)]">
+												<p className="mb-3 px-1 font-[family-name:var(--font-inter)] text-[12px] leading-[1.6] text-[var(--color-text-muted)]">
 													{project.description}
 												</p>
 											)}
-											<EmployeeActionButton
+											<button
 												type="button"
 												disabled={!canAssign || assigning || isCurrent}
 												onClick={() => onAssign(project.id)}
-												tone={isCurrent ? 'neutral' : 'success'}
-												size="sm"
-												trailing={
-													isCurrent ? (
-														<CheckCircle2 size={13} />
-													) : (
-														<ArrowRight size={13} />
-													)
-												}
+												className={`inline-flex h-9 items-center gap-2 rounded-md border px-3 font-[family-name:var(--font-inter)] text-[11px] font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-55 ${
+													isCurrent
+														? 'border-[var(--color-border)] bg-[var(--color-surface-muted)] text-[var(--color-text-muted)]'
+														: 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white hover:bg-blue-700'
+												}`}
 											>
 												{assigning && !isCurrent
 													? 'Updating project'
 													: assignLabel}
-											</EmployeeActionButton>
+												{isCurrent ? (
+													<CheckCircle2 size={13} aria-hidden="true" />
+												) : (
+													<ArrowRight size={13} aria-hidden="true" />
+												)}
+											</button>
 
 											<div className="mt-3 space-y-2">
 												{project.records.length === 0 ? (
 													<div className="flex items-center gap-2 rounded-md bg-[var(--color-surface-muted)] px-3 py-3 text-[var(--color-text-muted)]">
 														<PackageOpen size={14} strokeWidth={1.6} />
-														<span className="font-[family-name:var(--font-archivo)] text-[11px]">
+														<span className="font-[family-name:var(--font-inter)] text-[12px]">
 															No orders in this project yet.
 														</span>
 													</div>
@@ -3296,19 +3302,19 @@ function CustomerProjectsPanel({
 													project.records.map((record) => (
 														<div
 															key={record.id}
-															className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]"
+															className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]"
 														>
 															<div className="flex items-start justify-between gap-3 px-3 py-3">
 																<div className="min-w-0">
-																	<p className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold">
+																	<p className="font-[family-name:var(--font-bricolage)] text-[14px] font-semibold tracking-[-0.015em]">
 																		{record.order?.number ?? record.reference}
 																	</p>
-																	<p className="mt-1 font-[family-name:var(--font-plex-mono)] text-[8px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+																	<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[9px] tracking-[-0.02em] text-[var(--color-text-subtle)]">
 																		Request {record.reference} ·{' '}
 																		{record.items.length} items
 																	</p>
 																	{record.order && (
-																		<p className="mt-1 font-[family-name:var(--font-plex-mono)] text-[8px] tabular-nums text-[var(--color-text-subtle)]">
+																		<p className="mt-1 font-[family-name:var(--font-geist-mono)] text-[9px] tabular-nums tracking-[-0.02em] text-[var(--color-text-subtle)]">
 																			{formatMoneyAmount(
 																				record.order.totalAmount,
 																			)}{' '}
@@ -3323,7 +3329,7 @@ function CustomerProjectsPanel({
 																		</p>
 																	)}
 																</div>
-																<span className="shrink-0 rounded-sm bg-[var(--color-surface-muted)] px-2 py-1 font-[family-name:var(--font-plex-mono)] text-[8px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+																<span className="shrink-0 rounded-md bg-[var(--color-surface-muted)] px-2 py-1 font-[family-name:var(--font-geist-mono)] text-[9px] font-medium capitalize tracking-[-0.02em] text-[var(--color-text-muted)]">
 																	{(
 																		record.order?.status ?? record.status
 																	).replaceAll('_', ' ')}
@@ -3337,16 +3343,16 @@ function CustomerProjectsPanel({
 																			className="flex items-center justify-between gap-3 py-2.5"
 																		>
 																			<span className="min-w-0">
-																				<span className="block truncate font-[family-name:var(--font-archivo)] text-[10px] text-[var(--color-text-muted)]">
+																				<span className="block truncate font-[family-name:var(--font-inter)] text-[12px] font-medium text-[var(--color-text-muted)]">
 																					{item.name}
 																				</span>
 																				{item.description !== item.name && (
-																					<span className="mt-0.5 block truncate font-[family-name:var(--font-archivo)] text-[9px] text-[var(--color-text-subtle)]">
+																					<span className="mt-0.5 block truncate font-[family-name:var(--font-inter)] text-[10px] text-[var(--color-text-subtle)]">
 																						{item.description}
 																					</span>
 																				)}
 																			</span>
-																			<span className="shrink-0 font-[family-name:var(--font-plex-mono)] text-[9px] tabular-nums text-[var(--color-text-subtle)]">
+																			<span className="shrink-0 font-[family-name:var(--font-geist-mono)] text-[10px] tabular-nums tracking-[-0.02em] text-[var(--color-text-subtle)]">
 																				{item.quantity.toLocaleString('en-EG')}{' '}
 																				{item.unit}
 																			</span>
