@@ -32,6 +32,7 @@ import {
 import { toast } from '../../lib/toast'
 import { unavailableItemNamesFromError } from '../../lib/unavailable-quote-items'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
+import { usePortalStore } from '../../stores/portal'
 import { PortalQuoteRequestDialog } from '../quote-flow/PortalQuoteRequestDialog'
 import { ProductQuantitySearchRow } from './ProductQuantitySearchRow'
 import { SavedDraftsPanel } from './SavedDraftsPanel'
@@ -125,6 +126,10 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	const setGlobalNote = useDraftQuoteStore((s) => s.setGlobalNote)
 	const remove = useDraftQuoteStore((s) => s.remove)
 	const clear = useDraftQuoteStore((s) => s.clear)
+	const pendingProjectId = usePortalStore((s) => s.pendingProjectId)
+	const setPendingProjectId = usePortalStore((s) => s.setPendingProjectId)
+	const pendingQuoteDraftId = usePortalStore((s) => s.pendingQuoteDraftId)
+	const setPendingQuoteDraftId = usePortalStore((s) => s.setPendingQuoteDraftId)
 	const [submittedReference, setSubmittedReference] = useState<string | null>(
 		null,
 	)
@@ -195,6 +200,7 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 					items: quoteRequestItems,
 					name,
 					notes: globalNote.trim() || undefined,
+					projectId: pendingProjectId,
 				},
 			}),
 		onSuccess: (result, nextName) => {
@@ -223,14 +229,17 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 
 	useEffect(() => {
 		if (!open) return
+		if (pendingQuoteDraftId) setSavedDraftId(pendingQuoteDraftId)
 		const previousOverflow = document.body.style.overflow
 		document.body.style.overflow = 'hidden'
 		return () => {
 			document.body.style.overflow = previousOverflow
 		}
-	}, [open])
+	}, [open, pendingQuoteDraftId])
 
 	function handleDrawerExitComplete() {
+		setPendingProjectId(undefined)
+		setPendingQuoteDraftId(undefined)
 		setSubmittedReference(null)
 		setSavedDraftReference(null)
 		setSearchOpen(false)
@@ -282,11 +291,13 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		setSubmittedReference(reference)
 		setSavedDraftFingerprint(null)
 		setSavedDraftId(null)
+		setPendingQuoteDraftId(undefined)
 		toast.success(t('market.submitSuccessToast', { ref: reference }))
 	}
 
 	function handleQuoteFlowClose() {
 		setQuoteFlowOpen(false)
+		setPendingQuoteDraftId(undefined)
 		if (submittedReference) onClose()
 	}
 

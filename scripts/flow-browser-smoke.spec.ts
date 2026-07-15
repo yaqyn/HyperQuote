@@ -131,8 +131,26 @@ test('portal customer market and orders load Supabase-backed data', async ({
 
 	const page = await context.newPage()
 	const guard = installBrowserErrorGuard(page)
+	const projectName = `Flow Project ${Date.now()}`
 
-	await page.goto(`${URLS.portal}/market`, { waitUntil: 'domcontentloaded' })
+	await page.goto(`${URLS.portal}/projects`, {
+		waitUntil: 'domcontentloaded',
+	})
+	await waitForHydration(page)
+	await expect(
+		page.getByRole('heading', { name: /Projects|المشاريع/i }),
+	).toBeVisible({ timeout: 15_000 })
+	await page.getByRole('button', { name: /New project|مشروع جديد/i }).click()
+	await page.getByPlaceholder(/Project name|اسم المشروع/i).fill(projectName)
+	await page
+		.getByRole('button', { name: /^Create project$|^إنشاء المشروع$/i })
+		.click()
+	await expect(page.getByRole('heading', { name: projectName })).toBeVisible({
+		timeout: 15_000,
+	})
+	await page.getByRole('button', { name: /New order|طلب جديد/i }).click()
+	await expect(page).toHaveURL(/\/market/)
+
 	await waitForHydration(page)
 	await expect(page).not.toHaveURL(/\/login/)
 	await expect(page.locator('body')).toContainText(/products|Portland Cement/i)
@@ -169,7 +187,7 @@ test('portal customer market and orders load Supabase-backed data', async ({
 	await page.getByRole('button', { name: /Draft Quote|Open cart/i }).click()
 	await page.getByRole('button', { name: /^Send request$/i }).click()
 	await expectGuidedQuoteDesktopDialog(page)
-	await completeGuidedQuoteFlow(page)
+	await completeGuidedQuoteFlow(page, projectName)
 
 	await page.goto(`${URLS.website}/market`, { waitUntil: 'domcontentloaded' })
 	await waitForHydration(page)
@@ -1092,10 +1110,27 @@ async function confirmDraftSave(page: Page, draftName?: string) {
 	}
 }
 
-async function completeGuidedQuoteFlow(page: Page) {
+async function completeGuidedQuoteFlow(page: Page, projectName?: string) {
 	const flowDialog = page.getByRole('dialog', {
 		name: /Request a quote|اطلب عرض سعر/i,
 	})
+	await expect(
+		flowDialog.getByRole('heading', {
+			name: /Choose a project|اختر مشروعًا/i,
+		}),
+	).toBeVisible({ timeout: 15_000 })
+	if (projectName) {
+		const projectButton = flowDialog
+			.getByRole('button')
+			.filter({ hasText: projectName })
+		await expect(projectButton).toBeVisible()
+		await projectButton.click()
+	} else {
+		await flowDialog
+			.getByRole('button', { name: /Independent request|طلب مستقل/i })
+			.click()
+	}
+	await flowDialog.getByRole('button', { name: /Continue|متابعة/i }).click()
 	await expect(
 		flowDialog.getByRole('heading', {
 			name: /Delivery location|موقع التوصيل/i,

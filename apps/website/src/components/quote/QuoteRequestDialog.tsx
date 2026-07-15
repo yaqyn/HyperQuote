@@ -7,6 +7,8 @@ import {
 	type QuoteDeliveryLocation,
 	type QuoteDeliveryWindow,
 	type QuoteLocationSearchResult,
+	type QuoteProjectSummary,
+	type QuoteRecentLocation,
 	toEgyptMobileInput,
 } from '@hyperquote/quote-cart/checkout'
 import { QuoteFlowDialog } from '@hyperquote/ui/quote-flow/QuoteFlowDialog'
@@ -21,6 +23,7 @@ import {
 	FlowSuccess,
 	LocationStep,
 	type NewAddressDraft,
+	ProjectStep,
 	QuoteFlowContentProvider,
 } from '@hyperquote/ui/quote-flow/QuoteFlowSteps'
 import type { QuoteLocationPoint } from '@hyperquote/ui/quote-flow/QuoteLocationMap'
@@ -32,6 +35,10 @@ import { useQuoteCart } from '../../hooks/useQuoteCart'
 import { useQuoteRequestFlow } from '../../hooks/useQuoteRequestFlow'
 import { useWebsiteQuoteDraftSave } from '../../hooks/useWebsiteQuoteDraftSave'
 import {
+	createWebsiteCustomerProject,
+	getWebsiteQuoteWorkspace,
+} from '../../lib/customer-projects'
+import {
 	getWebsiteQuoteCheckoutDefaults,
 	reverseWebsiteQuoteLocation,
 	searchWebsiteQuoteLocations,
@@ -42,7 +49,12 @@ import { QuoteAuthGate } from './QuoteAuthGate'
 const EMAIL_ADDRESS_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CAIRO_TIME_ZONE = 'Africa/Cairo'
 
-type QuoteFlowStep = 'agreement' | 'contact' | 'delivery' | 'location'
+type QuoteFlowStep =
+	| 'agreement'
+	| 'contact'
+	| 'delivery'
+	| 'location'
+	| 'project'
 type QuoteFlowPhase =
 	| QuoteFlowStep
 	| 'auth'
@@ -90,6 +102,12 @@ export function QuoteRequestDialog() {
 	const openSessionRef = useRef('')
 
 	const [phase, setPhase] = useState<QuoteFlowPhase>('loading')
+	const [projects, setProjects] = useState<QuoteProjectSummary[]>([])
+	const [projectId, setProjectId] = useState<string | null | undefined>()
+	const [projectCreating, setProjectCreating] = useState(false)
+	const [recentLocations, setRecentLocations] = useState<QuoteRecentLocation[]>(
+		[],
+	)
 	const [deliveryAddress, setDeliveryAddress] =
 		useState<QuoteDeliveryLocation | null>(null)
 	const [newAddress, setNewAddress] = useState<NewAddressDraft>(EMPTY_ADDRESS)
@@ -148,6 +166,9 @@ export function QuoteRequestDialog() {
 		setError(null)
 		setPending(false)
 		setSuccessReference('')
+		setProjects([])
+		setProjectId(undefined)
+		setRecentLocations([])
 		setLocationResults([])
 		setLocationQuery('')
 		setNewAddress(EMPTY_ADDRESS)
@@ -167,29 +188,12 @@ export function QuoteRequestDialog() {
 				}
 				setContactEmail(result.email)
 				setContactPhone(toEgyptMobileInput(result.phone))
-
-				if (intent === 'save') {
-					const saveResult = await saveDraftRef.current()
-					if (!active) return
-					if (saveResult.status === 'saved') {
-						setSuccessReference(saveResult.reference)
-						setPhase('draft-success')
-						return
-					}
-					if (saveResult.status === 'auth_required') {
-						setPhase('auth')
-						return
-					}
-					setError(
-						saveResult.status === 'error'
-							? saveResult.message
-							: t('quoteFlow.errors.empty'),
-					)
-					setPhase('failure')
-					return
-				}
-
-				setPhase('location')
+				const workspace = await getWebsiteQuoteWorkspace()
+				if (!active) return
+				setProjects(workspace.projects)
+				setRecentLocations(workspace.recentLocations)
+				setProjectId(savedDraft ? savedDraft.projectId : undefined)
+				setPhase('project')
 			})
 			.catch(() => {
 				if (!active) return
@@ -200,7 +204,7 @@ export function QuoteRequestDialog() {
 		return () => {
 			active = false
 		}
-	}, [intent, isOpen, source, t])
+	}, [intent, isOpen, savedDraft, source, t])
 
 	async function finishAuthentication() {
 		setPending(true)
@@ -213,28 +217,78 @@ export function QuoteRequestDialog() {
 			}
 			setContactEmail(result.email)
 			setContactPhone(toEgyptMobileInput(result.phone))
-
-			if (intent === 'save') {
-				const saveResult = await draftSave.save()
-				if (saveResult.status === 'saved') {
-					setSuccessReference(saveResult.reference)
-					setPhase('draft-success')
-					return
-				}
-				setError(
-					saveResult.status === 'error'
-						? saveResult.message
-						: t('quoteFlow.errors.save'),
-				)
-				setPhase('failure')
-				return
-			}
-			setPhase('location')
+			const workspace = await getWebsiteQuoteWorkspace()
+			setProjects(workspace.projects)
+			setRecentLocations(workspace.recentLocations)
+			setProjectId(savedDraft ? savedDraft.projectId : undefined)
+			setPhase('project')
 		} catch {
 			setError(t('quoteFlow.errors.defaults'))
 		} finally {
 			setPending(false)
 		}
+	}
+
+	async function createProject(name: string) {
+		setProjectCreating(true)
+		setError(null)
+		try {
+			const result = await createWebsiteCustomerProject({ data: { name } })
+			setProjects((current) => [result.project, ...current])
+			setProjectId(result.project.id)
+		} catch {
+			setError(t('quoteFlow.errors.project'))
+		} finally {
+			setProjectCreating(false)
+		}
+	}
+
+	function chooseRecentLocation(location: QuoteRecentLocation) {
+		setMapFocusPoint({
+			latitude: location.latitude,
+			longitude: location.longitude,
+		})
+		setNewAddress({
+			area: location.area,
+			city: location.city,
+			governorate: location.governorate,
+			latitude: location.latitude,
+			locationName: location.locationName,
+			locationNameAr: location.locationNameAr,
+			longitude: location.longitude,
+			street: location.street,
+		})
+		setDeliveryAddress(null)
+		setLocationQuery(isArabic ? location.locationNameAr : location.locationName)
+		setLocationResults([])
+		setError(null)
+	}
+
+	async function continueFromProject() {
+		if (projectId === undefined) return
+		setError(null)
+		if (intent !== 'save') {
+			setPhase('location')
+			return
+		}
+		setPending(true)
+		const saveResult = await saveDraftRef.current(projectId)
+		setPending(false)
+		if (saveResult.status === 'saved') {
+			setSuccessReference(saveResult.reference)
+			setPhase('draft-success')
+			return
+		}
+		if (saveResult.status === 'auth_required') {
+			setPhase('auth')
+			return
+		}
+		setError(
+			saveResult.status === 'error'
+				? saveResult.message
+				: t('quoteFlow.errors.empty'),
+		)
+		setPhase('failure')
 	}
 
 	async function searchLocation() {
@@ -412,6 +466,7 @@ export function QuoteRequestDialog() {
 					idempotencyKey: idempotencyKey || window.crypto.randomUUID(),
 					items: quoteItems,
 					notes: globalNote.trim() || undefined,
+					projectId,
 					preferredDeliveryWindow: deliveryWindow,
 				},
 			})
@@ -453,6 +508,7 @@ export function QuoteRequestDialog() {
 
 	function goBack() {
 		setError(null)
+		if (phase === 'location') setPhase('project')
 		if (phase === 'delivery') setPhase('location')
 		if (phase === 'contact') setPhase('delivery')
 		if (phase === 'agreement') setPhase('contact')
@@ -470,27 +526,31 @@ export function QuoteRequestDialog() {
 	if (!isOpen) return null
 
 	const nextAction =
-		currentStep === 'location'
-			? continueFromLocation
-			: currentStep === 'delivery'
-				? continueFromDelivery
-				: currentStep === 'contact'
-					? continueFromContact
-					: submitQuote
+		currentStep === 'project'
+			? continueFromProject
+			: currentStep === 'location'
+				? continueFromLocation
+				: currentStep === 'delivery'
+					? continueFromDelivery
+					: currentStep === 'contact'
+						? continueFromContact
+						: submitQuote
 	const nextDisabled =
-		currentStep === 'location'
-			? !mapPoint ||
-				locationResolving ||
-				!newAddress.locationName.trim() ||
-				!newAddress.locationNameAr.trim()
-			: currentStep === 'delivery'
-				? !deliveryDate || !deliveryWindow
-				: currentStep === 'contact'
-					? !EMAIL_ADDRESS_REGEX.test(contactEmail.trim()) ||
-						!isEgyptMobileInput(contactPhone)
-					: currentStep === 'agreement'
-						? !agreementAccepted
-						: false
+		currentStep === 'project'
+			? projectId === undefined
+			: currentStep === 'location'
+				? !mapPoint ||
+					locationResolving ||
+					!newAddress.locationName.trim() ||
+					!newAddress.locationNameAr.trim()
+				: currentStep === 'delivery'
+					? !deliveryDate || !deliveryWindow
+					: currentStep === 'contact'
+						? !EMAIL_ADDRESS_REGEX.test(contactEmail.trim()) ||
+							!isEgyptMobileInput(contactPhone)
+						: currentStep === 'agreement'
+							? !agreementAccepted
+							: false
 	const requirementMessage = currentStep
 		? t(`quoteFlow.requirements.${currentStep}`)
 		: null
@@ -508,7 +568,7 @@ export function QuoteRequestDialog() {
 					? t('quoteFlow.submit')
 					: t('quoteFlow.next')
 			}
-			onBack={currentStep && currentStep !== 'location' ? goBack : undefined}
+			onBack={currentStep && currentStep !== 'project' ? goBack : undefined}
 			onClose={close}
 			onNext={currentStep ? nextAction : undefined}
 			pending={pending}
@@ -519,6 +579,15 @@ export function QuoteRequestDialog() {
 		>
 			<QuoteFlowContentProvider namespace="website">
 				{phase === 'loading' && <FlowLoading />}
+				{phase === 'project' && (
+					<ProjectStep
+						creating={projectCreating}
+						onCreate={createProject}
+						onSelect={setProjectId}
+						projects={projects}
+						selectedProjectId={projectId}
+					/>
+				)}
 				{phase === 'auth' && (
 					<div className="flex min-h-full items-center justify-center px-5 py-10 sm:px-8">
 						<div className="w-full">
@@ -541,6 +610,8 @@ export function QuoteRequestDialog() {
 						onMapPointChange={chooseMapPoint}
 						onSearch={searchLocation}
 						onSearchResult={chooseLocationResult}
+						onRecentLocation={chooseRecentLocation}
+						recentLocations={recentLocations}
 					/>
 				)}
 				{phase === 'delivery' && (
@@ -597,6 +668,7 @@ export function QuoteRequestDialog() {
 
 function isQuoteFlowStep(phase: QuoteFlowPhase): phase is QuoteFlowStep {
 	return (
+		phase === 'project' ||
 		phase === 'location' ||
 		phase === 'delivery' ||
 		phase === 'contact' ||

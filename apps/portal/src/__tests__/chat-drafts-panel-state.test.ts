@@ -29,18 +29,18 @@ describe('chat drafts panel state', () => {
 			source.indexOf('if (!serverDraft) {'),
 			source.indexOf('const serverEditor = createEditorFromOrder(serverDraft)'),
 		)
-		const submittedResetBranch = source.slice(
-			source.indexOf('const timeout = window.setTimeout(() => {'),
-			source.indexOf('}, SUBMITTED_RESET_DELAY_MS)'),
+		const guidedSubmitBranch = source.slice(
+			source.indexOf('function confirmSubmitEditor() {'),
+			source.indexOf('function duplicateEditor() {'),
 		)
 
 		expect(staleServerDraftBranch).toContain('setActiveDraftKey(null)')
 		expect(staleServerDraftBranch).toContain('setEditor(null)')
 		expect(staleServerDraftBranch).not.toContain('createNewEditor')
 
-		expect(submittedResetBranch).toContain('setActiveDraftKey(null)')
-		expect(submittedResetBranch).toContain('setEditor(null)')
-		expect(submittedResetBranch).not.toContain('createNewEditor')
+		expect(guidedSubmitBranch).toContain('setDraftQuoteOpen(true)')
+		expect(guidedSubmitBranch).not.toContain('setActiveDraftKey(null)')
+		expect(guidedSubmitBranch).not.toContain('setEditor(null)')
 	})
 
 	it('persists the active draft workspace across chat panel remounts', () => {

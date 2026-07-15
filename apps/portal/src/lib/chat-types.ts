@@ -130,6 +130,8 @@ export interface ActiveChatDraftContext {
 	}[]
 	name: string | null
 	notes: string
+	projectId?: string | null
+	projectName?: string | null
 	reference: string | null
 	sessionKey?: string
 }

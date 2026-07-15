@@ -8,12 +8,14 @@
 		"submit": "Send request",
 		"close": "Close",
 		"steps": {
+			"project": "Project",
 			"location": "Location",
 			"delivery": "Delivery",
 			"contact": "Contact",
 			"agreement": "Review"
 		},
 		"requirements": {
+			"project": "Choose a project or keep this request independent to continue.",
 			"location": "Choose the exact delivery point on the map to continue.",
 			"delivery": "Choose a delivery date and time window to continue.",
 			"contact": "Enter a valid email and Egyptian mobile number to continue.",
@@ -24,6 +26,17 @@
 			"heading": "Sign in to continue",
 			"body": "Your list is safe. Sign in or create an account before you save or send it.",
 			"accountFieldsRequired": "Enter your name and company name to continue."
+		},
+		"project": {
+			"heading": "Choose a project",
+			"body": "Keep related material requests, quotes, and deliveries together in one workspace.",
+			"independent": "Independent request",
+			"independentBody": "Send this request without adding it to a project.",
+			"activityCount": "{{count}} related records",
+			"new": "New project",
+			"namePlaceholder": "Project name",
+			"create": "Create",
+			"creating": "Creating"
 		},
 		"location": {
 			"heading": "Delivery location",
@@ -42,6 +55,7 @@
 			"selectedPoint": "Selected delivery point",
 			"coordinates": "Coordinates",
 			"searchHint": "Search moves the map only. Click the exact delivery point to select it.",
+			"recent": "Recent delivery sites",
 			"savedAddresses": "Saved sites",
 			"siteAddress": "Site address",
 			"newLocation": "New site",
@@ -100,6 +114,7 @@
 		},
 		"errors": {
 			"heading": "Something went wrong",
+			"project": "We could not create that project. Try again.",
 			"empty": "Add at least one material before continuing.",
 			"defaults": "We could not load your quote details. Try signing in again.",
 			"save": "We could not save this draft. Try again.",
@@ -131,6 +146,7 @@
 			"chat": "Chat",
 			"market": "Market",
 			"orders": "Orders",
+			"projects": "Projects",
 			"support": "Support"
 		},
 		"orderHistory": "Order History",
@@ -1193,6 +1209,27 @@
 			"drywall": "Drywall",
 			"adhesives": "Adhesives"
 		}
+	},
+	"projectsPage": {
+		"title": "Projects",
+		"newProject": "New project",
+		"namePlaceholder": "Project name",
+		"create": "Create project",
+		"creating": "Creating",
+		"cancel": "Cancel",
+		"loadError": "We could not load your projects. Try again.",
+		"workspace": "Project workspace",
+		"newOrder": "New order",
+		"records": "Requests and orders",
+		"recordCount": "{{count}} records",
+		"emptyProject": "This project has no requests yet.",
+		"emptyTitle": "Keep the job together",
+		"emptyBody": "Create a project to keep its material lists, quote requests, orders, and deliveries in one place.",
+		"independent": "Independent",
+		"moveToProject": "Move to project",
+		"openRecord": "Open record",
+		"material_one": "material",
+		"material_other": "materials"
 	},
 	"pwa": {
 		"copyFromAddressBar": "Copy from the address bar",

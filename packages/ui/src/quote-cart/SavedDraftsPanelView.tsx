@@ -3,6 +3,7 @@ import {
 	Copy,
 	Eye,
 	FilePenLine,
+	FolderKanban,
 	Package,
 	Plus,
 	Send,
@@ -41,6 +42,8 @@ export interface SavedQuoteDraftView {
 	itemCount: number
 	notes?: string | null
 	items: SavedQuoteDraftItemView[]
+	projectId?: string | null
+	projectName?: string | null
 }
 
 export interface SavedDraftsPanelLabels {
@@ -69,6 +72,7 @@ export interface SavedDraftsPanelLabels {
 	defaultDraftName: string
 	unavailableItem: string
 	blockedDraft: string
+	independentProject: string
 }
 
 interface SavedDraftsPanelViewProps<TDraft extends SavedQuoteDraftView> {
@@ -195,6 +199,33 @@ export function SavedDraftsPanelView<TDraft extends SavedQuoteDraftView>({
 		() => drafts.find((draft) => draft.id === selectedDraftId),
 		[drafts, selectedDraftId],
 	)
+	const groupedDrafts = useMemo(() => {
+		const groups = new Map<
+			string,
+			{ drafts: TDraft[]; label: string; projectId: string | null }
+		>()
+		for (const draft of drafts) {
+			const projectId = draft.projectId ?? null
+			const key = projectId ?? '__independent__'
+			const existing = groups.get(key)
+			if (existing) {
+				existing.drafts.push(draft)
+				continue
+			}
+			groups.set(key, {
+				drafts: [draft],
+				label: draft.projectName || labels.independentProject,
+				projectId,
+			})
+		}
+		return [...groups.values()].flatMap((group) =>
+			group.drafts.map((draft, index) => ({
+				draft,
+				groupLabel: index === 0 ? group.label : null,
+				projectId: group.projectId,
+			})),
+		)
+	}, [drafts, labels.independentProject])
 
 	return (
 		<section className={`flex min-h-0 flex-col ${styles.root} ${className}`}>
@@ -237,7 +268,7 @@ export function SavedDraftsPanelView<TDraft extends SavedQuoteDraftView>({
 					<SavedDraftsEmptyState labels={labels} styles={styles} />
 				) : (
 					<div className="space-y-2">
-						{drafts.map((draft) => {
+						{groupedDrafts.map(({ draft, groupLabel, projectId }) => {
 							const title =
 								draft.name ?? draft.reference ?? labels.defaultDraftName
 							const dateLabel = formatSavedDraftDate(draft.date, isArabic)
@@ -248,138 +279,159 @@ export function SavedDraftsPanelView<TDraft extends SavedQuoteDraftView>({
 							)
 
 							return (
-								<motion.article
-									key={draft.id}
-									{...savedDraftRevealMotion(shouldReduceMotion)}
-									className={`overflow-hidden rounded-xl border ${styles.border} ${styles.card}`}
-								>
-									<div className="p-3">
-										<div className="flex min-w-0 items-start gap-3">
-											<span
-												className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${styles.accentDim} ${styles.accent}`}
-											>
-												<FilePenLine size={15} strokeWidth={1.7} />
-											</span>
-											<div className="min-w-0 flex-1">
-												<p
-													className={`truncate text-[13px] font-semibold ${styles.text}`}
+								<div key={draft.id}>
+									{groupLabel && (
+										<div
+											className={`mb-2 flex items-center gap-2 px-1 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${styles.faint}`}
+										>
+											<FolderKanban size={13} strokeWidth={1.6} />
+											<span className="truncate">{groupLabel}</span>
+											{projectId && (
+												<span
+													className={`ms-auto font-mono text-[9px] ${styles.muted}`}
 												>
-													{title}
-												</p>
-												<p className={`mt-1 text-[11px] ${styles.muted}`}>
-													{labels.lastEdited(dateLabel)}
-												</p>
-											</div>
-											<span
-												className={`shrink-0 rounded-full border ${styles.border} px-2 py-1 font-mono text-[10px] tabular-nums ${styles.muted}`}
-											>
-												{draft.itemCount}
-											</span>
-										</div>
-										<div className="mt-3 grid grid-cols-2 gap-2">
-											<motion.button
-												type="button"
-												onClick={() => {
-													setConfirmAddDraftId(null)
-													setSelectedDraftId(isSelected ? null : draft.id)
-												}}
-												className={`flex h-9 min-w-0 items-center justify-center gap-2 rounded-xl border ${styles.border} px-3 text-[12px] font-semibold ${styles.text} transition-colors ${styles.hover}`}
-												whileTap={
-													shouldReduceMotion ? undefined : { scale: 0.98 }
-												}
-											>
-												<Eye size={14} strokeWidth={1.7} />
-												<span className="truncate">{labels.view}</span>
-											</motion.button>
-											<SavedDraftActionButton
-												actionMode={actionMode}
-												disabled={
-													draft.items.length === 0 ||
-													hasUnavailableItems ||
-													(actionMode === 'submit' && isSubmitting)
-												}
-												isSubmitting={isSubmitting}
-												labels={labels}
-												onClick={() => {
-													if (actionMode === 'add') {
-														setSelectedDraftId(draft.id)
-														setConfirmAddDraftId(draft.id)
-														return
+													{
+														drafts.filter(
+															(item) => item.projectId === projectId,
+														).length
 													}
-													onSubmitDraft?.(draft)
-												}}
-												shouldReduceMotion={shouldReduceMotion}
-												styles={styles}
-											/>
+												</span>
+											)}
 										</div>
-										{hasUnavailableItems && (
-											<p
-												className={`mt-2 rounded-lg border ${styles.border} ${styles.surface} px-2 py-1.5 text-[11px] font-medium ${styles.error}`}
-											>
-												{labels.blockedDraft}
-											</p>
-										)}
-									</div>
-									<AnimatePresence initial={false}>
-										{isSelected && selectedDraft && (
-											<DraftPreview
-												draft={selectedDraft}
-												isArabic={isArabic}
-												labels={labels}
-												onNotesCopied={onNotesCopied}
-												styles={styles}
-											/>
-										)}
-									</AnimatePresence>
-									<AnimatePresence initial={false}>
-										{actionMode === 'add' && confirmAddDraftId === draft.id && (
-											<motion.div
-												key="add-confirm"
-												className={`overflow-hidden border-t ${styles.border} ${styles.panel} p-3`}
-												{...savedDraftRevealMotion(shouldReduceMotion)}
-											>
-												<p
-													className={`text-[12px] font-semibold ${styles.text}`}
+									)}
+									<motion.article
+										{...savedDraftRevealMotion(shouldReduceMotion)}
+										className={`overflow-hidden rounded-xl border ${styles.border} ${styles.card}`}
+									>
+										<div className="p-3">
+											<div className="flex min-w-0 items-start gap-3">
+												<span
+													className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${styles.accentDim} ${styles.accent}`}
 												>
-													{labels.confirmAddTitle}
-												</p>
-												<p
-													className={`mt-1 text-[11px] leading-4 ${styles.muted}`}
-												>
-													{labels.confirmAddBody(draft.items.length)}
-												</p>
-												{hasUnavailableItems && (
+													<FilePenLine size={15} strokeWidth={1.7} />
+												</span>
+												<div className="min-w-0 flex-1">
 													<p
-														className={`mt-1 text-[11px] font-medium ${styles.error}`}
+														className={`truncate text-[13px] font-semibold ${styles.text}`}
 													>
-														{labels.blockedDraft}
+														{title}
 													</p>
-												)}
-												<div className="mt-2 grid grid-cols-2 gap-2">
-													<button
-														type="button"
-														onClick={() => setConfirmAddDraftId(null)}
-														className={`flex h-8 items-center justify-center rounded-lg border ${styles.border} text-[12px] font-semibold ${styles.text} transition-colors ${styles.hover}`}
-													>
-														{labels.cancel}
-													</button>
-													<button
-														type="button"
-														onClick={() => {
-															if (hasUnavailableItems) return
-															onAddDraft?.(draft)
-															setConfirmAddDraftId(null)
-														}}
-														disabled={hasUnavailableItems}
-														className={`flex h-8 items-center justify-center rounded-lg ${styles.accentBg} text-[12px] font-semibold ${styles.accentContrast} transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50`}
-													>
-														{labels.confirm}
-													</button>
+													<p className={`mt-1 text-[11px] ${styles.muted}`}>
+														{labels.lastEdited(dateLabel)}
+													</p>
 												</div>
-											</motion.div>
-										)}
-									</AnimatePresence>
-								</motion.article>
+												<span
+													className={`shrink-0 rounded-full border ${styles.border} px-2 py-1 font-mono text-[10px] tabular-nums ${styles.muted}`}
+												>
+													{draft.itemCount}
+												</span>
+											</div>
+											<div className="mt-3 grid grid-cols-2 gap-2">
+												<motion.button
+													type="button"
+													onClick={() => {
+														setConfirmAddDraftId(null)
+														setSelectedDraftId(isSelected ? null : draft.id)
+													}}
+													className={`flex h-9 min-w-0 items-center justify-center gap-2 rounded-xl border ${styles.border} px-3 text-[12px] font-semibold ${styles.text} transition-colors ${styles.hover}`}
+													whileTap={
+														shouldReduceMotion ? undefined : { scale: 0.98 }
+													}
+												>
+													<Eye size={14} strokeWidth={1.7} />
+													<span className="truncate">{labels.view}</span>
+												</motion.button>
+												<SavedDraftActionButton
+													actionMode={actionMode}
+													disabled={
+														draft.items.length === 0 ||
+														hasUnavailableItems ||
+														(actionMode === 'submit' && isSubmitting)
+													}
+													isSubmitting={isSubmitting}
+													labels={labels}
+													onClick={() => {
+														if (actionMode === 'add') {
+															setSelectedDraftId(draft.id)
+															setConfirmAddDraftId(draft.id)
+															return
+														}
+														onSubmitDraft?.(draft)
+													}}
+													shouldReduceMotion={shouldReduceMotion}
+													styles={styles}
+												/>
+											</div>
+											{hasUnavailableItems && (
+												<p
+													className={`mt-2 rounded-lg border ${styles.border} ${styles.surface} px-2 py-1.5 text-[11px] font-medium ${styles.error}`}
+												>
+													{labels.blockedDraft}
+												</p>
+											)}
+										</div>
+										<AnimatePresence initial={false}>
+											{isSelected && selectedDraft && (
+												<DraftPreview
+													draft={selectedDraft}
+													isArabic={isArabic}
+													labels={labels}
+													onNotesCopied={onNotesCopied}
+													styles={styles}
+												/>
+											)}
+										</AnimatePresence>
+										<AnimatePresence initial={false}>
+											{actionMode === 'add' &&
+												confirmAddDraftId === draft.id && (
+													<motion.div
+														key="add-confirm"
+														className={`overflow-hidden border-t ${styles.border} ${styles.panel} p-3`}
+														{...savedDraftRevealMotion(shouldReduceMotion)}
+													>
+														<p
+															className={`text-[12px] font-semibold ${styles.text}`}
+														>
+															{labels.confirmAddTitle}
+														</p>
+														<p
+															className={`mt-1 text-[11px] leading-4 ${styles.muted}`}
+														>
+															{labels.confirmAddBody(draft.items.length)}
+														</p>
+														{hasUnavailableItems && (
+															<p
+																className={`mt-1 text-[11px] font-medium ${styles.error}`}
+															>
+																{labels.blockedDraft}
+															</p>
+														)}
+														<div className="mt-2 grid grid-cols-2 gap-2">
+															<button
+																type="button"
+																onClick={() => setConfirmAddDraftId(null)}
+																className={`flex h-8 items-center justify-center rounded-lg border ${styles.border} text-[12px] font-semibold ${styles.text} transition-colors ${styles.hover}`}
+															>
+																{labels.cancel}
+															</button>
+															<button
+																type="button"
+																onClick={() => {
+																	if (hasUnavailableItems) return
+																	onAddDraft?.(draft)
+																	setConfirmAddDraftId(null)
+																}}
+																disabled={hasUnavailableItems}
+																className={`flex h-8 items-center justify-center rounded-lg ${styles.accentBg} text-[12px] font-semibold ${styles.accentContrast} transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50`}
+															>
+																{labels.confirm}
+															</button>
+														</div>
+													</motion.div>
+												)}
+										</AnimatePresence>
+									</motion.article>
+								</div>
 							)
 						})}
 					</div>

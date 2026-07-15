@@ -13,6 +13,10 @@ interface PortalStore {
 	setSidebarOpen: (open: boolean) => void
 	isDraftQuoteOpen: boolean
 	setDraftQuoteOpen: (open: boolean) => void
+	pendingProjectId: string | undefined
+	setPendingProjectId: (projectId: string | undefined) => void
+	pendingQuoteDraftId: string | undefined
+	setPendingQuoteDraftId: (draftId: string | undefined) => void
 }
 
 export const usePortalStore = create<PortalStore>()(
@@ -29,6 +33,11 @@ export const usePortalStore = create<PortalStore>()(
 			setSidebarOpen: (open) => set({ isSidebarOpen: open }),
 			isDraftQuoteOpen: false,
 			setDraftQuoteOpen: (open) => set({ isDraftQuoteOpen: open }),
+			pendingProjectId: undefined,
+			setPendingProjectId: (projectId) => set({ pendingProjectId: projectId }),
+			pendingQuoteDraftId: undefined,
+			setPendingQuoteDraftId: (draftId) =>
+				set({ pendingQuoteDraftId: draftId }),
 		}),
 		{
 			name: 'hq-portal',

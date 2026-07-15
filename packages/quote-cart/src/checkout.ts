@@ -51,6 +51,22 @@ export interface QuoteLocationSearchResult {
 	street: string
 }
 
+export interface QuoteProjectSummary {
+	description: string | null
+	draftCount: number
+	id: string
+	lastActivityAt: string
+	name: string
+	orderCount: number
+	requestCount: number
+}
+
+export interface QuoteRecentLocation extends QuoteDeliveryLocation {
+	id: string
+	lastUsedAt: string
+	useCount: number
+}
+
 export function buildDetailedQuoteLocationName(
 	address: Record<string, string>,
 	displayName: string,

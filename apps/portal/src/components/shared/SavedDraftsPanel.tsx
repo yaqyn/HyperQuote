@@ -8,6 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type ReactNode, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAllCustomerOrders } from '../../lib/server/orders'
+import { getCustomerProjects } from '../../lib/server/projects'
 import { submitQuoteRequest } from '../../lib/server/quote-requests'
 import { toast } from '../../lib/toast'
 import { unavailableItemNamesFromError } from '../../lib/unavailable-quote-items'
@@ -47,7 +48,10 @@ function toQuoteRequestItems(items: OrderItem[]) {
 	}))
 }
 
-function toSavedDraftView(order: Order): PortalSavedDraft {
+function toSavedDraftView(
+	order: Order,
+	projectName: string | null,
+): PortalSavedDraft {
 	return {
 		id: order.id,
 		name: order.name,
@@ -56,6 +60,8 @@ function toSavedDraftView(order: Order): PortalSavedDraft {
 		itemCount: order.itemCount,
 		notes: order.notes,
 		items: order.items.map(toSavedDraftItemView),
+		projectId: order.projectId ?? null,
+		projectName,
 		order,
 	}
 }
@@ -96,13 +102,24 @@ export function SavedDraftsPanel({
 		queryFn: () => getAllCustomerOrders(),
 		staleTime: 30_000,
 	})
+	const projectsQuery = useQuery({
+		queryFn: () => getCustomerProjects(),
+		queryKey: ['customer-projects'],
+		staleTime: 30_000,
+	})
+	const projects = projectsQuery.data ?? []
 
 	const drafts = useMemo(
 		() =>
 			(data?.orders.filter((order) => order.type === 'saved') ?? []).map(
-				toSavedDraftView,
+				(order) =>
+					toSavedDraftView(
+						order,
+						projects.find((project) => project.id === order.projectId)?.name ??
+							null,
+					),
 			),
-		[data?.orders],
+		[data?.orders, projects],
 	)
 
 	const labels = useMemo<SavedDraftsPanelLabels>(
@@ -135,6 +152,7 @@ export function SavedDraftsPanel({
 				'orders.unavailableDraftBlocked',
 				'Remove unavailable items before using this draft.',
 			),
+			independentProject: t('projectsPage.independent'),
 		}),
 		[t],
 	)
@@ -148,6 +166,7 @@ export function SavedDraftsPanel({
 					idempotencyKey: crypto.randomUUID(),
 					name: draft.order.name ?? draft.order.reference,
 					notes: draft.order.notes ?? undefined,
+					projectId: draft.order.projectId ?? null,
 				},
 			}),
 		onMutate: () => {
@@ -217,7 +236,13 @@ export function SavedDraftsPanel({
 			onNotesCopied={() => toast.success(t('orders.notesCopied'))}
 			onRetry={() => refetch()}
 			onSubmitDraft={(draft) => submitMutation.mutate(draft)}
-			state={isLoading ? 'loading' : isError ? 'error' : 'ready'}
+			state={
+				isLoading || projectsQuery.isLoading
+					? 'loading'
+					: isError || projectsQuery.isError
+						? 'error'
+						: 'ready'
+			}
 			submittingDraftId={submitMutation.variables?.id ?? null}
 			theme="portal"
 		/>

@@ -4,6 +4,8 @@ import {
 	type QuoteDeliveryLocation,
 	type QuoteDeliveryWindow,
 	type QuoteLocationSearchResult,
+	type QuoteProjectSummary,
+	type QuoteRecentLocation,
 } from '@hyperquote/quote-cart/checkout'
 import {
 	Check,
@@ -11,8 +13,10 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	ContactRound,
+	FolderKanban,
 	LoaderCircle,
 	MapPin,
+	Plus,
 	Search,
 	X,
 } from 'lucide-react'
@@ -22,6 +26,7 @@ import {
 	type ReactNode,
 	Suspense,
 	useContext,
+	useState,
 	useSyncExternalStore,
 } from 'react'
 import { Button as AriaButton } from 'react-aria-components/Button'
@@ -73,6 +78,127 @@ export function QuoteFlowContentProvider({
 	)
 }
 
+export function ProjectStep({
+	creating,
+	onCreate,
+	onSelect,
+	projects,
+	selectedProjectId,
+}: {
+	creating: boolean
+	onCreate: (name: string) => Promise<void>
+	onSelect: (projectId: string | null) => void
+	projects: QuoteProjectSummary[]
+	selectedProjectId: string | null | undefined
+}) {
+	const { t } = useQuoteFlowTranslation()
+	const [newProjectName, setNewProjectName] = useState('')
+	const [createOpen, setCreateOpen] = useState(false)
+
+	async function createProject() {
+		const name = newProjectName.trim()
+		if (name.length < 2) return
+		await onCreate(name)
+		setNewProjectName('')
+		setCreateOpen(false)
+	}
+
+	return (
+		<div className="mx-auto w-full max-w-[760px] px-5 py-7 sm:px-8 sm:py-10">
+			<StepHeading
+				body={t('quoteFlow.project.body')}
+				heading={t('quoteFlow.project.heading')}
+			/>
+			<div className="mt-7 grid gap-2 sm:grid-cols-2">
+				<button
+					type="button"
+					onClick={() => onSelect(null)}
+					aria-pressed={selectedProjectId === null}
+					className={`min-h-[86px] rounded-[12px] border p-4 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+						selectedProjectId === null
+							? 'border-[var(--color-primary)] bg-[var(--site-blue-wash,var(--color-surface))]'
+							: 'border-[var(--site-rule,var(--color-border))] hover:border-[var(--color-primary)]/35'
+					}`}
+				>
+					<p className="text-[13px] font-semibold text-[var(--color-text)]">
+						{t('quoteFlow.project.independent')}
+					</p>
+					<p className="mt-1 text-[11px] leading-5 text-[var(--color-text-muted)]">
+						{t('quoteFlow.project.independentBody')}
+					</p>
+				</button>
+				{projects.map((project) => {
+					const selected = selectedProjectId === project.id
+					const total =
+						project.draftCount + project.requestCount + project.orderCount
+					return (
+						<button
+							key={project.id}
+							type="button"
+							onClick={() => onSelect(project.id)}
+							aria-pressed={selected}
+							className={`min-h-[86px] rounded-[12px] border p-4 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
+								selected
+									? 'border-[var(--color-primary)] bg-[var(--site-blue-wash,var(--color-surface))]'
+									: 'border-[var(--site-rule,var(--color-border))] hover:border-[var(--color-primary)]/35'
+							}`}
+						>
+							<div className="flex items-start justify-between gap-3">
+								<p className="text-[13px] font-semibold text-[var(--color-text)]">
+									{project.name}
+								</p>
+								<FolderKanban
+									size={15}
+									strokeWidth={1.7}
+									className="shrink-0 text-[var(--color-primary)]"
+								/>
+							</div>
+							<p className="mt-2 text-[10px] font-medium text-[var(--color-text-subtle)]">
+								{t('quoteFlow.project.activityCount', { count: total })}
+							</p>
+						</button>
+					)
+				})}
+			</div>
+
+			{createOpen ? (
+				<form
+					onSubmit={(event) => {
+						event.preventDefault()
+						void createProject()
+					}}
+					className="mt-3 flex items-center gap-2 rounded-[12px] border border-[var(--site-rule,var(--color-border))] p-2"
+				>
+					<input
+						value={newProjectName}
+						onChange={(event) => setNewProjectName(event.currentTarget.value)}
+						placeholder={t('quoteFlow.project.namePlaceholder')}
+						className="h-9 min-w-0 flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-[var(--color-text-subtle)]"
+					/>
+					<button
+						type="submit"
+						disabled={creating || newProjectName.trim().length < 2}
+						className="h-9 rounded-[9px] bg-[var(--color-primary)] px-4 text-[11px] font-semibold text-white disabled:opacity-40"
+					>
+						{creating
+							? t('quoteFlow.project.creating')
+							: t('quoteFlow.project.create')}
+					</button>
+				</form>
+			) : (
+				<button
+					type="button"
+					onClick={() => setCreateOpen(true)}
+					className="mt-4 inline-flex h-9 items-center gap-2 rounded-[9px] px-1 text-[12px] font-semibold text-[var(--color-primary)]"
+				>
+					<Plus size={14} strokeWidth={1.9} />
+					{t('quoteFlow.project.new')}
+				</button>
+			)}
+		</div>
+	)
+}
+
 function useQuoteFlowTranslation() {
 	return useTranslation(useContext(QuoteFlowNamespaceContext))
 }
@@ -109,6 +235,8 @@ export function LocationStep({
 	onMapPointChange,
 	onSearch,
 	onSearchResult,
+	onRecentLocation,
+	recentLocations = [],
 }: {
 	locationQuery: string
 	locationResolving: boolean
@@ -121,6 +249,8 @@ export function LocationStep({
 	onMapPointChange: (point: QuoteLocationPoint) => void
 	onSearch: () => void
 	onSearchResult: (result: QuoteLocationSearchResult) => void
+	onRecentLocation?: (location: QuoteRecentLocation) => void
+	recentLocations?: QuoteRecentLocation[]
 }) {
 	const { t, i18n } = useQuoteFlowTranslation()
 
@@ -131,6 +261,33 @@ export function LocationStep({
 					body={t('quoteFlow.location.body')}
 					heading={t('quoteFlow.location.heading')}
 				/>
+				{recentLocations.length > 0 && onRecentLocation && (
+					<div className="mt-5">
+						<p className="font-mono text-[9px] uppercase tracking-[0.13em] text-[var(--color-text-subtle)]">
+							{t('quoteFlow.location.recent')}
+						</p>
+						<div className="mt-2 grid gap-1.5">
+							{recentLocations.slice(0, 3).map((location) => (
+								<button
+									key={location.id}
+									type="button"
+									onClick={() => onRecentLocation(location)}
+									className="flex items-start gap-2.5 rounded-[9px] border border-[var(--site-rule,var(--color-border))] px-3 py-2.5 text-start transition-colors hover:border-[var(--color-primary)]/35 hover:bg-[var(--site-blue-wash,var(--color-surface))]/45"
+								>
+									<MapPin
+										size={13}
+										className="mt-0.5 shrink-0 text-[var(--color-primary)]"
+									/>
+									<span className="line-clamp-2 text-[11px] font-medium leading-4 text-[var(--color-text-muted)]">
+										{i18n.language === 'ar'
+											? location.locationNameAr
+											: location.locationName}
+									</span>
+								</button>
+							))}
+						</div>
+					</div>
+				)}
 				<form
 					onSubmit={(event) => {
 						event.preventDefault()

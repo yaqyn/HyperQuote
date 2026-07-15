@@ -11,6 +11,7 @@ import {
 	ClipboardList,
 	Download,
 	ExternalLink,
+	FolderKanban,
 	Globe,
 	Info,
 	LifeBuoy,
@@ -49,6 +50,11 @@ const NAV_ITEMS = [
 		labelKey: 'sidebar.nav.orders',
 		icon: ClipboardList,
 		to: '/orders' as const,
+	},
+	{
+		labelKey: 'sidebar.nav.projects',
+		icon: FolderKanban,
+		to: '/projects' as const,
 	},
 	{ labelKey: 'sidebar.nav.support', icon: LifeBuoy, to: '/support' as const },
 ] satisfies ReadonlyArray<{
@@ -184,7 +190,7 @@ export function ChatSidebar({
 
 				<motion.nav
 					{...stagger(1)}
-					className="grid grid-cols-4 gap-1 border-b border-[var(--p-border)] px-4 py-3 lg:grid-cols-1 lg:gap-2"
+					className="grid grid-cols-5 gap-1 border-b border-[var(--p-border)] px-4 py-3 lg:grid-cols-1 lg:gap-2"
 					aria-label={t('sidebar.label')}
 				>
 					{NAV_ITEMS.map((item) => {

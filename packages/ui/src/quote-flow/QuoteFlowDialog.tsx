@@ -4,6 +4,7 @@ import {
 	CalendarDays,
 	Check,
 	ContactRound,
+	FolderKanban,
 	Info,
 	LoaderCircle,
 	MapPin,
@@ -16,7 +17,12 @@ import { Dialog } from 'react-aria-components/Dialog'
 import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
 
-export type QuoteFlowStep = 'agreement' | 'contact' | 'delivery' | 'location'
+export type QuoteFlowStep =
+	| 'agreement'
+	| 'contact'
+	| 'delivery'
+	| 'location'
+	| 'project'
 export type QuoteFlowNamespace = 'portal' | 'website'
 
 interface QuoteFlowDialogProps {
@@ -40,6 +46,7 @@ const FLOW_STEPS: Array<{
 	id: QuoteFlowStep
 	icon: typeof MapPin
 }> = [
+	{ id: 'project', icon: FolderKanban },
 	{ id: 'location', icon: MapPin },
 	{ id: 'delivery', icon: CalendarDays },
 	{ id: 'contact', icon: ContactRound },
@@ -175,7 +182,7 @@ function QuoteFlowProgress({
 
 	return (
 		<aside className="shrink-0 border-b border-[var(--site-rule,var(--color-border))] bg-[var(--site-concrete,var(--color-surface))]/45 px-4 py-3 md:w-[190px] md:border-b-0 md:border-e md:px-5 md:py-7">
-			<ol className="grid grid-cols-4 gap-1 md:grid-cols-1 md:gap-2">
+			<ol className="grid grid-cols-5 gap-1 md:grid-cols-1 md:gap-2">
 				{FLOW_STEPS.map((step, index) => {
 					const Icon = step.icon
 					const active = index === currentIndex

@@ -4,6 +4,7 @@ import {
 	CheckCircle2,
 	CircleAlert,
 	Clock3,
+	FolderKanban,
 	Loader2,
 	MoreHorizontal,
 	Phone,
@@ -40,7 +41,9 @@ import {
 	getProductCatalog,
 	getQuoteBuilderData,
 	requestInventoryPriceUpdate,
+	type SalesCustomerProjectWorkspace,
 	saveQuoteDraft,
+	setSalesQuoteRequestProject,
 } from '../../../lib/server/sales-quotes'
 import {
 	closeSalesQuoteSession,
@@ -135,6 +138,16 @@ const QUOTE_SESSION_HEARTBEAT_MS = 60_000
 const QUOTE_SESSION_TICK_MS = 1_000
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function quoteRequestIdForProjectAssignment(
+	rfqId: string,
+	quoteId: string | undefined,
+): string | null {
+	if (UUID_RE.test(rfqId)) return rfqId
+	if (!quoteId?.startsWith('sb:')) return null
+	const [, quoteRequestId] = quoteId.split(':')
+	return quoteRequestId && UUID_RE.test(quoteRequestId) ? quoteRequestId : null
+}
 
 function createQuoteSessionClientId(): string {
 	const randomUUID = globalThis.crypto?.randomUUID
@@ -3104,6 +3117,139 @@ function refreshQuoteLineFromCatalog(
 	}
 }
 
+function CustomerProjectsPanel({
+	assignError,
+	assigning,
+	canAssign,
+	onAssign,
+	projectId,
+	projects,
+}: {
+	assignError: string | null
+	assigning: boolean
+	canAssign: boolean
+	onAssign: (projectId: string | null) => void
+	projectId: string | null
+	projects: SalesCustomerProjectWorkspace[]
+}) {
+	return (
+		<div className="flex h-full min-h-0 flex-col bg-[var(--color-surface)] text-[var(--color-text)]">
+			<header className="shrink-0 border-b border-[var(--color-border)] px-5 py-5">
+				<div className="flex items-center gap-3">
+					<span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-primary)]">
+						<FolderKanban size={17} strokeWidth={1.8} />
+					</span>
+					<div className="min-w-0">
+						<h2 className="font-[family-name:var(--font-archivo)] text-[15px] font-semibold">
+							Customer projects
+						</h2>
+						<p className="mt-0.5 font-[family-name:var(--font-archivo)] text-[11px] text-[var(--color-text-muted)]">
+							Browse the customer workspace and assign this request.
+						</p>
+					</div>
+				</div>
+			</header>
+
+			<div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+				{!canAssign && (
+					<p className="mb-3 rounded-md border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 font-[family-name:var(--font-archivo)] text-[11px] leading-5 text-[var(--color-text-muted)]">
+						Save this new quote once before assigning it to a project.
+					</p>
+				)}
+				{assignError && (
+					<p className="mb-3 rounded-md border border-red-500/20 bg-red-500/[0.06] px-3 py-2 font-[family-name:var(--font-archivo)] text-[11px] text-red-700 dark:text-red-300">
+						{assignError}
+					</p>
+				)}
+
+				<button
+					type="button"
+					disabled={!canAssign || assigning}
+					onClick={() => onAssign(null)}
+					className={`mb-2 flex w-full items-center justify-between rounded-md border px-3 py-3 text-start outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+						projectId === null
+							? 'border-[var(--color-primary)]/35 bg-[var(--color-primary)]/[0.06]'
+							: 'border-[var(--color-border)] hover:border-[var(--color-primary)]/25'
+					}`}
+				>
+					<span className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold">
+						Independent request
+					</span>
+					{projectId === null && <CheckCircle2 size={15} />}
+				</button>
+
+				{projects.length === 0 ? (
+					<div className="mt-8 text-center">
+						<FolderKanban
+							size={24}
+							strokeWidth={1.4}
+							className="mx-auto text-[var(--color-text-subtle)]"
+						/>
+						<p className="mt-3 font-[family-name:var(--font-archivo)] text-[12px] text-[var(--color-text-muted)]">
+							This customer has no projects yet.
+						</p>
+					</div>
+				) : (
+					<div className="space-y-2">
+						{projects.map((project) => (
+							<section
+								key={project.id}
+								className={`overflow-hidden rounded-md border ${
+									projectId === project.id
+										? 'border-[var(--color-primary)]/35'
+										: 'border-[var(--color-border)]'
+								}`}
+							>
+								<button
+									type="button"
+									disabled={!canAssign || assigning}
+									onClick={() => onAssign(project.id)}
+									className={`flex w-full items-start justify-between gap-3 px-3 py-3 text-start outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
+										projectId === project.id
+											? 'bg-[var(--color-primary)]/[0.06]'
+											: 'hover:bg-[var(--color-surface-muted)]'
+									}`}
+								>
+									<span className="min-w-0">
+										<span className="block truncate font-[family-name:var(--font-archivo)] text-[12px] font-semibold">
+											{project.name}
+										</span>
+										<span className="mt-1 block font-[family-name:var(--font-plex-mono)] text-[9px] uppercase text-[var(--color-text-subtle)]">
+											{project.records.length} records
+										</span>
+									</span>
+									{projectId === project.id && (
+										<CheckCircle2 size={15} className="shrink-0" />
+									)}
+								</button>
+								{project.records.length > 0 && (
+									<div className="divide-y divide-[var(--color-border)] border-t border-[var(--color-border)] px-3">
+										{project.records.map((record) => (
+											<div
+												key={record.id}
+												className="flex items-center justify-between gap-3 py-2.5"
+											>
+												<span className="min-w-0 truncate font-[family-name:var(--font-plex-mono)] text-[10px] text-[var(--color-text-muted)]">
+													{record.reference}
+												</span>
+												<span className="shrink-0 font-[family-name:var(--font-archivo)] text-[9px] uppercase text-[var(--color-text-subtle)]">
+													{record.hasOrder
+														? 'Order'
+														: record.status.replaceAll('_', ' ')}
+												</span>
+											</div>
+										))}
+									</div>
+								)}
+							</section>
+						))}
+					</div>
+				)}
+			</div>
+		</div>
+	)
+}
+
 // --- Main view ---
 
 export function QuoteBuilderView({
@@ -3139,6 +3285,13 @@ export function QuoteBuilderView({
 	const [isPersistingCustomer, setIsPersistingCustomer] = useState(false)
 	const [quoteId, setQuoteId] = useState<string | undefined>(initialQuoteId)
 	const [status, setStatus] = useState<QuoteStatus>('draft')
+	const [projectId, setProjectId] = useState<string | null>(null)
+	const [projects, setProjects] = useState<SalesCustomerProjectWorkspace[]>([])
+	const [projectsOpen, setProjectsOpen] = useState(false)
+	const [projectAssigning, setProjectAssigning] = useState(false)
+	const [projectAssignError, setProjectAssignError] = useState<string | null>(
+		null,
+	)
 	const quoteNumber = quoteId ?? rfqId
 	const [marginThresholds, setMarginThresholds] = useState<MarginThresholds[]>(
 		[],
@@ -3752,6 +3905,8 @@ export function QuoteBuilderView({
 				if (cancelled) return
 
 				setMarginThresholds(data.marginThresholds)
+				setProjectId(data.projectId)
+				setProjects(data.projects)
 				setExchangeRates(data.exchangeRates ?? EMPTY_EXCHANGE_RATES)
 				setCustomerCredit(data.customerCredit)
 				if (data.rfqStatus) setRfqStatus(data.rfqStatus)
@@ -4319,6 +4474,30 @@ export function QuoteBuilderView({
 	}
 
 	const handleCallCustomer = () => setCallDialogOpen(true)
+	const projectAssignmentRequestId = quoteRequestIdForProjectAssignment(
+		rfqId,
+		quoteId,
+	)
+	const handleAssignProject = async (nextProjectId: string | null) => {
+		if (!projectAssignmentRequestId || projectAssigning) return
+		setProjectAssigning(true)
+		setProjectAssignError(null)
+		try {
+			const result = await setSalesQuoteRequestProject({
+				data: {
+					projectId: nextProjectId,
+					quoteRequestId: projectAssignmentRequestId,
+				},
+			})
+			setProjectId(result.projectId)
+			setProjects(result.projects)
+			queryClient.invalidateQueries({ queryKey: ['sales-rfqs'] })
+		} catch {
+			setProjectAssignError('Project assignment could not be saved. Try again.')
+		} finally {
+			setProjectAssigning(false)
+		}
+	}
 	const quoteSessionThresholdSeconds =
 		quoteSession?.thresholdSeconds ?? QUOTE_SESSION_FLAG_SECONDS
 	const quoteTimerElapsedSeconds = Math.max(
@@ -4355,6 +4534,16 @@ export function QuoteBuilderView({
 							isLocal={!isReportableQuoteSession}
 							isReported={Boolean(quoteSession)}
 						/>
+						<QuoteChromeAction
+							ariaLabel={
+								projectId
+									? `Project: ${projects.find((project) => project.id === projectId)?.name ?? 'Assigned'}`
+									: 'Customer projects'
+							}
+							onClick={() => setProjectsOpen(true)}
+						>
+							<FolderKanban size={15} strokeWidth={2} aria-hidden="true" />
+						</QuoteChromeAction>
 						<QuoteChromeAction
 							ariaLabel="Reject quote"
 							onClick={() => setDeclineOpen(true)}
@@ -5116,6 +5305,25 @@ export function QuoteBuilderView({
 					</div>
 				</footer>
 			)}
+
+			<SlidePanel
+				isOpen={projectsOpen}
+				onClose={() => setProjectsOpen(false)}
+				maxWidth={500}
+				panelKey="customer-projects"
+				ariaLabel="Customer projects"
+				scope="sales"
+				mobileTitle="Customer projects"
+			>
+				<CustomerProjectsPanel
+					assignError={projectAssignError}
+					assigning={projectAssigning}
+					canAssign={Boolean(projectAssignmentRequestId)}
+					onAssign={(nextProjectId) => void handleAssignProject(nextProjectId)}
+					projectId={projectId}
+					projects={projects}
+				/>
+			</SlidePanel>
 
 			{/* Map side panel — DeliveryMap carries its own header/footer chrome. */}
 			<SlidePanel

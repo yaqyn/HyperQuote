@@ -19,6 +19,7 @@ import type {
 } from '../../types/settings'
 import { getAuthenticatedPortalCustomer } from './_supabase'
 import { resolveAddressCoordinates } from './address-coordinates'
+import { getCustomerProjects } from './projects'
 
 const emailChangeInput = z.object({
 	currentPassword: z.string().max(128).optional(),
@@ -486,23 +487,17 @@ export const deleteAddress = createServerFn({ method: 'POST' })
 
 export const getProjects = createServerFn().handler(
 	async (): Promise<Project[]> => {
-		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
-		const { data, error } = await supabase
-			.from('projects')
-			.select('id, name, description, order_count, created_at, archived')
-			.eq('customer_id', customerId)
-			.eq('archived', false)
-			.order('created_at', { ascending: false })
-
-		if (error) throw new Error(error.message)
-
-		return (data ?? []).map((project) => ({
+		const projects = await getCustomerProjects()
+		return projects.map((project) => ({
 			id: project.id,
 			name: project.name,
-			description: project.description,
-			orderCount: project.order_count ?? 0,
-			createdAt: project.created_at,
-			archived: project.archived ?? false,
+			description: project.description ?? undefined,
+			orderCount: project.orderCount,
+			draftCount: project.draftCount,
+			requestCount: project.requestCount,
+			createdAt: project.createdAt,
+			lastActivityAt: project.lastActivityAt,
+			archived: project.archived,
 		}))
 	},
 )
@@ -529,12 +524,16 @@ export const saveProject = createServerFn({ method: 'POST' })
 					.update(payload)
 					.eq('id', input.id)
 					.eq('customer_id', customerId)
-					.select('id, name, description, order_count, created_at, archived')
+					.select(
+						'id, name, description, created_at, updated_at, archived, last_activity_at',
+					)
 					.single()
 			: supabase
 					.from('projects')
 					.insert(payload)
-					.select('id, name, description, order_count, created_at, archived')
+					.select(
+						'id, name, description, created_at, updated_at, archived, last_activity_at',
+					)
 					.single()
 
 		const { data, error } = await query
@@ -545,9 +544,12 @@ export const saveProject = createServerFn({ method: 'POST' })
 			project: {
 				id: data.id,
 				name: data.name,
-				description: data.description,
-				orderCount: data.order_count ?? 0,
+				description: data.description ?? undefined,
+				orderCount: 0,
+				draftCount: 0,
+				requestCount: 0,
 				createdAt: data.created_at,
+				lastActivityAt: data.last_activity_at,
 				archived: data.archived ?? false,
 			},
 		}

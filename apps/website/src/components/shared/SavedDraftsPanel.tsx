@@ -1,3 +1,4 @@
+import { getQuoteCartFingerprint } from '@hyperquote/quote-cart'
 import {
 	type SavedDraftsPanelLabels,
 	SavedDraftsPanelView,
@@ -9,6 +10,8 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQuoteCart } from '../../hooks/useQuoteCart'
+import { useQuoteRequestFlow } from '../../hooks/useQuoteRequestFlow'
+import { getWebsiteQuoteWorkspace } from '../../lib/customer-projects'
 import {
 	getWebsiteSavedQuoteDrafts,
 	type WebsiteSavedQuoteDraft,
@@ -26,7 +29,10 @@ type WebsiteSavedDraft = SavedQuoteDraftView & {
 	draft: WebsiteSavedQuoteDraft
 }
 
-function toSavedDraftView(draft: WebsiteSavedQuoteDraft): WebsiteSavedDraft {
+function toSavedDraftView(
+	draft: WebsiteSavedQuoteDraft,
+	projectName: string | null,
+): WebsiteSavedDraft {
 	return {
 		id: draft.id,
 		name: draft.name,
@@ -35,6 +41,8 @@ function toSavedDraftView(draft: WebsiteSavedQuoteDraft): WebsiteSavedDraft {
 		itemCount: draft.itemCount,
 		notes: draft.notes,
 		items: draft.items.map(toSavedDraftItemView),
+		projectId: draft.projectId,
+		projectName,
 		draft,
 	}
 }
@@ -66,6 +74,9 @@ export function WebsiteSavedDraftsPanel({
 	const shouldReduceMotion = useReducedMotion()
 	const isArabic = i18n.language === 'ar'
 	const addCartItem = useQuoteCart((state) => state.add)
+	const recordSavedDraft = useQuoteRequestFlow(
+		(state) => state.recordSavedDraft,
+	)
 	const [drafts, setDrafts] = useState<WebsiteSavedDraft[]>([])
 	const [state, setState] = useState<'loading' | 'ready' | 'auth' | 'error'>(
 		'loading',
@@ -78,7 +89,18 @@ export function WebsiteSavedDraftsPanel({
 				const result = await getWebsiteSavedQuoteDrafts()
 				if (!isActive()) return
 				if (result.success) {
-					setDrafts(result.drafts.map(toSavedDraftView))
+					const workspace = await getWebsiteQuoteWorkspace()
+					if (!isActive()) return
+					setDrafts(
+						result.drafts.map((draft) =>
+							toSavedDraftView(
+								draft,
+								workspace.projects.find(
+									(project) => project.id === draft.projectId,
+								)?.name ?? null,
+							),
+						),
+					)
 					setState('ready')
 					return
 				}
@@ -133,6 +155,7 @@ export function WebsiteSavedDraftsPanel({
 				'cart.unavailableDraftBlocked',
 				'Remove unavailable items before using this draft.',
 			),
+			independentProject: t('quoteFlow.project.independent'),
 		}),
 		[t],
 	)
@@ -162,6 +185,14 @@ export function WebsiteSavedDraftsPanel({
 				item.quantity,
 			)
 		}
+		const cart = useQuoteCart.getState()
+		recordSavedDraft({
+			draftId: draft.draft.id,
+			fingerprint: getQuoteCartFingerprint(cart.items, cart.globalNote),
+			name: draft.draft.name ?? draft.draft.reference,
+			projectId: draft.draft.projectId,
+			reference: draft.draft.reference,
+		})
 		onAdded()
 	}
 

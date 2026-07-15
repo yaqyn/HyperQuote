@@ -446,12 +446,17 @@ export type Database = {
 					is_default: boolean
 					label: string | null
 					landmark: string | null
+					last_used_at: string | null
 					latitude: number | null
+					location_name: string | null
+					location_name_ar: string | null
 					longitude: number | null
 					phone: string | null
 					postal_code: string | null
+					source: string
 					street: string
 					updated_at: string
+					use_count: number
 				}
 				Insert: {
 					area?: string | null
@@ -463,12 +468,17 @@ export type Database = {
 					is_default?: boolean
 					label?: string | null
 					landmark?: string | null
+					last_used_at?: string | null
 					latitude?: number | null
+					location_name?: string | null
+					location_name_ar?: string | null
 					longitude?: number | null
 					phone?: string | null
 					postal_code?: string | null
+					source?: string
 					street: string
 					updated_at?: string
+					use_count?: number
 				}
 				Update: {
 					area?: string | null
@@ -480,12 +490,17 @@ export type Database = {
 					is_default?: boolean
 					label?: string | null
 					landmark?: string | null
+					last_used_at?: string | null
 					latitude?: number | null
+					location_name?: string | null
+					location_name_ar?: string | null
 					longitude?: number | null
 					phone?: string | null
 					postal_code?: string | null
+					source?: string
 					street?: string
 					updated_at?: string
+					use_count?: number
 				}
 				Relationships: [
 					{
@@ -3437,6 +3452,7 @@ export type Database = {
 					customer_id: string
 					description: string | null
 					id: string
+					last_activity_at: string
 					name: string
 					updated_at: string
 				}
@@ -3446,6 +3462,7 @@ export type Database = {
 					customer_id: string
 					description?: string | null
 					id?: string
+					last_activity_at?: string
 					name: string
 					updated_at?: string
 				}
@@ -3455,6 +3472,7 @@ export type Database = {
 					customer_id?: string
 					description?: string | null
 					id?: string
+					last_activity_at?: string
 					name?: string
 					updated_at?: string
 				}
@@ -6409,6 +6427,49 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			customer_set_quote_request_project: {
+				Args: { p_project_id: string; p_quote_request_id: string }
+				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_address_text: string | null
+					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
+					delivery_longitude: number | null
+					draft_name: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					preferred_delivery_window: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			customer_submit_quote_line_response: {
 				Args: { p_line_responses: Json; p_quote_id: string }
 				Returns: {
@@ -8366,6 +8427,49 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			sales_set_quote_request_project: {
+				Args: { p_project_id: string; p_quote_request_id: string }
+				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_address_text: string | null
+					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
+					delivery_longitude: number | null
+					draft_name: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					preferred_delivery_window: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			sales_start_quote_session: {
 				Args: {
 					p_client_session_id: string
@@ -8917,6 +9021,54 @@ export type Database = {
 				SetofOptions: {
 					from: '*'
 					to: 'quote_counter_offers'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
+			service_customer_set_quote_request_project: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_project_id: string
+					p_quote_request_id: string
+				}
+				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_address_text: string | null
+					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
+					delivery_longitude: number | null
+					draft_name: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					preferred_delivery_window: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
 					isOneToOne: true
 					isSetofReturn: false
 				}
@@ -10880,6 +11032,54 @@ export type Database = {
 					isSetofReturn: false
 				}
 			}
+			service_sales_set_quote_request_project: {
+				Args: {
+					p_actor_pool: string
+					p_actor_user_id: string
+					p_project_id: string
+					p_quote_request_id: string
+				}
+				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
+					approval_required: boolean
+					assigned_at: string | null
+					assigned_employee_id: string | null
+					attachment_urls: string[]
+					created_at: string
+					customer_id: string | null
+					delivery_address_id: string | null
+					delivery_address_text: string | null
+					delivery_date: string | null
+					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
+					delivery_longitude: number | null
+					draft_name: string | null
+					eligible_at: string
+					id: string
+					idempotency_key: string | null
+					notes: string | null
+					preferred_delivery_window: string | null
+					project_id: string | null
+					rejected_proof: Json | null
+					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
+					request_number: string
+					status: Database['public']['Enums']['quote_request_status']
+					submitted_at: string | null
+					submitted_by: string | null
+					updated_at: string
+					urgency: Database['public']['Enums']['quote_request_urgency']
+				}
+				SetofOptions: {
+					from: '*'
+					to: 'quote_requests'
+					isOneToOne: true
+					isSetofReturn: false
+				}
+			}
 			service_sales_start_quote_session: {
 				Args: {
 					p_actor_pool: string
@@ -11803,6 +12003,8 @@ export type Database = {
 				| 'finance_company_asset_revalued'
 				| 'finance_company_asset_disposed'
 				| 'finance_fuel_expense_rejected'
+				| 'project_created'
+				| 'project_assignment_changed'
 			catalog_availability_status:
 				| 'available'
 				| 'low_stock'
@@ -12305,6 +12507,8 @@ export const Constants = {
 				'finance_company_asset_revalued',
 				'finance_company_asset_disposed',
 				'finance_fuel_expense_rejected',
+				'project_created',
+				'project_assignment_changed',
 			],
 			catalog_availability_status: [
 				'available',

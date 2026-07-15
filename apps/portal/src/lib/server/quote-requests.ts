@@ -44,7 +44,7 @@ const quoteRequestDraftInput = z.object({
 	deliveryDate: z.iso.date().optional(),
 	name: z.string().max(120).optional(),
 	notes: z.string().max(2000).optional(),
-	projectId: z.string().uuid().optional(),
+	projectId: z.string().uuid().nullable().optional(),
 	attachmentUrls: z
 		.array(z.string().startsWith('storage://quote-attachments/').max(1024))
 		.max(10)
@@ -148,7 +148,7 @@ function buildDraftMetadataUpdate(input: {
 	deliveryDate?: string
 	name?: string
 	notes?: string
-	projectId?: string
+	projectId?: string | null
 }): QuoteRequestUpdate {
 	const update: QuoteRequestUpdate = {}
 
@@ -221,6 +221,23 @@ async function assertQuoteRequestItemsOrderable(
 	if (unavailableItems.length > 0) {
 		throw new Error(serializeUnavailableItemsError(unavailableItems))
 	}
+}
+
+async function assertProjectOwnedByCustomer(
+	supabase: PortalCustomerSupabase,
+	customerId: string,
+	projectId: string | null | undefined,
+) {
+	if (!projectId) return
+	const { data, error } = await supabase
+		.from('projects')
+		.select('id')
+		.eq('id', projectId)
+		.eq('customer_id', customerId)
+		.eq('archived', false)
+		.maybeSingle()
+	if (error) throw new Error(error.message)
+	if (!data) throw new Error('Project was not found')
 }
 
 async function loadEditableDraft(
@@ -306,6 +323,7 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 		}): Promise<{ requestId: string; reference: string }> => {
 			const { customerId, supabase } = await getAuthenticatedPortalCustomer()
 			const guidedDetails = guidedQuoteDetailsFrom(input)
+			await assertProjectOwnedByCustomer(supabase, customerId, input.projectId)
 			if (
 				guidedDetails &&
 				!isValidQuoteDeliveryDate(guidedDetails.deliveryDate)
@@ -452,6 +470,7 @@ export const saveDraft = createServerFn({ method: 'POST' })
 			data: input,
 		}): Promise<{ draftId: string; reference: string }> => {
 			const { customerId, supabase } = await getAuthenticatedPortalCustomer()
+			await assertProjectOwnedByCustomer(supabase, customerId, input.projectId)
 			await assertQuoteRequestItemsOrderable(supabase, input.items)
 
 			if (input.draftId) {

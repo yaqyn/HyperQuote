@@ -121,12 +121,30 @@ async function assertCustomerToSalesToDeliveryFlow(
 	const product = smokeProduct ?? (await findOrderableSmokeProduct(service))
 	const supplierId = await ensureSmokeSupplierSpecialty(env, service, product)
 	await refreshProductPriceForSmoke(env, product.id, supplierId, runId)
+	const { data: project, error: projectError } = await customer.client
+		.from('projects')
+		.insert({
+			customer_id: customerRow.id,
+			description: `Flow smoke project ${runId}`,
+			name: `Flow smoke ${runId}`,
+		})
+		.select('id')
+		.single()
+	if (projectError || !project) {
+		throw new Error(
+			projectError?.message ?? 'Failed to create customer project',
+		)
+	}
 
 	const { data: draft, error: draftError } = await service
 		.from('quote_requests')
 		.insert({
 			customer_id: customerRow.id,
 			delivery_address_text: 'Flow smoke map point, Cairo, Cairo Governorate',
+			delivery_location_name:
+				'Flow smoke map point, Downtown Cairo, Cairo Governorate, Egypt',
+			delivery_location_name_ar:
+				'نقطة اختبار التدفق، وسط القاهرة، محافظة القاهرة، مصر',
 			delivery_latitude: 30.0444,
 			delivery_longitude: 31.2357,
 			notes: `flow-smoke:${runId}`,
@@ -160,6 +178,16 @@ async function assertCustomerToSalesToDeliveryFlow(
 		directStatus.error,
 		'customer browser credentials must not update workflow status directly',
 	)
+	const { data: assignedDraft, error: assignmentError } =
+		await customer.client.rpc('customer_set_quote_request_project', {
+			p_project_id: project.id,
+			p_quote_request_id: draft.id,
+		})
+	if (assignmentError || assignedDraft?.project_id !== project.id) {
+		throw new Error(
+			assignmentError?.message ?? 'Customer project assignment was not saved',
+		)
+	}
 
 	const { data: submitted, error: submitError } = await customer.client.rpc(
 		'customer_submit_saved_quote_request',
@@ -188,12 +216,50 @@ async function assertCustomerToSalesToDeliveryFlow(
 			Boolean(submittedLocation.delivery_location_name_ar?.trim()),
 		'submitted quote must retain human-readable English and Arabic location names',
 	)
+	const { data: recentLocation, error: recentLocationError } = await service
+		.from('customer_addresses')
+		.select('location_name, location_name_ar, source, latitude, longitude')
+		.eq('customer_id', customerRow.id)
+		.eq('source', 'quote_submission')
+		.eq('latitude', 30.0444)
+		.eq('longitude', 31.2357)
+		.single()
+	if (recentLocationError || !recentLocation) {
+		throw new Error(
+			recentLocationError?.message ?? 'Recent delivery location was not saved',
+		)
+	}
+	assert(
+		Boolean(recentLocation.location_name?.trim()) &&
+			Boolean(recentLocation.location_name_ar?.trim()),
+		'recent delivery location must retain bilingual human-readable names',
+	)
 
 	const employee = await signIn(env, ACCOUNTS.employee)
 	await mustRpc(employee.client, 'set_employee_presence', {
 		p_active_panel: 'sales',
 		p_status: 'online',
 	})
+	const { data: unassignedBySales, error: unassignError } =
+		await employee.client.rpc('sales_set_quote_request_project', {
+			p_project_id: null,
+			p_quote_request_id: draft.id,
+		})
+	if (unassignError || unassignedBySales?.project_id !== null) {
+		throw new Error(
+			unassignError?.message ?? 'Sales could not remove project assignment',
+		)
+	}
+	const { data: reassignedBySales, error: reassignError } =
+		await employee.client.rpc('sales_set_quote_request_project', {
+			p_project_id: project.id,
+			p_quote_request_id: draft.id,
+		})
+	if (reassignError || reassignedBySales?.project_id !== project.id) {
+		throw new Error(
+			reassignError?.message ?? 'Sales could not assign the customer project',
+		)
+	}
 	const { data: claimed, error: claimError } = await employee.client.rpc(
 		'sales_claim_order',
 		{ p_order_id: draft.id },

@@ -47,9 +47,11 @@ export function useWebsiteQuoteDraftSave() {
 	const isSaved =
 		quoteItems.length > 0 && savedDraft?.fingerprint === fingerprint
 
-	async function save(): Promise<WebsiteQuoteDraftSaveResult> {
+	async function save(
+		projectId?: string | null,
+	): Promise<WebsiteQuoteDraftSaveResult> {
 		if (quoteItems.length === 0) return { status: 'empty' }
-		if (isSaved && savedDraft) {
+		if (isSaved && savedDraft && savedDraft.projectId === (projectId ?? null)) {
 			return { status: 'saved', reference: savedDraft.reference }
 		}
 
@@ -64,6 +66,7 @@ export function useWebsiteQuoteDraftSave() {
 					items: quoteItems,
 					name,
 					notes: globalNote.trim() || undefined,
+					projectId,
 				},
 			})
 			if (result.success) {
@@ -71,6 +74,7 @@ export function useWebsiteQuoteDraftSave() {
 					draftId: result.requestId,
 					fingerprint,
 					name,
+					projectId: projectId ?? null,
 					reference: result.reference,
 				})
 				window.dispatchEvent(new Event('hyperquote-account-updated'))

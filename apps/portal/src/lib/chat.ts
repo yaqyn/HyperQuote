@@ -133,6 +133,8 @@ const activeDraftInput = z
 			.max(40),
 		name: z.string().max(160).nullable(),
 		notes: z.string().max(600),
+		projectId: z.string().uuid().nullable().default(null),
+		projectName: z.string().max(120).nullable().default(null),
 		reference: z.string().max(80).nullable(),
 		sessionKey: z.string().max(180).optional(),
 	})
@@ -2654,6 +2656,8 @@ ${safeJson({
 	})),
 	name: activeDraft.name,
 	notes: activeDraft.notes,
+	projectId: activeDraft.projectId,
+	projectName: activeDraft.projectName,
 	reference: activeDraft.reference,
 	sessionKey: activeDraft.sessionKey,
 })}`

@@ -80,6 +80,7 @@ export interface OrderDeliveryTracking {
 export interface Order {
 	id: string
 	linkedOrderId?: string
+	projectId?: string
 	type: OrderType
 	draftSource?: OrderDraftSource
 	status?: OrderStatus

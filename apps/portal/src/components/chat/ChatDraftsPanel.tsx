@@ -6,6 +6,7 @@ import {
 	ChevronDown,
 	Copy,
 	FilePenLine,
+	FolderKanban,
 	MessageSquareText,
 	MoreHorizontal,
 	Package,
@@ -41,13 +42,12 @@ import {
 } from '../../lib/chat-types'
 import { getMarketProducts, type MarketProduct } from '../../lib/server/market'
 import { deleteOrder, getAllCustomerOrders } from '../../lib/server/orders'
+import { getCustomerProjects } from '../../lib/server/projects'
 import {
 	saveDraft,
-	submitQuoteRequest,
 	validateQuoteRequestItems,
 } from '../../lib/server/quote-requests'
 import { toast } from '../../lib/toast'
-import { unavailableItemNamesFromError } from '../../lib/unavailable-quote-items'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
 import { usePortalStore } from '../../stores/portal'
 import type { Order, OrderItem } from '../../types/order'
@@ -59,7 +59,6 @@ interface ChatDraftsPanelProps {
 	onInitialLoadChange?: (loading: boolean) => void
 	onDraftPrompt?: (prompt: string) => void
 	onDraftThreadClear?: (sessionKey: string) => void
-	onSubmitted?: (reference: string) => void
 	resetSelectionToken?: number
 }
 
@@ -70,6 +69,7 @@ interface DraftEditorState {
 	items: OrderItem[]
 	name: string
 	notes: string
+	projectId: string | null
 	reference: string | null
 	sessionKey: string
 }
@@ -77,7 +77,6 @@ interface DraftEditorState {
 const NEW_DRAFT_KEY = '__new_draft__'
 const CHAT_DRAFT_EASE = cubicBezier(0.22, 1, 0.36, 1)
 const CHAT_DRAFT_WORKSPACE_STORAGE_KEY = 'hq-portal-chat-draft-workspace:v1'
-const SUBMITTED_RESET_DELAY_MS = 1800
 
 interface PersistedDraftWorkspace {
 	activeDraftKey: string
@@ -170,6 +169,7 @@ function editorFingerprint(editor: Omit<DraftEditorState, 'baseFingerprint'>) {
 		})),
 		name: editor.name.trim(),
 		notes: editor.notes.trim(),
+		projectId: editor.projectId,
 	})
 }
 
@@ -268,6 +268,7 @@ function readPersistedDraftWorkspace(): PersistedDraftWorkspace | null {
 		const id = readNullableStringField(editorValue, 'id')
 		const name = readStringField(editorValue, 'name')
 		const notes = readStringField(editorValue, 'notes')
+		const projectId = readNullableStringField(editorValue, 'projectId') ?? null
 		const reference = readNullableStringField(editorValue, 'reference')
 		const sessionKey = readStringField(editorValue, 'sessionKey')
 		const rawItems = editorValue.items
@@ -293,6 +294,7 @@ function readPersistedDraftWorkspace(): PersistedDraftWorkspace | null {
 			items,
 			name,
 			notes,
+			projectId,
 			reference,
 			sessionKey,
 		}
@@ -348,6 +350,7 @@ function createEditorFromOrder(order: Order): DraftEditorState {
 		items: order.items.map(itemWithoutNotes),
 		name: order.name ?? order.reference ?? '',
 		notes: order.notes ?? '',
+		projectId: order.projectId ?? null,
 		reference: order.reference ?? null,
 		sessionKey: `draft:${order.id}`,
 	}
@@ -364,6 +367,7 @@ function createNewEditor(defaultName: string): DraftEditorState {
 		items: [],
 		name: defaultName,
 		notes: '',
+		projectId: null,
 		reference: null,
 		sessionKey: `draft:temp:${crypto.randomUUID()}`,
 	}
@@ -393,6 +397,7 @@ function createEditorFromTempDraft(draft: ChatTempDraftData): DraftEditorState {
 		})),
 		name: draft.name,
 		notes: draft.notes,
+		projectId: null,
 		reference: null,
 		sessionKey: draft.sessionKey,
 	}
@@ -468,6 +473,7 @@ function buildDraftPrompt(
 
 function activeDraftContextFromEditor(
 	editor: DraftEditorState,
+	projectName: string | null,
 ): ActiveChatDraftContext {
 	return {
 		dirty: dirtyEditor(editor),
@@ -488,6 +494,8 @@ function activeDraftContextFromEditor(
 		}),
 		name: editor.name.trim() || null,
 		notes: editor.notes.trim().slice(0, 600),
+		projectId: editor.projectId,
+		projectName,
 		reference: editor.reference,
 		sessionKey: editor.sessionKey,
 	}
@@ -500,7 +508,6 @@ export function ChatDraftsPanel({
 	onInitialLoadChange,
 	onDraftPrompt,
 	onDraftThreadClear,
-	onSubmitted,
 	resetSelectionToken = 0,
 }: ChatDraftsPanelProps) {
 	const { t, i18n } = useTranslation('portal')
@@ -515,6 +522,8 @@ export function ChatDraftsPanel({
 	const setCartGlobalNote = useDraftQuoteStore((s) => s.setGlobalNote)
 	const updateCartQuantity = useDraftQuoteStore((s) => s.updateQuantity)
 	const setDraftQuoteOpen = usePortalStore((s) => s.setDraftQuoteOpen)
+	const setPendingProjectId = usePortalStore((s) => s.setPendingProjectId)
+	const setPendingQuoteDraftId = usePortalStore((s) => s.setPendingQuoteDraftId)
 	const defaultDraftName = getDefaultDraftName(
 		t('market.defaultDraftName'),
 		isAr,
@@ -541,14 +550,15 @@ export function ChatDraftsPanel({
 	const [productMenuOpen, setProductMenuOpen] = useState(false)
 	const [productSearch, setProductSearch] = useState('')
 	const [requestedDraftId, setRequestedDraftId] = useState<string | null>(null)
-	const [submittedReference, setSubmittedReference] = useState<string | null>(
-		null,
-	)
-	const [submitError, setSubmitError] = useState<string | null>(null)
 
 	const { data, isError, isLoading, refetch } = useQuery({
 		queryKey: ['customer-orders-all'],
 		queryFn: () => getAllCustomerOrders(),
+		staleTime: 30_000,
+	})
+	const { data: projects = [] } = useQuery({
+		queryFn: () => getCustomerProjects(),
+		queryKey: ['customer-projects'],
 		staleTime: 30_000,
 	})
 	const showDraftMenuLoading = useDelayedVisibility(isLoading)
@@ -572,7 +582,6 @@ export function ChatDraftsPanel({
 		setEditor(null)
 		setProductMenuOpen(false)
 		setProductSearch('')
-		setSubmitError(null)
 		onActiveDraftChange?.(null)
 	}, [onActiveDraftChange, resetSelectionToken])
 
@@ -595,10 +604,14 @@ export function ChatDraftsPanel({
 		const query = draftSearch.trim().toLowerCase()
 		if (!query) return savedDrafts
 		return savedDrafts.filter((draft) => {
+			const projectName = projects.find(
+				(project) => project.id === draft.projectId,
+			)?.name
 			const haystack = [
 				draft.name,
 				draft.reference,
 				draft.notes,
+				projectName,
 				...draft.items.map((item) => item.productName),
 				...draft.items.map((item) => item.productNameAr),
 			]
@@ -607,7 +620,33 @@ export function ChatDraftsPanel({
 				.toLowerCase()
 			return haystack.includes(query)
 		})
-	}, [draftSearch, savedDrafts])
+	}, [draftSearch, projects, savedDrafts])
+	const visibleDraftGroups = useMemo(() => {
+		const groups: Array<{
+			drafts: Order[]
+			id: string | null
+			name: string
+		}> = projects.flatMap((project) => {
+			const drafts = visibleDrafts.filter(
+				(draft) => draft.projectId === project.id,
+			)
+			return drafts.length > 0
+				? [{ drafts, id: project.id, name: project.name }]
+				: []
+		})
+		const projectIds = new Set(projects.map((project) => project.id))
+		const independent = visibleDrafts.filter(
+			(draft) => !draft.projectId || !projectIds.has(draft.projectId),
+		)
+		if (independent.length > 0) {
+			groups.push({
+				drafts: independent,
+				id: null,
+				name: t('projectsPage.independent'),
+			})
+		}
+		return groups
+	}, [projects, t, visibleDrafts])
 
 	const {
 		data: productData,
@@ -693,10 +732,14 @@ export function ChatDraftsPanel({
 	const activeDraftMeta = editor
 		? `${t('orders.items', { count: editor.items.length })} · ${formatDraftDate(editor.date, isAr)}`
 		: t('market.cartItemCount', { count: cartItems.length })
+	const activeProjectName = editor?.projectId
+		? (projects.find((project) => project.id === editor.projectId)?.name ??
+			null)
+		: null
 	const activeDraftContext = useMemo(
 		() =>
 			editor
-				? activeDraftContextFromEditor(editor)
+				? activeDraftContextFromEditor(editor, activeProjectName)
 				: {
 						dirty: cartItems.length > 0 || cartGlobalNote.trim().length > 0,
 						id: null,
@@ -712,10 +755,12 @@ export function ChatDraftsPanel({
 						})),
 						name: t('market.cart'),
 						notes: cartGlobalNote.trim().slice(0, 600),
+						projectId: null,
+						projectName: null,
 						reference: null,
 						sessionKey: 'cart',
 					},
-		[cartGlobalNote, cartItems, editor, t],
+		[activeProjectName, cartGlobalNote, cartItems, editor, t],
 	)
 
 	useEffect(() => {
@@ -757,7 +802,6 @@ export function ChatDraftsPanel({
 			setDraftMenuOpen(false)
 			setEditor(null)
 			setProductSearch('')
-			setSubmitError(null)
 			if (draft.items.length === 0 && !draft.notes.trim()) {
 				onDraftThreadClear?.('cart')
 			}
@@ -789,7 +833,6 @@ export function ChatDraftsPanel({
 			setEditor(null)
 			setProductMenuOpen(false)
 			setProductSearch('')
-			setSubmitError(null)
 			return
 		}
 
@@ -827,7 +870,6 @@ export function ChatDraftsPanel({
 				setDraftMenuOpen(false)
 				setEditor(nextEditor)
 				setProductSearch('')
-				setSubmitError(null)
 				return
 			}
 			const draftId = detail?.draftId
@@ -866,7 +908,6 @@ export function ChatDraftsPanel({
 		setDraftMenuOpen(false)
 		setEditor(nextEditor)
 		setProductSearch('')
-		setSubmitError(null)
 		setRequestedDraftId(null)
 	}, [requestedDraftId, savedDrafts])
 
@@ -901,25 +942,6 @@ export function ChatDraftsPanel({
 		}
 	}, [actionsMenuOpen, draftMenuOpen, productMenuOpen])
 
-	useEffect(() => {
-		if (!submittedReference) return
-		const timeout = window.setTimeout(() => {
-			setSubmittedReference(null)
-			setActiveDraftKey(null)
-			setActionsMenuOpen(false)
-			setConfirmCartAddOpen(false)
-			setConfirmSubmitOpen(false)
-			setConfirmDeleteId(null)
-			setDraftMenuOpen(false)
-			setDraftSearch('')
-			setEditor(null)
-			setProductMenuOpen(false)
-			setProductSearch('')
-			setSubmitError(null)
-		}, SUBMITTED_RESET_DELAY_MS)
-		return () => window.clearTimeout(timeout)
-	}, [submittedReference])
-
 	const saveMutation = useMutation({
 		mutationFn: (draft: DraftEditorState) => {
 			const trimmedName = draft.name.trim() || defaultDraftName
@@ -930,6 +952,7 @@ export function ChatDraftsPanel({
 					items: toQuoteRequestItems(draft.items),
 					name: trimmedName,
 					notes: trimmedNotes || undefined,
+					projectId: draft.projectId,
 				},
 			})
 		},
@@ -962,45 +985,6 @@ export function ChatDraftsPanel({
 		},
 	})
 
-	const submitMutation = useMutation({
-		mutationFn: (draft: DraftEditorState) =>
-			submitQuoteRequest({
-				data: {
-					draftId: draft.id ?? undefined,
-					idempotencyKey: crypto.randomUUID(),
-					items: toQuoteRequestItems(draft.items),
-					name: draft.name.trim() || defaultDraftName,
-					notes: draft.notes.trim() || undefined,
-				},
-			}),
-		onMutate: () => setSubmitError(null),
-		onSuccess: (result) => {
-			setActiveDraftKey(NEW_DRAFT_KEY)
-			setActionsMenuOpen(false)
-			setConfirmCartAddOpen(false)
-			setConfirmSubmitOpen(false)
-			setConfirmDeleteId(null)
-			setDraftMenuOpen(false)
-			setProductMenuOpen(false)
-			setSubmitError(null)
-			setSubmittedReference(result.reference)
-			writePersistedDraftWorkspace(null)
-			queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
-			toast.success(t('market.submitSuccessToast', { ref: result.reference }))
-			onSubmitted?.(result.reference)
-		},
-		onError: (error) => {
-			const unavailableItems = unavailableItemNamesFromError(error)
-			setSubmitError(
-				unavailableItems.length > 0
-					? t('orders.unavailableItems', {
-							items: unavailableItems.join(', '),
-						})
-					: t('orders.submitFailed'),
-			)
-		},
-	})
-
 	const deleteMutation = useMutation({
 		mutationFn: (draft: DraftEditorState) => {
 			if (!draft.id) throw new Error('Draft has not been saved')
@@ -1018,7 +1002,6 @@ export function ChatDraftsPanel({
 			setEditor(null)
 			setProductMenuOpen(false)
 			setProductSearch('')
-			setSubmitError(null)
 			queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] })
 			toast.success(t('orders.draftDeleted'))
 		},
@@ -1040,7 +1023,6 @@ export function ChatDraftsPanel({
 		setDraftMenuOpen(false)
 		setEditor(nextEditor)
 		setProductSearch('')
-		setSubmitError(null)
 	}
 
 	function startNewDraft() {
@@ -1058,7 +1040,6 @@ export function ChatDraftsPanel({
 		setEditor(nextEditor)
 		setProductMenuOpen(false)
 		setProductSearch('')
-		setSubmitError(null)
 	}
 
 	function saveCurrentEditor() {
@@ -1079,7 +1060,6 @@ export function ChatDraftsPanel({
 		setEditor(null)
 		setProductMenuOpen(false)
 		setProductSearch('')
-		setSubmitError(null)
 		toast.success(t('orders.draftCleared', 'Draft cleared.'))
 	}
 
@@ -1176,7 +1156,6 @@ export function ChatDraftsPanel({
 		setDraftMenuOpen(false)
 		setEditor(null)
 		setProductSearch('')
-		setSubmitError(null)
 	}
 
 	function clearCartWorkspace() {
@@ -1226,16 +1205,41 @@ export function ChatDraftsPanel({
 	}
 
 	function requestSubmitEditor() {
-		if (!editor || !canPersist || submitMutation.isPending) return
+		if (!editor || !canPersist) return
 		setActionsMenuOpen(false)
 		setConfirmCartAddOpen(false)
 		setConfirmSubmitOpen(true)
 	}
 
 	function confirmSubmitEditor() {
-		if (!editor || !canPersist || submitMutation.isPending) return
+		if (!editor || !canPersist) return
 		setConfirmSubmitOpen(false)
-		submitMutation.mutate(editor)
+		applyQuoteCartSnapshot(useDraftQuoteStore, {
+			globalNote: editor.notes,
+			items: editor.items.flatMap((item) => {
+				const productId = item.catalogProductId
+				if (!productId) return []
+				return [
+					{
+						category: item.category,
+						categoryName: item.category,
+						categoryNameAr: item.category,
+						imageUrl: item.imageUrl,
+						name: item.productName,
+						nameAr: item.productNameAr,
+						note: item.notes ?? '',
+						productId,
+						quantity: item.quantity,
+						slug: productId,
+						unitOfMeasure: item.unitOfMeasure,
+						unitOfMeasureAr: item.unitOfMeasureAr,
+					},
+				]
+			}),
+		})
+		setPendingProjectId(editor.projectId ?? undefined)
+		setPendingQuoteDraftId(editor.id ?? undefined)
+		setDraftQuoteOpen(true)
 	}
 
 	function duplicateEditor() {
@@ -1250,6 +1254,7 @@ export function ChatDraftsPanel({
 			items: editor.items.map(itemWithoutNotes),
 			name: t('orders.copyName', { name }),
 			notes: editor.notes,
+			projectId: editor.projectId,
 			reference: null,
 			sessionKey: `draft:temp:${crypto.randomUUID()}`,
 		}
@@ -1286,26 +1291,6 @@ export function ChatDraftsPanel({
 			return
 		}
 		setConfirmDeleteId(deleteKey)
-	}
-
-	if (submittedReference) {
-		return (
-			<motion.section
-				key="draft-submitted-panel"
-				className={`flex min-h-0 flex-col overflow-hidden bg-[var(--p-bg)] text-[var(--p-text)] ${className}`}
-				initial={shouldReduceMotion ? false : { opacity: 0.92 }}
-				animate={{ opacity: 1 }}
-				transition={{
-					duration: shouldReduceMotion ? 0.01 : 0.18,
-					ease: CHAT_DRAFT_EASE,
-				}}
-			>
-				<SubmittedDraftPanel
-					reference={submittedReference}
-					shouldReduceMotion={shouldReduceMotion}
-				/>
-			</motion.section>
-		)
 	}
 
 	return (
@@ -1465,42 +1450,50 @@ export function ChatDraftsPanel({
 											{t('orders.newDraft')}
 										</button>
 									) : (
-										visibleDrafts.map((draft) => {
-											const isActive = activeDraftKey === draft.id
-											const title =
-												draft.name ??
-												draft.reference ??
-												t('market.defaultDraftName')
-											return (
-												<button
-													key={draft.id}
-													type="button"
-													onClick={() => selectDraft(draft)}
-													className={`flex h-12 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start transition-colors ${
-														isActive
-															? 'bg-[var(--p-accent-dim)] text-[var(--p-accent)]'
-															: 'text-[var(--p-text)] hover:bg-[var(--p-hover)]'
-													}`}
-												>
-													<FilePenLine
-														size={14}
-														strokeWidth={1.7}
-														className="shrink-0"
-													/>
-													<span className="min-w-0 flex-1">
-														<span className="block truncate text-[12px] font-semibold">
-															{title}
-														</span>
-														<span className="block truncate text-[10px] text-[var(--p-text-muted)]">
-															{formatDraftDate(draft.date, isAr)}
-														</span>
-													</span>
-													<span className="voice-mono shrink-0 text-[10px] text-[var(--p-text-muted)]">
-														{draft.itemCount}
-													</span>
-												</button>
-											)
-										})
+										visibleDraftGroups.map((group) => (
+											<div key={group.id ?? 'independent'} className="pt-1">
+												<div className="flex items-center gap-2 px-2 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--p-text-faint)]">
+													<FolderKanban size={12} strokeWidth={1.6} />
+													<span className="truncate">{group.name}</span>
+												</div>
+												{group.drafts.map((draft) => {
+													const isActive = activeDraftKey === draft.id
+													const title =
+														draft.name ??
+														draft.reference ??
+														t('market.defaultDraftName')
+													return (
+														<button
+															key={draft.id}
+															type="button"
+															onClick={() => selectDraft(draft)}
+															className={`flex h-12 w-full min-w-0 items-center gap-2 rounded-lg px-2 text-start transition-colors ${
+																isActive
+																	? 'bg-[var(--p-accent-dim)] text-[var(--p-accent)]'
+																	: 'text-[var(--p-text)] hover:bg-[var(--p-hover)]'
+															}`}
+														>
+															<FilePenLine
+																size={14}
+																strokeWidth={1.7}
+																className="shrink-0"
+															/>
+															<span className="min-w-0 flex-1">
+																<span className="block truncate text-[12px] font-semibold">
+																	{title}
+																</span>
+																<span className="block truncate text-[10px] text-[var(--p-text-muted)]">
+																	{formatDraftDate(draft.date, isAr)}
+																</span>
+															</span>
+															<span className="voice-mono shrink-0 text-[10px] text-[var(--p-text-muted)]">
+																{draft.itemCount}
+															</span>
+														</button>
+													)
+												})}
+											</div>
+										))
 									)}
 								</div>
 							</motion.div>
@@ -1530,6 +1523,28 @@ export function ChatDraftsPanel({
 										placeholder={t('orders.orderName')}
 										className="h-10 w-full rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
 									/>
+								</label>
+
+								<label className="block">
+									<span className="mb-1.5 block text-[11px] font-semibold text-[var(--p-text-muted)]">
+										{t('projectsPage.workspace')}
+									</span>
+									<select
+										value={editor.projectId ?? ''}
+										onChange={(event) =>
+											updateEditor({
+												projectId: event.currentTarget.value || null,
+											})
+										}
+										className="h-10 w-full rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] text-[var(--p-text)] outline-none transition-colors focus:border-[var(--p-border-strong)]"
+									>
+										<option value="">{t('projectsPage.independent')}</option>
+										{projects.map((project) => (
+											<option key={project.id} value={project.id}>
+												{project.name}
+											</option>
+										))}
+									</select>
 								</label>
 
 								<label className="block">
@@ -1932,12 +1947,6 @@ export function ChatDraftsPanel({
 				</p>
 			)}
 
-			{submitError && (
-				<p className="shrink-0 border-t border-[var(--p-border)] px-4 py-2 text-[12px] font-medium text-[var(--p-error)]">
-					{submitError}
-				</p>
-			)}
-
 			{editor && (
 				<footer className="shrink-0 border-t border-[var(--p-border)] px-4 py-3">
 					<AnimatePresence initial={false}>
@@ -2014,16 +2023,12 @@ export function ChatDraftsPanel({
 						<motion.button
 							type="button"
 							onClick={requestSubmitEditor}
-							disabled={!canPersist || submitMutation.isPending}
+							disabled={!canPersist}
 							className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-3 text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-45"
 							whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
 						>
 							<Send size={14} strokeWidth={1.7} />
-							<span className="truncate">
-								{submitMutation.isPending
-									? t('quoteBuilder.submitting')
-									: t('orders.submit')}
-							</span>
+							<span className="truncate">{t('orders.submit')}</span>
 						</motion.button>
 						<motion.button
 							type="button"
@@ -2125,94 +2130,6 @@ export function ChatDraftsPanel({
 				</footer>
 			)}
 		</section>
-	)
-}
-
-function SubmittedDraftPanel({
-	reference,
-	shouldReduceMotion,
-}: {
-	reference: string
-	shouldReduceMotion: boolean | null
-}) {
-	const { t } = useTranslation('portal')
-
-	return (
-		<div className="flex min-h-0 flex-1 items-center justify-center px-6 py-10 text-center">
-			<motion.div
-				className="flex max-w-[280px] flex-col items-center"
-				initial={
-					shouldReduceMotion ? false : { opacity: 0, y: 14, scale: 0.98 }
-				}
-				animate={{ opacity: 1, y: 0, scale: 1 }}
-				transition={{
-					duration: shouldReduceMotion ? 0.01 : 0.28,
-					ease: CHAT_DRAFT_EASE,
-				}}
-			>
-				<motion.div
-					className="relative flex h-20 w-20 items-center justify-center rounded-full bg-[var(--p-text)] text-[var(--p-bg)] shadow-[0_18px_45px_-24px_rgba(0,0,0,0.9)]"
-					initial={shouldReduceMotion ? false : { scale: 0.82 }}
-					animate={{ scale: 1 }}
-					transition={{
-						delay: shouldReduceMotion ? 0 : 0.04,
-						duration: shouldReduceMotion ? 0.01 : 0.32,
-						ease: CHAT_DRAFT_EASE,
-					}}
-				>
-					<motion.span
-						aria-hidden="true"
-						className="absolute inset-0 rounded-full border border-[var(--p-border)]"
-						initial={shouldReduceMotion ? false : { opacity: 0.42, scale: 1 }}
-						animate={
-							shouldReduceMotion
-								? { opacity: 0.24, scale: 1 }
-								: { opacity: 0, scale: 1.55 }
-						}
-						transition={{
-							delay: shouldReduceMotion ? 0 : 0.1,
-							duration: shouldReduceMotion ? 0.01 : 0.75,
-							ease: 'easeOut',
-						}}
-					/>
-					<motion.div
-						initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.86 }}
-						animate={{ opacity: 1, scale: 1 }}
-						transition={{
-							delay: shouldReduceMotion ? 0 : 0.16,
-							duration: shouldReduceMotion ? 0.01 : 0.22,
-							ease: CHAT_DRAFT_EASE,
-						}}
-					>
-						<Check size={38} strokeWidth={2.1} />
-					</motion.div>
-				</motion.div>
-				<motion.p
-					className="mt-5 text-[20px] font-semibold text-[var(--p-text)]"
-					initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{
-						delay: shouldReduceMotion ? 0 : 0.18,
-						duration: shouldReduceMotion ? 0.01 : 0.18,
-						ease: CHAT_DRAFT_EASE,
-					}}
-				>
-					{t('orders.draftSubmitted')}
-				</motion.p>
-				<motion.p
-					className="mt-2 text-[12px] font-medium text-[var(--p-text-muted)]"
-					initial={shouldReduceMotion ? false : { opacity: 0, y: 6 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{
-						delay: shouldReduceMotion ? 0 : 0.24,
-						duration: shouldReduceMotion ? 0.01 : 0.18,
-						ease: CHAT_DRAFT_EASE,
-					}}
-				>
-					{t('orders.draftSubmittedReady', { ref: reference })}
-				</motion.p>
-			</motion.div>
-		</div>
 	)
 }
 

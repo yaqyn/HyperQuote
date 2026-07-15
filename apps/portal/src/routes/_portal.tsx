@@ -263,6 +263,7 @@ function PortalShortcuts() {
 	const navigate = useNavigate()
 
 	useShortcut('O', () => navigate({ to: '/orders' }))
+	useShortcut('P', () => navigate({ to: '/projects' }))
 	useShortcut('M', () => navigate({ to: '/market' }))
 	useShortcut('N', () => navigate({ to: '/notifications' }))
 	useShortcut('[', () => usePortalStore.getState().toggleSidebar())

@@ -50,7 +50,10 @@ export interface Project {
 	name: string
 	description?: string
 	orderCount: number
+	draftCount: number
+	requestCount: number
 	createdAt: string
+	lastActivityAt: string
 	archived: boolean
 }
 

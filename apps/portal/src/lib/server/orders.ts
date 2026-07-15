@@ -216,6 +216,7 @@ function mapQuoteRequestToOrder(
 	return {
 		id: row.id,
 		linkedOrderId: linkedOrder?.id,
+		projectId: row.project_id ?? undefined,
 		type,
 		draftSource: type === 'saved' ? 'customer' : undefined,
 		status,
@@ -248,6 +249,7 @@ export const getAllCustomerOrders = createServerFn({ method: 'GET' }).handler(
 				submitted_at,
 				draft_name,
 				notes,
+				project_id,
 				quote_request_items (
 					id,
 					product_id,

@@ -2,6 +2,8 @@ import type {
 	QuoteDeliveryLocation,
 	QuoteDeliveryWindow,
 	QuoteLocationSearchResult,
+	QuoteProjectSummary,
+	QuoteRecentLocation,
 } from '@hyperquote/quote-cart/checkout'
 import {
 	isEgyptMobileInput,
@@ -17,6 +19,7 @@ import {
 	FlowSuccess,
 	LocationStep,
 	type NewAddressDraft,
+	ProjectStep,
 	QuoteFlowContentProvider,
 } from '@hyperquote/ui/quote-flow/QuoteFlowSteps'
 import type { QuoteLocationPoint } from '@hyperquote/ui/quote-flow/QuoteLocationMap'
@@ -26,6 +29,12 @@ import type { DateValue } from 'react-aria-components/DateField'
 import { useTranslation } from 'react-i18next'
 import { toDraftQuoteRequestItemPayloads } from '../../lib/draft-quote-cart'
 import {
+	createCustomerProject,
+	getCustomerProjects,
+	getCustomerQuoteProject,
+	getRecentDeliveryLocations,
+} from '../../lib/server/projects'
+import {
 	reversePortalQuoteLocation,
 	searchPortalQuoteLocations,
 } from '../../lib/server/quote-location'
@@ -33,11 +42,17 @@ import { submitQuoteRequest } from '../../lib/server/quote-requests'
 import { getCustomerProfile } from '../../lib/server/settings'
 import { unavailableItemNamesFromError } from '../../lib/unavailable-quote-items'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
+import { usePortalStore } from '../../stores/portal'
 
 const EMAIL_ADDRESS_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const CAIRO_TIME_ZONE = 'Africa/Cairo'
 
-type PortalQuoteFlowStep = 'agreement' | 'contact' | 'delivery' | 'location'
+type PortalQuoteFlowStep =
+	| 'agreement'
+	| 'contact'
+	| 'delivery'
+	| 'location'
+	| 'project'
 type PortalQuoteFlowPhase =
 	| PortalQuoteFlowStep
 	| 'failure'
@@ -81,6 +96,10 @@ export function PortalQuoteRequestDialog({
 	const items = useDraftQuoteStore((state) => state.items)
 	const globalNote = useDraftQuoteStore((state) => state.globalNote)
 	const clearCart = useDraftQuoteStore((state) => state.clear)
+	const pendingProjectId = usePortalStore((state) => state.pendingProjectId)
+	const setPendingProjectId = usePortalStore(
+		(state) => state.setPendingProjectId,
+	)
 	const quoteItems = useMemo(
 		() =>
 			toDraftQuoteRequestItemPayloads(items, {
@@ -89,6 +108,12 @@ export function PortalQuoteRequestDialog({
 		[i18n.language, items],
 	)
 	const [phase, setPhase] = useState<PortalQuoteFlowPhase>('loading')
+	const [projects, setProjects] = useState<QuoteProjectSummary[]>([])
+	const [projectId, setProjectId] = useState<string | null | undefined>()
+	const [projectCreating, setProjectCreating] = useState(false)
+	const [recentLocations, setRecentLocations] = useState<QuoteRecentLocation[]>(
+		[],
+	)
 	const [deliveryAddress, setDeliveryAddress] =
 		useState<QuoteDeliveryLocation | null>(null)
 	const [newAddress, setNewAddress] = useState<NewAddressDraft>(EMPTY_ADDRESS)
@@ -127,6 +152,9 @@ export function PortalQuoteRequestDialog({
 		setError(null)
 		setPending(false)
 		setSuccessReference('')
+		setProjects([])
+		setProjectId(undefined)
+		setRecentLocations([])
 		setLocationQuery('')
 		setLocationResults([])
 		setNewAddress(EMPTY_ADDRESS)
@@ -137,12 +165,24 @@ export function PortalQuoteRequestDialog({
 		setAgreementAccepted(false)
 		setIdempotencyKey(window.crypto.randomUUID())
 
-		void getCustomerProfile()
-			.then((profile) => {
+		void Promise.all([
+			getCustomerProfile(),
+			getCustomerProjects(),
+			getRecentDeliveryLocations(),
+			getCustomerQuoteProject({ data: { quoteRequestId: draftId } }),
+		])
+			.then(([profile, projectRows, locationRows, draftProject]) => {
 				if (!active) return
 				setContactEmail(profile.email ?? '')
 				setContactPhone(toEgyptMobileInput(profile.phone ?? ''))
-				setPhase('location')
+				setProjects(projectRows)
+				setRecentLocations(locationRows)
+				setProjectId(
+					draftProject.projectId === undefined
+						? pendingProjectId
+						: draftProject.projectId,
+				)
+				setPhase('project')
 			})
 			.catch(() => {
 				if (!active) return
@@ -153,7 +193,50 @@ export function PortalQuoteRequestDialog({
 		return () => {
 			active = false
 		}
-	}, [isOpen, t])
+	}, [draftId, isOpen, pendingProjectId, t])
+
+	async function createProject(name: string) {
+		setProjectCreating(true)
+		setError(null)
+		try {
+			const result = await createCustomerProject({ data: { name } })
+			setProjects((current) => [result.project, ...current])
+			setProjectId(result.project.id)
+		} catch {
+			setError(t('quoteFlow.errors.project'))
+		} finally {
+			setProjectCreating(false)
+		}
+	}
+
+	function chooseRecentLocation(location: QuoteRecentLocation) {
+		setMapFocusPoint({
+			latitude: location.latitude,
+			longitude: location.longitude,
+		})
+		setNewAddress({
+			area: location.area,
+			city: location.city,
+			governorate: location.governorate,
+			latitude: location.latitude,
+			locationName: location.locationName,
+			locationNameAr: location.locationNameAr,
+			longitude: location.longitude,
+			street: location.street,
+		})
+		setDeliveryAddress(null)
+		setLocationQuery(
+			i18n.language === 'ar' ? location.locationNameAr : location.locationName,
+		)
+		setLocationResults([])
+		setError(null)
+	}
+
+	function continueFromProject() {
+		if (projectId === undefined) return
+		setError(null)
+		setPhase('location')
+	}
 
 	async function searchLocation() {
 		const query = locationQuery.trim()
@@ -319,6 +402,7 @@ export function PortalQuoteRequestDialog({
 					idempotencyKey: idempotencyKey || window.crypto.randomUUID(),
 					items: quoteItems,
 					notes: globalNote.trim() || undefined,
+					projectId,
 					preferredDeliveryWindow: deliveryWindow,
 				},
 			})
@@ -340,8 +424,14 @@ export function PortalQuoteRequestDialog({
 		}
 	}
 
+	function closeDialog() {
+		setPendingProjectId(undefined)
+		onClose()
+	}
+
 	function goBack() {
 		setError(null)
+		if (phase === 'location') setPhase('project')
 		if (phase === 'delivery') setPhase('location')
 		if (phase === 'contact') setPhase('delivery')
 		if (phase === 'agreement') setPhase('contact')
@@ -356,27 +446,31 @@ export function PortalQuoteRequestDialog({
 				}
 			: null
 	const nextAction =
-		currentStep === 'location'
-			? continueFromLocation
-			: currentStep === 'delivery'
-				? continueFromDelivery
-				: currentStep === 'contact'
-					? continueFromContact
-					: submitQuote
+		currentStep === 'project'
+			? continueFromProject
+			: currentStep === 'location'
+				? continueFromLocation
+				: currentStep === 'delivery'
+					? continueFromDelivery
+					: currentStep === 'contact'
+						? continueFromContact
+						: submitQuote
 	const nextDisabled =
-		currentStep === 'location'
-			? !mapPoint ||
-				locationResolving ||
-				!newAddress.locationName.trim() ||
-				!newAddress.locationNameAr.trim()
-			: currentStep === 'delivery'
-				? !deliveryDate || !deliveryWindow
-				: currentStep === 'contact'
-					? !EMAIL_ADDRESS_REGEX.test(contactEmail.trim()) ||
-						!isEgyptMobileInput(contactPhone)
-					: currentStep === 'agreement'
-						? !agreementAccepted
-						: false
+		currentStep === 'project'
+			? projectId === undefined
+			: currentStep === 'location'
+				? !mapPoint ||
+					locationResolving ||
+					!newAddress.locationName.trim() ||
+					!newAddress.locationNameAr.trim()
+				: currentStep === 'delivery'
+					? !deliveryDate || !deliveryWindow
+					: currentStep === 'contact'
+						? !EMAIL_ADDRESS_REGEX.test(contactEmail.trim()) ||
+							!isEgyptMobileInput(contactPhone)
+						: currentStep === 'agreement'
+							? !agreementAccepted
+							: false
 	const requirementMessage = currentStep
 		? t(`quoteFlow.requirements.${currentStep}`)
 		: null
@@ -396,8 +490,8 @@ export function PortalQuoteRequestDialog({
 					? t('quoteFlow.submit')
 					: t('quoteFlow.next')
 			}
-			onBack={currentStep && currentStep !== 'location' ? goBack : undefined}
-			onClose={onClose}
+			onBack={currentStep && currentStep !== 'project' ? goBack : undefined}
+			onClose={closeDialog}
 			onNext={currentStep ? nextAction : undefined}
 			pending={pending}
 			requirementMessage={requirementMessage}
@@ -405,6 +499,15 @@ export function PortalQuoteRequestDialog({
 		>
 			<QuoteFlowContentProvider namespace="portal">
 				{phase === 'loading' && <FlowLoading />}
+				{phase === 'project' && (
+					<ProjectStep
+						creating={projectCreating}
+						onCreate={createProject}
+						onSelect={setProjectId}
+						projects={projects}
+						selectedProjectId={projectId}
+					/>
+				)}
 				{phase === 'location' && (
 					<LocationStep
 						locationQuery={locationQuery}
@@ -418,6 +521,8 @@ export function PortalQuoteRequestDialog({
 						onMapPointChange={chooseMapPoint}
 						onSearch={searchLocation}
 						onSearchResult={chooseLocationResult}
+						onRecentLocation={chooseRecentLocation}
+						recentLocations={recentLocations}
 					/>
 				)}
 				{phase === 'delivery' && (
@@ -467,6 +572,7 @@ export function PortalQuoteRequestDialog({
 
 function isFlowStep(phase: PortalQuoteFlowPhase): phase is PortalQuoteFlowStep {
 	return (
+		phase === 'project' ||
 		phase === 'location' ||
 		phase === 'delivery' ||
 		phase === 'contact' ||

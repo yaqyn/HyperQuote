@@ -266,6 +266,7 @@ interface SupabaseQuoteBuilderRequestRow {
 	request_contact_email: string | null
 	request_contact_phone: string | null
 	notes: string | null
+	project_id: string | null
 	customers:
 		| SupabaseQuoteBuilderCustomerRow
 		| SupabaseQuoteBuilderCustomerRow[]
@@ -275,6 +276,85 @@ interface SupabaseQuoteBuilderRequestRow {
 		| SupabaseQuoteBuilderAddressRow[]
 		| null
 	quote_request_items: SupabaseQuoteBuilderItemRow[] | null
+}
+
+interface SupabaseCustomerProjectRow {
+	archived: boolean
+	created_at: string
+	description: string | null
+	id: string
+	last_activity_at: string
+	name: string
+}
+
+interface SupabaseCustomerProjectRequestRow {
+	id: string
+	project_id: string | null
+	request_number: string
+	status: string
+	updated_at: string
+	orders: { id: string }[] | { id: string } | null
+}
+
+export interface SalesCustomerProjectWorkspace {
+	archived: boolean
+	createdAt: string
+	description: string | null
+	id: string
+	lastActivityAt: string
+	name: string
+	records: Array<{
+		hasOrder: boolean
+		id: string
+		reference: string
+		status: string
+		updatedAt: string
+	}>
+}
+
+async function getSalesCustomerProjectWorkspaces(
+	auth: Awaited<ReturnType<typeof getInternalSupabaseClient>>,
+	customerId: string,
+): Promise<SalesCustomerProjectWorkspace[]> {
+	const [projectsResult, requestsResult] = await Promise.all([
+		auth.client
+			.from('projects')
+			.select('id, name, description, archived, created_at, last_activity_at')
+			.eq('customer_id', customerId)
+			.eq('archived', false)
+			.order('last_activity_at', { ascending: false }),
+		auth.client
+			.from('quote_requests')
+			.select('id, project_id, request_number, status, updated_at, orders(id)')
+			.eq('customer_id', customerId)
+			.not('project_id', 'is', null),
+	])
+	if (projectsResult.error) throw new Error(projectsResult.error.message)
+	if (requestsResult.error) throw new Error(requestsResult.error.message)
+
+	const requests = (requestsResult.data ??
+		[]) as SupabaseCustomerProjectRequestRow[]
+	return ((projectsResult.data ?? []) as SupabaseCustomerProjectRow[]).map(
+		(project) => ({
+			archived: project.archived,
+			createdAt: project.created_at,
+			description: project.description,
+			id: project.id,
+			lastActivityAt: project.last_activity_at,
+			name: project.name,
+			records: requests
+				.filter((request) => request.project_id === project.id)
+				.map((request) => ({
+					hasOrder: Array.isArray(request.orders)
+						? request.orders.length > 0
+						: Boolean(request.orders),
+					id: request.id,
+					reference: request.request_number,
+					status: request.status,
+					updatedAt: request.updated_at,
+				})),
+		}),
+	)
 }
 
 interface SupabaseQuoteBuilderSupplierLinkRow {
@@ -747,6 +827,7 @@ async function buildSupabaseQuoteBuilderData(
 			request_contact_email,
 			request_contact_phone,
 			notes,
+			project_id,
 			customers (
 				id,
 				company_name,
@@ -834,6 +915,9 @@ async function buildSupabaseQuoteBuilderData(
 						buildSupabaseSuggestedProductFromRequestItem(item, rfqId, index),
 					)
 	const customer = firstRelation(request.customers)
+	const projects = request.customer_id
+		? await getSalesCustomerProjectWorkspaces(auth, request.customer_id)
+		: []
 	const address = firstRelation(request.customer_addresses)
 	const salesAddress = isSalesQuoteAddress(address) ? address : null
 	const deliveryAddress =
@@ -844,6 +928,9 @@ async function buildSupabaseQuoteBuilderData(
 
 	return {
 		rfqId,
+		customerId: request.customer_id,
+		projectId: request.project_id,
+		projects,
 		rfqStatus: request.status,
 		quoteStatus: 'draft' as const,
 		customer: {
@@ -921,9 +1008,13 @@ async function buildSupabaseManualCustomerQuoteData(
 	if (!data) return null
 
 	const customer = data as unknown as SupabaseQuoteBuilderCustomerRow
+	const projects = await getSalesCustomerProjectWorkspaces(auth, customer.id)
 
 	return {
 		rfqId,
+		customerId: customer.id,
+		projectId: null,
+		projects,
 		rfqStatus: 'submitted' as const,
 		quoteStatus: 'draft' as const,
 		customer: {
@@ -977,6 +1068,9 @@ async function buildEmptyManualQuoteData(
 
 	return {
 		rfqId,
+		customerId: null,
+		projectId: null,
+		projects: [] as SalesCustomerProjectWorkspace[],
 		rfqStatus: 'submitted' as const,
 		quoteStatus: 'draft' as const,
 		customer: {
@@ -1217,6 +1311,48 @@ export const getQuoteBuilderData = createServerFn({ method: 'POST' })
 	.handler(async ({ data }) => {
 		return await buildQuoteBuilderData(data.rfqId)
 	})
+
+export const setSalesQuoteRequestProject = createServerFn({ method: 'POST' })
+	.inputValidator(
+		z.object({
+			projectId: z.string().uuid().nullable(),
+			quoteRequestId: z.string().uuid(),
+		}),
+	)
+	.handler(
+		async ({
+			data,
+		}): Promise<{
+			projectId: string | null
+			projects: SalesCustomerProjectWorkspace[]
+		}> => {
+			const auth = await getInternalSupabaseClient({
+				panel: 'sales',
+				writeRequired: true,
+			})
+			const { error } = await auth.client.rpc(
+				'sales_set_quote_request_project',
+				{
+					p_project_id: data.projectId,
+					p_quote_request_id: data.quoteRequestId,
+				},
+			)
+			if (error) throw new Error(error.message)
+
+			const { data: request, error: requestError } = await auth.client
+				.from('quote_requests')
+				.select('customer_id, project_id')
+				.eq('id', data.quoteRequestId)
+				.single()
+			if (requestError) throw new Error(requestError.message)
+			return {
+				projectId: request.project_id,
+				projects: request.customer_id
+					? await getSalesCustomerProjectWorkspaces(auth, request.customer_id)
+					: [],
+			}
+		},
+	)
 
 export const recordSalesCallOutcome = createServerFn({ method: 'POST' })
 	.inputValidator(

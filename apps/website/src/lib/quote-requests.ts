@@ -49,6 +49,7 @@ const submitWebsiteQuoteInput = z.object({
 	items: z.array(quoteRequestItemInput).min(1).max(100),
 	name: z.string().max(120).optional(),
 	notes: z.string().max(2000).optional(),
+	projectId: z.string().uuid().nullable().optional(),
 	preferredDeliveryWindow: z.enum(QUOTE_DELIVERY_WINDOW_IDS),
 })
 
@@ -57,6 +58,7 @@ const saveWebsiteQuoteDraftInput = z.object({
 	items: z.array(quoteRequestItemInput).min(1).max(100),
 	name: z.string().max(120).optional(),
 	notes: z.string().max(2000).optional(),
+	projectId: z.string().uuid().nullable().optional(),
 })
 
 const validateWebsiteQuoteItemsInput = z.object({
@@ -96,6 +98,7 @@ const savedDraftRow = z.object({
 	draft_name: z.string().nullable(),
 	id: z.string(),
 	notes: z.string().nullable(),
+	project_id: z.string().nullable(),
 	quote_request_items: z.array(savedDraftItemRow).nullable(),
 	request_number: z.string(),
 	updated_at: z.string(),
@@ -124,6 +127,7 @@ export interface WebsiteSavedQuoteDraft {
 	date: string
 	itemCount: number
 	items: WebsiteSavedQuoteDraftItem[]
+	projectId: string | null
 }
 
 const UNAVAILABLE_QUOTE_ITEMS_ERROR = 'unavailable_quote_items:'
@@ -227,6 +231,7 @@ function mapSavedDraftRow(
 		date: row.updated_at || row.created_at,
 		itemCount: items.length,
 		items,
+		projectId: row.project_id,
 	}
 }
 
@@ -319,6 +324,7 @@ export const getWebsiteSavedQuoteDrafts = createServerFn({
 					notes,
 					created_at,
 					updated_at,
+					project_id,
 					quote_request_items (
 						id,
 						product_id,
@@ -410,6 +416,23 @@ async function assertQuoteRequestItemsOrderable(
 	}
 }
 
+async function assertWebsiteProjectOwned(
+	client: WebsiteCustomerSupabaseClient,
+	customerId: string,
+	projectId: string | null | undefined,
+) {
+	if (!projectId) return
+	const { data, error } = await client
+		.from('projects')
+		.select('id')
+		.eq('id', projectId)
+		.eq('customer_id', customerId)
+		.eq('archived', false)
+		.maybeSingle()
+	if (error) throw error
+	if (!data) throw new Error('Project was not found')
+}
+
 export const validateWebsiteQuoteItems = createServerFn({ method: 'POST' })
 	.inputValidator(validateWebsiteQuoteItemsInput)
 	.handler(async ({ data: input }): Promise<{ unavailableItems: string[] }> => {
@@ -453,6 +476,11 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 				if (!isValidQuoteDeliveryDate(input.deliveryDate)) {
 					return { success: false, error: 'invalid_details' }
 				}
+				await assertWebsiteProjectOwned(
+					auth.client,
+					auth.customerId,
+					input.projectId,
+				)
 				const deliverySnapshot = {
 					delivery_address_id: null,
 					delivery_address_text: formatQuoteRequestAddress(
@@ -519,6 +547,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 						preferred_delivery_window: input.preferredDeliveryWindow,
 						request_contact_email: input.contactEmail,
 						request_contact_phone: input.contactPhone,
+						project_id: input.projectId ?? null,
 						...(input.notes === undefined
 							? {}
 							: { notes: normalizeNotes(input.notes) }),
@@ -578,6 +607,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 						idempotency_key: input.idempotencyKey,
 						notes: normalizeNotes(input.notes),
 						preferred_delivery_window: input.preferredDeliveryWindow,
+						project_id: input.projectId ?? null,
 						request_contact_email: input.contactEmail,
 						request_contact_phone: input.contactPhone,
 						status: 'draft',
@@ -650,6 +680,11 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 				if ('error' in auth) {
 					return { success: false, error: auth.error ?? 'save_failed' }
 				}
+				await assertWebsiteProjectOwned(
+					auth.client,
+					auth.customerId,
+					input.projectId,
+				)
 				await assertQuoteRequestItemsOrderable(auth.client, input.items)
 
 				if (input.draftId) {
@@ -658,6 +693,7 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 						.update({
 							draft_name: normalizeDraftName(input.name),
 							notes: normalizeNotes(input.notes),
+							project_id: input.projectId ?? null,
 						})
 						.eq('id', input.draftId)
 						.eq('customer_id', auth.customerId)
@@ -713,6 +749,7 @@ export const saveWebsiteQuoteDraft = createServerFn({ method: 'POST' })
 						notes: normalizeNotes(input.notes),
 						attachment_urls: [],
 						approval_required: false,
+						project_id: input.projectId ?? null,
 					})
 					.select('id, request_number')
 					.single()

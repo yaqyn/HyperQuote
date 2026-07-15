@@ -7,6 +7,7 @@ interface SavedWebsiteDraftLink {
 	draftId: string
 	fingerprint: string
 	name: string
+	projectId: string | null
 	reference: string
 }
 
