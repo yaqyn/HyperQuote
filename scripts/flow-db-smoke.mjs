@@ -172,6 +172,22 @@ async function assertCustomerToSalesToDeliveryFlow(
 		submitted.status === 'submitted',
 		'customer submit RPC must submit draft',
 	)
+	const { data: submittedLocation, error: submittedLocationError } =
+		await service
+			.from('quote_requests')
+			.select('delivery_location_name, delivery_location_name_ar')
+			.eq('id', draft.id)
+			.single()
+	if (submittedLocationError || !submittedLocation) {
+		throw new Error(
+			submittedLocationError?.message ?? 'Submitted location names are missing',
+		)
+	}
+	assert(
+		Boolean(submittedLocation.delivery_location_name?.trim()) &&
+			Boolean(submittedLocation.delivery_location_name_ar?.trim()),
+		'submitted quote must retain human-readable English and Arabic location names',
+	)
 
 	const employee = await signIn(env, ACCOUNTS.employee)
 	await mustRpc(employee.client, 'set_employee_presence', {

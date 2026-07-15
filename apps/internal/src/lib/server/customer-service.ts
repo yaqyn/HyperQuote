@@ -114,6 +114,7 @@ interface CustomerOrderRequestRow {
 	request_number: string
 	status: string
 	created_at: string
+	delivery_location_name: string | null
 	submitted_at: string | null
 	quote_request_items: { id: string }[] | null
 }
@@ -605,6 +606,7 @@ async function getCustomerOrdersByCustomerId(
 			request_number,
 			status,
 			created_at,
+			delivery_location_name,
 			submitted_at,
 			quote_request_items (
 				id
@@ -714,6 +716,7 @@ async function getCustomerOrdersByCustomerId(
 			totalAmount: order?.total_amount ?? 0,
 			currency: 'EGP',
 			createdAt: request.created_at,
+			deliveryLocationName: request.delivery_location_name,
 			lastActivityAt: latestIso([
 				request.submitted_at,
 				request.created_at,

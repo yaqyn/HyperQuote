@@ -258,6 +258,7 @@ interface SupabaseQuoteBuilderRequestRow {
 	delivery_address_id: string | null
 	delivery_address_text: string | null
 	delivery_latitude: number | string | null
+	delivery_location_name: string | null
 	delivery_longitude: number | string | null
 	status: string
 	delivery_date: string | null
@@ -738,6 +739,7 @@ async function buildSupabaseQuoteBuilderData(
 			delivery_address_id,
 			delivery_address_text,
 			delivery_latitude,
+			delivery_location_name,
 			delivery_longitude,
 			status,
 			delivery_date,
@@ -835,6 +837,7 @@ async function buildSupabaseQuoteBuilderData(
 	const address = firstRelation(request.customer_addresses)
 	const salesAddress = isSalesQuoteAddress(address) ? address : null
 	const deliveryAddress =
+		request.delivery_location_name ??
 		request.delivery_address_text ??
 		savedNotes.deliveryAddress ??
 		formatSupabaseAddress(salesAddress)

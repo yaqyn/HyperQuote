@@ -13,6 +13,12 @@
 			"contact": "Contact",
 			"agreement": "Review"
 		},
+		"requirements": {
+			"location": "Choose the exact delivery point on the map to continue.",
+			"delivery": "Choose a delivery date and time window to continue.",
+			"contact": "Enter a valid email and Egyptian mobile number to continue.",
+			"agreement": "Review and accept the contact statement to send your request."
+		},
 		"auth": {
 			"eyebrow": "Your account",
 			"heading": "Sign in to continue",

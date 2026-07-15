@@ -53,6 +53,8 @@ export interface NewAddressDraft {
 	city: string
 	governorate: string
 	latitude: number | null
+	locationName: string
+	locationNameAr: string
 	longitude: number | null
 	street: string
 }
@@ -120,7 +122,7 @@ export function LocationStep({
 	onSearch: () => void
 	onSearchResult: (result: QuoteLocationSearchResult) => void
 }) {
-	const { t } = useQuoteFlowTranslation()
+	const { t, i18n } = useQuoteFlowTranslation()
 
 	return (
 		<div className="grid min-h-full lg:grid-cols-[minmax(320px,0.82fr)_minmax(360px,1.18fr)]">
@@ -192,7 +194,10 @@ export function LocationStep({
 							)}
 						</div>
 						<p className="text-[12px] font-semibold leading-5 text-[var(--color-text)]">
-							{formatQuoteRequestAddress(newAddress) ||
+							{(i18n.language === 'ar'
+								? newAddress.locationNameAr
+								: newAddress.locationName) ||
+								formatQuoteRequestAddress(newAddress) ||
 								t('quoteFlow.location.resolving')}
 						</p>
 						<p className="mt-2 font-mono text-[10px] tabular-nums text-[var(--color-text-subtle)]">
@@ -453,7 +458,11 @@ export function AgreementStep({
 					/>
 					<SummaryLine
 						label={t('quoteFlow.agreement.location')}
-						value={formatQuoteRequestAddress(address)}
+						value={
+							i18n.language === 'ar'
+								? address.locationNameAr
+								: address.locationName
+						}
 					/>
 					<SummaryLine
 						label={t('quoteFlow.agreement.delivery')}
@@ -465,13 +474,22 @@ export function AgreementStep({
 					/>
 				</div>
 			</div>
-			<label className="mt-7 flex cursor-pointer items-start gap-3 rounded-[12px] border border-[var(--site-rule,var(--color-border))] p-4 transition-colors hover:border-[var(--color-primary)]/35">
+			<label
+				className={`mt-7 flex cursor-pointer items-start gap-3 rounded-[12px] border p-4 transition-colors ${
+					accepted
+						? 'border-[var(--site-rule,var(--color-border))] hover:border-[var(--color-primary)]/35'
+						: 'border-[var(--color-primary)]/55 bg-[var(--color-primary)]/[0.035]'
+				}`}
+			>
 				<input
 					type="checkbox"
 					checked={accepted}
 					onChange={(event) => onAcceptedChange(event.currentTarget.checked)}
-					className="mt-0.5 h-4 w-4 accent-[var(--color-primary)]"
+					className="peer sr-only"
 				/>
+				<span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border border-[#a8afb9] bg-white text-transparent shadow-[inset_0_0_0_1px_rgba(255,255,255,0.7)] transition-colors peer-checked:border-[var(--color-primary)] peer-checked:bg-[var(--color-primary)] peer-checked:text-white peer-focus-visible:ring-3 peer-focus-visible:ring-[var(--color-primary)]/25 dark:border-white/35 dark:bg-white/10 dark:peer-checked:bg-[var(--color-primary)]">
+					<Check size={11} strokeWidth={2.5} aria-hidden="true" />
+				</span>
 				<span className="text-[12px] leading-5 text-[var(--color-text-muted)]">
 					{t('quoteFlow.agreement.checkbox')}
 				</span>

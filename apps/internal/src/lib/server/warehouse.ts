@@ -149,6 +149,7 @@ interface SupabaseLoadingRequestRow {
 	id: string
 	request_number: string
 	delivery_date: string | null
+	delivery_location_name: string | null
 	created_at: string
 	customer_addresses:
 		| SupabaseLoadingAddressRow
@@ -467,6 +468,7 @@ async function getSupabaseLoadingData(orderId?: string) {
 				id,
 				request_number,
 				delivery_date,
+				delivery_location_name,
 				created_at,
 				customer_addresses (
 					label,
@@ -594,7 +596,8 @@ function buildSupabaseLoadingRow(
 		quoteNumber: order.order_number || request.request_number,
 		customerName: customer.company_name,
 		customerTier: customer.status || 'standard',
-		deliveryAddress: formatSupabaseAddress(salesAddress),
+		deliveryAddress:
+			request.delivery_location_name ?? formatSupabaseAddress(salesAddress),
 		deliveryCity: salesAddress?.city ?? '',
 		deliveryUrgencyDays: supabaseDeliveryUrgencyDays(request.delivery_date),
 		itemCount: items.length,

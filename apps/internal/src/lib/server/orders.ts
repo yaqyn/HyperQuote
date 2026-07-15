@@ -111,6 +111,7 @@ interface SupabaseOrderRequestRow {
 	id: string
 	request_number: string
 	delivery_date: string | null
+	delivery_location_name: string | null
 	customer_addresses: SupabaseOrderAddressRow | SupabaseOrderAddressRow[] | null
 	quote_request_items: SupabaseOrderRequestItemRow[] | null
 }
@@ -238,7 +239,8 @@ function buildSupabaseOrder(
 		customerPoNumber: null,
 		acceptedAt: order.created_at,
 		acceptedHoursAgo: hoursAgo(order.created_at),
-		deliveryAddress: formatSupabaseAddress(salesAddress),
+		deliveryAddress:
+			request.delivery_location_name ?? formatSupabaseAddress(salesAddress),
 		deliveryCity: salesAddress?.city ?? '',
 		deliveryUrgencyDays: deliveryUrgencyDays(request.delivery_date),
 		items,
@@ -275,6 +277,7 @@ async function getSupabaseCustomerOrders(orderId?: string) {
 				id,
 				request_number,
 				delivery_date,
+				delivery_location_name,
 				customer_addresses (
 					label,
 					street,

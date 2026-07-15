@@ -147,6 +147,7 @@ interface SupabaseDispatchRequestRow {
 	id: string
 	request_number: string
 	delivery_date: string | null
+	delivery_location_name: string | null
 	created_at: string
 	customer_addresses:
 		| SupabaseDispatchAddressRow
@@ -416,6 +417,7 @@ async function getSupabaseDispatchData(orderId?: string) {
 				id,
 				request_number,
 				delivery_date,
+				delivery_location_name,
 				created_at,
 				customer_addresses (
 					label,
@@ -682,7 +684,8 @@ function buildSupabaseRoute(
 		customerName: customer.company_name,
 		customerPhone: customer.phone,
 		customerContactName: customer.contact_name,
-		deliveryAddress: formatSupabaseAddress(salesAddress),
+		deliveryAddress:
+			request.delivery_location_name ?? formatSupabaseAddress(salesAddress),
 		deliveryCity: city,
 		deliveryUrgencyDays: supabaseDeliveryUrgencyDays(request.delivery_date),
 		items,

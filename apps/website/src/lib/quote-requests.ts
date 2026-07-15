@@ -32,6 +32,8 @@ const quoteDeliveryLocationInput = z.object({
 	city: z.string().trim().min(1).max(160),
 	governorate: z.string().trim().min(1).max(160),
 	latitude: z.number().min(21.7).max(31.8),
+	locationName: z.string().trim().min(3).max(1000),
+	locationNameAr: z.string().trim().min(3).max(1000),
 	longitude: z.number().min(24.6).max(36.9),
 	street: z.string().trim().min(1).max(500),
 })
@@ -457,6 +459,8 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 						input.deliveryLocation,
 					),
 					delivery_latitude: input.deliveryLocation.latitude,
+					delivery_location_name: input.deliveryLocation.locationName,
+					delivery_location_name_ar: input.deliveryLocation.locationNameAr,
 					delivery_longitude: input.deliveryLocation.longitude,
 				}
 				await assertQuoteRequestItemsOrderable(auth.client, input.items)

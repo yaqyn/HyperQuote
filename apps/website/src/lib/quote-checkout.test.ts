@@ -25,9 +25,30 @@ describe('website quote location results', () => {
 				governorate: 'Cairo Governorate',
 				id: '42',
 				latitude: 30.0444,
+				locationName: '12 90 Street, New Cairo, Cairo, Cairo Governorate',
 				longitude: 31.2357,
 				street: '12 90 Street',
 			},
+		)
+	})
+
+	it('keeps every useful locality level in a detailed map name', () => {
+		assert.equal(
+			toWebsiteQuoteLocationResult({
+				address: {
+					city: 'Cairo',
+					city_district: 'New Cairo',
+					road: 'The Ring Road',
+					state: 'Cairo Governorate',
+					suburb: 'Mirage City',
+				},
+				display_name:
+					'The Ring Road, Mirage City, New Cairo, Cairo, Cairo Governorate, Egypt',
+				lat: '30.027411',
+				lon: '31.474922',
+				place_id: 44,
+			})?.locationName,
+			'The Ring Road, Mirage City, New Cairo, Cairo, Cairo Governorate',
 		)
 	})
 

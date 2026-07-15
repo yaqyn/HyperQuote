@@ -3,6 +3,7 @@ import type {
 	QuoteLocationSearchResult,
 	QuoteRequestAddress,
 } from '@hyperquote/quote-cart/checkout'
+import { buildDetailedQuoteLocationName } from '@hyperquote/quote-cart/checkout'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
@@ -61,7 +62,10 @@ const searchCache = new Map<
 >()
 const reverseCache = new Map<
 	string,
-	GeocodeCacheEntry<QuoteLocationSearchResult>
+	GeocodeCacheEntry<{
+		ar: QuoteLocationSearchResult
+		en: QuoteLocationSearchResult
+	}>
 >()
 
 function readGeocodeCache<T>(
@@ -189,9 +193,32 @@ export function toWebsiteQuoteLocationResult(
 		governorate: governorate || city,
 		id: String(row.place_id ?? `${latitude}:${longitude}`),
 		latitude,
+		locationName: buildDetailedQuoteLocationName(row.address, row.display_name),
 		longitude,
 		street,
 	}
+}
+
+async function fetchWebsiteReverseLocation(
+	input: z.infer<typeof reverseLocationInput>,
+	locale: 'ar' | 'en',
+): Promise<QuoteLocationSearchResult> {
+	const url = new URL('/reverse', NOMINATIM_BASE)
+	url.searchParams.set('format', 'jsonv2')
+	url.searchParams.set('addressdetails', '1')
+	url.searchParams.set('namedetails', '1')
+	url.searchParams.set('accept-language', locale)
+	url.searchParams.set('zoom', '18')
+	url.searchParams.set('lat', String(input.latitude))
+	url.searchParams.set('lon', String(input.longitude))
+	const parsed = nominatimReverseSchema.safeParse(await fetchNominatim(url))
+	if (!parsed.success) throw parsed.error
+	const result = toWebsiteQuoteLocationResult({
+		...parsed.data,
+		place_id: parsed.data.place_id ?? `${input.latitude}:${input.longitude}`,
+	})
+	if (!result) throw new Error('Nominatim returned invalid coordinates')
+	return result
 }
 
 function mapAddressRow(row: {
@@ -324,7 +351,12 @@ export const reverseWebsiteQuoteLocation = createServerFn({ method: 'POST' })
 		async ({
 			data: input,
 		}): Promise<
-			| { success: true; result: QuoteLocationSearchResult }
+			| {
+					success: true
+					result: QuoteLocationSearchResult
+					locationName: string
+					locationNameAr: string
+			  }
 			| {
 					success: false
 					error: 'not_authenticated' | 'rate_limited' | 'search_failed'
@@ -333,32 +365,40 @@ export const reverseWebsiteQuoteLocation = createServerFn({ method: 'POST' })
 			const auth = await getAuthenticatedWebsiteCustomer()
 			if ('error' in auth) return { success: false, error: 'not_authenticated' }
 
-			const cacheKey = `reverse:${input.locale}:${input.latitude.toFixed(5)}:${input.longitude.toFixed(5)}`
+			const cacheKey = `reverse:${input.latitude.toFixed(5)}:${input.longitude.toFixed(5)}`
 			const cached = readGeocodeCache(reverseCache, cacheKey)
-			if (cached) return { success: true, result: cached }
+			if (cached) {
+				return {
+					success: true,
+					result: cached[input.locale],
+					locationName: cached.en.locationName,
+					locationNameAr: cached.ar.locationName,
+				}
+			}
 			if (!(await allowGeocodingRequest())) {
 				return { success: false, error: 'rate_limited' }
 			}
 
 			try {
-				const url = new URL('/reverse', NOMINATIM_BASE)
-				url.searchParams.set('format', 'jsonv2')
-				url.searchParams.set('addressdetails', '1')
-				url.searchParams.set('accept-language', input.locale)
-				url.searchParams.set('zoom', '18')
-				url.searchParams.set('lat', String(input.latitude))
-				url.searchParams.set('lon', String(input.longitude))
-				const payload = await fetchNominatim(url)
-				const parsed = nominatimReverseSchema.safeParse(payload)
-				if (!parsed.success) throw parsed.error
-				const result = toWebsiteQuoteLocationResult({
-					...parsed.data,
-					place_id: parsed.data.place_id ?? cacheKey,
-				})
-				if (!result) throw new Error('Nominatim returned invalid coordinates')
-				writeGeocodeCache(reverseCache, cacheKey, result)
+				const primary = await fetchWebsiteReverseLocation(input, input.locale)
+				await new Promise((resolve) => setTimeout(resolve, 1050))
+				const secondaryLocale = input.locale === 'ar' ? 'en' : 'ar'
+				const secondary = await fetchWebsiteReverseLocation(
+					input,
+					secondaryLocale,
+				)
+				const locations =
+					input.locale === 'ar'
+						? { ar: primary, en: secondary }
+						: { ar: secondary, en: primary }
+				writeGeocodeCache(reverseCache, cacheKey, locations)
 				await appendWebsiteAuthCookies(auth)
-				return { success: true, result }
+				return {
+					success: true,
+					result: primary,
+					locationName: locations.en.locationName,
+					locationNameAr: locations.ar.locationName,
+				}
 			} catch (error) {
 				logWebsiteServerError(
 					'website.quote_request.location_reverse_failed',

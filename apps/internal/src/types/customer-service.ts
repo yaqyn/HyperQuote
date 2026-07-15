@@ -54,6 +54,7 @@ export interface LinkedOrder {
 	totalAmount: number
 	currency: string
 	createdAt: string
+	deliveryLocationName: string | null
 	lastActivityAt: string
 }
 

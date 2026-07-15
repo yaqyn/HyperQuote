@@ -1103,6 +1103,15 @@ async function completeGuidedQuoteFlow(page: Page) {
 	).toBeVisible({ timeout: 15_000 })
 	await expect(flowDialog.locator('#quote-address-street')).toHaveCount(0)
 	await expect(flowDialog.locator('#delivery-address-manual')).toHaveCount(0)
+	const continueButton = flowDialog.getByRole('button', {
+		name: /Continue|متابعة/i,
+	})
+	await expect(continueButton).toBeDisabled()
+	await expect(
+		flowDialog.getByText(
+			/Choose the exact delivery point|اختر نقطة التوصيل الدقيقة/i,
+		),
+	).toBeVisible()
 	const mapCanvas = flowDialog.locator('.maplibregl-canvas')
 	await expect(mapCanvas).toBeVisible({ timeout: 15_000 })
 	const mapBox = await mapCanvas.boundingBox()
@@ -1113,7 +1122,8 @@ async function completeGuidedQuoteFlow(page: Page) {
 	await expect(
 		flowDialog.getByText(/Selected delivery point|نقطة التوصيل المختارة/i),
 	).toBeVisible({ timeout: 15_000 })
-	await flowDialog.getByRole('button', { name: /Continue|متابعة/i }).click()
+	await expect(continueButton).toBeEnabled()
+	await continueButton.click()
 
 	await expect(
 		flowDialog.getByRole('heading', {
@@ -1142,10 +1152,13 @@ async function completeGuidedQuoteFlow(page: Page) {
 	await expect(
 		flowDialog.getByRole('heading', { name: /Before you send|قبل الإرسال/i }),
 	).toBeVisible({ timeout: 15_000 })
+	const sendRequestButton = flowDialog.getByRole('button', {
+		name: /^Send request$|^إرسال الطلب$/i,
+	})
+	await expect(sendRequestButton).toBeDisabled()
 	await flowDialog.getByRole('checkbox').check()
-	await flowDialog
-		.getByRole('button', { name: /^Send request$|^إرسال الطلب$/i })
-		.click()
+	await expect(sendRequestButton).toBeEnabled()
+	await sendRequestButton.click()
 	await expect(
 		flowDialog.getByRole('heading', { name: /Request received|استلمنا طلبك/i }),
 	).toBeVisible({ timeout: 15_000 })
@@ -1230,7 +1243,7 @@ async function expectGuidedQuoteArtifactsSince(
 				const { data, error } = await service
 					.from('quote_requests')
 					.select(
-						'agreement_accepted_at, agreement_version, delivery_address_text, delivery_latitude, delivery_longitude, delivery_date, preferred_delivery_window, request_contact_email, request_contact_phone, submitted_at',
+						'agreement_accepted_at, agreement_version, delivery_address_text, delivery_location_name, delivery_location_name_ar, delivery_latitude, delivery_longitude, delivery_date, preferred_delivery_window, request_contact_email, request_contact_phone, submitted_at',
 					)
 					.gte('submitted_at', sinceIso)
 				if (error) return -1
@@ -1239,6 +1252,8 @@ async function expectGuidedQuoteArtifactsSince(
 						Boolean(row.agreement_accepted_at) &&
 						Boolean(row.agreement_version) &&
 						Boolean(row.delivery_address_text) &&
+						Boolean(row.delivery_location_name) &&
+						Boolean(row.delivery_location_name_ar) &&
 						row.delivery_latitude !== null &&
 						row.delivery_longitude !== null &&
 						Boolean(row.delivery_date) &&

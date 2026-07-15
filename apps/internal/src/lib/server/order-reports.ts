@@ -91,6 +91,7 @@ interface SupabaseReportRequestRow {
 	status: string
 	urgency: string
 	delivery_date: string | null
+	delivery_location_name: string | null
 	notes: string | null
 	rejected_reason: string | null
 	rejected_proof: unknown
@@ -899,6 +900,7 @@ async function getSupabaseOrderStatusIndex(): Promise<OrderStatusIndexRow[]> {
 					status: request.status,
 					urgency: request.urgency,
 					delivery_date: request.delivery_date,
+					delivery_location_name: null,
 					notes: null,
 					rejected_reason: null,
 					rejected_proof: null,
@@ -992,6 +994,7 @@ async function getSupabaseOrderReport(
 			status,
 			urgency,
 			delivery_date,
+			delivery_location_name,
 			notes,
 			rejected_reason,
 			rejected_proof,
@@ -1232,7 +1235,9 @@ async function getSupabaseOrderReport(
 				fact('Phone', customer?.phone),
 				fact(
 					'Delivery address',
-					savedNotes.deliveryAddress ?? formatSupabaseAddress(salesAddress),
+					request.delivery_location_name ??
+						savedNotes.deliveryAddress ??
+						formatSupabaseAddress(salesAddress),
 				),
 				fact('Delivery city', savedNotes.deliveryCity ?? salesAddress?.city),
 				fact('Urgency', `${deliveryUrgencyDays(request.delivery_date)}d`),

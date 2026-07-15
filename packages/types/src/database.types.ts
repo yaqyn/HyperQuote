@@ -3794,6 +3794,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -3826,6 +3828,8 @@ export type Database = {
 					delivery_address_text?: string | null
 					delivery_date?: string | null
 					delivery_latitude?: number | null
+					delivery_location_name?: string | null
+					delivery_location_name_ar?: string | null
 					delivery_longitude?: number | null
 					draft_name?: string | null
 					eligible_at?: string
@@ -3858,6 +3862,8 @@ export type Database = {
 					delivery_address_text?: string | null
 					delivery_date?: string | null
 					delivery_latitude?: number | null
+					delivery_location_name?: string | null
+					delivery_location_name_ar?: string | null
 					delivery_longitude?: number | null
 					draft_name?: string | null
 					eligible_at?: string
@@ -6158,6 +6164,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -6199,6 +6207,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -6451,6 +6461,8 @@ export type Database = {
 							delivery_address_text: string | null
 							delivery_date: string | null
 							delivery_latitude: number | null
+							delivery_location_name: string | null
+							delivery_location_name_ar: string | null
 							delivery_longitude: number | null
 							draft_name: string | null
 							eligible_at: string
@@ -6492,6 +6504,8 @@ export type Database = {
 							delivery_address_text: string | null
 							delivery_date: string | null
 							delivery_latitude: number | null
+							delivery_location_name: string | null
+							delivery_location_name_ar: string | null
 							delivery_longitude: number | null
 							draft_name: string | null
 							eligible_at: string
@@ -8019,6 +8033,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -8060,6 +8076,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -8202,6 +8220,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -8243,6 +8263,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -8316,6 +8338,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -8583,6 +8607,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -8651,6 +8677,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -8954,6 +8982,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -10481,6 +10511,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -10526,6 +10558,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -10686,6 +10720,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -10733,6 +10769,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string
@@ -10814,6 +10852,8 @@ export type Database = {
 					delivery_address_text: string | null
 					delivery_date: string | null
 					delivery_latitude: number | null
+					delivery_location_name: string | null
+					delivery_location_name_ar: string | null
 					delivery_longitude: number | null
 					draft_name: string | null
 					eligible_at: string

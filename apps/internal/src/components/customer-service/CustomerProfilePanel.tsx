@@ -489,6 +489,11 @@ function LinkedOrderRow({
 					<span className="mt-1 block truncate font-[family-name:var(--font-archivo)] text-[12px] italic text-[var(--color-text-muted)]">
 						{order.summary}
 					</span>
+					{order.deliveryLocationName && (
+						<span className="mt-1 block truncate font-[family-name:var(--font-archivo)] text-[11px] text-[var(--color-text-subtle)]">
+							{order.deliveryLocationName}
+						</span>
+					)}
 					<span className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-[family-name:var(--font-geist-mono)] text-[11px] tabular-nums text-[var(--color-text-subtle)]">
 						<span>
 							{order.totalAmount > 0

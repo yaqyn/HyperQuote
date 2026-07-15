@@ -49,6 +49,8 @@ const EMPTY_ADDRESS: NewAddressDraft = {
 	city: '',
 	governorate: '',
 	latitude: null,
+	locationName: '',
+	locationNameAr: '',
 	longitude: null,
 	street: '',
 }
@@ -229,6 +231,8 @@ export function PortalQuoteRequestDialog({
 				city: result.result.city,
 				governorate: result.result.governorate,
 				latitude: point.latitude,
+				locationName: result.locationName,
+				locationNameAr: result.locationNameAr,
 				longitude: point.longitude,
 				street: result.result.street,
 			})
@@ -247,7 +251,9 @@ export function PortalQuoteRequestDialog({
 			newAddress.longitude === null ||
 			!newAddress.street.trim() ||
 			!newAddress.city.trim() ||
-			!newAddress.governorate.trim()
+			!newAddress.governorate.trim() ||
+			!newAddress.locationName.trim() ||
+			!newAddress.locationNameAr.trim()
 		) {
 			setError(t('quoteFlow.location.addressRequired'))
 			return
@@ -257,6 +263,8 @@ export function PortalQuoteRequestDialog({
 			city: newAddress.city.trim(),
 			governorate: newAddress.governorate.trim(),
 			latitude: newAddress.latitude,
+			locationName: newAddress.locationName.trim(),
+			locationNameAr: newAddress.locationNameAr.trim(),
 			longitude: newAddress.longitude,
 			street: newAddress.street.trim(),
 		})
@@ -355,6 +363,23 @@ export function PortalQuoteRequestDialog({
 				: currentStep === 'contact'
 					? continueFromContact
 					: submitQuote
+	const nextDisabled =
+		currentStep === 'location'
+			? !mapPoint ||
+				locationResolving ||
+				!newAddress.locationName.trim() ||
+				!newAddress.locationNameAr.trim()
+			: currentStep === 'delivery'
+				? !deliveryDate || !deliveryWindow
+				: currentStep === 'contact'
+					? !EMAIL_ADDRESS_REGEX.test(contactEmail.trim()) ||
+						!isEgyptMobileInput(contactPhone)
+					: currentStep === 'agreement'
+						? !agreementAccepted
+						: false
+	const requirementMessage = currentStep
+		? t(`quoteFlow.requirements.${currentStep}`)
+		: null
 
 	if (!isOpen) return null
 
@@ -365,6 +390,7 @@ export function PortalQuoteRequestDialog({
 			isOpen={isOpen}
 			namespace="portal"
 			nextIsSubmit={currentStep === 'agreement'}
+			nextDisabled={nextDisabled}
 			nextLabel={
 				currentStep === 'agreement'
 					? t('quoteFlow.submit')
@@ -374,6 +400,7 @@ export function PortalQuoteRequestDialog({
 			onClose={onClose}
 			onNext={currentStep ? nextAction : undefined}
 			pending={pending}
+			requirementMessage={requirementMessage}
 			terminalAction={phase === 'failure' || phase === 'success'}
 		>
 			<QuoteFlowContentProvider namespace="portal">

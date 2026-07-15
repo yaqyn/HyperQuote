@@ -33,6 +33,8 @@ export interface QuoteDeliveryLocation {
 	city: string
 	governorate: string
 	latitude: number
+	locationName: string
+	locationNameAr: string
 	longitude: number
 	street: string
 }
@@ -44,8 +46,66 @@ export interface QuoteLocationSearchResult {
 	governorate: string
 	id: string
 	latitude: number
+	locationName: string
 	longitude: number
 	street: string
+}
+
+export function buildDetailedQuoteLocationName(
+	address: Record<string, string>,
+	displayName: string,
+): string {
+	const first = (...keys: string[]) => {
+		for (const key of keys) {
+			const value = address[key]?.trim()
+			if (value) return value
+		}
+		return ''
+	}
+	const houseNumber = first('house_number')
+	const road = first('road', 'pedestrian', 'residential', 'path')
+	const street = [houseNumber, road].filter(Boolean).join(' ')
+	const candidates = [
+		first(
+			'amenity',
+			'building',
+			'tourism',
+			'shop',
+			'leisure',
+			'office',
+			'commercial',
+			'industrial',
+		),
+		street,
+		first('neighbourhood'),
+		first('suburb'),
+		first('quarter'),
+		first('city_district', 'borough'),
+		first('village'),
+		first('town'),
+		first('city', 'municipality'),
+		first('state_district', 'county'),
+		first('state', 'province'),
+	]
+	const seen = new Set<string>()
+	const parts = candidates.filter((candidate) => {
+		const normalized = candidate.trim().toLocaleLowerCase()
+		if (!normalized || seen.has(normalized)) return false
+		seen.add(normalized)
+		return true
+	})
+	if (parts.length >= 2) return parts.join(', ')
+	return displayName
+		.split(',')
+		.map((part) => part.trim())
+		.filter(
+			(part, index) =>
+				index < 7 &&
+				part.length > 0 &&
+				!/^\d{4,}$/.test(part) &&
+				!['egypt', 'مصر'].includes(part.toLocaleLowerCase()),
+		)
+		.join(', ')
 }
 
 export function toEgyptMobileInput(value: string): string {
@@ -106,8 +166,10 @@ export function formatQuoteRequestAddress(
 	address: Pick<
 		QuoteDeliveryLocation,
 		'area' | 'city' | 'governorate' | 'street'
-	>,
+	> &
+		Partial<Pick<QuoteDeliveryLocation, 'locationName'>>,
 ): string {
+	if (address.locationName?.trim()) return address.locationName.trim()
 	return Array.from(
 		new Set(
 			[address.street, address.area, address.city, address.governorate]

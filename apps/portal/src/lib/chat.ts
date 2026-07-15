@@ -321,6 +321,8 @@ interface QuoteRequestRow {
 	created_at: string
 	delivery_address_id: string | null
 	delivery_date: string | null
+	delivery_location_name: string | null
+	delivery_location_name_ar: string | null
 	draft_name: string | null
 	id: string
 	notes: string | null
@@ -388,6 +390,7 @@ interface DraftMaterialItem {
 
 interface CustomerOrderSiteAddress {
 	fullAddress: string
+	fullAddressAr: string
 	latitude: number | null
 	longitude: number | null
 	source: 'sales_quote_site'
@@ -3492,6 +3495,8 @@ async function loadCustomerOrders(
 			project_id,
 			delivery_address_id,
 			delivery_date,
+			delivery_location_name,
+			delivery_location_name_ar,
 			attachment_urls,
 			customer_addresses (
 				id,
@@ -5737,6 +5742,8 @@ async function loadQuoteRequestRows(
 			project_id,
 			delivery_address_id,
 			delivery_date,
+			delivery_location_name,
+			delivery_location_name_ar,
 			attachment_urls,
 			customer_addresses (
 				id,
@@ -5870,7 +5877,11 @@ function toCustomerOrderSiteAddress(
 	])
 	if (!fullAddress) return null
 	return {
-		fullAddress,
+		fullAddress: row.delivery_location_name?.trim() || fullAddress,
+		fullAddressAr:
+			row.delivery_location_name_ar?.trim() ||
+			row.delivery_location_name?.trim() ||
+			fullAddress,
 		latitude: nullableNumber(address.latitude),
 		longitude: nullableNumber(address.longitude),
 		source: 'sales_quote_site',

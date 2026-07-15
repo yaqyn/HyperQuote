@@ -35,6 +35,8 @@ const quoteRequestDraftInput = z.object({
 			city: z.string().trim().min(1).max(160),
 			governorate: z.string().trim().min(1).max(160),
 			latitude: z.number().min(21.7).max(31.8),
+			locationName: z.string().trim().min(3).max(1000),
+			locationNameAr: z.string().trim().min(3).max(1000),
 			longitude: z.number().min(24.6).max(36.9),
 			street: z.string().trim().min(1).max(500),
 		})
@@ -87,6 +89,8 @@ interface QuoteRequestUpdate {
 	delivery_address_id?: string | null
 	delivery_address_text?: string | null
 	delivery_latitude?: number | null
+	delivery_location_name?: string | null
+	delivery_location_name_ar?: string | null
 	delivery_longitude?: number | null
 	delivery_date?: string | null
 	draft_name?: string | null
@@ -319,6 +323,9 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 							guidedDetails.deliveryLocation,
 						),
 						delivery_latitude: guidedDetails.deliveryLocation.latitude,
+						delivery_location_name: guidedDetails.deliveryLocation.locationName,
+						delivery_location_name_ar:
+							guidedDetails.deliveryLocation.locationNameAr,
 						delivery_longitude: guidedDetails.deliveryLocation.longitude,
 					}
 				: {}

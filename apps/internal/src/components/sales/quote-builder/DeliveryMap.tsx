@@ -66,7 +66,10 @@ async function forwardGeocode(
 	return null
 }
 
-async function reverseGeocode(lat: number, lng: number): Promise<string> {
+async function reverseGeocode(
+	lat: number,
+	lng: number,
+): Promise<string | null> {
 	try {
 		const res = await fetch(
 			`${NOMINATIM_BASE}/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
@@ -79,7 +82,7 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
 	} catch {
 		// Nominatim unavailable
 	}
-	return `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+	return null
 }
 
 // ─── Component ───────────────────────────────────────────
@@ -165,6 +168,11 @@ export function DeliveryMap({
 		const result = await reverseGeocode(point.lat, point.lng)
 		if (requestId !== reverseRequestRef.current) return
 		setReverseResult(result)
+		if (!result) {
+			setSearchError(
+				'We could not name this point. Choose it again when the map service is available.',
+			)
+		}
 		setIsReversing(false)
 	}, [])
 

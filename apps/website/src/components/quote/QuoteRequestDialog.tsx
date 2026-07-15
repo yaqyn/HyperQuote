@@ -56,6 +56,8 @@ const EMPTY_ADDRESS: NewAddressDraft = {
 	city: '',
 	governorate: '',
 	latitude: null,
+	locationName: '',
+	locationNameAr: '',
 	longitude: null,
 	street: '',
 }
@@ -319,6 +321,8 @@ export function QuoteRequestDialog() {
 				city: result.result.city,
 				governorate: result.result.governorate,
 				latitude: point.latitude,
+				locationName: result.locationName,
+				locationNameAr: result.locationNameAr,
 				longitude: point.longitude,
 				street: result.result.street,
 			})
@@ -337,7 +341,9 @@ export function QuoteRequestDialog() {
 			newAddress.longitude === null ||
 			!newAddress.street.trim() ||
 			!newAddress.city.trim() ||
-			!newAddress.governorate.trim()
+			!newAddress.governorate.trim() ||
+			!newAddress.locationName.trim() ||
+			!newAddress.locationNameAr.trim()
 		) {
 			setError(t('quoteFlow.location.addressRequired'))
 			return
@@ -347,6 +353,8 @@ export function QuoteRequestDialog() {
 			city: newAddress.city.trim(),
 			governorate: newAddress.governorate.trim(),
 			latitude: newAddress.latitude,
+			locationName: newAddress.locationName.trim(),
+			locationNameAr: newAddress.locationNameAr.trim(),
 			longitude: newAddress.longitude,
 			street: newAddress.street.trim(),
 		})
@@ -469,6 +477,23 @@ export function QuoteRequestDialog() {
 				: currentStep === 'contact'
 					? continueFromContact
 					: submitQuote
+	const nextDisabled =
+		currentStep === 'location'
+			? !mapPoint ||
+				locationResolving ||
+				!newAddress.locationName.trim() ||
+				!newAddress.locationNameAr.trim()
+			: currentStep === 'delivery'
+				? !deliveryDate || !deliveryWindow
+				: currentStep === 'contact'
+					? !EMAIL_ADDRESS_REGEX.test(contactEmail.trim()) ||
+						!isEgyptMobileInput(contactPhone)
+					: currentStep === 'agreement'
+						? !agreementAccepted
+						: false
+	const requirementMessage = currentStep
+		? t(`quoteFlow.requirements.${currentStep}`)
+		: null
 
 	return (
 		<QuoteFlowDialog
@@ -477,6 +502,7 @@ export function QuoteRequestDialog() {
 			isOpen={isOpen}
 			namespace="website"
 			nextIsSubmit={currentStep === 'agreement'}
+			nextDisabled={nextDisabled}
 			nextLabel={
 				currentStep === 'agreement'
 					? t('quoteFlow.submit')
@@ -486,6 +512,7 @@ export function QuoteRequestDialog() {
 			onClose={close}
 			onNext={currentStep ? nextAction : undefined}
 			pending={pending}
+			requirementMessage={requirementMessage}
 			terminalAction={
 				phase === 'draft-success' || phase === 'failure' || phase === 'success'
 			}

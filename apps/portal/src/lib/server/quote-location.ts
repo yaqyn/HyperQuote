@@ -1,5 +1,8 @@
 import { checkRateLimit } from '@hyperquote/auth/rate-limit'
-import type { QuoteLocationSearchResult } from '@hyperquote/quote-cart/checkout'
+import {
+	buildDetailedQuoteLocationName,
+	type QuoteLocationSearchResult,
+} from '@hyperquote/quote-cart/checkout'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { z } from 'zod'
@@ -40,7 +43,10 @@ interface CacheEntry<T> {
 }
 
 const searchCache = new Map<string, CacheEntry<QuoteLocationSearchResult[]>>()
-const reverseCache = new Map<string, CacheEntry<QuoteLocationSearchResult>>()
+const reverseCache = new Map<
+	string,
+	CacheEntry<{ ar: QuoteLocationSearchResult; en: QuoteLocationSearchResult }>
+>()
 
 function readCache<T>(
 	cache: Map<string, CacheEntry<T>>,
@@ -161,9 +167,32 @@ export function toPortalQuoteLocationResult(
 		governorate: governorate || city,
 		id: String(row.place_id ?? `${latitude}:${longitude}`),
 		latitude,
+		locationName: buildDetailedQuoteLocationName(row.address, row.display_name),
 		longitude,
 		street: [houseNumber, road].filter(Boolean).join(' ') || fallbackStreet,
 	}
+}
+
+async function fetchPortalReverseLocation(
+	input: z.infer<typeof reverseInput>,
+	locale: 'ar' | 'en',
+): Promise<QuoteLocationSearchResult> {
+	const url = new URL('/reverse', NOMINATIM_BASE)
+	url.searchParams.set('format', 'jsonv2')
+	url.searchParams.set('addressdetails', '1')
+	url.searchParams.set('namedetails', '1')
+	url.searchParams.set('accept-language', locale)
+	url.searchParams.set('zoom', '18')
+	url.searchParams.set('lat', String(input.latitude))
+	url.searchParams.set('lon', String(input.longitude))
+	const parsed = reverseRowSchema.safeParse(await fetchNominatim(url))
+	if (!parsed.success) throw parsed.error
+	const result = toPortalQuoteLocationResult({
+		...parsed.data,
+		place_id: parsed.data.place_id ?? `${input.latitude}:${input.longitude}`,
+	})
+	if (!result) throw new Error('Invalid location response')
+	return result
 }
 
 export const searchPortalQuoteLocations = createServerFn({ method: 'POST' })
@@ -204,30 +233,36 @@ export const reversePortalQuoteLocation = createServerFn({ method: 'POST' })
 	.inputValidator(reverseInput)
 	.handler(async ({ data: input }) => {
 		await getAuthenticatedPortalCustomer()
-		const cacheKey = `reverse:${input.locale}:${input.latitude.toFixed(5)}:${input.longitude.toFixed(5)}`
+		const cacheKey = `reverse:${input.latitude.toFixed(5)}:${input.longitude.toFixed(5)}`
 		const cached = readCache(reverseCache, cacheKey)
-		if (cached) return { success: true as const, result: cached }
+		if (cached) {
+			return {
+				success: true as const,
+				result: cached[input.locale],
+				locationName: cached.en.locationName,
+				locationNameAr: cached.ar.locationName,
+			}
+		}
 		if (!(await allowRequest())) {
 			return { success: false as const, error: 'rate_limited' as const }
 		}
 
 		try {
-			const url = new URL('/reverse', NOMINATIM_BASE)
-			url.searchParams.set('format', 'jsonv2')
-			url.searchParams.set('addressdetails', '1')
-			url.searchParams.set('accept-language', input.locale)
-			url.searchParams.set('zoom', '18')
-			url.searchParams.set('lat', String(input.latitude))
-			url.searchParams.set('lon', String(input.longitude))
-			const parsed = reverseRowSchema.safeParse(await fetchNominatim(url))
-			if (!parsed.success) throw parsed.error
-			const result = toPortalQuoteLocationResult({
-				...parsed.data,
-				place_id: parsed.data.place_id ?? cacheKey,
-			})
-			if (!result) throw new Error('Invalid location response')
-			writeCache(reverseCache, cacheKey, result)
-			return { success: true as const, result }
+			const primary = await fetchPortalReverseLocation(input, input.locale)
+			await new Promise((resolve) => setTimeout(resolve, 1050))
+			const secondaryLocale = input.locale === 'ar' ? 'en' : 'ar'
+			const secondary = await fetchPortalReverseLocation(input, secondaryLocale)
+			const locations =
+				input.locale === 'ar'
+					? { ar: primary, en: secondary }
+					: { ar: secondary, en: primary }
+			writeCache(reverseCache, cacheKey, locations)
+			return {
+				success: true as const,
+				result: primary,
+				locationName: locations.en.locationName,
+				locationNameAr: locations.ar.locationName,
+			}
 		} catch {
 			return { success: false as const, error: 'search_failed' as const }
 		}

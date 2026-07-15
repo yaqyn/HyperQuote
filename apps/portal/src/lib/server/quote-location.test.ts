@@ -24,6 +24,7 @@ describe('portal quote location results', () => {
 			governorate: 'Giza Governorate',
 			id: '84',
 			latitude: 30.0384,
+			locationName: '8 Tahrir Street, Dokki, Giza, Giza Governorate',
 			longitude: 31.2122,
 			street: '8 Tahrir Street',
 		})

@@ -4,6 +4,7 @@ import {
 	CalendarDays,
 	Check,
 	ContactRound,
+	Info,
 	LoaderCircle,
 	MapPin,
 	Send,
@@ -30,6 +31,8 @@ interface QuoteFlowDialogProps {
 	onClose: () => void
 	onNext?: () => void
 	pending?: boolean
+	requirementMessage?: string | null
+	nextDisabled?: boolean
 	terminalAction?: boolean
 }
 
@@ -50,11 +53,13 @@ export function QuoteFlowDialog({
 	isOpen,
 	namespace,
 	nextIsSubmit = false,
+	nextDisabled = false,
 	nextLabel,
 	onBack,
 	onClose,
 	onNext,
 	pending = false,
+	requirementMessage,
 	terminalAction = false,
 }: QuoteFlowDialogProps) {
 	const { t } = useTranslation(namespace)
@@ -106,6 +111,12 @@ export function QuoteFlowDialog({
 							{currentStep && onNext && (
 								<footer className="shrink-0 border-t border-[var(--site-rule,var(--color-border))] bg-[var(--color-base,var(--color-bg))] px-4 py-3 sm:px-6">
 									{error && <QuoteFlowError>{error}</QuoteFlowError>}
+									{nextDisabled && requirementMessage && !error && (
+										<p className="mb-2 flex items-center justify-end gap-1.5 text-[11px] font-medium text-[var(--color-primary)]">
+											<Info size={13} strokeWidth={1.8} />
+											{requirementMessage}
+										</p>
+									)}
 									<div className="flex items-center justify-between gap-3">
 										{onBack ? (
 											<button
@@ -123,6 +134,7 @@ export function QuoteFlowDialog({
 											</span>
 										)}
 										<QuoteFlowPrimaryButton
+											disabled={nextDisabled}
 											label={nextLabel ?? t('quoteFlow.next')}
 											loading={pending}
 											onClick={onNext}
@@ -199,11 +211,13 @@ function QuoteFlowProgress({
 }
 
 function QuoteFlowPrimaryButton({
+	disabled,
 	label,
 	loading,
 	onClick,
 	submit,
 }: {
+	disabled: boolean
 	label: string
 	loading: boolean
 	onClick: () => void
@@ -212,9 +226,9 @@ function QuoteFlowPrimaryButton({
 	return (
 		<button
 			type="button"
-			disabled={loading}
+			disabled={loading || disabled}
 			onClick={onClick}
-			className="group inline-flex h-10 min-w-[132px] items-stretch overflow-hidden rounded-[9px] border border-[#1d4ed8] bg-[#2563eb] text-white outline-none transition-colors hover:bg-[#1d4ed8] focus-visible:ring-3 focus-visible:ring-[#2563eb]/25 disabled:opacity-50"
+			className="group inline-flex h-10 min-w-[132px] items-stretch overflow-hidden rounded-[9px] border border-[#1d4ed8] bg-[#2563eb] text-white outline-none transition-[background-color,border-color,opacity] hover:bg-[#1d4ed8] focus-visible:ring-3 focus-visible:ring-[#2563eb]/25 disabled:cursor-not-allowed disabled:border-[#93b4fb] disabled:bg-[#8eaff4] disabled:text-white/85 disabled:opacity-55 dark:disabled:border-[#31599f] dark:disabled:bg-[#244b8f]"
 		>
 			<span className="flex flex-1 items-center justify-center px-4 text-[12px] font-semibold">
 				{loading ? <LoaderCircle size={15} className="animate-spin" /> : label}
