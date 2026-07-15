@@ -6,6 +6,7 @@
  *
  * MUST be wrapped in ClientOnly at call site.
  */
+import { buildDetailedQuoteLocationName } from '@hyperquote/quote-cart/checkout'
 import { Search, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapLayerMouseEvent, MapRef } from 'react-map-gl/maplibre'
@@ -25,6 +26,7 @@ interface NominatimSearchResult {
 }
 
 interface NominatimReverseResult {
+	address?: Record<string, string>
 	display_name?: string
 }
 
@@ -38,7 +40,14 @@ function isSearchResult(value: unknown): value is NominatimSearchResult {
 }
 
 function isReverseResult(value: unknown): value is NominatimReverseResult {
-	return typeof value === 'object' && value !== null
+	if (typeof value !== 'object' || value === null) return false
+	return (
+		'display_name' in value &&
+		typeof value.display_name === 'string' &&
+		(!('address' in value) ||
+			value.address === undefined ||
+			(typeof value.address === 'object' && value.address !== null))
+	)
 }
 
 function canUseInteractiveMap(): boolean {
@@ -71,13 +80,22 @@ async function reverseGeocode(
 	lng: number,
 ): Promise<string | null> {
 	try {
-		const res = await fetch(
-			`${NOMINATIM_BASE}/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-			{ headers: { 'Accept-Language': 'en,ar' } },
-		)
-		const data = await res.json()
-		if (isReverseResult(data) && typeof data.display_name === 'string') {
-			return data.display_name
+		for (const [index, zoom] of [18, 16, 14].entries()) {
+			if (index > 0) {
+				await new Promise((resolve) => setTimeout(resolve, 1050))
+			}
+			const res = await fetch(
+				`${NOMINATIM_BASE}/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=${zoom}&addressdetails=1&accept-language=en`,
+				{ headers: { 'Accept-Language': 'en' } },
+			)
+			if (!res.ok) continue
+			const data: unknown = await res.json()
+			if (!isReverseResult(data)) continue
+			const locationName = buildDetailedQuoteLocationName(
+				data.address ?? {},
+				data.display_name ?? '',
+			).trim()
+			if (/[\p{L}]/u.test(locationName)) return locationName
 		}
 	} catch {
 		// Nominatim unavailable

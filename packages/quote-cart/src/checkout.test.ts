@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
+	buildDetailedQuoteLocationName,
 	cairoDateString,
 	formatQuoteRequestAddress,
 	isEgyptMobileInput,
@@ -25,6 +26,28 @@ describe('quote checkout contract', () => {
 				street: '90 Street',
 			}),
 			'90 Street, New Cairo, Cairo',
+		)
+	})
+
+	it('builds a readable map name without postcode or country-only noise', () => {
+		assert.equal(
+			buildDetailedQuoteLocationName(
+				{
+					city: 'New Cairo',
+					neighbourhood: 'Mirage City',
+					postcode: '11655',
+					state: 'Cairo',
+				},
+				'Mirage City, New Cairo, 11655, Cairo, Egypt',
+			),
+			'Mirage City, New Cairo, Cairo',
+		)
+		assert.equal(
+			buildDetailedQuoteLocationName(
+				{ country: 'Egypt', postcode: '11655' },
+				'11655, Egypt',
+			),
+			'',
 		)
 	})
 
