@@ -279,7 +279,7 @@ export function DeliveryStep({
 							<ChevronRight size={15} className="rtl:rotate-180" />
 						</AriaButton>
 					</header>
-					<CalendarGrid className="w-full table-fixed border-separate border-spacing-1">
+					<CalendarGrid className="w-full table-fixed border-separate border-spacing-x-1 border-spacing-y-1.5">
 						<CalendarGridHeader>
 							{(day) => (
 								<CalendarHeaderCell className="h-7 text-center text-[9px] font-semibold text-[var(--color-text-subtle)]">
@@ -291,7 +291,7 @@ export function DeliveryStep({
 							{(date) => (
 								<CalendarCell
 									date={date}
-									className="h-9 w-9 rounded-[8px] text-center font-mono text-[11px] tabular-nums outline-none transition-colors data-[disabled]:opacity-20 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/35 data-[hovered]:bg-[var(--site-blue-wash,var(--color-surface))] data-[outside-month]:invisible data-[selected]:bg-[var(--color-primary)] data-[selected]:font-semibold data-[selected]:text-white data-[unavailable]:line-through data-[unavailable]:opacity-25"
+									className="h-9 rounded-[8px] p-0 text-center align-middle text-[12px] font-medium leading-none tabular-nums outline-none transition-colors data-[disabled]:opacity-20 data-[focus-visible]:ring-2 data-[focus-visible]:ring-[var(--color-primary)]/35 data-[hovered]:bg-[var(--site-blue-wash,var(--color-surface))] data-[outside-month]:invisible data-[selected]:bg-[var(--color-primary)] data-[selected]:font-semibold data-[selected]:text-white data-[unavailable]:line-through data-[unavailable]:opacity-25"
 								/>
 							)}
 						</CalendarGridBody>
@@ -311,20 +311,17 @@ export function DeliveryStep({
 									type="button"
 									onClick={() => onWindowChange(windowOption.id)}
 									aria-pressed={selected}
-									className={`flex min-h-12 items-center justify-between rounded-[10px] border px-3 text-start transition-colors ${
+									className={`group grid min-h-[58px] grid-cols-[1fr_auto] items-center gap-4 rounded-[10px] border px-3.5 py-2.5 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
 										selected
-											? 'border-[var(--color-primary)] bg-[var(--site-blue-wash,var(--color-surface))]'
-											: 'border-[var(--site-rule,var(--color-border))] hover:border-[var(--color-primary)]/35'
+											? 'border-[var(--color-primary)] bg-[var(--site-blue-wash,var(--color-surface))] shadow-[inset_3px_0_0_var(--color-primary)] rtl:shadow-[inset_-3px_0_0_var(--color-primary)]'
+											: 'border-[var(--site-rule,var(--color-border))] hover:border-[var(--color-primary)]/35 hover:bg-[var(--site-blue-wash,var(--color-surface))]/35'
 									}`}
 								>
-									<span className="text-[12px] font-semibold">
+									<span className="text-[13px] font-semibold tracking-[-0.01em] text-[var(--color-text)]">
 										{t(`quoteFlow.delivery.windows.${windowOption.labelKey}`)}
 									</span>
-									<span
-										dir="ltr"
-										className="font-mono text-[10px] text-[var(--color-text-muted)]"
-									>
-										{windowOption.id}
+									<span className="text-[11px] font-medium tracking-[-0.01em] text-[var(--color-text-muted)] transition-colors group-hover:text-[var(--color-text)]">
+										{t(`quoteFlow.delivery.ranges.${windowOption.labelKey}`)}
 									</span>
 								</button>
 							)

@@ -1156,7 +1156,9 @@ async function completeGuidedQuoteFlow(page: Page) {
 		name: /^Send request$|^إرسال الطلب$/i,
 	})
 	await expect(sendRequestButton).toBeDisabled()
-	await flowDialog.getByRole('checkbox').check()
+	await flowDialog
+		.getByText(/I have reviewed this request|راجعت هذا الطلب/i)
+		.click()
 	await expect(sendRequestButton).toBeEnabled()
 	await sendRequestButton.click()
 	await expect(

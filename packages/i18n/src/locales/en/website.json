@@ -243,6 +243,12 @@
 				"midday": "Afternoon",
 				"evening": "Evening",
 				"night": "Night"
+			},
+			"ranges": {
+				"morning": "8 AM to 1 PM",
+				"midday": "1 PM to 5 PM",
+				"evening": "5 PM to 8 PM",
+				"night": "Midnight to 6 AM"
 			}
 		},
 		"contact": {
