@@ -13,7 +13,14 @@ import {
 	motion,
 	useReducedMotion,
 } from 'motion/react'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import {
+	lazy,
+	type ReactNode,
+	Suspense,
+	useEffect,
+	useRef,
+	useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { DOC_CATEGORIES, WIZARDS } from '../../content/registry'
 import { useChatWidget } from '../../hooks/useChatWidget'
@@ -104,7 +111,7 @@ export function HeroSection({
 										<div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
 											<Link
 												to="/market"
-												className="hq-action hq-action--primary h-13 w-full max-w-[210px]"
+												className="hq-action hq-action--primary h-13 w-full max-w-[220px] sm:w-[220px]"
 											>
 												{t('cta.browseMarket')}
 												<ArrowUpRight
@@ -119,7 +126,7 @@ export function HeroSection({
 														behavior: shouldReduceMotion ? 'auto' : 'smooth',
 													})
 												}
-												className="hq-action hq-action--outline h-13 w-full max-w-[230px]"
+												className="hq-action hq-action--outline h-13 w-full max-w-[220px] sm:w-[220px]"
 											>
 												{t('hero.seeProcess')}
 												<ArrowDown size={16} className="hq-action__icon" />
@@ -142,19 +149,19 @@ export function HeroSection({
 							transition={transition}
 							className="h-full w-full overflow-y-auto"
 						>
-							<div className="flex min-h-full items-center pb-4 pt-[76px] sm:pb-5 sm:pt-[80px]">
-								<div className="hq-page-shell grid items-start gap-7 lg:grid-cols-[minmax(260px,0.58fr)_minmax(0,1.42fr)] lg:gap-12 xl:gap-16">
-									<div className="text-start lg:pt-3">
-										<p className="hq-kicker mb-4 text-[var(--color-primary)]">
+							<div className="flex min-h-full items-start pb-5 pt-[76px] lg:items-center lg:pb-4 lg:pt-[80px]">
+								<div className="hq-page-shell grid items-start gap-5 md:grid-cols-[minmax(220px,0.64fr)_minmax(0,1.36fr)] md:gap-6 lg:grid-cols-[minmax(260px,0.58fr)_minmax(0,1.42fr)] lg:gap-12 xl:gap-16">
+									<div className="text-start md:pt-2 lg:pt-3">
+										<p className="hq-kicker mb-2.5 text-[var(--color-primary)] sm:mb-3 lg:mb-4">
 											{t('support.sectionContact')}
 										</p>
 										<h2 className="hq-display hq-title-record font-bold text-[var(--color-text)]">
 											{t('support.heroHeading')}
 										</h2>
-										<p className="mt-4 max-w-[420px] text-[14px] leading-6 text-[var(--color-text-muted)] sm:text-[15px]">
+										<p className="mt-2 max-w-[420px] text-[13px] leading-5 text-[var(--color-text-muted)] sm:mt-3 sm:text-[14px] sm:leading-6 lg:mt-4 lg:text-[15px]">
 											{t('support.heroBody')}
 										</p>
-										<div className="mt-6">
+										<div className="mt-4 lg:mt-6">
 											<ContactInfo variant="hero" />
 										</div>
 									</div>
@@ -318,7 +325,7 @@ function MaterialDocket({
 				</Link>
 			</div>
 
-			<div className="border-b border-[var(--site-rule)] bg-[var(--site-concrete)]/70 px-5 py-5 sm:px-6">
+			<div className="border-b border-[var(--site-rule)] px-5 py-5 sm:px-6">
 				<h2 className="hq-display text-[24px] font-bold leading-tight text-[var(--color-text)] sm:text-[28px]">
 					{hasItems ? t('hero.docket.cartTitle') : t('hero.docket.emptyTitle')}
 				</h2>
@@ -339,7 +346,7 @@ function MaterialDocket({
 				)}
 
 				{hasItems ? (
-					<div className="hq-material-scroll max-h-[224px] overflow-y-auto">
+					<MaterialScrollArea>
 						{items.map((item) => (
 							<div
 								key={item.productId}
@@ -398,9 +405,9 @@ function MaterialDocket({
 								</button>
 							</div>
 						))}
-					</div>
+					</MaterialScrollArea>
 				) : (
-					<div className="hq-material-scroll max-h-[224px] overflow-y-auto">
+					<MaterialScrollArea>
 						{categories.map((category) => (
 							<Link
 								key={category.slug}
@@ -419,7 +426,7 @@ function MaterialDocket({
 								</span>
 							</Link>
 						))}
-					</div>
+					</MaterialScrollArea>
 				)}
 			</div>
 
@@ -441,6 +448,40 @@ function MaterialDocket({
 					</Link>
 				)}
 			</div>
+		</div>
+	)
+}
+
+function MaterialScrollArea({ children }: { children: ReactNode }) {
+	const [isScrolling, setIsScrolling] = useState(false)
+	const scrollEndTimer = useRef<number | null>(null)
+
+	useEffect(
+		() => () => {
+			if (scrollEndTimer.current !== null) {
+				window.clearTimeout(scrollEndTimer.current)
+			}
+		},
+		[],
+	)
+
+	function handleScroll() {
+		setIsScrolling(true)
+		if (scrollEndTimer.current !== null) {
+			window.clearTimeout(scrollEndTimer.current)
+		}
+		scrollEndTimer.current = window.setTimeout(() => {
+			setIsScrolling(false)
+			scrollEndTimer.current = null
+		}, 650)
+	}
+
+	return (
+		<div
+			className={`hq-material-scroll max-h-[224px] overflow-y-auto${isScrolling ? ' is-scrolling' : ''}`}
+			onScroll={handleScroll}
+		>
+			{children}
 		</div>
 	)
 }
@@ -475,7 +516,9 @@ function HeroModeRail({
 	}, [])
 
 	return (
-		<div className="relative z-10 shrink-0 border-t border-[var(--site-rule)] bg-[var(--color-base)]">
+		<div
+			className={`relative z-10 shrink-0 border-t border-[var(--site-rule)] bg-[var(--color-base)] ${mode === 'hero' ? 'hidden md:block' : ''}`}
+		>
 			<div className="hq-page-shell flex min-h-[76px] flex-col justify-center gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:py-0">
 				{mode === 'hero' ? (
 					<div className="hidden min-w-0 items-center gap-4 md:flex">
@@ -528,7 +571,7 @@ function HeroModeRail({
 					</button>
 				)}
 
-				<div className="grid w-fit grid-cols-3 self-center overflow-hidden rounded-xl border border-[var(--site-rule)] sm:self-auto">
+				<div className="hidden w-fit grid-cols-3 self-center overflow-hidden rounded-xl border border-[var(--site-rule)] xl:grid xl:self-auto">
 					{modes.map((item) => (
 						<button
 							key={item.id}

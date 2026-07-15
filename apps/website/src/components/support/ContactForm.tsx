@@ -283,7 +283,7 @@ export function ContactForm({
 			noValidate
 			className={
 				isHero
-					? 'grid w-full grid-cols-2 gap-x-4 gap-y-3'
+					? 'grid w-full grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2'
 					: 'mx-auto flex w-full max-w-[560px] flex-col gap-7 lg:max-w-none lg:gap-8'
 			}
 		>
@@ -294,6 +294,7 @@ export function ContactForm({
 				fallbackMessage="Please enter your name"
 				disabled={submitting}
 				compact={isHero}
+				className={isHero ? 'min-w-0' : undefined}
 			/>
 
 			<ContactTextField
@@ -304,6 +305,7 @@ export function ContactForm({
 				disabled={submitting}
 				type="email"
 				compact={isHero}
+				className={isHero ? 'min-w-0' : undefined}
 			/>
 
 			{/* Phone */}
@@ -395,7 +397,7 @@ export function ContactForm({
 				disabled={submitting}
 				multiline
 				compact={isHero}
-				className={isHero ? 'col-span-2' : undefined}
+				className={isHero ? 'sm:col-span-2' : undefined}
 				footer={
 					<div className="flex items-center gap-3">
 						<MessageCharCount control={form.control} />
@@ -422,7 +424,7 @@ export function ContactForm({
 			{/* Server error */}
 			{error && (
 				<div
-					className={`flex items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)]/[0.06] px-4 py-3 ${isHero ? 'col-span-2' : ''}`}
+					className={`flex items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)]/[0.06] px-4 py-3 ${isHero ? 'sm:col-span-2' : ''}`}
 				>
 					<Info size={14} className="shrink-0 text-[var(--color-primary)]" />
 					<p className="text-[13px] text-[var(--color-primary)]" role="alert">

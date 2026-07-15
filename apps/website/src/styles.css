@@ -120,9 +120,14 @@
 }
 
 .hq-material-scroll {
-	scrollbar-color: var(--color-text-subtle) transparent;
+	scrollbar-color: transparent transparent;
 	scrollbar-gutter: stable;
 	scrollbar-width: thin;
+}
+
+.hq-material-scroll.is-scrolling {
+	scrollbar-color: color-mix(in srgb, var(--color-primary) 42%, transparent)
+		transparent;
 }
 
 .hq-material-scroll::-webkit-scrollbar {
@@ -135,7 +140,12 @@
 
 .hq-material-scroll::-webkit-scrollbar-thumb {
 	border-radius: 999px;
-	background: var(--color-text-subtle);
+	background: transparent;
+	transition: background-color 180ms ease;
+}
+
+.hq-material-scroll.is-scrolling::-webkit-scrollbar-thumb {
+	background: color-mix(in srgb, var(--color-primary) 42%, transparent);
 }
 
 .hq-photo-frame {

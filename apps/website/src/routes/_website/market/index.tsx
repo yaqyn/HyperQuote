@@ -332,11 +332,7 @@ function MarketPage() {
 	}
 
 	function clearCatalogFilters() {
-		nav({
-			category: undefined,
-			product_family: undefined,
-			product_type: undefined,
-		})
+		navigate({ search: {} })
 	}
 
 	const productByTypeSlug = useMemo(
@@ -428,9 +424,20 @@ function MarketPage() {
 						) : (
 							<>
 								<div className="mb-7 flex items-center justify-between border-b border-[var(--site-rule)] pb-4">
-									<p className="text-[13px] text-[var(--color-text-subtle)]">
+									<p
+										className={`text-[13px] text-[var(--color-text-subtle)]${hasActiveFilters ? ' hidden lg:block' : ''}`}
+									>
 										{t('market.resultCount', { count: data.total })}
 									</p>
+									{hasActiveFilters && (
+										<button
+											type="button"
+											onClick={clearCatalogFilters}
+											className="rounded-full border border-[var(--color-error)]/25 bg-[var(--color-error)]/[0.035] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-error)] transition-colors hover:border-[var(--color-error)]/45 hover:bg-[var(--color-error)]/[0.075] lg:hidden"
+										>
+											{t('market.clearFilters', { defaultValue: 'Clear' })}
+										</button>
+									)}
 									<Select
 										selectedKey={search.sort || 'relevance'}
 										onSelectionChange={(key) =>
@@ -707,7 +714,7 @@ function HierarchyPanelContent({
 						<button
 							type="button"
 							onClick={onClear}
-							className="text-[12px] font-semibold text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+							className="rounded-full border border-[var(--color-error)]/25 bg-[var(--color-error)]/[0.035] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-error)] transition-colors hover:border-[var(--color-error)]/45 hover:bg-[var(--color-error)]/[0.075]"
 						>
 							{t('market.clearFilters', { defaultValue: 'Clear' })}
 						</button>
