@@ -14,6 +14,7 @@ import { toast } from '../../lib/toast'
 import { unavailableItemNamesFromError } from '../../lib/unavailable-quote-items'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
 import type { Order, OrderItem } from '../../types/order'
+import { OrderProjectAssignment } from '../orders/OrderProjectAssignment'
 
 interface SavedDraftsPanelProps {
 	actionMode?: 'submit' | 'add'
@@ -235,6 +236,13 @@ export function SavedDraftsPanel({
 			onAddDraft={handleAddDraft}
 			onNotesCopied={() => toast.success(t('orders.notesCopied'))}
 			onRetry={() => refetch()}
+			renderDraftProject={(draft) => (
+				<OrderProjectAssignment
+					className="mt-3"
+					orderId={draft.order.id}
+					projectId={draft.order.projectId}
+				/>
+			)}
 			onSubmitDraft={(draft) => submitMutation.mutate(draft)}
 			state={
 				isLoading || projectsQuery.isLoading

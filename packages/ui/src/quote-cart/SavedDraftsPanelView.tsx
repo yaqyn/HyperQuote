@@ -88,6 +88,7 @@ interface SavedDraftsPanelViewProps<TDraft extends SavedQuoteDraftView> {
 	onNotesCopied?: () => void
 	onRetry?: () => void
 	onSubmitDraft?: (draft: TDraft) => void
+	renderDraftProject?: (draft: TDraft) => ReactNode
 	state: SavedDraftsPanelState
 	submittingDraftId?: string | null
 	theme?: SavedDraftsPanelTheme
@@ -184,6 +185,7 @@ export function SavedDraftsPanelView<TDraft extends SavedQuoteDraftView>({
 	onNotesCopied,
 	onRetry,
 	onSubmitDraft,
+	renderDraftProject,
 	state,
 	submittingDraftId,
 	theme = 'portal',
@@ -326,6 +328,7 @@ export function SavedDraftsPanelView<TDraft extends SavedQuoteDraftView>({
 													{draft.itemCount}
 												</span>
 											</div>
+											{renderDraftProject?.(draft)}
 											<div className="mt-3 grid grid-cols-2 gap-2">
 												<motion.button
 													type="button"

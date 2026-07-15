@@ -870,7 +870,13 @@
 		"emptyTitle": "اجمع أعمال المشروع",
 		"emptyBody": "أنشئ مشروعًا لتجميع قوائم المواد وطلبات الأسعار والطلبات والتوصيلات في مكان واحد.",
 		"independent": "مستقل",
+		"independentOrders": "الطلبات المستقلة",
+		"independentBody": "طلبات لم تُسند إلى مشروع بعد. يمكنك إسنادها هنا في أي وقت.",
 		"moveToProject": "نقل إلى مشروع",
+		"updatingProject": "جارٍ تحديث المشروع",
+		"projectUpdated": "تم تحديث المشروع.",
+		"projectUpdateFailed": "تعذّر تحديث مشروع هذا الطلب. حاول مرة أخرى.",
+		"projectUnavailable": "المشاريع غير متاحة",
 		"openRecord": "فتح السجل",
 		"material_one": "مادة",
 		"material_other": "مواد"

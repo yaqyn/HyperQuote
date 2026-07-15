@@ -131,6 +131,7 @@ interface OrderClosureInfo {
 export interface OrderDetailResult {
 	order: {
 		id: string
+		projectId: string | null
 		reference: string
 		status: OrderStatus
 		description: string
@@ -255,6 +256,7 @@ interface QuoteRequestItemRow {
 
 interface QuoteRequestDetailRow {
 	id: string
+	project_id: string | null
 	request_number: string
 	status: string
 	urgency: string
@@ -980,6 +982,7 @@ function buildQuoteRequestDetail(
 	const detail: Omit<OrderDetailResult, 'report'> = {
 		order: {
 			id: row.id,
+			projectId: row.project_id,
 			reference,
 			status: orderStatus,
 			description,
@@ -1043,6 +1046,7 @@ function buildOrderDetail(
 	const detail: Omit<OrderDetailResult, 'report'> = {
 		order: {
 			id: order.quote_request_id ?? order.id,
+			projectId: quoteRequest?.project_id ?? null,
 			reference: order.order_number,
 			status: orderStatus,
 			description:
@@ -1155,6 +1159,7 @@ async function getCustomerPayments(
 
 const quoteRequestDetailSelect = `
 	id,
+	project_id,
 	request_number,
 	status,
 	urgency,

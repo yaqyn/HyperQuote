@@ -26,6 +26,7 @@ import {
 import { type ReactNode, useMemo, useState } from 'react'
 import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
+import { OrderProjectAssignment } from '../../components/orders/OrderProjectAssignment'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 import {
 	customerDeliveryDestinationPlace,
@@ -183,6 +184,11 @@ function OrderDetailPage({ orderId }: { orderId: string }) {
 					action={
 						<div className="flex flex-wrap items-center gap-3">
 							<span className={DETAIL_VALUE_META_CLASS}>{formattedDate}</span>
+							<OrderProjectAssignment
+								className="w-48"
+								orderId={order.id}
+								projectId={order.projectId}
+							/>
 							<button
 								type="button"
 								onClick={() =>

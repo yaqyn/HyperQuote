@@ -1226,7 +1226,13 @@
 		"emptyTitle": "Keep the job together",
 		"emptyBody": "Create a project to keep its material lists, quote requests, orders, and deliveries in one place.",
 		"independent": "Independent",
+		"independentOrders": "Independent orders",
+		"independentBody": "Orders that are not assigned to a project yet. Assign them here at any time.",
 		"moveToProject": "Move to project",
+		"updatingProject": "Updating project",
+		"projectUpdated": "Project updated.",
+		"projectUpdateFailed": "We could not update this order's project. Try again.",
+		"projectUnavailable": "Projects are unavailable",
 		"openRecord": "Open record",
 		"material_one": "material",
 		"material_other": "materials"

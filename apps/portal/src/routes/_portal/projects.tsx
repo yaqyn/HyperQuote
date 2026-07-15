@@ -9,13 +9,13 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { OrderProjectAssignment } from '../../components/orders/OrderProjectAssignment'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 import { portalHead } from '../../lib/page-meta'
 import { getAllCustomerOrders } from '../../lib/server/orders'
 import {
 	createCustomerProject,
 	getCustomerProjects,
-	setCustomerOrderProject,
 } from '../../lib/server/projects'
 import { usePortalStore } from '../../stores/portal'
 import type { Order } from '../../types/order'
@@ -31,6 +31,8 @@ export const Route = createFileRoute('/_portal/projects')({
 	component: ProjectsPage,
 })
 
+const INDEPENDENT_WORKSPACE_ID = '__independent__'
+
 function ProjectsPage() {
 	const { t } = useTranslation('portal')
 	const navigate = useNavigate()
@@ -38,7 +40,7 @@ function ProjectsPage() {
 	const setPendingProjectId = usePortalStore(
 		(state) => state.setPendingProjectId,
 	)
-	const [selectedId, setSelectedId] = useState<string | null>(null)
+	const [selectedId, setSelectedId] = useState(INDEPENDENT_WORKSPACE_ID)
 	const [createOpen, setCreateOpen] = useState(false)
 	const [projectName, setProjectName] = useState('')
 
@@ -56,21 +58,30 @@ function ProjectsPage() {
 	const orders = ordersQuery.data?.orders ?? []
 
 	useEffect(() => {
-		if (selectedId && projects.some((project) => project.id === selectedId)) {
+		if (
+			selectedId === INDEPENDENT_WORKSPACE_ID ||
+			projects.some((project) => project.id === selectedId)
+		) {
 			return
 		}
-		setSelectedId(projects[0]?.id ?? null)
+		setSelectedId(INDEPENDENT_WORKSPACE_ID)
 	}, [projects, selectedId])
 
 	const selectedProject = projects.find((project) => project.id === selectedId)
+	const isIndependent = selectedId === INDEPENDENT_WORKSPACE_ID
+	const independentOrderCount = orders.filter(
+		(order) => !order.projectId,
+	).length
 	const selectedOrders = useMemo(
 		() =>
 			orders
-				.filter((order) => order.projectId === selectedId)
+				.filter((order) =>
+					isIndependent ? !order.projectId : order.projectId === selectedId,
+				)
 				.sort(
 					(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
 				),
-		[orders, selectedId],
+		[isIndependent, orders, selectedId],
 	)
 
 	const createMutation = useMutation({
@@ -82,18 +93,7 @@ function ProjectsPage() {
 			setCreateOpen(false)
 		},
 	})
-	const assignMutation = useMutation({
-		mutationFn: (input: { projectId: string | null; quoteRequestId: string }) =>
-			setCustomerOrderProject({ data: input }),
-		onSuccess: () => {
-			void Promise.all([
-				queryClient.invalidateQueries({ queryKey: ['customer-projects'] }),
-				queryClient.invalidateQueries({ queryKey: ['customer-orders-all'] }),
-			])
-		},
-	})
-
-	function startOrder(projectId: string) {
+	function startOrder(projectId: string | undefined) {
 		setPendingProjectId(projectId)
 		navigate({ to: '/market' })
 	}
@@ -163,12 +163,20 @@ function ProjectsPage() {
 				<div className="flex flex-1 items-center justify-center px-6 text-center text-[13px] text-[var(--p-text-muted)]">
 					{t('projectsPage.loadError')}
 				</div>
-			) : projects.length === 0 ? (
+			) : projects.length === 0 && orders.length === 0 ? (
 				<ProjectEmpty onCreate={() => setCreateOpen(true)} />
 			) : (
 				<div className="mx-auto grid min-h-0 w-full max-w-[1420px] flex-1 lg:grid-cols-[310px_minmax(0,1fr)]">
 					<aside className="min-h-0 overflow-y-auto border-b border-[var(--p-border)] p-3 sm:p-4 lg:border-b-0 lg:border-e">
 						<div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-1">
+							<ProjectNavRow
+								active={isIndependent}
+								name={t('projectsPage.independentOrders')}
+								onClick={() => setSelectedId(INDEPENDENT_WORKSPACE_ID)}
+								recordCountLabel={t('projectsPage.recordCount', {
+									count: independentOrderCount,
+								})}
+							/>
 							{projects.map((project) => (
 								<ProjectNavRow
 									key={project.id}
@@ -187,66 +195,62 @@ function ProjectsPage() {
 					</aside>
 
 					<main className="min-h-0 overflow-y-auto px-4 py-5 sm:px-7 sm:py-7 lg:px-10">
-						{selectedProject && (
-							<div className="mx-auto w-full max-w-[920px]">
-								<div className="flex items-start justify-between gap-5 border-b border-[var(--p-border)] pb-6">
-									<div className="min-w-0">
-										<p className="voice-mono text-[9px] uppercase tracking-[0.2em] text-[var(--p-text-faint)]">
-											{t('projectsPage.workspace')}
-										</p>
-										<h1 className="mt-2 text-[28px] font-semibold tracking-[-0.035em] text-[var(--p-text)] sm:text-[34px]">
-											{selectedProject.name}
-										</h1>
-										{selectedProject.description && (
-											<p className="mt-2 max-w-[620px] text-[13px] leading-6 text-[var(--p-text-muted)]">
-												{selectedProject.description}
-											</p>
-										)}
-									</div>
-									<button
-										type="button"
-										onClick={() => startOrder(selectedProject.id)}
-										className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-4 text-[12px] font-semibold text-[var(--p-text)] hover:bg-[var(--p-hover)]"
-									>
-										<Plus size={14} />
-										{t('projectsPage.newOrder')}
-									</button>
-								</div>
-
-								<div className="mt-6">
+						<div className="mx-auto w-full max-w-[920px]">
+							<div className="flex items-start justify-between gap-5 border-b border-[var(--p-border)] pb-6">
+								<div className="min-w-0">
 									<p className="voice-mono text-[9px] uppercase tracking-[0.2em] text-[var(--p-text-faint)]">
-										{t('projectsPage.records')}
+										{t('projectsPage.workspace')}
 									</p>
-									<div className="mt-2 divide-y divide-[var(--p-border)] border-y border-[var(--p-border)]">
-										{selectedOrders.length === 0 ? (
-											<p className="py-12 text-center text-[13px] text-[var(--p-text-muted)]">
-												{t('projectsPage.emptyProject')}
-											</p>
-										) : (
-											selectedOrders.map((order) => (
-												<ProjectOrderRow
-													key={order.id}
-													onMove={(projectId) =>
-														assignMutation.mutate({
-															projectId,
-															quoteRequestId: order.id,
-														})
-													}
-													onOpen={() =>
-														navigate({
-															params: { orderId: order.id },
-															to: '/orders/$orderId',
-														})
-													}
-													order={order}
-													projects={projects}
-												/>
-											))
-										)}
-									</div>
+									<h1 className="mt-2 text-[28px] font-semibold tracking-[-0.035em] text-[var(--p-text)] sm:text-[34px]">
+										{selectedProject?.name ??
+											t('projectsPage.independentOrders')}
+									</h1>
+									{selectedProject?.description ? (
+										<p className="mt-2 max-w-[620px] text-[13px] leading-6 text-[var(--p-text-muted)]">
+											{selectedProject.description}
+										</p>
+									) : isIndependent ? (
+										<p className="mt-2 max-w-[620px] text-[13px] leading-6 text-[var(--p-text-muted)]">
+											{t('projectsPage.independentBody')}
+										</p>
+									) : null}
+								</div>
+								<button
+									type="button"
+									onClick={() => startOrder(selectedProject?.id)}
+									className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-4 text-[12px] font-semibold text-[var(--p-text)] hover:bg-[var(--p-hover)]"
+								>
+									<Plus size={14} />
+									{t('projectsPage.newOrder')}
+								</button>
+							</div>
+
+							<div className="mt-6">
+								<p className="voice-mono text-[9px] uppercase tracking-[0.2em] text-[var(--p-text-faint)]">
+									{t('projectsPage.records')}
+								</p>
+								<div className="mt-2 divide-y divide-[var(--p-border)] border-y border-[var(--p-border)]">
+									{selectedOrders.length === 0 ? (
+										<p className="py-12 text-center text-[13px] text-[var(--p-text-muted)]">
+											{t('projectsPage.emptyProject')}
+										</p>
+									) : (
+										selectedOrders.map((order) => (
+											<ProjectOrderRow
+												key={order.id}
+												onOpen={() =>
+													navigate({
+														params: { orderId: order.id },
+														to: '/orders/$orderId',
+													})
+												}
+												order={order}
+											/>
+										))
+									)}
 								</div>
 							</div>
-						)}
+						</div>
 					</main>
 				</div>
 			)}
@@ -296,15 +300,11 @@ function ProjectNavRow({
 }
 
 function ProjectOrderRow({
-	onMove,
 	onOpen,
 	order,
-	projects,
 }: {
-	onMove: (projectId: string | null) => void
 	onOpen: () => void
 	order: Order
-	projects: Array<{ id: string; name: string }>
 }) {
 	const { t } = useTranslation('portal')
 	const status = humanStatus(order.status ?? order.type)
@@ -323,19 +323,11 @@ function ProjectOrderRow({
 				</p>
 			</button>
 			<div className="flex items-center gap-2">
-				<select
-					aria-label={t('projectsPage.moveToProject')}
-					value={order.projectId ?? ''}
-					onChange={(event) => onMove(event.currentTarget.value || null)}
-					className="h-9 max-w-48 rounded-lg border border-[var(--p-border)] bg-[var(--p-bg)] px-2 text-[11px] text-[var(--p-text-muted)] outline-none focus:border-[var(--p-accent)]"
-				>
-					<option value="">{t('projectsPage.independent')}</option>
-					{projects.map((project) => (
-						<option key={project.id} value={project.id}>
-							{project.name}
-						</option>
-					))}
-				</select>
+				<OrderProjectAssignment
+					className="w-44 sm:w-48"
+					orderId={order.id}
+					projectId={order.projectId}
+				/>
 				<button
 					type="button"
 					onClick={onOpen}

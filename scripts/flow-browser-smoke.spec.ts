@@ -228,6 +228,86 @@ test('portal customer market and orders load Supabase-backed data', async ({
 	await context.close()
 })
 
+test('portal assigns, changes, and restores an independent order project', async ({
+	browser,
+}) => {
+	test.setTimeout(90_000)
+	const context = await browser.newContext({
+		viewport: { height: 900, width: 1280 },
+	})
+	await context.addCookies(
+		await createAuthCookies(
+			ACCOUNTS.customer,
+			COOKIE_NAMES.customer,
+			URLS.portal,
+		),
+	)
+
+	const page = await context.newPage()
+	const guard = installBrowserErrorGuard(page)
+	const uniqueSuffix = Date.now()
+	const draftName = `Independent order ${uniqueSuffix}`
+	const projectName = `Assignment project ${uniqueSuffix}`
+
+	await page.goto(`${URLS.portal}/market`, { waitUntil: 'domcontentloaded' })
+	await waitForHydration(page)
+	await page
+		.getByRole('button', { name: /^Record$/i })
+		.first()
+		.click()
+	await page.getByRole('button', { name: /Draft Quote|Open cart/i }).click()
+	await confirmDraftSave(page, draftName)
+
+	await page.goto(`${URLS.portal}/projects`, {
+		waitUntil: 'domcontentloaded',
+	})
+	await waitForHydration(page)
+	await page.getByRole('button', { name: /New project|مشروع جديد/i }).click()
+	await page.getByPlaceholder(/Project name|اسم المشروع/i).fill(projectName)
+	await page
+		.getByRole('button', { name: /^Create project$|^إنشاء المشروع$/i })
+		.click()
+	await expect(page.getByRole('heading', { name: projectName })).toBeVisible({
+		timeout: 15_000,
+	})
+
+	await page
+		.getByRole('button', { name: /Independent orders|الطلبات المستقلة/i })
+		.click()
+	const independentRecord = page
+		.locator('article')
+		.filter({ hasText: draftName })
+	await expect(independentRecord).toBeVisible({ timeout: 15_000 })
+	await independentRecord
+		.getByLabel(/Move to project|نقل إلى مشروع/i)
+		.selectOption({ label: projectName })
+
+	await page.getByRole('button', { name: projectName }).click()
+	const assignedRecord = page.locator('article').filter({ hasText: draftName })
+	await expect(assignedRecord).toBeVisible({ timeout: 15_000 })
+	await assignedRecord
+		.getByLabel(/Move to project|نقل إلى مشروع/i)
+		.selectOption('')
+
+	await page
+		.getByRole('button', { name: /Independent orders|الطلبات المستقلة/i })
+		.click()
+	const restoredIndependentRecord = page
+		.locator('article')
+		.filter({ hasText: draftName })
+	await expect(restoredIndependentRecord).toBeVisible({ timeout: 15_000 })
+	await restoredIndependentRecord
+		.getByLabel(/Move to project|نقل إلى مشروع/i)
+		.selectOption({ label: projectName })
+	await page.getByRole('button', { name: projectName }).click()
+	await expect(
+		page.locator('article').filter({ hasText: draftName }),
+	).toBeVisible({ timeout: 15_000 })
+
+	await guard.expectClean('portal project reassignment')
+	await context.close()
+})
+
 test('internal employee login reaches the protected app shell', async ({
 	page,
 }) => {

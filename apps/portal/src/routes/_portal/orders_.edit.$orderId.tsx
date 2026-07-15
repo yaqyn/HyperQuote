@@ -27,6 +27,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from 'react-aria-components/Button'
 import { useTranslation } from 'react-i18next'
+import { OrderProjectAssignment } from '../../components/orders/OrderProjectAssignment'
 import {
 	ProductQuantitySearchRow,
 	type ProductQuantitySearchRowProduct,
@@ -451,40 +452,46 @@ function EditSavedOrder() {
 							</p>
 						</div>
 
-						<div className="grid grid-cols-2 gap-2 sm:flex sm:shrink-0 sm:items-center">
-							<Button
-								onPress={saveDraft}
-								isDisabled={
-									!hasChanges ||
-									items.length === 0 ||
-									hasInvalidItems ||
-									saveMutation.isPending
-								}
-								className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text-secondary)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] disabled:cursor-default disabled:opacity-35 sm:min-w-[112px]"
-							>
-								{saveMutation.isPending ? (
-									<Spinner />
-								) : (
-									<Save size={14} strokeWidth={1.6} />
-								)}
-								<span className="truncate">{t('orders.save')}</span>
-							</Button>
-							<Button
-								onPress={submitDraft}
-								isDisabled={
-									items.length === 0 ||
-									hasInvalidItems ||
-									submitMutation.isPending
-								}
-								className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-40 sm:min-w-[132px]"
-							>
-								{submitMutation.isPending ? (
-									<Spinner />
-								) : (
-									<Send size={14} strokeWidth={1.6} />
-								)}
-								<span className="truncate">{t('orders.submit')}</span>
-							</Button>
+						<div className="grid gap-2 sm:w-[280px] sm:shrink-0">
+							<OrderProjectAssignment
+								orderId={order.id}
+								projectId={order.projectId}
+							/>
+							<div className="grid grid-cols-2 gap-2">
+								<Button
+									onPress={saveDraft}
+									isDisabled={
+										!hasChanges ||
+										items.length === 0 ||
+										hasInvalidItems ||
+										saveMutation.isPending
+									}
+									className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text-secondary)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] disabled:cursor-default disabled:opacity-35 sm:min-w-[112px]"
+								>
+									{saveMutation.isPending ? (
+										<Spinner />
+									) : (
+										<Save size={14} strokeWidth={1.6} />
+									)}
+									<span className="truncate">{t('orders.save')}</span>
+								</Button>
+								<Button
+									onPress={submitDraft}
+									isDisabled={
+										items.length === 0 ||
+										hasInvalidItems ||
+										submitMutation.isPending
+									}
+									className="flex h-10 min-w-0 items-center justify-center gap-2 rounded-xl bg-[var(--p-accent)] px-3 text-[13px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:cursor-default disabled:opacity-40 sm:min-w-[132px]"
+								>
+									{submitMutation.isPending ? (
+										<Spinner />
+									) : (
+										<Send size={14} strokeWidth={1.6} />
+									)}
+									<span className="truncate">{t('orders.submit')}</span>
+								</Button>
+							</div>
 						</div>
 						{invalidItemsText && (
 							<p className="rounded-xl border border-[var(--p-error)]/25 bg-[var(--p-error)]/8 px-3 py-2 text-[12px] font-medium text-[var(--p-error)] sm:basis-full">

@@ -42,6 +42,7 @@ import type {
 	IncomingInteractiveMapPoint,
 	IncomingRouteFeatureCollection,
 } from '../../components/orders/IncomingOrdersInteractiveMap'
+import { OrderProjectAssignment } from '../../components/orders/OrderProjectAssignment'
 import { DraftQuoteTrigger } from '../../components/shared/DraftQuoteTrigger'
 import { PortalTitleRow } from '../../components/shell/PortalTitleRow'
 import {
@@ -340,6 +341,7 @@ function OrdersPage() {
 							<IncomingOrdersSection
 								deliveries={incomingDeliveries}
 								isAr={isAr}
+								orders={allOrders}
 							/>
 						)}
 						{hasDraft && (
@@ -554,6 +556,11 @@ function OrderHistoryRow({ order, isAr }: { order: Order; isAr: boolean }) {
 				<p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-[var(--p-text-muted)]">
 					{order.description}
 				</p>
+				<OrderProjectAssignment
+					className="mt-3 max-w-56"
+					orderId={order.id}
+					projectId={order.projectId}
+				/>
 			</div>
 			<div className="grid min-w-0 gap-3 [grid-template-columns:minmax(0,1fr)_minmax(7rem,auto)] sm:justify-self-end">
 				<div className="min-w-0 sm:text-end">
@@ -649,9 +656,11 @@ function MarketDraftTile({
 function IncomingOrdersSection({
 	deliveries,
 	isAr,
+	orders,
 }: {
 	deliveries: OrderDeliveryTracking[]
 	isAr: boolean
+	orders: Order[]
 }) {
 	const { t, i18n } = useTranslation('portal')
 	const navigate = useNavigate()
@@ -692,6 +701,9 @@ function IncomingOrdersSection({
 					<div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,24rem),1fr))]">
 						{deliveries.map((delivery, index) => {
 							const palette = INCOMING_COLORS[index % INCOMING_COLORS.length]
+							const sourceOrder = orders.find(
+								(order) => order.linkedOrderId === delivery.orderId,
+							)
 							const driverPlaceLabel =
 								describeDriverLocationForCustomer(delivery)
 							const destinationLabel =
@@ -773,15 +785,23 @@ function IncomingOrdersSection({
 											</div>
 										</dl>
 									</div>
-									<IncomingOrderActions
-										delivery={delivery}
-										onView={() =>
-											navigate({
-												to: '/orders/$orderId',
-												params: { orderId: delivery.orderId },
-											})
-										}
-									/>
+									<div className="grid min-w-0 gap-2">
+										{sourceOrder && (
+											<OrderProjectAssignment
+												orderId={sourceOrder.id}
+												projectId={sourceOrder.projectId}
+											/>
+										)}
+										<IncomingOrderActions
+											delivery={delivery}
+											onView={() =>
+												navigate({
+													to: '/orders/$orderId',
+													params: { orderId: delivery.orderId },
+												})
+											}
+										/>
+									</div>
 								</article>
 							)
 						})}
@@ -1457,6 +1477,11 @@ function SavedDraftRow({ order, isAr }: { order: Order; isAr: boolean }) {
 				<p className="mt-2 text-[12px] text-[var(--p-text-muted)]">
 					{t('orders.items', { count: order.itemCount })}
 				</p>
+				<OrderProjectAssignment
+					className="mt-3 max-w-60"
+					orderId={order.id}
+					projectId={order.projectId}
+				/>
 			</div>
 
 			{confirmDelete ? (
@@ -1639,6 +1664,11 @@ function OrderTile({ order, isAr }: { order: Order; isAr: boolean }) {
 								{amountLabel}
 							</p>
 						)}
+						<OrderProjectAssignment
+							className="mt-2 max-w-56"
+							orderId={order.id}
+							projectId={order.projectId}
+						/>
 					</div>
 					<button
 						type="button"
