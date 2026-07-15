@@ -9,127 +9,95 @@
 		"signOut": "Sign out"
 	},
 	"cta": {
-		"getQuote": "Get a Quote",
-		"browseMarket": "Browse Market",
-		"readyToBuild": "Build the list. We’ll source the rest.",
-		"getStartedFree": "Get Started",
-		"noCreditCard": "Keep a guest cart. Sign in only when you are ready.",
-		"status": "RFQ / Ready"
+		"getQuote": "Request a quote",
+		"browseMarket": "Browse materials",
+		"getStartedFree": "Get started"
 	},
 	"hero": {
-		"headline": "One material list. One consolidated quote.",
-		"headlinePart1": "One material list.",
-		"headlinePart2": "One consolidated quote.",
-		"eyebrow": "Building-material procurement / Egypt",
+		"headline": "Build the Future, Faster.",
+		"headlinePart1": "Build the Future,",
+		"headlinePart2": "Faster.",
+		"eyebrow": "Building materials / Egypt",
 		"address": "Arkan Plaza, Sheikh Zayed, Egypt",
-		"subheadline": "We source your building materials and deliver them to your site. You focus on building.",
+		"subheadline": "We source the materials on your list and coordinate delivery to your site.",
 		"imageAlt": "Cairo construction site",
-		"visitUs": "Visit us ↗",
-		"seeProcess": "See how quotes work",
-		"serviceRail": "Open a workspace",
-		"backToOverview": "Back to overview",
+		"visitUs": "Visit us",
+		"seeProcess": "How it works",
+		"serviceRail": "Help and resources",
+		"backToOverview": "Back",
 		"docket": {
-			"label": "Live material docket",
-			"emptyTitle": "Start with a real material",
-			"emptyDescription": "Choose a category, add products, and keep the list while you browse.",
-			"cartTitle": "Your current material list",
-			"categoryColumn": "Material family",
+			"label": "Material list",
+			"emptyTitle": "Your list is empty",
+			"emptyDescription": "Browse the catalog and add the materials you need.",
+			"cartTitle": "Your material list",
+			"categoryColumn": "Category",
 			"quantityColumn": "Quantity",
 			"unitColumn": "Unit",
-			"browse": "Open category",
-			"continue": "Continue building list",
+			"browse": "Browse",
+			"continue": "Add more materials",
 			"items": "items"
 		}
 	},
 	"howItWorks": {
-		"label": "Quote workflow",
-		"heading": "From material list\nto site handoff.",
+		"label": "Quotes",
+		"heading": "From list to delivery",
+		"description": "Choose the materials you need. We collect supplier pricing, send one quote, and coordinate delivery.",
 		"step1": {
-			"title": "Build your list",
+			"title": "Choose materials",
 			"description": "Browse the live catalog, choose exact specifications, and add the quantities your site needs."
 		},
 		"step2": {
-			"title": "Send one request",
+			"title": "Send a request",
 			"description": "Keep the list as a guest, then sign in once to save or send it to the HyperQuote team."
 		},
 		"step3": {
-			"title": "Review one quote",
+			"title": "Review the quote",
 			"description": "We source across verified suppliers and return one clear, consolidated quote for your approval."
 		},
 		"step4": {
-			"title": "Track the handoff",
-			"description": "Follow the confirmed order and delivery through to the final site handoff in the customer portal."
-		}
-	},
-	"valueProps": {
-		"label": "Platform",
-		"heading": "Built for how you work",
-		"subtitle": "One platform for sourcing, quoting, and delivery — so your time stays on the job site.",
-		"aiOrdering": {
-			"title": "One platform, not ten phone calls",
-			"description": "Submit your list once. We handle the rest — sourcing, negotiation, coordination."
-		},
-		"fastQuotes": {
-			"title": "Hours, not days",
-			"description": "Competitive pricing from multiple suppliers, delivered to you before lunch."
-		},
-		"tracking": {
-			"title": "Know where everything is",
-			"description": "Real-time tracking from warehouse to site. No more guessing."
-		},
-		"projects": {
-			"title": "Your projects, organized",
-			"description": "Every order tied to a project. Budgets tracked. History searchable."
-		},
-		"pricing": {
-			"title": "Honest pricing",
-			"description": "See the range upfront. No hidden fees. No surprises after delivery."
-		},
-		"whatsapp": {
-			"title": "Contact support",
-			"description": "Reach the team on WhatsApp for coordination, documents, and support."
+			"title": "Track delivery",
+			"description": "Follow the confirmed order through dispatch and delivery in the customer portal."
 		}
 	},
 	"marketPreview": {
 		"label": "Catalog",
-		"heading": "Material index",
-		"viewAll": "View All Products"
+		"heading": "Browse materials",
+		"viewAll": "View all materials"
 	},
 	"about": {
 		"label": "About",
 		"established": "Cairo, Egypt — Est. 2026",
-		"heroLine1": "Built around",
-		"heroLine2": "the material list.",
-		"heroHeadline": "The supply chain, rebuilt",
-		"heroSubheadline": "HyperQuote turns one project material list into a sourced, consolidated quote and a coordinated site delivery.",
+		"heroLine1": "Sourcing building materials",
+		"heroLine2": "in Egypt.",
+		"heroSubheadline": "HyperQuote sources the materials on your list, combines supplier pricing into one quote, and coordinates delivery to your site.",
 		"imageAlt": "Building materials arranged in a supplier yard in Greater Cairo",
 		"imageCaption": "Supplier network / Greater Cairo",
 		"story": {
-			"label": "Our Story",
-			"heading": "Procurement, made legible.",
+			"label": "Our story",
+			"heading": "Why HyperQuote exists",
 			"p1": "Egyptian construction runs on relationships, phone calls, and handshake deals. Contractors spend days calling suppliers for prices, comparing quotes on paper, and coordinating deliveries with no visibility. There's no standard platform, no price transparency, and no way to track an order once it's placed.",
 			"p2": "HyperQuote replaces that chaos with a structured, transparent system while preserving the relationship-driven way Egyptian business works. We source from multiple suppliers, consolidate pricing, handle logistics, and give every stakeholder real-time visibility into the process.",
 			"p3": "Based in Cairo, HyperQuote works with supplier networks across Egypt and supports professional procurement teams from sourcing through delivery."
 		},
 		"mission": {
-			"label": "Values",
-			"heading": "What we deliver",
+			"label": "Services",
+			"heading": "What we do",
 			"value1": {
-				"title": "Consolidated quotes",
+				"title": "Quotes",
 				"description": "Submit your material list and receive a single consolidated quote from multiple suppliers. No more days spent chasing individual prices."
 			},
 			"value2": {
-				"title": "Complete transparency",
+				"title": "Order tracking",
 				"description": "Every quote includes unit pricing, delivery timelines, and payment terms. Track your order from confirmation through delivery with live GPS."
 			},
 			"value3": {
-				"title": "Built for Egypt",
+				"title": "Local operations",
 				"description": "Designed for how Egyptian construction actually works. Quote-based pricing, wire and cheque payments, Cairo truck ban compliance, ETA e-invoicing — all built in."
 			}
 		},
 		"team": {
 			"label": "Team",
-			"heading": "Team",
+			"heading": "Our team",
 			"member1": {
 				"name": "Hicham M. AlQuoaiidy",
 				"role": "CEO & Founder"
@@ -146,21 +114,16 @@
 				"name": "Nour Abdel-Rahman",
 				"role": "Head of Product"
 			}
-		},
-		"careers": {
-			"heading": "Join us",
-			"description": "We're building the infrastructure for Egypt's construction industry. If you want to work on hard problems with real impact, we'd like to hear from you.",
-			"cta": "View open positions"
 		}
 	},
 	"cart": {
-		"label": "Quote Cart",
-		"title": "Your Quote",
-		"emptyTitle": "No items yet",
+		"label": "Material list",
+		"title": "Your material list",
+		"emptyTitle": "Your list is empty",
 		"empty": "Browse materials and add them to your quote.",
-		"browseCta": "Browse Materials",
+		"browseCta": "Browse materials",
 		"clearAll": "Clear",
-		"clearCart": "Clear Cart",
+		"clearCart": "Clear list",
 		"remove": "Remove item",
 		"decreaseQuantity": "Decrease quantity",
 		"increaseQuantity": "Increase quantity",
@@ -169,7 +132,7 @@
 		"notesPlaceholder": "Delivery timing, site access, brand preferences...",
 		"copyNotes": "Copy notes",
 		"itemNotes": "Item notes",
-		"saveDraft": "Save Draft",
+		"saveDraft": "Save draft",
 		"saved": "Saved",
 		"savingDraft": "Saving draft...",
 		"saveDraftFailed": "Could not save this draft. Sign in and try again.",
@@ -186,51 +149,51 @@
 		"add": "Add",
 		"cancel": "Cancel",
 		"confirm": "Confirm",
-		"confirmAddToCart": "Add this draft to cart?",
-		"confirmAddToCartBody": "This will add {{count}} items to the current cart.",
+		"confirmAddToCart": "Add this draft to your list?",
+		"confirmAddToCartBody": "This will add {{count}} items to the current list.",
 		"savedOrdersTitle": "Saved drafts",
-		"savedOrdersBody": "Review a saved draft inside this cart.",
+		"savedOrdersBody": "Review a saved draft from your material list.",
 		"savedOrdersEmpty": "No saved drafts yet.",
 		"savedOrdersSignIn": "Sign in to view saved drafts.",
 		"savedOrdersLoading": "Loading saved drafts...",
 		"savedOrdersLoadFailed": "Could not load saved drafts.",
 		"view": "View",
-		"submit": "Request Quote",
+		"submit": "Request quote",
 		"submitting": "Submitting...",
 		"submitFailed": "Could not submit this quote request. Sign in and try again.",
 		"submitSuccess": "Quote request submitted",
 		"submitSuccessBody": "We received your request and will contact you shortly.",
-		"confirmSubmitTitle": "Ready to send this request?",
+		"confirmSubmitTitle": "Send this quote request?",
 		"confirmSubmitBody": "HyperQuote will review your material list and contact you soon with the next steps.",
 		"confirmSubmitAction": "Send request",
 		"authSuccessTitle": "Account verified",
 		"authSuccessBody": "You're signed in. You can now save this draft or request the quote.",
 		"continueBrowsing": "Continue browsing",
 		"autoClose": "Closing automatically...",
-		"submitHint": "Free. No commitment. We handle the sourcing.",
+		"submitHint": "No commitment. We’ll review the list and send pricing.",
 		"itemCount_one": "{{count}} item",
 		"itemCount_other": "{{count}} items",
 		"units": "units"
 	},
 	"market": {
-		"pageTitle": "Building Materials",
-		"eyebrow": "Live material index / Egypt",
-		"subtitle": "Search verified materials, set exact quantities, and assemble one quote request for the whole site.",
-		"searchLabel": "Search the index",
+		"pageTitle": "Building materials",
+		"eyebrow": "Catalog / Egypt",
+		"subtitle": "Search materials, choose quantities, and add everything you need to one quote request.",
+		"searchLabel": "Search materials",
 		"catalog": "Catalog",
 		"browse": "Browse",
 		"add": "Add",
 		"clearFilters": "Clear",
 		"closeCatalog": "Close catalog",
-		"categoryLabel": "Material catalog",
-		"materialRecord": "Material record",
+		"categoryLabel": "Categories",
+		"materialRecord": "Material",
 		"filtersTitle": "Filters",
 		"groupStructural": "Structural",
 		"groupFinishing": "Finishing",
 		"groupMEP": "MEP",
 		"groupOther": "Other",
 		"searchPlaceholder": "Search materials...",
-		"filterClear": "Clear All",
+		"filterClear": "Clear all",
 		"resultCount": "{{count}} products",
 		"sortLabel": "Sort by",
 		"sortRelevance": "Relevance",
@@ -241,29 +204,29 @@
 		"viewList": "List",
 		"availabilityAll": "All",
 		"availabilityAvailable": "Available",
-		"availabilityLowStock": "Low Stock",
-		"filterPriceLabel": "Price Tier",
+		"availabilityLowStock": "Low stock",
+		"filterPriceLabel": "Price tier",
 		"filterBudget": "Budget",
 		"filterMidRange": "Mid-Range",
 		"filterPremium": "Premium",
 		"filtersTrigger": "Filters",
 		"filtersApply": "Apply",
 		"filtersReset": "Reset",
-		"addToQuote": "Add to Quote",
+		"addToQuote": "Add to quote",
 		"confirm": "Confirm",
 		"editQuantity": "Edit quantity",
-		"addMore": "Add More",
-		"priceOnRequest": "Price on Request",
+		"addMore": "Add more",
+		"priceOnRequest": "Price on request",
 		"emptyTitle": "No products found",
 		"emptyBody": "Try adjusting your filters or search terms",
-		"emptyCTA": "Clear Filters",
-		"errorTitle": "Failed to load products",
+		"emptyCTA": "Clear filters",
+		"errorTitle": "Couldn’t load products",
 		"errorBody": "Something went wrong. Check your connection and try again.",
 		"errorCTA": "Retry",
 		"loginPrompt": "Sign in to add products to your quote",
 		"available": "Available",
-		"lowStock": "Low Stock",
-		"outOfStock": "Out of Stock"
+		"lowStock": "Low stock",
+		"outOfStock": "Out of stock"
 	},
 	"categories": {
 		"cement": "Cement",
@@ -298,9 +261,12 @@
 		"platform": "Platform",
 		"company": "Company",
 		"legal": "Legal",
-		"getQuote": "Get a Quote",
-		"browseMarket": "Browse Market",
-		"trackOrder": "Track Order",
+		"getQuote": "Request a quote",
+		"browseMarket": "Browse materials",
+		"trackOrder": "Track order",
+		"tagline": "Building-material sourcing and delivery in Egypt.",
+		"openPortal": "Open portal",
+		"getDirections": "Get directions",
 		"aboutUs": "About",
 		"support": "Support",
 		"careers": "Careers",
@@ -328,7 +294,7 @@
 		"documentsHeading": "Documents",
 		"noDocuments": "No documents available.",
 		"relatedLabel": "Related",
-		"relatedHeading": "Related Products",
+		"relatedHeading": "Related products",
 		"quantityLabel": "Quantity",
 		"whatsappFallback": "Or reach us on WhatsApp",
 		"confirm": "Confirm",
@@ -343,7 +309,7 @@
 		"shareWhatsApp": "Share on WhatsApp",
 		"notFoundTitle": "Product not found",
 		"notFoundBody": "This product may have been removed or the link is incorrect.",
-		"notFoundCTA": "Browse Market",
+		"notFoundCTA": "Browse materials",
 		"breadcrumbMarket": "Market",
 		"specWeight": "Weight",
 		"specUOM": "Unit",
@@ -425,20 +391,18 @@
 		}
 	},
 	"careers": {
-		"heading": "Open Positions",
 		"location": "Cairo, Egypt",
-		"heroLine1": "An invitation to build",
-		"heroLine2": "something permanent.",
-		"openCount": "6 open positions",
+		"heroLine1": "Work at",
+		"heroLine2": "HyperQuote.",
+		"openCount": "Open roles",
 		"why": {
-			"p1": "Egypt's construction supply chain is a $40B market still running on phone calls, paper quotes, and personal relationships. We're not building another SaaS dashboard.",
-			"pullquote1": "We're building the operating system for how materials move from supplier to site.",
-			"p2": "You'll work directly with the founders on problems that matter: real-time logistics coordination, supplier matching algorithms, and a product designed for how Egyptian business actually works.",
-			"pullquote2": "Small team. High ownership. Shipping weekly.",
-			"p3": "This isn't a place where you'll disappear into a feature factory. Every engineer touches the full stack, every designer talks to users, every ops person shapes the logistics network. The problems are hard and the impact is immediate."
+			"heading": "What we’re building",
+			"p1": "Egypt’s construction supply chain still depends on phone calls, paper quotes, and personal relationships. HyperQuote is building software for sourcing, quoting, and delivery.",
+			"p2": "You’ll work directly with the founders on logistics coordination, supplier matching, and tools designed for Egyptian construction teams.",
+			"p3": "Our team is small. Engineers work across the stack, designers speak with customers, and operations shapes the delivery network."
 		},
 		"positions": {
-			"heading": "Open positions",
+			"heading": "Open roles",
 			"job1": {
 				"title": "Senior Frontend Engineer",
 				"department": "Engineering",
@@ -476,33 +440,11 @@
 				"type": "Full-time"
 			}
 		},
-		"process": {
-			"heading": "How we hire",
-			"step1": {
-				"title": "Apply",
-				"description": "Send your CV and a brief note about why HyperQuote interests you. We review every application within 48 hours."
-			},
-			"step2": {
-				"title": "Interview",
-				"description": "A short technical or role-specific conversation followed by a practical exercise. No trick questions, no whiteboard algorithms."
-			},
-			"step3": {
-				"title": "Offer",
-				"description": "If it's a mutual fit, we move fast. You'll receive a clear offer with compensation, equity, and start date within one week."
-			}
-		},
 		"cta": {
-			"headline": "Ready?"
+			"headline": "Apply by email"
 		},
 		"noJobs": "No open positions right now. Send us your CV and we'll reach out when something fits.",
-		"sendCV": "Send your CV",
-		"jobs": {
-			"fullStack": "Full Stack Engineer",
-			"operations": "Operations Manager",
-			"logistics": "Logistics Coordinator",
-			"location": "Cairo, Egypt",
-			"fullTime": "Full Time"
-		}
+		"sendCV": "Send your CV"
 	},
 	"a11y": {
 		"home": "HyperQuote — Home",
@@ -527,10 +469,13 @@
 		"welcome": "How can we help?",
 		"fabLabel": "Open chat",
 		"closeLabel": "Close chat",
+		"replyError": "Lyon couldn't reply. Please try again.",
 		"heroDescription": "Materials, pricing, delivery, orders — ask anything about HyperQuote."
 	},
 	"support": {
 		"heading": "How can we help?",
+		"heroHeading": "Contact HyperQuote",
+		"heroBody": "Tell us what you need. We usually reply within a few hours.",
 		"responseTime": "Average response: 2 hours",
 		"hoursLine": "Sun–Thu / 08:00–18:00 / Cairo time",
 		"stillNeedHelp": "Still need help?",
@@ -556,7 +501,7 @@
 		},
 		"businessHours": "8:00 – 18:00",
 		"faq": {
-			"heading": "Frequently Asked Questions",
+			"heading": "Common questions",
 			"searchPlaceholder": "Search questions...",
 			"noResults": "No matching questions found",
 			"tags": {
@@ -644,37 +589,37 @@
 	"login": {
 		"context": {
 			"eyebrow": "Customer access",
-			"heading": "Your purchasing desk for building materials.",
-			"body": "Sign in with email and password to request quotes, track orders, and manage project purchasing from one secure workspace.",
+			"heading": "Manage quotes and orders",
+			"body": "Sign in to request quotes, track orders, and manage purchasing for your projects.",
 			"benefits": {
 				"quotes": {
-					"title": "Quote faster",
+					"title": "Quotes",
 					"description": "Send one material list and compare supplier pricing."
 				},
 				"projects": {
-					"title": "Keep projects clean",
+					"title": "Projects",
 					"description": "Tie quotes, orders, invoices, and notes to the right job."
 				},
 				"delivery": {
-					"title": "Track delivery",
+					"title": "Deliveries",
 					"description": "Follow confirmed orders from dispatch to site."
 				}
 			}
 		},
-		"cardEyebrow": "Secure sign in",
+		"cardEyebrow": "Sign in",
 		"cardSubtitle": "Use your HyperQuote email and password. Phone verification stays available for customer phone login only.",
 		"step1": {
-			"heading": "Sign In",
+			"heading": "Sign in",
 			"subtitle": "Enter the mobile number connected to your company account."
 		},
 		"step2": {
 			"heading": "Verify"
 		},
 		"step3": {
-			"heading": "Create Account",
+			"heading": "Create account",
 			"subtitle": "Add the basic company details we need to prepare your workspace."
 		},
-		"phoneLabel": "Phone Number",
+		"phoneLabel": "Phone number",
 		"phoneHint": "Egyptian mobile numbers only. We never show your number publicly.",
 		"phoneRequired": "Phone number is required",
 		"phoneInvalid": "Enter a valid Egyptian mobile number (10 digits)",
@@ -705,7 +650,7 @@
 		"emailSignInHeading": "Sign in with email.",
 		"emailSignInSubtitle": "Use this only if your email account is already confirmed.",
 		"emailSignInTab": "Sign in",
-		"emailSignInButton": "Sign In",
+		"emailSignInButton": "Sign in",
 		"emailNotConfirmed": "Confirm your email before signing in.",
 		"emailSignInFailed": "Email/password is incorrect, or the email is not confirmed yet.",
 		"phoneVerificationRequired": "This email is not linked to a customer profile yet. Use phone setup or contact HyperQuote.",
@@ -714,19 +659,19 @@
 		"resend": "Resend",
 		"resendIn": "Resend in",
 		"sendFailed": "Failed to send. Try again.",
-		"companyName": "Company Name",
-		"fullName": "Full Name",
+		"companyName": "Company name",
+		"fullName": "Full name",
 		"verifiedPhone": "Verified phone",
 		"emailPasswordOptional": "Optional email/password. We will send a confirmation email before this login method can be used.",
 		"optionalEmailLabel": "Email (optional)",
 		"optionalPasswordLabel": "Password (optional)",
 		"emailSetupFailed": "Could not attach this email/password. Try a different email or continue with phone only.",
-		"createButton": "Create Account",
+		"createButton": "Create account",
 		"createFailed": "Something went wrong. Try again.",
 		"legalPrefix": "By continuing, you agree to our",
 		"termsLink": "Terms",
 		"and": "and",
-		"privacyLink": "Privacy Policy",
+		"privacyLink": "Privacy policy",
 		"claiming": {
 			"heading": "We found your account",
 			"subtitle": "Confirm the company below to continue into your existing workspace.",
@@ -742,48 +687,48 @@
 	},
 	"docs": {
 		"sidebar": {
-			"gettingStarted": "Platform Guide",
+			"gettingStarted": "Platform guide",
 			"whatIsHyperquote": "What is HyperQuote?",
-			"creatingAccount": "Creating an Account",
-			"yourFirstQuote": "Your First Quote",
-			"usingPortal": "Using the Portal",
-			"buildingMaterialLists": "Building Material Lists",
-			"trackingOrders": "Tracking Orders",
-			"managingProjects": "Managing Projects"
+			"creatingAccount": "Create an account",
+			"yourFirstQuote": "Your first quote",
+			"usingPortal": "Use the portal",
+			"buildingMaterialLists": "Build material lists",
+			"trackingOrders": "Track orders",
+			"managingProjects": "Manage projects"
 		},
 		"content": {
-			"notFound": "Not Found",
+			"notFound": "Not found",
 			"notFoundBody": "This section doesn't exist.",
 			"whatIsHyperquote": {
 				"title": "What is HyperQuote?",
 				"overview": "Overview",
-				"howItWorks": "How It Works",
-				"keyFeatures": "Key Features"
+				"howItWorks": "How it works",
+				"keyFeatures": "Key features"
 			},
 			"creatingAccount": {
-				"title": "Creating an Account",
-				"signUp": "Signing Up",
-				"verification": "Phone Verification"
+				"title": "Create an account",
+				"signUp": "Sign up",
+				"verification": "Phone verification"
 			},
 			"yourFirstQuote": {
-				"title": "Your First Quote",
-				"addingMaterials": "Adding Materials",
+				"title": "Your first quote",
+				"addingMaterials": "Add materials",
 				"submitting": "Submitting",
-				"receivingResponse": "Getting a Response"
+				"receivingResponse": "Get a response"
 			},
 			"buildingMaterialLists": {
-				"title": "Building Material Lists",
-				"catalogSearch": "Searching the Catalog",
-				"customItems": "Custom Items"
+				"title": "Build material lists",
+				"catalogSearch": "Search the catalog",
+				"customItems": "Custom items"
 			},
 			"trackingOrders": {
-				"title": "Tracking Orders",
-				"orderStatus": "Order Status",
-				"deliveryTracking": "Delivery Tracking"
+				"title": "Track orders",
+				"orderStatus": "Order status",
+				"deliveryTracking": "Delivery tracking"
 			},
 			"managingProjects": {
-				"title": "Managing Projects",
-				"createProject": "Creating a Project",
+				"title": "Manage projects",
+				"createProject": "Create a project",
 				"budgets": "Budgets"
 			}
 		},

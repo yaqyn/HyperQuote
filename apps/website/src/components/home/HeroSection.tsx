@@ -6,12 +6,13 @@ import {
 	motion,
 	useReducedMotion,
 } from 'motion/react'
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DOC_CATEGORIES, WIZARDS } from '../../content/registry'
 import { useChatWidget } from '../../hooks/useChatWidget'
 import { useQuoteCart } from '../../hooks/useQuoteCart'
 import type { PublicMarketPreviewCategory } from '../../lib/catalog'
+import { COMPANY_LOCATION_HREF } from '../../lib/company'
 import { DocsSearch as RealDocsSearch } from '../docs/DocsSearch'
 import { ContactForm } from '../support/ContactForm'
 import { ContactInfo } from '../support/ContactInfo'
@@ -59,8 +60,12 @@ export function HeroSection({
 	}
 
 	return (
-		<section className="relative flex min-h-svh flex-col overflow-hidden bg-[var(--color-base)]">
-			<div className="relative flex min-h-0 flex-1">
+		<section className="relative flex h-svh min-h-0 flex-col overflow-hidden bg-[var(--color-base)]">
+			<div
+				aria-hidden="true"
+				className="hq-dither-field hq-dither-field--hero"
+			/>
+			<div className="relative flex min-h-0 flex-1 overflow-hidden">
 				<AnimatePresence mode="wait">
 					{mode === 'hero' && (
 						<motion.div
@@ -69,50 +74,52 @@ export function HeroSection({
 							animate={{ opacity: 1, y: 0 }}
 							exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -18 }}
 							transition={transition}
-							className="flex w-full items-center pb-8 pt-24 sm:pb-10 sm:pt-28 lg:pb-14 lg:pt-32"
+							className="h-full w-full overflow-y-auto"
 						>
-							<div className="hq-page-shell grid items-center gap-12 lg:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)] lg:gap-16 xl:gap-24">
-								<div className="max-w-[760px] text-center lg:text-start">
-									<p className="hq-kicker mb-6 text-[var(--color-primary)]">
-										{t('hero.eyebrow')}
-									</p>
-									<h1 className="hq-display hq-title-hero font-bold text-[var(--color-text)]">
-										<span className="block">{t('hero.headlinePart1')}</span>
-										<span className="mt-[0.08em] block text-[var(--color-primary)]">
-											{t('hero.headlinePart2')}
-										</span>
-									</h1>
-									<p className="mx-auto mt-7 max-w-[580px] text-[16px] leading-7 text-[var(--color-text-muted)] sm:text-[18px] sm:leading-8 lg:mx-0">
-										{t('hero.subheadline')}
-									</p>
+							<div className="flex min-h-full items-center pb-8 pt-24 sm:pb-10 sm:pt-28 lg:pb-14 lg:pt-32">
+								<div className="hq-page-shell grid items-center gap-12 lg:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)] lg:gap-16 xl:gap-24">
+									<div className="max-w-[760px] text-center lg:text-start">
+										<p className="hq-kicker mb-6 text-[var(--color-primary)]">
+											{t('hero.eyebrow')}
+										</p>
+										<h1 className="hq-display hq-title-hero font-bold text-[var(--color-text)]">
+											<span className="block">{t('hero.headlinePart1')}</span>
+											<span className="hq-gradient-word mt-[0.08em] block">
+												{t('hero.headlinePart2')}
+											</span>
+										</h1>
+										<p className="mx-auto mt-7 max-w-[580px] text-[16px] leading-7 text-[var(--color-text-muted)] sm:text-[18px] sm:leading-8 lg:mx-0">
+											{t('hero.subheadline')}
+										</p>
 
-									<div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
-										<Link
-											to="/market"
-											className="group inline-flex h-13 w-full items-center justify-between rounded-xl bg-[var(--color-primary)] px-5 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] sm:w-[210px]"
-										>
-											{t('cta.browseMarket')}
-											<ArrowUpRight
-												size={17}
-												className="icon-end transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-											/>
-										</Link>
-										<button
-											type="button"
-											onClick={() =>
-												document.getElementById('process')?.scrollIntoView({
-													behavior: shouldReduceMotion ? 'auto' : 'smooth',
-												})
-											}
-											className="inline-flex h-13 w-full items-center justify-between rounded-xl border border-[var(--site-rule)] px-5 text-[14px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--site-concrete)] sm:w-[230px]"
-										>
-											{t('hero.seeProcess')}
-											<ArrowDown size={16} />
-										</button>
+										<div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
+											<Link
+												to="/market"
+												className="hq-action hq-action--primary h-13 w-full sm:w-[210px]"
+											>
+												{t('cta.browseMarket')}
+												<ArrowUpRight
+													size={17}
+													className="hq-action__icon icon-end"
+												/>
+											</Link>
+											<button
+												type="button"
+												onClick={() =>
+													document.getElementById('process')?.scrollIntoView({
+														behavior: shouldReduceMotion ? 'auto' : 'smooth',
+													})
+												}
+												className="hq-action hq-action--outline h-13 w-full sm:w-[230px]"
+											>
+												{t('hero.seeProcess')}
+												<ArrowDown size={16} className="hq-action__icon" />
+											</button>
+										</div>
 									</div>
-								</div>
 
-								<MaterialDocket categories={categories} isArabic={isArabic} />
+									<MaterialDocket categories={categories} isArabic={isArabic} />
+								</div>
 							</div>
 						</motion.div>
 					)}
@@ -126,18 +133,34 @@ export function HeroSection({
 							transition={transition}
 							className="h-full w-full overflow-y-auto"
 						>
-							<div className="hq-page-shell pb-12 pt-24 sm:pt-28 lg:pt-32">
-								<div className="mb-10 max-w-[720px] text-center lg:text-start">
-									<p className="hq-kicker mb-4 text-[var(--color-primary)]">
-										{t('support.sectionContact')}
-									</p>
-									<h2 className="hq-display hq-title-section font-bold text-[var(--color-text)]">
-										{t('support.formHeading')}
-									</h2>
-								</div>
-								<div className="grid grid-cols-1 gap-12 border-t border-[var(--site-rule)] pt-10 lg:grid-cols-[1fr_1fr] lg:gap-24">
-									<ContactForm />
-									<ContactInfo />
+							<div className="flex min-h-full items-center pb-4 pt-[76px] sm:pb-5 sm:pt-[80px]">
+								<div className="hq-page-shell grid items-start gap-7 lg:grid-cols-[minmax(260px,0.58fr)_minmax(0,1.42fr)] lg:gap-12 xl:gap-16">
+									<div className="text-start lg:pt-3">
+										<p className="hq-kicker mb-4 text-[var(--color-primary)]">
+											{t('support.sectionContact')}
+										</p>
+										<h2 className="hq-display hq-title-record font-bold text-[var(--color-text)]">
+											{t('support.heroHeading')}
+										</h2>
+										<p className="mt-4 max-w-[420px] text-[14px] leading-6 text-[var(--color-text-muted)] sm:text-[15px]">
+											{t('support.heroBody')}
+										</p>
+										<div className="mt-6">
+											<ContactInfo variant="hero" />
+										</div>
+									</div>
+
+									<div className="border border-[var(--site-rule)] bg-[var(--color-card)]/94 p-4 shadow-[var(--site-shadow)] sm:p-5">
+										<div className="mb-3 flex items-center justify-between gap-4 border-b border-[var(--site-rule)] pb-3">
+											<h3 className="text-[16px] font-semibold text-[var(--color-text)]">
+												{t('support.formHeading')}
+											</h3>
+											<span className="hidden font-mono text-[10px] text-[var(--color-text-subtle)] sm:block">
+												{t('support.responseTime')}
+											</span>
+										</div>
+										<ContactForm variant="hero" />
+									</div>
 								</div>
 							</div>
 						</motion.div>
@@ -150,27 +173,29 @@ export function HeroSection({
 							animate={{ opacity: 1, y: 0 }}
 							exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -18 }}
 							transition={transition}
-							className="flex h-full w-full items-center justify-center px-5 pb-20 pt-24 sm:px-8"
+							className="h-full w-full overflow-y-auto"
 						>
-							<div className="w-full max-w-[720px] text-center">
-								<p className="hq-kicker mb-5 text-[var(--color-primary)]">
-									HyperQuote / {t('nav.docs')}
-								</p>
-								<h2 className="hq-display hq-title-section font-bold text-[var(--color-text)]">
-									{t('docs.heroHeading')}
-								</h2>
-								<p className="mx-auto mt-6 max-w-[500px] text-[16px] leading-7 text-[var(--color-text-muted)]">
-									{t('docs.heroSubheading')}
-								</p>
-								<p className="mt-3 font-mono text-[11px] text-[var(--color-text-subtle)]">
-									{DOC_CATEGORIES.reduce(
-										(total, category) => total + category.articles.length,
-										0,
-									)}{' '}
-									{t('docs.articles')} · {WIZARDS.length} {t('docs.guides')}
-								</p>
-								<div className="mx-auto mt-9 max-w-[520px]">
-									<RealDocsSearch onAskLyon={(query) => openChat(query)} />
+							<div className="grid min-h-full place-items-center px-5 pb-5 pt-[68px] sm:px-8">
+								<div className="w-full max-w-[720px] text-center">
+									<p className="hq-kicker mb-5 text-[var(--color-primary)]">
+										HyperQuote / {t('nav.docs')}
+									</p>
+									<h2 className="hq-display hq-title-section font-bold text-[var(--color-text)]">
+										{t('docs.heroHeading')}
+									</h2>
+									<p className="mx-auto mt-6 max-w-[500px] text-[16px] leading-7 text-[var(--color-text-muted)]">
+										{t('docs.heroSubheading')}
+									</p>
+									<p className="mt-3 font-mono text-[11px] text-[var(--color-text-subtle)]">
+										{DOC_CATEGORIES.reduce(
+											(total, category) => total + category.articles.length,
+											0,
+										)}{' '}
+										{t('docs.articles')} · {WIZARDS.length} {t('docs.guides')}
+									</p>
+									<div className="mx-auto mt-9 max-w-[520px]">
+										<RealDocsSearch onAskLyon={(query) => openChat(query)} />
+									</div>
 								</div>
 							</div>
 						</motion.div>
@@ -183,7 +208,7 @@ export function HeroSection({
 							animate={{ opacity: 1, y: 0 }}
 							exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -18 }}
 							transition={transition}
-							className="flex h-full w-full flex-col"
+							className="flex h-full min-h-0 w-full flex-col"
 						>
 							<Suspense fallback={null}>
 								<LyonHeroChat initialMessage={chatInitialMessage} />
@@ -219,7 +244,7 @@ function MaterialDocket({
 	const hasItems = visibleItems.length > 0
 
 	return (
-		<div className="hq-photo-frame overflow-hidden rounded-[24px] border border-[var(--site-rule)] bg-[var(--color-card)] text-start lg:rotate-[0.7deg]">
+		<div className="hq-material-docket hq-photo-frame overflow-hidden rounded-[24px] border border-[var(--site-rule)] bg-[var(--color-card)] text-start lg:rotate-[0.7deg]">
 			<div className="border-b border-[var(--site-rule)] px-5 py-4 sm:px-6">
 				<p className="hq-kicker text-[var(--color-primary)]">
 					{t('hero.docket.label')}
@@ -315,6 +340,8 @@ function HeroModeRail({
 	onOpen: (mode: Exclude<HeroMode, 'hero'>) => void
 }) {
 	const { t } = useTranslation('website')
+	const shouldReduceMotion = useReducedMotion()
+	const [showAddress, setShowAddress] = useState(false)
 	const modes: Array<{
 		id: Exclude<HeroMode, 'hero'>
 		label: string
@@ -324,13 +351,57 @@ function HeroModeRail({
 		{ id: 'chat', label: t('chat.header') },
 	]
 
+	useEffect(() => {
+		const interval = window.setInterval(
+			() => setShowAddress((current) => !current),
+			3200,
+		)
+		return () => window.clearInterval(interval)
+	}, [])
+
 	return (
-		<div className="shrink-0 border-t border-[var(--site-rule)] bg-[var(--color-base)]">
+		<div className="relative z-10 shrink-0 border-t border-[var(--site-rule)] bg-[var(--color-base)]">
 			<div className="hq-page-shell flex min-h-[76px] flex-col justify-center gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:py-0">
 				{mode === 'hero' ? (
-					<p className="hq-kicker hidden text-[var(--color-text-subtle)] sm:block">
-						{t('hero.serviceRail')}
-					</p>
+					<div className="hidden min-w-0 items-center gap-4 md:flex">
+						<Link
+							to="/support"
+							className="shrink-0 text-[11px] font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-primary)]"
+						>
+							{t('hero.serviceRail')}
+						</Link>
+						<span
+							aria-hidden="true"
+							className="h-3 w-px shrink-0 bg-[var(--site-rule)]"
+						/>
+						<a
+							href={COMPANY_LOCATION_HREF}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="flex min-w-0 items-center gap-2 text-[11px] font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-primary)]"
+						>
+							<span className="sr-only">
+								{t('hero.visitUs')}: {t('hero.address')}
+							</span>
+							<span
+								aria-hidden="true"
+								className="block h-4 w-[190px] overflow-hidden lg:w-[260px]"
+							>
+								<AnimatePresence mode="wait" initial={false}>
+									<motion.span
+										key={showAddress ? 'address' : 'visit'}
+										initial={{ opacity: 0, y: shouldReduceMotion ? 0 : -8 }}
+										animate={{ opacity: 1, y: 0 }}
+										exit={{ opacity: 0, y: shouldReduceMotion ? 0 : 8 }}
+										transition={{ duration: shouldReduceMotion ? 0 : 0.22 }}
+										className="block truncate"
+									>
+										{showAddress ? t('hero.address') : t('hero.visitUs')}
+									</motion.span>
+								</AnimatePresence>
+							</span>
+						</a>
+					</div>
 				) : (
 					<button
 						type="button"

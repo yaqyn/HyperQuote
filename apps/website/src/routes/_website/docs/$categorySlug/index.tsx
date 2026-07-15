@@ -49,7 +49,7 @@ function CategoryIndexPage() {
 		<DocsPageShell activeCategorySlug={categorySlug}>
 			<div className="min-w-0 flex-1 lg:max-w-[800px]">
 				{/* Breadcrumb */}
-				<div className="mb-6 flex items-center justify-center gap-2 text-[12px] text-[var(--color-text-subtle)] lg:justify-start">
+				<div className="mb-5 flex items-center gap-2 text-[12px] text-[var(--color-text-subtle)]">
 					<Link
 						to="/docs"
 						className="hover:text-[var(--color-text)] transition-colors"
@@ -58,16 +58,16 @@ function CategoryIndexPage() {
 					</Link>
 				</div>
 
-				<h1 className="mb-4 text-center text-[1.85rem] font-bold leading-[1.1] tracking-normal sm:text-[2.1rem] lg:text-start lg:text-[2.25rem]">
+				<h1 className="hq-display hq-title-subsection mb-5 font-bold">
 					{t(category.titleKey, {
 						defaultValue: displayName(category.titleKey),
 					})}
 				</h1>
 
-				<div className="mb-8 h-px bg-[var(--color-text)] opacity-[0.07] sm:mb-10" />
+				<div className="mb-8 h-px bg-[var(--site-rule)] sm:mb-10" />
 
 				{/* Article list */}
-				<ul className="space-y-2 sm:space-y-4">
+				<ul className="border-t border-[var(--site-rule)]">
 					{category.articles.map((article, i) => (
 						<motion.li
 							key={article.slug}
@@ -90,10 +90,10 @@ function CategoryIndexPage() {
 							<Link
 								to="/docs/$categorySlug/$articleSlug"
 								params={{ categorySlug, articleSlug: article.slug }}
-								className="group flex items-center justify-center gap-4 border-b border-[var(--color-text)]/[0.05] py-4 text-center transition-colors hover:border-[var(--color-text)]/[0.12] lg:justify-between lg:text-start"
+								className="group flex items-center justify-between gap-4 border-b border-[var(--site-rule)] px-1 py-5 text-start transition-colors hover:bg-[var(--site-blue-wash)] sm:px-4"
 							>
 								<div className="min-w-0">
-									<div className="flex flex-col items-center justify-center gap-1 lg:flex-row lg:items-baseline lg:justify-start lg:gap-2.5">
+									<div className="flex items-baseline gap-2.5">
 										<span className="font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text-subtle)]">
 											{String(i + 1).padStart(2, '0')}
 										</span>
@@ -104,7 +104,7 @@ function CategoryIndexPage() {
 										</span>
 									</div>
 									{article.descriptionKey && (
-										<p className="mt-1 text-[13px] leading-relaxed text-[var(--color-text-muted)] lg:ps-8">
+										<p className="mt-1 ps-8 text-[13px] leading-relaxed text-[var(--color-text-muted)]">
 											{t(article.descriptionKey, {
 												defaultValue: displayName(article.descriptionKey),
 											})}
@@ -113,7 +113,7 @@ function CategoryIndexPage() {
 								</div>
 								<ArrowRight
 									size={14}
-									className="icon-end hidden shrink-0 opacity-30 transition-opacity lg:block lg:opacity-0 lg:group-hover:opacity-40"
+									className="icon-end shrink-0 text-[var(--color-text-subtle)] transition-colors group-hover:text-[var(--color-primary)]"
 								/>
 							</Link>
 						</motion.li>

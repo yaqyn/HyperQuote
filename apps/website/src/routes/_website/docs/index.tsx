@@ -9,7 +9,6 @@ import {
 	staggerUp,
 	viewportOnce,
 } from '../../../components/shared/motionVariants'
-import { SectionNumber } from '../../../components/shared/SectionNumber'
 import { DOC_CATEGORIES, displayName, WIZARDS } from '../../../content/registry'
 import { websiteHead } from '../../../lib/seo'
 
@@ -29,62 +28,63 @@ function DocsIndexPage() {
 
 	return (
 		<div className="min-h-screen">
-			{/* Hero */}
 			<motion.section
 				initial="hidden"
 				animate="visible"
 				variants={revealUp}
-				className="px-4 pb-12 pt-24 sm:px-6 sm:pb-14 md:px-8 lg:px-12 lg:pb-20 lg:pt-36"
+				className="relative isolate overflow-hidden pb-14 pt-28 sm:pb-16 sm:pt-32 lg:pb-20 lg:pt-40"
 			>
-				<div className="mx-auto max-w-[1200px] text-center lg:text-start">
-					<h1 className="text-[2.55rem] font-bold leading-[0.98] tracking-normal sm:text-[3.25rem] lg:text-[4.5rem]">
-						{t('docs.heroHeading')}
-					</h1>
+				<div
+					aria-hidden="true"
+					className="hq-dither-field hq-dither-field--docs"
+				/>
+				<div className="hq-page-shell relative grid gap-10 border-t border-[var(--site-rule)] pt-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(420px,0.62fr)] lg:items-end lg:gap-20">
+					<div>
+						<p className="hq-kicker mb-5 text-[var(--color-primary)]">
+							HyperQuote / {t('nav.docs')}
+						</p>
+						<h1 className="hq-display hq-title-section font-bold text-[var(--color-text)]">
+							{t('docs.heroHeading')}
+						</h1>
+					</div>
 
-					<div className="mx-auto mt-6 h-px w-16 bg-[var(--color-text)] opacity-10 lg:mx-0" />
-
-					<p className="mx-auto mt-6 max-w-[440px] text-[15px] leading-relaxed opacity-35 lg:mx-0">
-						{t('docs.heroSubheading')}
-					</p>
-					<p className="mt-3 font-[family-name:var(--font-mono)] text-[12px] tracking-normal text-[var(--color-text-subtle)]">
-						{DOC_CATEGORIES.reduce((n, c) => n + c.articles.length, 0)}{' '}
-						{t('docs.articles')} &middot; {WIZARDS.length} {t('docs.guides')}
-					</p>
-
-					{/* Search */}
-					<div className="mx-auto mt-8 max-w-[520px] sm:mt-10 lg:mx-0">
-						<DocsSearch />
+					<div className="max-w-[560px] lg:justify-self-end">
+						<p className="max-w-[520px] text-[15px] leading-7 text-[var(--color-text-muted)]">
+							{t('docs.heroSubheading')}
+						</p>
+						<p className="mt-3 font-[family-name:var(--font-mono)] text-[11px] text-[var(--color-text-subtle)]">
+							{DOC_CATEGORIES.reduce((n, c) => n + c.articles.length, 0)}{' '}
+							{t('docs.articles')} &middot; {WIZARDS.length} {t('docs.guides')}
+						</p>
+						<div className="mt-7 max-w-[520px]">
+							<DocsSearch />
+						</div>
 					</div>
 				</div>
 			</motion.section>
 
-			{/* Divider */}
-			<div className="mx-auto max-w-[1200px] px-4 sm:px-6 md:px-8 lg:px-12">
-				<div className="h-px bg-[var(--color-text)] opacity-[0.07]" />
-			</div>
-
-			{/* Mobile sidebar trigger */}
-			<div className="px-4 pt-6 sm:px-6 md:px-8 lg:hidden">
+			<div className="hq-page-shell border-t border-[var(--site-rule)] pt-6 lg:hidden">
 				<DocsMobileBrowseControls />
 			</div>
 
-			{/* Wizard Guides */}
-			<section className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-12 lg:py-24">
-				<div className="mx-auto max-w-[1200px]">
+			<section className="border-y border-[var(--site-rule)] bg-[var(--site-concrete)]/45 py-14 sm:py-16 lg:py-24">
+				<div className="hq-page-shell">
 					<motion.div
 						initial="hidden"
 						whileInView="visible"
 						viewport={viewportOnce}
 						variants={revealUp}
-						className="mb-8 text-center sm:mb-10 lg:mb-14 lg:text-start"
+						className="mb-8 sm:mb-10 lg:mb-14"
 					>
-						<SectionNumber n={1} />
-						<h2 className="mt-3 text-[1.5rem] font-bold tracking-normal sm:text-[1.75rem] lg:text-[2rem]">
+						<p className="hq-kicker mb-4 text-[var(--color-primary)]">
+							{WIZARDS.length} {t('docs.guides')}
+						</p>
+						<h2 className="hq-display hq-title-subsection font-bold">
 							{t('docs.guidesHeading')}
 						</h2>
 					</motion.div>
 
-					<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
+					<div className="grid grid-cols-1 border-t border-[var(--site-rule)] md:grid-cols-3">
 						{WIZARDS.map((w, i) => (
 							<motion.div
 								key={w.slug}
@@ -92,24 +92,25 @@ function DocsIndexPage() {
 								whileInView="visible"
 								viewport={viewportOnce}
 								variants={staggerUp(i * 0.08)}
+								className="border-b border-[var(--site-rule)] md:border-e md:last:border-e-0"
 							>
 								<Link
 									to="/docs/guide/$guideSlug"
 									params={{ guideSlug: w.slug }}
-									className="group block h-full rounded-lg border border-[var(--color-text)]/[0.06] p-5 text-center transition-colors hover:border-[var(--color-text)]/[0.12] sm:p-6 lg:text-start"
+									className="group block h-full p-5 transition-colors hover:bg-[var(--site-blue-wash)] sm:p-6 lg:p-7"
 								>
 									<span className="font-[family-name:var(--font-mono)] text-[11px] text-[var(--color-text-subtle)]">
-										{t('docs.wizard.guide')}
+										{t('docs.wizard.guide')} / {String(i + 1).padStart(2, '0')}
 									</span>
-									<h3 className="mt-2 text-[16px] font-semibold tracking-normal">
+									<h3 className="mt-3 text-[17px] font-semibold tracking-normal">
 										{t(w.titleKey, { defaultValue: displayName(w.titleKey) })}
 									</h3>
-									<p className="mt-2 text-[13px] text-[var(--color-text-muted)] leading-relaxed line-clamp-2">
+									<p className="mt-3 line-clamp-3 text-[13px] leading-6 text-[var(--color-text-muted)]">
 										{t(w.descriptionKey, {
 											defaultValue: displayName(w.descriptionKey),
 										})}
 									</p>
-									<div className="mt-4 flex items-center justify-center gap-1.5 text-[13px] font-medium text-[var(--color-primary)] transition-opacity lg:justify-start lg:opacity-0 lg:group-hover:opacity-100">
+									<div className="mt-5 flex items-center gap-1.5 text-[13px] font-medium text-[var(--color-primary)]">
 										{t('docs.startGuide')}
 										<ArrowRight size={13} className="icon-end" />
 									</div>
@@ -120,28 +121,24 @@ function DocsIndexPage() {
 				</div>
 			</section>
 
-			{/* Divider */}
-			<div className="mx-auto max-w-[1200px] px-4 sm:px-6 md:px-8 lg:px-12">
-				<div className="h-px bg-[var(--color-text)] opacity-[0.07]" />
-			</div>
-
-			{/* Documentation Categories */}
-			<section className="px-4 py-14 sm:px-6 sm:py-16 md:px-8 lg:px-12 lg:py-24">
-				<div className="mx-auto max-w-[1200px]">
+			<section className="py-14 sm:py-16 lg:py-24">
+				<div className="hq-page-shell">
 					<motion.div
 						initial="hidden"
 						whileInView="visible"
 						viewport={viewportOnce}
 						variants={revealUp}
-						className="mb-8 text-center sm:mb-10 lg:mb-14 lg:text-start"
+						className="mb-8 sm:mb-10 lg:mb-14"
 					>
-						<SectionNumber n={2} />
-						<h2 className="mt-3 text-[1.5rem] font-bold tracking-normal sm:text-[1.75rem] lg:text-[2rem]">
+						<p className="hq-kicker mb-4 text-[var(--color-primary)]">
+							{t('docs.browseAll')}
+						</p>
+						<h2 className="hq-display hq-title-subsection font-bold">
 							{t('docs.docsHeading')}
 						</h2>
 					</motion.div>
 
-					<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+					<div className="grid grid-cols-1 border-t border-[var(--site-rule)] md:grid-cols-2 xl:grid-cols-3">
 						{DOC_CATEGORIES.map((cat, catIdx) => (
 							<motion.div
 								key={cat.slug}
@@ -149,9 +146,9 @@ function DocsIndexPage() {
 								whileInView="visible"
 								viewport={viewportOnce}
 								variants={staggerUp(catIdx * 0.05)}
-								className="border-t border-[var(--color-text)]/[0.07] py-6 md:px-5 md:py-7 xl:px-7"
+								className="border-b border-[var(--site-rule)] py-6 md:px-5 md:py-7 xl:px-7"
 							>
-								<div className="mb-5 flex flex-col items-center justify-center gap-1 lg:flex-row lg:items-baseline lg:justify-start lg:gap-2.5">
+								<div className="mb-5 flex items-baseline gap-2.5">
 									<span className="font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text-subtle)]">
 										{String(catIdx + 1).padStart(2, '0')}
 									</span>
@@ -175,7 +172,7 @@ function DocsIndexPage() {
 													categorySlug: cat.slug,
 													articleSlug: article.slug,
 												}}
-												className="group flex items-center justify-center gap-3 rounded-md py-2 text-center text-[14px] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] lg:justify-between lg:text-start"
+												className="group flex items-center justify-between gap-3 py-2 text-start text-[14px] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
 											>
 												<span className="min-w-0 break-words">
 													{t(article.titleKey, {

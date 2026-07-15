@@ -258,9 +258,8 @@ export function WebsiteHeader() {
 	}, [quoteRequestItems])
 
 	const navLinkClass =
-		'rounded-full px-3 py-2 text-[12px] font-semibold text-[var(--color-text-muted)] transition-colors hover:bg-[var(--site-concrete)] hover:text-[var(--color-text)]'
-	const navLinkActiveClass =
-		'rounded-full bg-[var(--site-blue-wash)] px-3 py-2 text-[12px] font-semibold text-[var(--color-primary)]'
+		'border-b border-transparent px-3 py-2 text-[12px] font-semibold text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]'
+	const navLinkActiveClass = 'text-[var(--color-text)]'
 
 	const scrollToProcess = useCallback(() => {
 		document
@@ -282,15 +281,15 @@ export function WebsiteHeader() {
 			{isHome && (
 				<div
 					dir="ltr"
-					className="pointer-events-none fixed inset-x-0 top-0 z-39 flex h-[68px] items-center justify-between overflow-hidden px-4 sm:px-6 lg:px-8"
+					className="pointer-events-none fixed inset-x-0 top-0 z-39 flex h-[68px] items-center justify-between overflow-hidden bg-transparent px-4 sm:px-6 lg:px-8"
 					style={{
 						opacity: scrolled ? 0 : 1,
 						transition: 'opacity 0.7s ease-out',
 					}}
 				>
-					<button
-						type="button"
-						onClick={scrollToProcess}
+					<a
+						href="/"
+						aria-label={t('a11y.home')}
 						className="pointer-events-auto transition-transform duration-700 ease-out"
 						style={{
 							transform: scrolled ? 'translateY(-100%)' : 'translateY(0)',
@@ -312,7 +311,7 @@ export function WebsiteHeader() {
 								HyperQuote
 							</span>
 						</span>
-					</button>
+					</a>
 					<div
 						className="flex items-center gap-1 pointer-events-auto"
 						style={{
@@ -339,7 +338,7 @@ export function WebsiteHeader() {
 				dir="ltr"
 				aria-hidden={heroMode || atPageBottom}
 				inert={heroMode || atPageBottom}
-				className="fixed inset-x-0 top-0 z-40 flex h-[68px] items-center justify-between border-b border-[var(--site-rule)] bg-[var(--color-base)]/92 px-4 shadow-[0_1px_0_rgba(16,16,16,0.02)] backdrop-blur-xl transition-transform duration-500 ease-out sm:px-6 lg:px-8"
+				className="hq-site-header fixed inset-x-0 top-0 z-40 flex h-[68px] items-center justify-between border-b border-[var(--site-rule)] px-4 backdrop-blur-xl transition-transform duration-500 ease-out sm:px-6 lg:px-8"
 				style={{
 					transform:
 						heroMode || atPageBottom ? 'translateY(-100%)' : 'translateY(0)',
@@ -1259,7 +1258,7 @@ function CartSubmit({
 								<motion.button
 									type="button"
 									onClick={() => setSubmitConfirmOpen(false)}
-									className="flex h-9 items-center justify-center rounded-lg border border-[var(--color-border)] text-[12px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-base)]"
+									className="hq-action hq-action--outline hq-action--micro h-9 justify-center"
 									whileTap={shouldReduceMotion ? undefined : { scale: 0.98 }}
 								>
 									{t('cart.cancel')}
@@ -1268,7 +1267,7 @@ function CartSubmit({
 									type="button"
 									onClick={handleSubmitQuote}
 									disabled={isCartValidationBlocked}
-									className="flex h-9 items-center justify-center rounded-lg bg-[var(--color-primary)] text-[12px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:pointer-events-none disabled:opacity-50"
+									className="hq-action hq-action--primary hq-action--micro h-9 justify-center"
 									whileTap={
 										shouldReduceMotion || isCartValidationBlocked
 											? undefined
@@ -1317,7 +1316,7 @@ function CartSubmit({
 							quoteRequestItems.length === 0 ||
 							isCartValidationBlocked
 						}
-						className="flex h-10 min-w-0 items-center justify-center rounded-lg bg-[var(--color-primary)] px-3 text-[14px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] disabled:pointer-events-none disabled:opacity-70"
+						className="hq-action hq-action--primary hq-action--micro h-10 min-w-0 justify-center"
 						whileTap={
 							shouldReduceMotion ||
 							loadingAction !== null ||

@@ -67,8 +67,6 @@ export function ArticleRenderer({
 
 	const elements = useMemo(() => {
 		const tokens = Lexer.lex(markdown)
-		let isFirstParagraph = true
-		let headingCounter = 0
 
 		return tokens.map((token, idx) => renderToken(token, idx))
 
@@ -81,24 +79,18 @@ export function ArticleRenderer({
 					const Tag = `h${heading.depth}` as 'h2' | 'h3' | 'h4'
 
 					if (heading.depth === 2) {
-						headingCounter++
 						return (
 							<div
 								key={key}
 								id={id}
-								className="mb-4 mt-10 scroll-mt-24 first:mt-0 sm:mt-12"
+								className="mb-4 mt-11 scroll-mt-24 border-t border-[var(--site-rule)] pt-7 first:mt-0 sm:mt-14"
 							>
-								<div className="flex flex-col items-center gap-3 text-center lg:flex-row lg:items-start lg:justify-between lg:text-start">
-									<div className="flex min-w-0 flex-col items-center justify-center gap-1 lg:flex-row lg:items-baseline lg:justify-start lg:gap-3">
-										<span className="font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text-subtle)]">
-											{String(headingCounter).padStart(2, '0')}
-										</span>
-										<Tag className="min-w-0 text-[18px] font-semibold tracking-normal">
-											{heading.text}
-										</Tag>
-									</div>
+								<div className="flex items-start justify-between gap-4 text-start">
+									<Tag className="min-w-0 text-[20px] font-semibold tracking-normal sm:text-[22px]">
+										{heading.text}
+									</Tag>
 									<AskLyonPill
-										className="self-center lg:self-start"
+										className="hidden shrink-0 sm:inline-flex"
 										contextKey="docs.askLyonContext.tellMeAbout"
 										contextVars={{
 											heading: heading.text,
@@ -114,7 +106,7 @@ export function ArticleRenderer({
 						<Tag
 							key={key}
 							id={id}
-							className="mb-3 mt-8 scroll-mt-24 text-center text-[16px] font-semibold lg:text-start"
+							className="mb-3 mt-8 scroll-mt-24 text-start text-[16px] font-semibold"
 						>
 							{heading.text}
 						</Tag>
@@ -123,17 +115,6 @@ export function ArticleRenderer({
 
 				case 'paragraph': {
 					const para = token as Tokens.Paragraph
-					if (isFirstParagraph) {
-						isFirstParagraph = false
-						return (
-							<p
-								key={key}
-								className="mb-5 text-start text-[15px] leading-[1.85] text-[var(--color-text-muted)] lg:drop-cap"
-							>
-								{renderInline(para.tokens)}
-							</p>
-						)
-					}
 					return (
 						<p
 							key={key}
@@ -281,9 +262,9 @@ export function ArticleRenderer({
 	}, [markdown, articleTitle])
 
 	return (
-		<article className="mx-auto min-w-0 max-w-[680px] flex-1 lg:mx-0 lg:max-w-[800px]">
+		<article className="min-w-0 max-w-[760px] flex-1">
 			{/* Breadcrumb */}
-			<div className="mb-6 flex items-center justify-center gap-2 text-[12px] text-[var(--color-text-subtle)] lg:justify-start">
+			<div className="mb-6 flex items-center gap-2 text-[12px] text-[var(--color-text-subtle)]">
 				<Link
 					to="/docs"
 					className="hover:text-[var(--color-text)] transition-colors"
@@ -303,7 +284,7 @@ export function ArticleRenderer({
 			</div>
 
 			{/* Title */}
-			<h1 className="mb-6 text-center text-[1.85rem] font-bold leading-[1.1] tracking-normal sm:text-[2.1rem] lg:text-start lg:text-[2.25rem]">
+			<h1 className="hq-display hq-title-record mb-6 text-start font-bold text-[var(--color-text)]">
 				{articleTitle}
 			</h1>
 
@@ -314,7 +295,7 @@ export function ArticleRenderer({
 			{elements}
 
 			{/* Bottom navigation */}
-			<div className="mt-16 pt-8 border-t border-[var(--color-text)]/[0.07]">
+			<div className="mt-16 border-t border-[var(--color-text)]/[0.07] pt-8">
 				<div className="flex flex-col gap-5 sm:flex-row sm:items-stretch sm:justify-between">
 					{prev ? (
 						<Link

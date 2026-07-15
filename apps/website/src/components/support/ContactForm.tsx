@@ -1,5 +1,5 @@
 import { standardSchemaResolver } from '@hyperquote/forms'
-import { Check, Info, Loader2 } from 'lucide-react'
+import { Check, Info, Loader2, Send } from 'lucide-react'
 import { motion } from 'motion/react'
 import { type ReactNode, useCallback, useEffect, useState } from 'react'
 import { Button } from 'react-aria-components/Button'
@@ -38,10 +38,10 @@ type ContactFormData = z.infer<typeof contactSchema>
 
 const COUNTRY_CODE = '+20'
 
-const inputClass =
-	'h-[48px] w-full border-0 border-b border-[var(--color-text)]/[0.1] bg-transparent ps-0 pe-0 text-[16px] outline-none transition-colors duration-200 focus:border-[var(--color-primary)]/40'
-const labelClass =
-	'mb-2 block text-[11px] font-medium uppercase tracking-[.1em] opacity-30'
+const inputClass = (compact: boolean) =>
+	`${compact ? 'h-[38px]' : 'h-[48px]'} w-full border-0 border-b border-[var(--color-text)]/[0.1] bg-transparent ps-0 pe-0 text-[16px] outline-none transition-colors duration-200 focus:border-[var(--color-primary)]/40`
+const labelClass = (compact: boolean) =>
+	`${compact ? 'mb-1 text-[10px]' : 'mb-2 text-[11px]'} block font-medium uppercase tracking-[.1em] opacity-30`
 
 function FieldHint({ message }: { message: string }) {
 	return (
@@ -75,6 +75,7 @@ type ContactTextName = Extract<
 
 type ContactFormProps = {
 	onSubmitted?: () => void
+	variant?: 'default' | 'hero'
 }
 
 function ContactTextField({
@@ -86,6 +87,8 @@ function ContactTextField({
 	type,
 	multiline = false,
 	footer,
+	compact = false,
+	className,
 }: {
 	control: Control<ContactFormData>
 	name: ContactTextName
@@ -95,6 +98,8 @@ function ContactTextField({
 	type?: 'email'
 	multiline?: boolean
 	footer?: ReactNode
+	compact?: boolean
+	className?: string
 }) {
 	return (
 		<Controller
@@ -107,6 +112,7 @@ function ContactTextField({
 
 				return (
 					<AriaTextField
+						className={className}
 						value={field.value ?? ''}
 						onChange={field.onChange}
 						onBlur={field.onBlur}
@@ -115,21 +121,23 @@ function ContactTextField({
 						isInvalid={!!fieldState.error}
 						isDisabled={disabled}
 					>
-						<Label className={labelClass}>{label}</Label>
+						<Label className={labelClass(compact)}>{label}</Label>
 						{multiline ? (
 							<>
 								<TextArea
-									rows={4}
-									className="min-h-[120px] w-full border-0 border-b border-[var(--color-text)]/[0.1] bg-transparent py-3 ps-0 pe-0 text-[16px] outline-none transition-colors duration-200 focus:border-[var(--color-primary)]/40"
+									rows={compact ? 2 : 4}
+									className={`${compact ? 'min-h-[62px]' : 'min-h-[120px]'} w-full resize-none border-0 border-b border-[var(--color-text)]/[0.1] bg-transparent py-2 ps-0 pe-0 text-[16px] outline-none transition-colors duration-200 focus:border-[var(--color-primary)]/40`}
 								/>
-								<div className="mt-1.5 flex items-center justify-between">
+								<div
+									className={`${compact ? 'mt-1' : 'mt-1.5'} flex items-center justify-between`}
+								>
 									{hint ?? <span />}
 									{footer}
 								</div>
 							</>
 						) : (
 							<>
-								<Input className={inputClass} />
+								<Input className={inputClass(compact)} />
 								{hint}
 							</>
 						)}
@@ -140,11 +148,15 @@ function ContactTextField({
 	)
 }
 
-export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
+export function ContactForm({
+	onSubmitted,
+	variant = 'default',
+}: ContactFormProps = {}) {
 	const { t } = useTranslation('website')
 	const [submitted, setSubmitted] = useState(false)
 	const [ticketReference, setTicketReference] = useState<string | null>(null)
 	const [submitting, setSubmitting] = useState(false)
+	const isHero = variant === 'hero'
 
 	const form = useForm<ContactFormData>({
 		resolver: standardSchemaResolver(contactSchema),
@@ -157,13 +169,7 @@ export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
 		},
 		mode: 'onSubmit',
 	})
-	const { control, getValues, setValue } = form
-	const emailValue = useWatch({
-		control,
-		defaultValue: '',
-		name: 'email',
-	})
-	const emailMissing = !emailValue.trim()
+	const { getValues, setValue } = form
 
 	const subjectItems = [
 		{ id: 'general', label: t('support.form.subjects.general') },
@@ -275,7 +281,11 @@ export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
 		<form
 			onSubmit={form.handleSubmit(onSubmit)}
 			noValidate
-			className="mx-auto flex w-full max-w-[560px] flex-col gap-7 lg:max-w-none lg:gap-8"
+			className={
+				isHero
+					? 'grid w-full grid-cols-2 gap-x-4 gap-y-3'
+					: 'mx-auto flex w-full max-w-[560px] flex-col gap-7 lg:max-w-none lg:gap-8'
+			}
 		>
 			<ContactTextField
 				name="name"
@@ -283,6 +293,7 @@ export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
 				label={t('support.form.name')}
 				fallbackMessage="Please enter your name"
 				disabled={submitting}
+				compact={isHero}
 			/>
 
 			<ContactTextField
@@ -292,6 +303,7 @@ export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
 				fallbackMessage="Please enter a valid email"
 				disabled={submitting}
 				type="email"
+				compact={isHero}
 			/>
 
 			{/* Phone */}
@@ -300,6 +312,7 @@ export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
 				control={form.control}
 				render={({ field, fieldState }) => (
 					<AriaTextField
+						className={isHero ? 'min-w-0' : undefined}
 						value={field.value ?? ''}
 						onChange={handlePhoneChange}
 						onBlur={field.onBlur}
@@ -307,13 +320,19 @@ export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
 						isInvalid={!!fieldState.error}
 						isDisabled={submitting}
 					>
-						<Label className={labelClass}>{t('support.form.phone')}</Label>
+						<Label className={labelClass(isHero)}>
+							{t('support.form.phone')}
+						</Label>
 						<div className="flex items-center border-b border-[var(--color-text)]/[0.1] transition-colors duration-200 focus-within:border-[var(--color-primary)]/40">
-							<span className="flex h-[48px] shrink-0 items-center pe-3 font-[family-name:var(--font-mono)] text-[16px] opacity-35">
+							<span
+								className={`flex ${isHero ? 'h-[38px]' : 'h-[48px]'} shrink-0 items-center pe-3 font-[family-name:var(--font-mono)] text-[16px] opacity-35`}
+							>
 								{COUNTRY_CODE}
 							</span>
 							<div className="h-5 w-px bg-[var(--color-text)]/[0.08]" />
-							<Input className="h-[48px] w-full border-0 bg-transparent ps-3 pe-0 font-[family-name:var(--font-mono)] text-[16px] outline-none" />
+							<Input
+								className={`${isHero ? 'h-[38px]' : 'h-[48px]'} w-full border-0 bg-transparent ps-3 pe-0 font-[family-name:var(--font-mono)] text-[16px] outline-none`}
+							/>
 						</div>
 						{fieldState.error && (
 							<FieldHint
@@ -333,6 +352,7 @@ export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
 				control={form.control}
 				render={({ field, fieldState }) => (
 					<Select
+						className={isHero ? 'min-w-0' : undefined}
 						selectedKey={field.value ?? null}
 						onSelectionChange={(key) => field.onChange(key as string)}
 						onBlur={field.onBlur}
@@ -340,9 +360,11 @@ export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
 						isInvalid={!!fieldState.error}
 						isDisabled={submitting}
 					>
-						<Label className={labelClass}>{t('support.form.subject')}</Label>
+						<Label className={labelClass(isHero)}>
+							{t('support.form.subject')}
+						</Label>
 						<Button
-							className={`flex items-center justify-between ${inputClass}`}
+							className={`flex items-center justify-between ${inputClass(isHero)}`}
 						>
 							<SelectValue />
 						</Button>
@@ -372,31 +394,42 @@ export function ContactForm({ onSubmitted }: ContactFormProps = {}) {
 				fallbackMessage="Please add more detail"
 				disabled={submitting}
 				multiline
-				footer={<MessageCharCount control={form.control} />}
+				compact={isHero}
+				className={isHero ? 'col-span-2' : undefined}
+				footer={
+					<div className="flex items-center gap-3">
+						<MessageCharCount control={form.control} />
+						<span
+							aria-hidden="true"
+							className="h-3 w-px bg-[var(--site-rule)]"
+						/>
+						<Button
+							type="submit"
+							isDisabled={submitting}
+							className="inline-flex h-7 items-center gap-2 rounded-sm px-1 text-[12px] font-semibold text-[var(--color-primary)] outline-none transition-colors hover:text-[var(--color-primary-hover)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/25 disabled:opacity-45"
+						>
+							{t('support.form.submit')}
+							{submitting ? (
+								<Loader2 size={13} className="animate-spin" />
+							) : (
+								<Send size={13} />
+							)}
+						</Button>
+					</div>
+				}
 			/>
 
 			{/* Server error */}
 			{error && (
-				<div className="flex items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)]/[0.06] px-4 py-3">
+				<div
+					className={`flex items-center justify-center gap-2 rounded-lg bg-[var(--color-primary)]/[0.06] px-4 py-3 ${isHero ? 'col-span-2' : ''}`}
+				>
 					<Info size={14} className="shrink-0 text-[var(--color-primary)]" />
 					<p className="text-[13px] text-[var(--color-primary)]" role="alert">
 						{error}
 					</p>
 				</div>
 			)}
-
-			{/* Submit */}
-			<Button
-				type="submit"
-				isDisabled={submitting || emailMissing}
-				className="mt-2 flex h-12 w-full items-center justify-center rounded-lg bg-[var(--color-primary)] px-10 text-[15px] font-semibold text-white outline-none transition-all duration-200 hover:bg-[var(--color-primary-hover)] focus-visible:shadow-[0_0_0_3px_rgba(37,99,235,0.2)] disabled:opacity-50 md:mt-4"
-			>
-				{submitting ? (
-					<Loader2 size={18} className="animate-spin" />
-				) : (
-					t('support.form.submit')
-				)}
-			</Button>
 		</form>
 	)
 }

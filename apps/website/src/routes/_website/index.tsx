@@ -1,5 +1,4 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { CTASection } from '../../components/home/CTASection'
 import { HeroSection } from '../../components/home/HeroSection'
 import { HowItWorksSection } from '../../components/home/HowItWorksSection'
 import { MarketPreviewSection } from '../../components/home/MarketPreviewSection'
@@ -36,7 +35,6 @@ function HomePage() {
 			<HeroSection categories={marketPreviewCategories} />
 			<HowItWorksSection />
 			<MarketPreviewSection categories={marketPreviewCategories} />
-			<CTASection />
 		</>
 	)
 }

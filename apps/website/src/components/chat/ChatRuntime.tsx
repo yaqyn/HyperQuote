@@ -68,6 +68,7 @@ function FloatingChatPanel() {
 	const messages = useChatSession((state) => state.messages)
 	const sendMessage = useChatSession((state) => state.sendMessage)
 	const isLoading = useChatSession((state) => state.isLoading)
+	const error = useChatSession((state) => state.error)
 	const hasInjectedWelcome = useRef(false)
 	const hasSentPending = useRef(false)
 	const [welcomeMessage, setWelcomeMessage] = useState<ChatMessage | null>(null)
@@ -100,6 +101,7 @@ function FloatingChatPanel() {
 
 	return (
 		<ChatPanel
+			hasError={Boolean(error)}
 			messages={allMessages}
 			isLoading={isLoading}
 			sendMessage={sendMessage}

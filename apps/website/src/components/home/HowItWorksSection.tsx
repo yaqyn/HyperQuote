@@ -18,11 +18,14 @@ export function HowItWorksSection() {
 							<h2 className="hq-display hq-title-section whitespace-pre-line font-bold">
 								{t('howItWorks.heading')}
 							</h2>
+							<p className="mt-6 max-w-[640px] text-[15px] leading-7 text-white/55 sm:text-[16px]">
+								{t('howItWorks.description')}
+							</p>
 						</div>
 					</div>
 				</SectionReveal>
 
-				<SectionReveal className="mt-12 sm:mt-16 lg:mt-20">
+				<SectionReveal className="mt-10 sm:mt-12 lg:mt-14">
 					<figure className="overflow-hidden rounded-[24px] border border-white/10 bg-[#181818]">
 						<div className="relative aspect-[4/3] overflow-hidden sm:aspect-[16/8] lg:aspect-[16/7]">
 							<img

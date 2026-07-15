@@ -1,6 +1,5 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import type { ParseKeys } from 'i18next'
-import { ArrowRight } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
 import { revealUp, viewportOnce } from '../../components/shared/motionVariants'
@@ -172,26 +171,6 @@ function AboutPage() {
 					</div>
 				</div>
 			</motion.section>
-
-			<section className="bg-[var(--color-primary)] text-white">
-				<div className="hq-page-shell flex flex-col gap-8 py-14 sm:flex-row sm:items-end sm:justify-between lg:py-20">
-					<div>
-						<h2 className="hq-display hq-title-section font-bold">
-							{t('about.careers.heading')}
-						</h2>
-						<p className="mt-5 max-w-[640px] text-[15px] leading-7 text-white/70">
-							{t('about.careers.description')}
-						</p>
-					</div>
-					<Link
-						to="/careers"
-						className="inline-flex h-13 min-w-[220px] items-center justify-between border border-white/35 px-5 text-[14px] font-semibold transition-colors hover:bg-white hover:text-[var(--color-primary)]"
-					>
-						{t('about.careers.cta')}
-						<ArrowRight size={17} className="icon-end" />
-					</Link>
-				</div>
-			</section>
 		</div>
 	)
 }

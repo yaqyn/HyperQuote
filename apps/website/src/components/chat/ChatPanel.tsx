@@ -13,6 +13,7 @@ import { ChatInput } from './ChatInput'
 import { ChatMessages } from './ChatMessages'
 
 interface ChatPanelProps {
+	hasError: boolean
 	messages: ChatMessage[]
 	isLoading: boolean
 	sendMessage: (content: string) => Promise<void>
@@ -72,6 +73,7 @@ function ChatHeader({ isFullScreen = false }: { isFullScreen?: boolean }) {
 }
 
 function PanelShell({
+	hasError,
 	messages,
 	isLoading,
 	sendMessage,
@@ -87,7 +89,11 @@ function PanelShell({
 						: 'min-h-0 flex-1'
 				}
 			>
-				<ChatMessages messages={messages} isLoading={isLoading} />
+				<ChatMessages
+					hasError={hasError}
+					messages={messages}
+					isLoading={isLoading}
+				/>
 			</div>
 			<div
 				className={isFullScreen ? 'mx-auto w-full max-w-[760px]' : undefined}

@@ -1,5 +1,6 @@
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight, Mail, MapPin, MessageCircle, Phone } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { COMPANY_LOCATION_HREF } from '../../lib/company'
 
 const SUPPORT_EMAIL =
 	import.meta.env.VITE_SUPPORT_EMAIL ?? 'support@hyperquote.net'
@@ -8,11 +9,76 @@ const SUPPORT_PHONE_LABEL =
 	import.meta.env.VITE_SUPPORT_PHONE_LABEL ?? SUPPORT_PHONE_E164
 const SUPPORT_WHATSAPP_E164 = import.meta.env.VITE_SUPPORT_WHATSAPP_E164 ?? ''
 
-export function ContactInfo() {
+export function ContactInfo({
+	variant = 'default',
+}: {
+	variant?: 'default' | 'hero'
+}) {
 	const { t } = useTranslation('website')
 	const whatsappUrl = SUPPORT_WHATSAPP_E164
 		? `https://wa.me/${SUPPORT_WHATSAPP_E164.replace('+', '')}`
 		: null
+
+	if (variant === 'hero') {
+		return (
+			<div className="grid grid-cols-2 gap-2">
+				{whatsappUrl && (
+					<a
+						href={whatsappUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="hq-action hq-action--outline hq-action--compact"
+					>
+						<span className="flex items-center gap-2.5">
+							<MessageCircle size={15} />
+							{t('support.whatsappLabel')}
+						</span>
+						<ArrowUpRight size={14} className="hq-action__icon icon-end" />
+					</a>
+				)}
+
+				<a
+					href={`mailto:${SUPPORT_EMAIL}`}
+					className="hq-action hq-action--outline hq-action--compact"
+				>
+					<span className="flex min-w-0 items-center gap-2.5">
+						<Mail size={15} className="shrink-0" />
+						<span className="truncate">{t('support.emailLabel')}</span>
+					</span>
+					<ArrowUpRight
+						size={14}
+						className="hq-action__icon icon-end shrink-0"
+					/>
+				</a>
+
+				{SUPPORT_PHONE_E164 && (
+					<a
+						href={`tel:${SUPPORT_PHONE_E164}`}
+						className="hq-action hq-action--outline hq-action--compact"
+					>
+						<span className="flex items-center gap-2.5">
+							<Phone size={15} />
+							{t('support.phoneLabel')}
+						</span>
+						<ArrowUpRight size={14} className="hq-action__icon icon-end" />
+					</a>
+				)}
+
+				<a
+					href={COMPANY_LOCATION_HREF}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="hq-action hq-action--outline hq-action--compact"
+				>
+					<span className="flex items-center gap-2.5">
+						<MapPin size={15} />
+						{t('support.info.office')}
+					</span>
+					<ArrowUpRight size={14} className="hq-action__icon icon-end" />
+				</a>
+			</div>
+		)
+	}
 
 	return (
 		<div className="mx-auto w-full max-w-[560px] text-center lg:max-w-none lg:pt-2 lg:text-start">
@@ -89,7 +155,7 @@ export function ContactInfo() {
 						{t('support.info.office')}
 					</div>
 					<a
-						href="https://maps.google.com/?q=Arkan+Plaza+Sheikh+Zayed+Egypt"
+						href={COMPANY_LOCATION_HREF}
 						target="_blank"
 						rel="noopener noreferrer"
 						className="whitespace-pre-line text-[14px] leading-[1.7] opacity-60 transition-opacity hover:opacity-85"

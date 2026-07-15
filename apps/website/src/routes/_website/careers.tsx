@@ -81,22 +81,19 @@ function CareersPage() {
 				className="border-t border-[var(--site-rule)] px-4 py-16 sm:px-6 lg:px-12 lg:py-24"
 			>
 				<div className="mx-auto grid max-w-[1400px] gap-12 lg:grid-cols-[minmax(0,0.42fr)_minmax(0,0.58fr)] lg:gap-24">
-					<motion.blockquote
+					<motion.div
 						initial="hidden"
 						whileInView="visible"
 						viewport={viewportOnce}
 						variants={staggerUp(0.1)}
 					>
-						<p className="hq-display hq-title-subsection font-bold">
-							{t('careers.why.pullquote1')}
-						</p>
-					</motion.blockquote>
+						<h2 className="hq-display hq-title-subsection font-bold">
+							{t('careers.why.heading')}
+						</h2>
+					</motion.div>
 					<div className="space-y-7 border-s border-[var(--site-rule)] ps-6 text-[15px] leading-[1.85] text-[var(--color-text-muted)] sm:ps-8">
 						<p>{t('careers.why.p1')}</p>
 						<p>{t('careers.why.p2')}</p>
-						<p className="text-[18px] font-semibold leading-[1.45] text-[var(--color-primary)] sm:text-[20px]">
-							{t('careers.why.pullquote2')}
-						</p>
 						<p>{t('careers.why.p3')}</p>
 					</div>
 				</div>
@@ -175,10 +172,10 @@ function CareersPage() {
 					</p>
 					<a
 						href="mailto:careers@hyperquote.net"
-						className="inline-flex items-center gap-2 border-b border-white/40 pb-2 text-[15px] font-medium text-white transition-opacity hover:opacity-70"
+						className="hq-action hq-action--white mx-auto min-w-[250px]"
 					>
 						careers@hyperquote.net
-						<ArrowRight size={15} className="icon-end" />
+						<ArrowRight size={15} className="hq-action__icon icon-end" />
 					</a>
 				</div>
 			</motion.section>
@@ -310,7 +307,7 @@ function ApplicationForm({
 								</p>
 								<button
 									type="submit"
-									className="flex h-12 w-full items-center justify-center rounded-lg bg-[var(--color-primary)] px-10 text-[15px] font-semibold text-white outline-none transition-all duration-200 hover:bg-[var(--color-primary-hover)] sm:w-auto"
+									className="hq-action hq-action--primary h-12 w-full justify-center px-10 sm:w-auto"
 								>
 									{t('support.form.submit')}
 								</button>

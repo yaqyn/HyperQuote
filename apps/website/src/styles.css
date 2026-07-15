@@ -54,11 +54,36 @@
 	line-height: 1;
 }
 
+.hq-gradient-word {
+	background-image: linear-gradient(
+		100deg,
+		#1d4ed8 0%,
+		#3b82f6 52%,
+		#82aaff 100%
+	);
+	background-clip: text;
+	-webkit-background-clip: text;
+	color: transparent;
+}
+
+[dir="rtl"] .hq-gradient-word {
+	background-image: linear-gradient(
+		260deg,
+		#1d4ed8 0%,
+		#3b82f6 52%,
+		#82aaff 100%
+	);
+}
+
 [dir="rtl"] .hq-title-hero,
 [dir="rtl"] .hq-title-section,
 [dir="rtl"] .hq-title-subsection,
 [dir="rtl"] .hq-title-record {
 	line-height: 1.18;
+}
+
+[dir="rtl"] .hq-title-hero {
+	font-size: clamp(2.25rem, 10.5vw, 5rem);
 }
 
 .hq-kicker {
@@ -97,6 +122,200 @@
 	box-shadow: var(--site-shadow);
 }
 
+.hq-site-header {
+	--color-surface: rgba(255, 255, 255, 0.075);
+	--color-text: #f7f7f7;
+	--color-text-muted: #b0b0b0;
+	--color-text-subtle: #737373;
+	--color-border: rgba(255, 255, 255, 0.13);
+	--site-blue-wash: rgba(59, 130, 246, 0.14);
+	--site-concrete: rgba(255, 255, 255, 0.075);
+	--site-rule: rgba(255, 255, 255, 0.1);
+	background: rgba(9, 9, 10, 0.96);
+	box-shadow: 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.hq-site-header nav a[aria-current="page"] {
+	border-block-end-color: var(--color-primary);
+	color: var(--color-text);
+}
+
+[data-theme="dark"] .hq-material-docket {
+	--color-card: #0d0d0e;
+	--color-text-muted: #929292;
+	--color-text-subtle: #5f5f62;
+	--site-blue-wash: rgba(59, 130, 246, 0.095);
+	--site-concrete: #111112;
+	--site-rule: rgba(255, 255, 255, 0.085);
+	--site-soft-rule: rgba(255, 255, 255, 0.05);
+	box-shadow: 0 30px 76px rgba(0, 0, 0, 0.58);
+}
+
+/*
+ * Static tonal micro-dither. The small WebP tile is a cached image with
+ * transparency baked in; there is no canvas, animation loop, fixed layer,
+ * blend filter, pointer interception, or zoom-time asset generation.
+ */
+.hq-dither-field {
+	--dither-image: url("/images/dither-dark.webp");
+	position: absolute;
+	inset: 0;
+	display: block;
+	pointer-events: none;
+	user-select: none;
+	background-image: var(--dither-image);
+	background-position: top left;
+	background-repeat: repeat;
+	background-size: 256px 256px;
+	contain: layout paint style;
+}
+
+.hq-dither-field--hero {
+	opacity: 0.08;
+}
+
+.hq-dither-field--docs {
+	opacity: 0.07;
+}
+
+.hq-dither-field--login {
+	opacity: 0.065;
+}
+
+.hq-action {
+	position: relative;
+	display: inline-flex;
+	min-height: 3rem;
+	align-items: center;
+	justify-content: center;
+	gap: 0.625rem;
+	border: 1px solid transparent;
+	border-radius: 0.625rem;
+	padding-inline: 1rem;
+	font-size: 0.8125rem;
+	font-weight: 650;
+	line-height: 1;
+	text-decoration: none;
+	outline: none;
+	transition:
+		background-color 150ms ease,
+		border-color 150ms ease,
+		color 150ms ease,
+		box-shadow 150ms ease;
+}
+
+.hq-action:has(> .hq-action__icon:last-child) {
+	justify-content: space-between;
+	gap: 1.25rem;
+}
+
+.hq-action:has(> .hq-action__icon:last-child)::after {
+	position: absolute;
+	inset-block: 0;
+	inset-inline-end: 2.8rem;
+	width: 1px;
+	background: currentColor;
+	content: "";
+	opacity: 0.14;
+}
+
+.hq-action:focus-visible {
+	outline: 3px solid color-mix(in srgb, var(--color-primary) 24%, transparent);
+	outline-offset: 3px;
+}
+
+.hq-action:disabled,
+.hq-action[aria-disabled="true"],
+.hq-action[data-disabled] {
+	opacity: 0.48;
+}
+
+.hq-action--primary {
+	border-color: color-mix(in srgb, var(--color-primary) 82%, black);
+	background: var(--color-primary);
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.18),
+		0 1px 2px rgba(15, 23, 42, 0.16);
+	color: white;
+}
+
+.hq-action--primary:hover {
+	border-color: color-mix(in srgb, var(--color-primary-hover) 82%, black);
+	background: var(--color-primary-hover);
+}
+
+.hq-action--outline {
+	border-color: var(--site-rule);
+	background: transparent;
+	color: var(--color-text);
+}
+
+.hq-action--outline:hover {
+	border-color: color-mix(in srgb, var(--color-primary) 28%, var(--site-rule));
+	background: var(--site-blue-wash);
+}
+
+.hq-action--white {
+	border-color: rgba(255, 255, 255, 0.7);
+	background: white;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16);
+	color: #101010;
+}
+
+.hq-action--white:hover {
+	border-color: #dbe5fb;
+	background: #f4f7ff;
+}
+
+.hq-action--success {
+	border-color: #11773a;
+	background: #168a43;
+	box-shadow: 0 1px 2px rgba(10, 72, 35, 0.2);
+	color: white;
+}
+
+.hq-action--success:hover {
+	background: #11773a;
+}
+
+.hq-action--ghost-light {
+	border-color: rgba(255, 255, 255, 0.2);
+	background: transparent;
+	color: rgba(255, 255, 255, 0.8);
+}
+
+.hq-action--ghost-light:hover {
+	border-color: rgba(255, 255, 255, 0.38);
+	background: rgba(255, 255, 255, 0.065);
+	color: white;
+}
+
+.hq-action--compact {
+	min-height: 2.625rem;
+	border-radius: 0.5rem;
+	padding-inline: 0.875rem;
+	font-size: 0.75rem;
+}
+
+.hq-action--micro {
+	min-height: 2rem;
+	border-radius: 0.45rem;
+	padding-inline: 0.7rem;
+	font-size: 0.75rem;
+}
+
+@media (forced-colors: active) {
+	.hq-dither-field {
+		display: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.hq-action {
+		transition: none;
+	}
+}
+
 @media (min-width: 768px) {
 	.hq-page-shell {
 		width: min(100% - 4rem, 86rem);
@@ -109,24 +328,20 @@
 	}
 }
 
-/* Force default cursor everywhere — no I-beam on text, no not-allowed on disabled */
-*,
-*::before,
-*::after {
+/* Keep text non-selectable by cursor unless it is interactive or editable. */
+* {
 	cursor: default !important;
 }
 
-a,
-button,
-[role="button"],
-summary,
-select,
-label[for] {
+:is(a, button, [role="button"], summary, select, label[for]),
+:is(a, button, [role="button"], summary, select, label[for]) * {
 	cursor: pointer !important;
 }
 
 button:disabled,
-[aria-disabled="true"] {
+button:disabled *,
+[aria-disabled="true"],
+[aria-disabled="true"] * {
 	cursor: default !important;
 }
 /* I-beam only in text fields */
@@ -162,20 +377,6 @@ html {
 	html {
 		scroll-behavior: auto;
 	}
-}
-
-/* Force GPU compositing for scroll performance */
-main {
-	will-change: scroll-position;
-	-webkit-backface-visibility: hidden;
-	backface-visibility: hidden;
-}
-
-/* Promote animated/blurred elements to own layer */
-[class*="backdrop-blur"],
-[class*="animate-"] {
-	will-change: transform;
-	transform: translateZ(0);
 }
 
 /* Page transition — CSS-only, no double mount */
@@ -269,40 +470,6 @@ input[type="search"]::-webkit-search-decoration {
 	scrollbar-width: none;
 }
 
-/* Hero concentric rings */
-@keyframes hero-ring {
-	0% {
-		transform: scale(0.1);
-		opacity: 0.06;
-	}
-	50% {
-		opacity: 0.03;
-	}
-	100% {
-		transform: scale(1);
-		opacity: 0;
-	}
-}
-@media (prefers-reduced-motion: reduce) {
-	@keyframes hero-ring {
-		0%,
-		100% {
-			transform: scale(0.5);
-			opacity: 0.02;
-		}
-	}
-}
-
-/* Image scroll strip */
-@keyframes hero-scroll {
-	0% {
-		transform: translateX(0);
-	}
-	100% {
-		transform: translateX(-50%);
-	}
-}
-
 /* Chat widget animations */
 @keyframes chat-pulse {
 	0% {
@@ -337,27 +504,4 @@ input[type="search"]::-webkit-search-decoration {
 .scrollbar-none {
 	-ms-overflow-style: none;
 	scrollbar-width: none;
-}
-
-/* Drop cap — novel-style initial letter, top-aligned with first line */
-.drop-cap::first-letter {
-	font-family: var(--font-mono);
-	font-size: 4.2em;
-	float: inline-start;
-	line-height: 0.68;
-	padding-inline-end: 0.35em;
-	padding-block-end: 0.08em;
-	margin-block-start: 0.12em;
-	color: var(--color-primary);
-	font-weight: 700;
-}
-[dir="rtl"] .drop-cap::first-letter {
-	font-size: inherit;
-	float: none;
-	line-height: inherit;
-	padding: 0;
-	margin: 0;
-	color: inherit;
-	font-weight: inherit;
-	font-family: inherit;
 }

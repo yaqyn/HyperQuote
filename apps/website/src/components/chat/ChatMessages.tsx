@@ -1,11 +1,13 @@
 import { motion } from 'motion/react'
 import { useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ChatMessage } from '../../hooks/chatSession'
 import { ChatActionButtons } from './ChatActionButtons'
 import { ChatMarkdown } from './ChatMarkdown'
 import { TypingIndicator } from './TypingIndicator'
 
 interface ChatMessagesProps {
+	hasError: boolean
 	messages: ChatMessage[]
 	isLoading: boolean
 }
@@ -16,7 +18,12 @@ const enter = {
 	transition: { duration: 0.2 },
 }
 
-export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
+export function ChatMessages({
+	hasError,
+	messages,
+	isLoading,
+}: ChatMessagesProps) {
+	const { t } = useTranslation('website')
 	const scrollRef = useRef<HTMLDivElement>(null)
 
 	useEffect(() => {
@@ -51,6 +58,15 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 					),
 				)}
 				{isLoading && <TypingIndicator />}
+				{hasError && (
+					<motion.p
+						{...enter}
+						role="alert"
+						className="max-w-[90%] text-[13px] leading-6 text-red-600 dark:text-red-400"
+					>
+						{t('chat.replyError')}
+					</motion.p>
+				)}
 			</div>
 		</div>
 	)

@@ -86,14 +86,10 @@ function LoginPage() {
 	}
 
 	return (
-		<div className="relative min-h-svh overflow-hidden bg-[var(--color-base)] px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-[calc(3.5rem+2rem)] sm:px-6 sm:pt-[calc(4rem+2.75rem)] md:px-8 md:pb-12 md:pt-[calc(4rem+4rem)] lg:px-12 lg:py-[calc(4rem+4vw)]">
-			{/* Noise texture overlay */}
+		<div className="relative isolate min-h-svh overflow-hidden bg-[var(--color-base)] px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-[calc(3.5rem+2rem)] sm:px-6 sm:pt-[calc(4rem+2.75rem)] md:px-8 md:pb-12 md:pt-[calc(4rem+4rem)] lg:px-12 lg:py-[calc(4rem+4vw)]">
 			<div
-				className="pointer-events-none fixed inset-0 z-0 opacity-[0.035]"
-				style={{
-					backgroundImage: 'url(/noise.png)',
-					backgroundRepeat: 'repeat',
-				}}
+				aria-hidden="true"
+				className="hq-dither-field hq-dither-field--login"
 			/>
 
 			<div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[var(--color-border)]" />
@@ -378,7 +374,7 @@ function PhoneStep({
 					type="button"
 					onClick={() => handleSend('whatsapp')}
 					disabled={loading}
-					className="mt-5 flex h-[54px] w-full items-center justify-center gap-2.5 rounded-xl bg-[#25D366] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 sm:mt-6 sm:h-14"
+					className="hq-action hq-action--success mt-5 h-[54px] w-full justify-center sm:mt-6 sm:h-14"
 				>
 					{loading && sendingMethod === 'whatsapp' ? (
 						<Spinner />
@@ -690,7 +686,7 @@ function EmailPasswordStep({
 				type="button"
 				onClick={handleSignIn}
 				disabled={loading || resetLoading}
-				className="mt-6 h-[54px] w-full rounded-xl bg-[var(--color-primary)] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 sm:h-14"
+				className="hq-action hq-action--primary mt-6 h-[54px] w-full justify-center sm:h-14"
 			>
 				{loading ? <Spinner /> : t('login.emailSignInButton')}
 			</button>
@@ -796,7 +792,7 @@ function PasswordResetStep({
 				type="button"
 				onClick={handleResetPassword}
 				disabled={loading}
-				className="mt-6 h-[54px] w-full rounded-xl bg-[var(--color-primary)] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 sm:h-14"
+				className="hq-action hq-action--primary mt-6 h-[54px] w-full justify-center sm:h-14"
 			>
 				{loading ? <Spinner /> : t('login.resetPasswordButton')}
 			</button>
@@ -820,13 +816,13 @@ function PasswordResetSuccessStep() {
 			<div className="mt-7 grid gap-3 sm:grid-cols-2">
 				<a
 					href="/"
-					className="flex h-12 items-center justify-center rounded-xl border border-[var(--color-border)] px-4 text-[14px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)]"
+					className="hq-action hq-action--outline h-12 justify-center"
 				>
 					{t('login.websiteButton')}
 				</a>
 				<a
 					href={getPortalHref('/')}
-					className="flex h-12 items-center justify-center rounded-xl bg-[var(--color-primary)] px-4 text-[14px] font-semibold text-white transition-opacity hover:opacity-90"
+					className="hq-action hq-action--primary h-12 justify-center"
 				>
 					{t('login.portalButton')}
 				</a>
@@ -1082,7 +1078,7 @@ function CreateStep({
 				<button
 					type="submit"
 					disabled={loading}
-					className="mt-2 h-[54px] w-full rounded-xl bg-[var(--color-primary)] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 sm:h-14"
+					className="hq-action hq-action--primary mt-2 h-[54px] w-full justify-center sm:h-14"
 				>
 					{loading ? <Spinner /> : t('login.createButton')}
 				</button>
@@ -1164,7 +1160,7 @@ function ClaimStep({
 				type="button"
 				onClick={handleClaim}
 				disabled={loading}
-				className="mt-6 h-[54px] w-full rounded-xl bg-[var(--color-primary)] text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 sm:h-14"
+				className="hq-action hq-action--primary mt-6 h-[54px] w-full justify-center sm:h-14"
 			>
 				{loading ? <Spinner /> : t('login.claiming.confirm')}
 			</button>
@@ -1173,7 +1169,7 @@ function ClaimStep({
 				type="button"
 				onClick={onCreateInstead}
 				disabled={loading}
-				className="mt-3 h-[54px] w-full rounded-xl border border-[var(--color-border)] text-[15px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface)] disabled:opacity-50 sm:h-14"
+				className="hq-action hq-action--outline mt-3 h-[54px] w-full justify-center sm:h-14"
 			>
 				{t('login.claiming.deny')}
 			</button>

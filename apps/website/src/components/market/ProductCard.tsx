@@ -207,7 +207,7 @@ function AddPopover({
 					type="button"
 					onClick={handleSubmit}
 					disabled={!isOrderable && !existingItem}
-					className="flex-1 h-8 rounded-lg bg-white text-black text-[13px] font-semibold hover:bg-white/90 transition-colors disabled:pointer-events-none disabled:opacity-50"
+					className="hq-action hq-action--white hq-action--micro h-8 flex-1 justify-center"
 				>
 					{existingItem ? t('market.confirm') : t('market.addToQuote')}
 				</button>

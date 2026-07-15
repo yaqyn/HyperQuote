@@ -179,7 +179,7 @@ function SupportPage() {
 						<button
 							type="button"
 							onClick={() => openWithMessage('')}
-							className="mt-3 inline-flex items-center gap-2 text-[14px] font-medium text-[var(--color-primary)] transition-opacity hover:opacity-70"
+							className="hq-action hq-action--outline hq-action--compact mt-4"
 						>
 							{t('support.askAI', { defaultValue: 'Ask Lyon' })}
 						</button>

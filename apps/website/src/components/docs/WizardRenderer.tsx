@@ -55,7 +55,7 @@ export function WizardRenderer({
 	const isLast = currentStep === steps.length - 1
 
 	return (
-		<div className="mx-auto max-w-[720px]">
+		<div className="max-w-[760px]">
 			{/* Progress */}
 			<div className="mb-6 flex items-center justify-between sm:mb-8">
 				<span className="font-[family-name:var(--font-mono)] text-[13px] text-[var(--color-text-subtle)]">
@@ -104,7 +104,7 @@ export function WizardRenderer({
 					/>
 
 					{/* Text */}
-					<div className="mb-3 flex flex-col items-center justify-center gap-1 lg:flex-row lg:items-baseline lg:justify-start lg:gap-3">
+					<div className="mb-3 flex items-baseline gap-3 text-start">
 						<span className="font-[family-name:var(--font-mono)] text-[12px] text-[var(--color-text-subtle)]">
 							{String(currentStep + 1).padStart(2, '0')}
 						</span>
@@ -113,7 +113,7 @@ export function WizardRenderer({
 						</h2>
 					</div>
 
-					<p className="mx-auto mb-4 max-w-[560px] text-start text-[15px] leading-[1.8] text-[var(--color-text-muted)] lg:mx-0 lg:max-w-none lg:ps-8">
+					<p className="mb-4 max-w-[680px] text-start text-[15px] leading-[1.8] text-[var(--color-text-muted)] lg:ps-8">
 						{t(step.bodyKey, { defaultValue: step.body })}
 					</p>
 
@@ -161,10 +161,8 @@ export function WizardRenderer({
 					type="button"
 					onClick={prev}
 					disabled={isFirst && !isLast}
-					className={`inline-flex min-h-11 items-center gap-2 text-[14px] font-medium transition-colors ${
-						isFirst && !isLast
-							? 'opacity-25 cursor-not-allowed'
-							: 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
+					className={`hq-action hq-action--outline hq-action--compact ${
+						isFirst && !isLast ? 'opacity-25' : ''
 					}`}
 				>
 					<ArrowLeft size={15} className="icon-end" />
@@ -175,7 +173,7 @@ export function WizardRenderer({
 					<button
 						type="button"
 						onClick={() => goTo(0)}
-						className="inline-flex min-h-11 items-center gap-2 text-[14px] font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-primary)]"
+						className="hq-action hq-action--outline hq-action--compact"
 					>
 						<RotateCcw size={14} />
 						{t('docs.wizard.startOver', { defaultValue: 'Start over' })}
@@ -184,10 +182,10 @@ export function WizardRenderer({
 					<button
 						type="button"
 						onClick={next}
-						className="inline-flex min-h-11 items-center gap-1.5 text-[14px] font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-primary)]"
+						className="hq-action hq-action--primary hq-action--compact"
 					>
 						{t('docs.wizard.next', { defaultValue: 'Next' })}
-						<ArrowRight size={15} className="icon-end" />
+						<ArrowRight size={15} className="hq-action__icon icon-end" />
 					</button>
 				)}
 			</div>

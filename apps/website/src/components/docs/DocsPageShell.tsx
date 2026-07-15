@@ -31,7 +31,7 @@ function DocsBrowseButton({ onClick }: { onClick: () => void }) {
 		<button
 			type="button"
 			onClick={onClick}
-			className="inline-flex h-11 items-center gap-2 rounded-lg border border-[var(--color-text)]/[0.08] px-3 text-[13px] font-medium text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text)]/[0.16] hover:text-[var(--color-text)]"
+			className="hq-action hq-action--outline hq-action--compact"
 			aria-label={t('docs.openSidebar')}
 		>
 			<Menu size={16} />
@@ -49,7 +49,7 @@ export function DocsMobileBrowseControls({
 
 	return (
 		<>
-			<div className="mb-8 flex justify-center lg:hidden">
+			<div className="mb-8 flex justify-start lg:hidden">
 				<DocsBrowseButton onClick={() => setIsMobileSidebarOpen(true)} />
 			</div>
 			<DocsMobileSidebar
@@ -75,29 +75,31 @@ export function DocsPageShell({
 
 	return (
 		<div
-			className={`mx-auto ${maxWidthClass} px-4 pb-16 pt-24 sm:px-6 md:px-8 lg:px-12 lg:pb-24 lg:pt-32`}
+			className={`mx-auto ${maxWidthClass} px-4 pb-16 pt-28 sm:px-6 sm:pt-32 md:px-8 lg:px-12 lg:pb-24 lg:pt-36`}
 		>
-			<DocsMobileBrowseControls
-				activeCategorySlug={activeCategorySlug}
-				activeArticleSlug={activeArticleSlug}
-				activeGuideSlug={activeGuideSlug}
-			/>
+			<div className="border-t border-[var(--site-rule)] pt-5">
+				<DocsMobileBrowseControls
+					activeCategorySlug={activeCategorySlug}
+					activeArticleSlug={activeArticleSlug}
+					activeGuideSlug={activeGuideSlug}
+				/>
 
-			<motion.div
-				initial="hidden"
-				animate="visible"
-				variants={reveal}
-				className="flex gap-10 xl:gap-16"
-			>
-				<div className="hidden lg:block">
-					<DocsSidebar
-						activeCategorySlug={activeCategorySlug}
-						activeArticleSlug={activeArticleSlug}
-						activeGuideSlug={activeGuideSlug}
-					/>
-				</div>
-				{children}
-			</motion.div>
+				<motion.div
+					initial="hidden"
+					animate="visible"
+					variants={reveal}
+					className="flex min-w-0 gap-10 xl:gap-16"
+				>
+					<div className="hidden shrink-0 border-e border-[var(--site-rule)] pe-8 lg:block xl:pe-10">
+						<DocsSidebar
+							activeCategorySlug={activeCategorySlug}
+							activeArticleSlug={activeArticleSlug}
+							activeGuideSlug={activeGuideSlug}
+						/>
+					</div>
+					{children}
+				</motion.div>
+			</div>
 		</div>
 	)
 }

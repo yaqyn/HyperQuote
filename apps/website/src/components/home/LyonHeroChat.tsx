@@ -16,6 +16,7 @@ export function LyonHeroChat({
 	const messages = useChatSession((state) => state.messages)
 	const sendMessage = useChatSession((state) => state.sendMessage)
 	const isLoading = useChatSession((state) => state.isLoading)
+	const error = useChatSession((state) => state.error)
 	const [input, setInput] = useState('')
 	const inputRef = useRef<HTMLTextAreaElement>(null)
 	const messagesRef = useRef<HTMLDivElement>(null)
@@ -57,12 +58,12 @@ export function LyonHeroChat({
 	const isEmpty = messages.length === 0
 
 	return (
-		<div dir="ltr" className="flex-1 min-h-0 flex flex-col w-full">
-			<div className="pt-20 shrink-0" />
+		<div dir="ltr" className="flex h-full min-h-0 w-full flex-col">
+			<div className="h-[68px] shrink-0" />
 
 			<div ref={messagesRef} className="flex-1 min-h-0 overflow-y-auto">
 				{isEmpty && !isLoading ? (
-					<div className="h-full flex flex-col items-center justify-center gap-3">
+					<div className="flex h-full flex-col items-center justify-center gap-3 px-6 py-5">
 						<h2 className="text-[28px] lg:text-[40px] font-extrabold text-[var(--color-text)] tracking-normal">
 							{t('chat.header')}
 						</h2>
@@ -71,7 +72,7 @@ export function LyonHeroChat({
 						</p>
 					</div>
 				) : (
-					<div className="max-w-[800px] w-full mx-auto px-6 py-6 flex flex-col gap-8">
+					<div className="mx-auto flex min-h-full w-full max-w-[800px] flex-col justify-end gap-8 px-6 py-6">
 						{messages.map((msg) => (
 							<div key={msg.id}>
 								{msg.role === 'user' ? (
@@ -104,6 +105,14 @@ export function LyonHeroChat({
 									<span className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-subtle)] animate-pulse [animation-delay:0.3s]" />
 								</div>
 							</div>
+						)}
+						{error && (
+							<p
+								role="alert"
+								className="pe-12 text-[13px] leading-6 text-red-600 dark:text-red-400"
+							>
+								{t('chat.replyError')}
+							</p>
 						)}
 					</div>
 				)}

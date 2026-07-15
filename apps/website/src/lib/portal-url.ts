@@ -14,6 +14,10 @@ export function getPortalHref(
 }
 
 function currentHostname(): string {
+	// Keep SSR and hydration deterministic in local development. The browser
+	// hostname is unavailable during SSR, but both sides should still point to
+	// the local portal rather than render different href values.
+	if (import.meta.env.DEV) return 'localhost'
 	if (typeof window === 'undefined') return ''
 	return window.location.hostname
 }

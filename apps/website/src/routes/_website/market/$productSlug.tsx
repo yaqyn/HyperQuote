@@ -167,7 +167,7 @@ function ProductDetailPage() {
 				</p>
 				<Link
 					to="/market"
-					className="rounded-xl bg-[var(--color-primary)] px-6 py-3 font-semibold text-white"
+					className="hq-action hq-action--primary min-w-[180px]"
 				>
 					{t('product.notFoundCTA')}
 				</Link>
@@ -581,7 +581,7 @@ function QuoteAction({ product }: { product: QuoteActionProduct }) {
 							type="button"
 							onClick={() => setMode('selecting')}
 							disabled={!isOrderable}
-							className="h-14 w-full rounded-xl bg-[var(--color-primary)] font-semibold text-[15px] text-white hover:bg-[var(--color-primary-hover)] transition-colors disabled:pointer-events-none disabled:opacity-50"
+							className="hq-action hq-action--primary h-14 w-full justify-center"
 						>
 							{isOrderable ? t('market.addToQuote') : t('market.outOfStock')}
 						</button>
@@ -652,7 +652,7 @@ function QuoteAction({ product }: { product: QuoteActionProduct }) {
 							<button
 								type="button"
 								onClick={handleConfirm}
-								className="h-14 flex-1 rounded-xl bg-[var(--color-primary)] font-semibold text-[15px] text-white hover:bg-[var(--color-primary-hover)] transition-colors flex items-center justify-center gap-2"
+								className="hq-action hq-action--primary h-14 flex-1 justify-center"
 							>
 								<Check size={18} />
 								{t('product.confirm')}
@@ -691,7 +691,7 @@ function QuoteAction({ product }: { product: QuoteActionProduct }) {
 								type="button"
 								onClick={handleEdit}
 								disabled={!isOrderable}
-								className="h-14 flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-base)] font-semibold text-[15px] text-[var(--color-text)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors flex items-center justify-center gap-2 disabled:pointer-events-none disabled:opacity-50"
+								className="hq-action hq-action--outline h-14 flex-1 justify-center"
 							>
 								<Pencil size={16} />
 								{t('product.editQuantity')}
@@ -1115,7 +1115,7 @@ function MobileBar({ product }: { product: QuoteActionProduct }) {
 							type="button"
 							onClick={() => setMode('selecting')}
 							disabled={!isOrderable}
-							className="h-10 w-full rounded-lg bg-[var(--color-primary)] text-sm font-semibold text-white disabled:pointer-events-none disabled:opacity-50"
+							className="hq-action hq-action--primary hq-action--micro h-10 w-full justify-center"
 						>
 							{isOrderable ? t('market.addToQuote') : t('market.outOfStock')}
 						</button>
@@ -1182,7 +1182,7 @@ function MobileBar({ product }: { product: QuoteActionProduct }) {
 						<button
 							type="button"
 							onClick={handleConfirm}
-							className="h-10 flex-1 rounded-lg bg-[var(--color-primary)] text-sm font-semibold text-white flex items-center justify-center gap-1.5"
+							className="hq-action hq-action--primary hq-action--micro h-10 flex-1 justify-center"
 						>
 							<Check size={16} />
 							{t('product.confirm')}
@@ -1221,7 +1221,7 @@ function MobileBar({ product }: { product: QuoteActionProduct }) {
 							type="button"
 							onClick={handleEdit}
 							disabled={!isOrderable}
-							className="h-10 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-base)] text-sm font-semibold text-[var(--color-text)] flex items-center justify-center gap-1.5 disabled:pointer-events-none disabled:opacity-50"
+							className="hq-action hq-action--outline hq-action--micro h-10 flex-1 justify-center"
 						>
 							<Pencil size={14} />
 							{t('product.editQuantity')}

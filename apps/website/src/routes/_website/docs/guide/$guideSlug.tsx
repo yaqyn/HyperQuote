@@ -5,8 +5,8 @@ import {
 	useParams,
 } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
-import { cubicBezier, motion } from 'motion/react'
 import { useTranslation } from 'react-i18next'
+import { DocsPageShell } from '../../../../components/docs/DocsPageShell'
 import { WizardRenderer } from '../../../../components/docs/WizardRenderer'
 import { displayName, WIZARDS } from '../../../../content/registry'
 import { steps as forCustomersSteps } from '../../../../content/wizards/for-customers'
@@ -42,15 +42,6 @@ export const Route = createFileRoute('/_website/docs/guide/$guideSlug')({
 	component: WizardGuidePage,
 })
 
-const reveal = {
-	hidden: { opacity: 0, y: 12 },
-	visible: {
-		opacity: 1,
-		y: 0,
-		transition: { duration: 0.35, ease: cubicBezier(0.25, 0.1, 0.25, 1) },
-	},
-}
-
 function WizardGuidePage() {
 	const { t } = useTranslation('website')
 	const { guideSlug } = useParams({ from: '/_website/docs/guide/$guideSlug' })
@@ -65,39 +56,38 @@ function WizardGuidePage() {
 	}
 
 	return (
-		<div className="mx-auto max-w-[1200px] px-4 pb-16 pt-24 sm:px-6 md:px-8 lg:px-12 lg:pb-24 lg:pt-32">
-			{/* Back to docs */}
-			<Link
-				to="/docs"
-				className="mx-auto mb-8 flex w-fit items-center gap-2 text-[13px] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)] lg:mx-0"
-			>
-				<ArrowLeft size={14} className="icon-end" />
-				{t('docs.backToDocs', { defaultValue: 'Back to docs' })}
-			</Link>
+		<DocsPageShell activeGuideSlug={guideSlug} maxWidth="article">
+			<div className="min-w-0 max-w-[760px] flex-1">
+				<Link
+					to="/docs"
+					className="mb-6 flex w-fit items-center gap-2 text-[12px] text-[var(--color-text-subtle)] transition-colors hover:text-[var(--color-text)]"
+				>
+					<ArrowLeft size={14} className="icon-end" />
+					{t('docs.backToDocs', { defaultValue: 'Back to docs' })}
+				</Link>
 
-			{/* Guide title */}
-			<motion.div
-				initial="hidden"
-				animate="visible"
-				variants={reveal}
-				className="text-center lg:text-start"
-			>
-				<h1 className="mb-3 text-[1.85rem] font-bold leading-[1.1] tracking-normal sm:text-[2.1rem] lg:text-[2.25rem]">
-					{t(wizard.titleKey, { defaultValue: displayName(wizard.titleKey) })}
-				</h1>
-				<p className="mx-auto mb-8 max-w-[500px] text-start text-[15px] leading-relaxed text-[var(--color-text-muted)] sm:mb-12 lg:mx-0">
-					{t(wizard.descriptionKey, {
-						defaultValue: displayName(wizard.descriptionKey),
-					})}
-				</p>
-			</motion.div>
+				<div className="mb-8 border-b border-[var(--site-rule)] pb-8 sm:mb-10">
+					<p className="hq-kicker mb-4 text-[var(--color-primary)]">
+						{t('docs.wizard.guide', { defaultValue: 'Guide' })}
+					</p>
+					<h1 className="hq-display hq-title-record font-bold text-[var(--color-text)]">
+						{t(wizard.titleKey, {
+							defaultValue: displayName(wizard.titleKey),
+						})}
+					</h1>
+					<p className="mt-5 max-w-[580px] text-start text-[15px] leading-7 text-[var(--color-text-muted)]">
+						{t(wizard.descriptionKey, {
+							defaultValue: displayName(wizard.descriptionKey),
+						})}
+					</p>
+				</div>
 
-			{/* Wizard */}
-			<WizardRenderer
-				steps={steps}
-				guideSlug={guideSlug}
-				guideTitleKey={wizard.titleKey}
-			/>
-		</div>
+				<WizardRenderer
+					steps={steps}
+					guideSlug={guideSlug}
+					guideTitleKey={wizard.titleKey}
+				/>
+			</div>
+		</DocsPageShell>
 	)
 }
