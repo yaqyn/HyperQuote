@@ -74,9 +74,10 @@ export function HeroSection({
 							animate={{ opacity: 1, y: 0 }}
 							exit={{ opacity: 0, y: shouldReduceMotion ? 0 : -18 }}
 							transition={transition}
-							className="h-full w-full overflow-y-auto"
+							className="relative h-full w-full overflow-y-auto"
 						>
-							<div className="flex min-h-full items-center pb-8 pt-24 sm:pb-10 sm:pt-28 lg:pb-14 lg:pt-32">
+							<HeroMaterialAccents />
+							<div className="relative z-[1] flex min-h-full items-center pb-8 pt-24 sm:pb-10 sm:pt-28 lg:pb-14 lg:pt-32">
 								<div className="hq-page-shell grid items-center gap-12 lg:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)] lg:gap-16 xl:gap-24">
 									<div className="max-w-[760px] text-center lg:text-start">
 										<p className="hq-kicker mb-6 text-[var(--color-primary)]">
@@ -227,6 +228,57 @@ export function HeroSection({
 				}}
 			/>
 		</section>
+	)
+}
+
+function HeroMaterialAccents() {
+	const shouldReduceMotion = useReducedMotion()
+	const transition = {
+		duration: shouldReduceMotion ? 0.01 : 0.8,
+		ease: EASE,
+	}
+
+	return (
+		<div
+			aria-hidden="true"
+			className="hq-hero-material-accents pointer-events-none absolute inset-0 overflow-hidden"
+		>
+			<motion.div
+				initial={{ opacity: 0, x: shouldReduceMotion ? 0 : -64 }}
+				animate={{ opacity: 1, x: 0 }}
+				transition={{ ...transition, delay: shouldReduceMotion ? 0 : 0.12 }}
+				className="absolute -bottom-[9.5rem] -left-[29rem] w-[clamp(44rem,52vw,56rem)]"
+			>
+				<img
+					src="/images/hero-loader-bucket.png"
+					alt=""
+					width={768}
+					height={512}
+					loading="lazy"
+					decoding="async"
+					fetchPriority="low"
+					className="h-auto w-full max-w-none opacity-[0.32] saturate-[0.72] dark:brightness-[0.58] dark:opacity-[0.28]"
+				/>
+			</motion.div>
+
+			<motion.div
+				initial={{ opacity: 0, x: shouldReduceMotion ? 0 : 64 }}
+				animate={{ opacity: 1, x: 0 }}
+				transition={{ ...transition, delay: shouldReduceMotion ? 0 : 0.2 }}
+				className="absolute -right-[31rem] -bottom-[11.5rem] w-[clamp(46rem,55vw,60rem)]"
+			>
+				<img
+					src="/images/hero-concrete-foundation.png"
+					alt=""
+					width={768}
+					height={512}
+					loading="lazy"
+					decoding="async"
+					fetchPriority="low"
+					className="h-auto w-full max-w-none opacity-[0.58] saturate-[0.68] dark:brightness-[0.52] dark:contrast-[1.08] dark:opacity-[0.42]"
+				/>
+			</motion.div>
+		</div>
 	)
 }
 
