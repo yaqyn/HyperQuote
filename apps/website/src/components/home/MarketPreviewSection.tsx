@@ -32,7 +32,7 @@ export function MarketPreviewSection({
 		<section className="bg-[var(--color-base)] py-16 sm:py-20 lg:py-28">
 			<div className="hq-page-shell">
 				<SectionReveal>
-					<div className="mb-10 grid items-end gap-6 sm:mb-12 lg:grid-cols-[1fr_auto]">
+					<div className="mb-10 grid items-end gap-6 sm:mb-12 lg:grid-cols-[minmax(0,1fr)_minmax(240px,280px)_auto] lg:gap-8">
 						<div>
 							<p className="hq-kicker mb-4 text-[var(--color-primary)]">
 								{t('marketPreview.label')}
@@ -40,6 +40,20 @@ export function MarketPreviewSection({
 							<h2 className="hq-display hq-title-section font-bold text-[var(--color-text)]">
 								{t('marketPreview.heading')}
 							</h2>
+						</div>
+						<div
+							aria-hidden="true"
+							className="relative hidden h-[148px] lg:block"
+						>
+							<img
+								src="/images/material-specimens.png"
+								alt=""
+								width={768}
+								height={512}
+								loading="lazy"
+								decoding="async"
+								className="absolute inset-x-0 -bottom-3 h-[184px] w-full object-contain object-bottom drop-shadow-[0_18px_24px_rgba(15,23,42,0.14)] dark:brightness-[0.82] dark:saturate-[0.82] dark:drop-shadow-[0_20px_28px_rgba(0,0,0,0.42)]"
+							/>
 						</div>
 						<Link
 							to="/market"
