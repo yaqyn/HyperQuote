@@ -426,19 +426,29 @@ main > * {
 		stroke 0.12s ease !important;
 }
 
-/* View Transitions — quiet crossfade keeps language/theme changes legible. */
+/* Language transition — reveal the translated layout over the previous frame.
+   Normal blending avoids Chrome's bright additive snapshot flash. */
 ::view-transition-old(root) {
-	animation: 0.18s ease-out both page-exit;
+	animation: none;
+	mix-blend-mode: normal;
 }
 ::view-transition-new(root) {
-	animation: 0.24s ease-out both page-enter;
+	animation: 0.24s cubic-bezier(0.22, 1, 0.36, 1) both locale-reveal;
+	mix-blend-mode: normal;
 }
-@keyframes page-exit {
+@keyframes locale-reveal {
 	from {
-		opacity: 1;
+		opacity: 0;
 	}
 	to {
-		opacity: 0;
+		opacity: 1;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	::view-transition-old(root),
+	::view-transition-new(root) {
+		animation: none;
 	}
 }
 
