@@ -259,6 +259,9 @@ interface SupabaseQuoteBuilderRequestRow {
 	delivery_address_id: string | null
 	status: string
 	delivery_date: string | null
+	preferred_delivery_window: string | null
+	request_contact_email: string | null
+	request_contact_phone: string | null
 	notes: string | null
 	customers:
 		| SupabaseQuoteBuilderCustomerRow
@@ -775,6 +778,9 @@ async function buildSupabaseQuoteBuilderData(
 			delivery_address_id,
 			status,
 			delivery_date,
+			preferred_delivery_window,
+			request_contact_email,
+			request_contact_phone,
 			notes,
 			customers (
 				id,
@@ -876,8 +882,8 @@ async function buildSupabaseQuoteBuilderData(
 			name: customer?.company_name ?? '',
 			tier: 'new' as const,
 			contactName: customer?.contact_name ?? '',
-			phone: customer?.phone ?? '',
-			email: customer?.email ?? '',
+			phone: request.request_contact_phone ?? customer?.phone ?? '',
+			email: request.request_contact_email ?? customer?.email ?? '',
 			company: customer?.company_name ?? '',
 		},
 		deliveryAddress,
@@ -889,7 +895,8 @@ async function buildSupabaseQuoteBuilderData(
 			savedNotes.deliveryLongitude ??
 			normalizeLongitude(salesAddress?.longitude),
 		deliveryDate: savedNotes.deliveryDate ?? request.delivery_date ?? '',
-		deliveryWindow: savedNotes.deliveryWindow ?? '',
+		deliveryWindow:
+			savedNotes.deliveryWindow ?? request.preferred_delivery_window ?? '',
 		specialInstructions: savedNotes.notes ?? request.notes ?? '',
 		paymentTerms: savedNotes.paymentTerms ?? '',
 		earlyPaymentDiscount: savedNotes.earlyPaymentDiscount ?? '',

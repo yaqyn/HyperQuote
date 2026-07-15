@@ -11,7 +11,7 @@
 		"deploy:worker": "bun run build:worker && wrangler deploy",
 		"routes:generate": "tsr generate",
 		"typecheck": "bun run routes:generate && tsc --noEmit",
-		"test": "bun test src/lib/chat.test.ts",
+		"test": "bun test src/lib/*.test.ts",
 		"preview": "vite preview"
 	},
 	"dependencies": {
@@ -24,6 +24,7 @@
 		"@hyperquote/runtime": "workspace:*",
 		"@hyperquote/types": "workspace:*",
 		"@hyperquote/ui": "workspace:*",
+		"@internationalized/date": "^3.12.1",
 		"@tanstack/ai": "^0.9.2",
 		"@tanstack/ai-react": "0.7.8",
 		"@tanstack/react-router": "^1.170.8",

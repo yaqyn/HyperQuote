@@ -28,6 +28,7 @@ export function defineReactStartAppConfig({
 }: ReactStartAppConfigOptions) {
 	return defineConfig({
 		server: { port, strictPort: true },
+		preview: { strictPort: false },
 		assetsInclude,
 		define: {
 			'process.env.TSS_SERVER_FN_BASE': JSON.stringify('/_serverFn/'),

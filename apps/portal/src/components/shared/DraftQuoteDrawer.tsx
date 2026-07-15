@@ -9,7 +9,9 @@ import {
 	Plus,
 	Save,
 	Search,
+	Send,
 	StickyNote,
+	Trash2,
 	X,
 } from 'lucide-react'
 import {
@@ -25,12 +27,12 @@ import { toDraftQuoteRequestItemPayloads } from '../../lib/draft-quote-cart'
 import { getMarketProducts, type MarketProduct } from '../../lib/server/market'
 import {
 	saveDraft,
-	submitQuoteRequest,
 	validateQuoteRequestItems,
 } from '../../lib/server/quote-requests'
 import { toast } from '../../lib/toast'
 import { unavailableItemNamesFromError } from '../../lib/unavailable-quote-items'
 import { useDraftQuoteStore } from '../../stores/draft-quote'
+import { PortalQuoteRequestDialog } from '../quote-flow/PortalQuoteRequestDialog'
 import { ProductQuantitySearchRow } from './ProductQuantitySearchRow'
 import { SavedDraftsPanel } from './SavedDraftsPanel'
 
@@ -142,7 +144,8 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	const [draftNameEntryOpen, setDraftNameEntryOpen] = useState(false)
 	const [notesOpen, setNotesOpen] = useState(false)
 	const [savedOrdersOpen, setSavedOrdersOpen] = useState(false)
-	const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false)
+	const [clearArmed, setClearArmed] = useState(false)
+	const [quoteFlowOpen, setQuoteFlowOpen] = useState(false)
 	const [searchOpen, setSearchOpen] = useState(false)
 	const formattedItemCount = items.length.toLocaleString(
 		isAr ? 'ar-EG' : 'en-EG',
@@ -184,27 +187,6 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	const isCartValidationBlocked =
 		hasUnavailableCartItems || isCartValidationPending || isCartValidationFailed
 
-	const submitMutation = useMutation({
-		mutationFn: () =>
-			submitQuoteRequest({
-				data: {
-					draftId: savedDraftId ?? undefined,
-					items: quoteRequestItems,
-					name: draftName.trim() || persistedDraftName || defaultDraftName,
-					notes: globalNote.trim() || undefined,
-					idempotencyKey: crypto.randomUUID(),
-				},
-			}),
-		onSuccess: (result) => {
-			clear()
-			setSubmitConfirmOpen(false)
-			setSubmittedReference(result.reference)
-			setSavedDraftFingerprint(null)
-			setSavedDraftId(null)
-			toast.success(t('market.submitSuccessToast', { ref: result.reference }))
-		},
-	})
-
 	const saveMutation = useMutation({
 		mutationFn: (name: string) =>
 			saveDraft({
@@ -227,8 +209,12 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	})
 
 	function handleClearCart() {
+		if (!clearArmed) {
+			setClearArmed(true)
+			return
+		}
 		clear()
-		setSubmitConfirmOpen(false)
+		setClearArmed(false)
 		setDraftNameEntryOpen(false)
 		setNotesOpen(false)
 		setSavedDraftId(null)
@@ -251,8 +237,8 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 		setSavedOrdersOpen(false)
 		setDraftNameEntryOpen(false)
 		setNotesOpen(false)
-		setSubmitConfirmOpen(false)
-		submitMutation.reset()
+		setClearArmed(false)
+		setQuoteFlowOpen(false)
 		saveMutation.reset()
 	}
 
@@ -263,62 +249,67 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	}, [items.length, submittedReference])
 
 	useEffect(() => {
-		if (!open || (!submittedReference && !savedDraftReference)) return
+		if (!clearArmed) return
+		const timer = window.setTimeout(() => setClearArmed(false), 3000)
+		return () => window.clearTimeout(timer)
+	}, [clearArmed])
+
+	useEffect(() => {
+		if (
+			!open ||
+			quoteFlowOpen ||
+			(!submittedReference && !savedDraftReference)
+		) {
+			return
+		}
 		const timer = window.setTimeout(onClose, 3000)
 		return () => window.clearTimeout(timer)
-	}, [onClose, open, savedDraftReference, submittedReference])
+	}, [onClose, open, quoteFlowOpen, savedDraftReference, submittedReference])
 
 	function handleSubmit(event: FormEvent<HTMLFormElement>) {
 		event.preventDefault()
 		if (
 			quoteRequestItems.length === 0 ||
 			isCartValidationBlocked ||
-			submitMutation.isPending ||
 			saveMutation.isPending
 		) {
 			return
 		}
-		setSubmitConfirmOpen(true)
+		setQuoteFlowOpen(true)
 	}
 
-	function handleConfirmSubmit() {
-		if (
-			quoteRequestItems.length === 0 ||
-			isCartValidationBlocked ||
-			submitMutation.isPending ||
-			saveMutation.isPending
-		) {
-			return
-		}
-		setSubmitConfirmOpen(false)
-		submitMutation.mutate()
+	function handleQuoteSubmitted(reference: string) {
+		setSubmittedReference(reference)
+		setSavedDraftFingerprint(null)
+		setSavedDraftId(null)
+		toast.success(t('market.submitSuccessToast', { ref: reference }))
+	}
+
+	function handleQuoteFlowClose() {
+		setQuoteFlowOpen(false)
+		if (submittedReference) onClose()
 	}
 
 	function handleConfirmSaveDraft() {
 		if (
 			quoteRequestItems.length === 0 ||
 			isCartValidationBlocked ||
-			submitMutation.isPending ||
 			saveMutation.isPending ||
 			isDraftSaved
 		) {
 			return
 		}
-		setSubmitConfirmOpen(false)
 		saveMutation.mutate(draftName.trim() || defaultDraftName)
 	}
 
-	const mutationUnavailableItems = [
-		...new Set([
-			...unavailableItemNamesFromError(submitMutation.error),
-			...unavailableItemNamesFromError(saveMutation.error),
-		]),
-	]
+	const mutationUnavailableItems = unavailableItemNamesFromError(
+		saveMutation.error,
+	)
 	const unavailableItems =
 		validationUnavailableItems.length > 0
 			? validationUnavailableItems
 			: mutationUnavailableItems
-	const submitErrorText =
+	const cartErrorText =
 		unavailableItems.length > 0
 			? t('market.unavailableItems', {
 					items: unavailableItems.join(', '),
@@ -334,564 +325,537 @@ export function DraftQuoteDrawer({ open, onClose }: DraftQuoteDrawerProps) {
 	if (typeof document === 'undefined') return null
 
 	return createPortal(
-		<AnimatePresence onExitComplete={handleDrawerExitComplete}>
-			{open && (
-				<>
-					<motion.button
-						key="draft-quote-backdrop"
-						type="button"
-						aria-label={t('market.closeCart')}
-						className="fixed inset-0 z-[78] bg-black/25"
-						onClick={onClose}
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: shouldReduceMotion ? 0.01 : 0.18 }}
-					/>
-					<motion.aside
-						key="draft-quote-drawer"
-						role="dialog"
-						aria-modal="true"
-						aria-labelledby="draft-quote-title"
-						className="fixed inset-y-0 right-0 z-[79] flex h-[100dvh] w-[min(100vw,480px)] flex-col overflow-hidden border-l border-[var(--p-border)] bg-[var(--p-bg)] shadow-[0_24px_80px_rgba(0,0,0,0.18)] will-change-transform md:top-4 md:right-4 md:bottom-4 md:h-auto md:w-[460px] md:rounded-2xl lg:w-[480px]"
-						initial={{
-							opacity: shouldReduceMotion ? 1 : 0,
-							x: shouldReduceMotion ? 0 : '100%',
-						}}
-						animate={{ opacity: 1, x: 0 }}
-						exit={{
-							opacity: shouldReduceMotion ? 1 : 0,
-							x: shouldReduceMotion ? 0 : '100%',
-						}}
-						transition={{
-							duration: shouldReduceMotion ? 0.01 : 0.26,
-							ease: DRAWER_EASE,
-						}}
-					>
-						{submittedReference || savedDraftReference ? (
-							<DraftQuoteSuccessMessage
-								reference={submittedReference ?? savedDraftReference ?? ''}
-								shouldReduceMotion={shouldReduceMotion}
-								type={submittedReference ? 'submit' : 'draft'}
-							/>
-						) : (
-							<>
-								<header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--p-border)] px-4 py-3.5 md:px-5">
-									<div className="min-w-0">
-										<h2
-											id="draft-quote-title"
-											className="text-[15px] font-semibold text-[var(--p-text)]"
-										>
-											{t('market.draftQuote')}
-										</h2>
-										<p className="mt-1 text-[12px] text-[var(--p-text-muted)]">
-											{t('market.cartItemCount', {
-												count: formattedItemCount,
-											})}
-										</p>
-									</div>
-									<div className="flex shrink-0 items-center gap-1">
-										<motion.button
-											type="button"
-											onClick={() => setSearchOpen(true)}
-											className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-											aria-label={t('market.addToQuote')}
-											whileTap={
-												shouldReduceMotion ? undefined : { scale: 0.94 }
-											}
-										>
-											<Plus size={17} strokeWidth={1.8} />
-										</motion.button>
-										<motion.button
-											type="button"
-											onClick={onClose}
-											className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-											aria-label={t('market.closeCart')}
-											whileTap={
-												shouldReduceMotion ? undefined : { scale: 0.94 }
-											}
-										>
-											<PanelRightClose size={17} strokeWidth={1.8} />
-										</motion.button>
-									</div>
-								</header>
-
-								<AnimatePresence mode="wait" initial={false}>
-									{items.length === 0 ? (
-										<motion.div
-											key="empty"
-											{...contentMotion}
-											className="flex flex-1 flex-col items-center justify-center px-8 text-center"
-										>
-											<FilePenLine
-												size={28}
-												strokeWidth={1.5}
-												className="mb-4 text-[var(--p-text-faint)]"
-											/>
-											<h3 className="text-[16px] font-semibold text-[var(--p-text)]">
-												{t('market.cartEmptyTitle')}
-											</h3>
-											<p className="mt-2 max-w-[280px] text-[13px] leading-6 text-[var(--p-text-muted)]">
-												{t('market.cartEmptyBody')}
-											</p>
-											<button
-												type="button"
-												onClick={() => setSavedOrdersOpen(true)}
-												className="mt-5 flex h-10 min-w-40 items-center justify-center rounded-xl border border-[var(--p-border)] px-4 text-[13px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-											>
-												{t('market.viewSavedOrders')}
-											</button>
-										</motion.div>
-									) : (
-										<motion.form
-											key="items"
-											onSubmit={handleSubmit}
-											{...contentMotion}
-											className="flex min-h-0 flex-1 flex-col"
-										>
-											<div className="flex-1 overflow-y-auto">
-												<AnimatePresence initial={false}>
-													{items.map((item, index) => {
-														const itemName =
-															isAr && item.nameAr ? item.nameAr : item.name
-														const itemUnavailable =
-															validationUnavailableItems.includes(itemName)
-														const categoryLabel =
-															isAr && item.categoryNameAr
-																? item.categoryNameAr
-																: item.categoryName
-														const unitLabel =
-															isAr && item.unitOfMeasureAr
-																? item.unitOfMeasureAr
-																: item.unitOfMeasure
-														return (
-															<motion.div
-																key={item.productId}
-																initial={{
-																	opacity: 0,
-																	y: shouldReduceMotion ? 0 : 4,
-																}}
-																animate={{ opacity: 1, y: 0 }}
-																exit={{
-																	opacity: 0,
-																	x: shouldReduceMotion ? 0 : -8,
-																}}
-																transition={{
-																	duration: shouldReduceMotion ? 0.01 : 0.14,
-																	ease: SNAP_EASE,
-																}}
-																className={[
-																	'overflow-hidden px-4 py-3 md:px-5',
-																	index > 0
-																		? 'border-t border-[var(--p-border)]'
-																		: '',
-																	itemUnavailable ? 'opacity-55' : '',
-																].join(' ')}
-															>
-																<div className="flex min-w-0 items-center gap-3">
-																	{item.imageUrl ? (
-																		<img
-																			src={item.imageUrl}
-																			alt=""
-																			loading="lazy"
-																			decoding="async"
-																			className="h-11 w-11 shrink-0 rounded-lg bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)]"
-																		/>
-																	) : (
-																		<div
-																			aria-hidden="true"
-																			className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[var(--p-surface)] text-[var(--p-text-faint)] ring-1 ring-inset ring-[var(--p-border)]"
-																		>
-																			<Package size={15} />
-																		</div>
-																	)}
-																	<div className="min-w-0 flex-1">
-																		<p className="truncate text-[13px] font-medium leading-snug text-[var(--p-text)]">
-																			{itemName}
-																		</p>
-																		<p className="mt-1 truncate text-[11px] text-[var(--p-text-muted)]">
-																			{categoryLabel}
-																		</p>
-																		{itemUnavailable && (
-																			<span className="mt-1 inline-flex rounded-full border border-[var(--p-error)]/25 px-2 py-0.5 text-[10px] font-semibold text-[var(--p-error)]">
-																				{t('market.outOfStock')}
-																			</span>
-																		)}
-																	</div>
-																	<label className="flex h-10 w-[144px] shrink-0 items-center justify-end gap-2 px-1">
-																		<span className="sr-only">
-																			{t('market.quantity')}
-																		</span>
-																		<input
-																			type="number"
-																			inputMode="numeric"
-																			min={0}
-																			value={item.quantity}
-																			onKeyDown={(event) => {
-																				if (
-																					item.quantity !== 0 ||
-																					!/^\d$/.test(event.key)
-																				) {
-																					return
-																				}
-																				event.preventDefault()
-																				updateQuantity(
-																					item.productId,
-																					Number(event.key),
-																				)
-																			}}
-																			onPaste={(event) => {
-																				if (item.quantity !== 0) return
-																				const pastedValue = event.clipboardData
-																					.getData('text')
-																					.trim()
-																				if (!/^\d+$/.test(pastedValue)) return
-																				event.preventDefault()
-																				updateQuantity(
-																					item.productId,
-																					Number.parseInt(pastedValue, 10),
-																				)
-																			}}
-																			onChange={(event) => {
-																				const rawValue =
-																					event.currentTarget.value.trim()
-																				if (rawValue === '') {
-																					updateQuantity(item.productId, 0)
-																					return
-																				}
-																				const next = Number.parseInt(
-																					rawValue,
-																					10,
-																				)
-																				if (
-																					Number.isFinite(next) &&
-																					next >= 0
-																				) {
-																					updateQuantity(item.productId, next)
-																				}
-																			}}
-																			className="h-full min-w-0 flex-1 bg-transparent text-end font-mono text-[15px] font-semibold text-[var(--p-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-																			style={{
-																				fontVariantNumeric: 'tabular-nums',
-																			}}
-																		/>
-																		<span className="min-w-0 truncate text-[12px] text-[var(--p-text-muted)]">
-																			{unitLabel}
-																		</span>
-																	</label>
-																	<motion.button
-																		type="button"
-																		onClick={() => remove(item.productId)}
-																		className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-error)]"
-																		aria-label={t('market.removeItem')}
-																		whileTap={
-																			shouldReduceMotion
-																				? undefined
-																				: { scale: 0.92 }
-																		}
-																	>
-																		<X size={15} strokeWidth={1.8} />
-																	</motion.button>
-																</div>
-															</motion.div>
-														)
-													})}
-												</AnimatePresence>
-											</div>
-
-											<div className="relative shrink-0 px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] md:px-5 md:pb-4">
-												<motion.div
-													aria-hidden="true"
-													className="absolute inset-x-0 top-0 z-10 h-px bg-[var(--p-border)]"
-													initial={false}
-													animate={{ y: notesRailY }}
-													transition={snapTransition(shouldReduceMotion, 0.2)}
-												/>
-												<motion.button
-													type="button"
-													onClick={() => setNotesOpen((value) => !value)}
-													className={`absolute -top-5 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border bg-[var(--p-card)] shadow-sm transition-colors md:right-5 ${
-														notesOpen
-															? 'border-[var(--p-accent)] text-[var(--p-accent)]'
-															: 'border-[var(--p-border)] text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
-													}`}
-													aria-label={t('market.cartNotesLabel')}
-													aria-expanded={notesOpen}
-													aria-pressed={notesOpen}
-													initial={false}
-													animate={{ y: notesRailY }}
-													whileTap={
-														shouldReduceMotion ? undefined : { scale: 0.94 }
-													}
-													transition={snapTransition(shouldReduceMotion, 0.2)}
-												>
-													<StickyNote size={17} strokeWidth={1.8} />
-												</motion.button>
-												<AnimatePresence initial={false}>
-													{notesOpen && (
-														<motion.div
-															key="cart-notes"
-															className="absolute inset-x-4 top-0 z-10 md:inset-x-5"
-															{...drawerNotesPanelMotion(shouldReduceMotion)}
-														>
-															<label className="block">
-																<span className="sr-only">
-																	{t('market.cartNotesLabel')}
-																</span>
-																<textarea
-																	value={globalNote}
-																	onChange={(event) =>
-																		setGlobalNote(event.currentTarget.value)
-																	}
-																	rows={3}
-																	placeholder={t('market.cartNotesPlaceholder')}
-																	className="block max-h-32 min-h-20 w-full resize-none rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-5 text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
-																/>
-															</label>
-														</motion.div>
-													)}
-												</AnimatePresence>
-
-												{(hasUnavailableCartItems ||
-													isCartValidationFailed ||
-													submitMutation.isError ||
-													saveMutation.isError) && (
-													<p className="mt-3 text-[12px] text-[var(--p-error)]">
-														{hasUnavailableCartItems ||
-														unavailableItems.length > 0 ||
-														isCartValidationFailed ||
-														submitMutation.isError
-															? submitErrorText
-															: t('market.submitError')}
-													</p>
-												)}
-
-												<AnimatePresence initial={false}>
-													{submitConfirmOpen && (
-														<motion.div
-															key="submit-confirm"
-															className="mt-3 overflow-hidden rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-card)] p-3"
-															{...drawerRevealMotion(shouldReduceMotion)}
-														>
-															<p className="text-[13px] font-semibold text-[var(--p-text)]">
-																{t('market.confirmSubmitTitle')}
-															</p>
-															<p className="mt-1 text-[12px] leading-5 text-[var(--p-text-muted)]">
-																{t('market.confirmSubmitBody')}
-															</p>
-															<div className="mt-3 grid grid-cols-2 gap-2">
-																<motion.button
-																	type="button"
-																	onClick={() => setSubmitConfirmOpen(false)}
-																	className="flex h-9 items-center justify-center rounded-lg border border-[var(--p-border)] text-[12px] font-semibold text-[var(--p-text)] transition-colors hover:bg-[var(--p-hover)]"
-																	whileTap={
-																		shouldReduceMotion
-																			? undefined
-																			: { scale: 0.98 }
-																	}
-																>
-																	{t('orders.cancel')}
-																</motion.button>
-																<motion.button
-																	type="button"
-																	onClick={handleConfirmSubmit}
-																	disabled={isCartValidationBlocked}
-																	className="flex h-9 items-center justify-center rounded-lg bg-[var(--p-accent)] text-[12px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-50"
-																	whileTap={
-																		shouldReduceMotion ||
-																		isCartValidationBlocked
-																			? undefined
-																			: { scale: 0.98 }
-																	}
-																>
-																	{t('market.confirmSubmitAction')}
-																</motion.button>
-															</div>
-														</motion.div>
-													)}
-												</AnimatePresence>
-
-												<AnimatePresence initial={false}>
-													{draftNameEntryOpen && !isDraftSaved && (
-														<motion.div
-															key="draft-name-entry"
-															className="mt-2 flex items-center gap-2 overflow-hidden"
-															{...drawerRevealMotion(shouldReduceMotion)}
-														>
-															<input
-																type="text"
-																value={draftName}
-																onChange={(event) =>
-																	setDraftName(event.currentTarget.value)
-																}
-																onKeyDown={(event) => {
-																	if (event.key === 'Enter') {
-																		event.preventDefault()
-																		handleConfirmSaveDraft()
-																	}
-																}}
-																maxLength={120}
-																aria-label={t('market.draftNameLabel')}
-																placeholder={defaultDraftName}
-																className="h-10 min-w-0 flex-1 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
-															/>
-														</motion.div>
-													)}
-												</AnimatePresence>
-
-												<div className="mt-3 grid grid-cols-[minmax(0,1fr)_2.75rem_2.75rem] gap-2">
-													<motion.button
-														type="submit"
-														disabled={
-															quoteRequestItems.length === 0 ||
-															isCartValidationBlocked ||
-															submitMutation.isPending ||
-															saveMutation.isPending
-														}
-														className="flex h-11 min-w-0 items-center justify-center rounded-xl bg-[var(--p-accent)] px-4 text-[14px] font-semibold text-[var(--p-accent-contrast)] transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-70"
-														whileTap={
-															shouldReduceMotion ||
-															isCartValidationBlocked ||
-															submitMutation.isPending ||
-															saveMutation.isPending
-																? undefined
-																: { scale: 0.985 }
-														}
-													>
-														<span className="truncate">
-															{submitMutation.isPending
-																? t('quoteBuilder.submitting')
-																: t('market.submitQuote')}
-														</span>
-													</motion.button>
-													<motion.button
-														type="button"
-														onClick={() => setSavedOrdersOpen(true)}
-														className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-														aria-label={t('market.viewSavedOrders')}
-														whileTap={
-															shouldReduceMotion ? undefined : { scale: 0.94 }
-														}
-													>
-														<FileText size={17} strokeWidth={1.8} />
-													</motion.button>
-													<motion.button
-														type="button"
-														onClick={() => {
-															if (isDraftSaved) return
-															if (draftNameEntryOpen) {
-																handleConfirmSaveDraft()
-																return
-															}
-															setDraftName(
-																savedDraftId ? persistedDraftName : '',
-															)
-															setDraftNameEntryOpen(true)
-														}}
-														disabled={
-															submitMutation.isPending ||
-															saveMutation.isPending ||
-															quoteRequestItems.length === 0 ||
-															isCartValidationBlocked ||
-															isDraftSaved
-														}
-														title={
-															isDraftSaved ? persistedDraftName : undefined
-														}
-														className={`flex h-11 w-11 items-center justify-center rounded-xl border transition-colors disabled:pointer-events-none ${
-															draftNameEntryOpen && !isDraftSaved
-																? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-500'
-																: 'border-[var(--p-border)] text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] disabled:bg-[var(--p-surface)] disabled:text-[var(--p-text-faint)] disabled:opacity-60'
-														}`}
-														aria-label={
-															isDraftSaved
-																? persistedDraftName
-																: t('market.saveDraft')
-														}
-														whileTap={
-															shouldReduceMotion ||
-															submitMutation.isPending ||
-															saveMutation.isPending ||
-															isCartValidationBlocked ||
-															isDraftSaved
-																? undefined
-																: { scale: 0.94 }
-														}
-													>
-														{saveMutation.isPending ? (
-															<span className="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" />
-														) : (
-															<Save size={17} strokeWidth={1.8} />
-														)}
-													</motion.button>
-												</div>
-												<motion.button
-													type="button"
-													onClick={handleClearCart}
-													disabled={
-														submitMutation.isPending ||
-														saveMutation.isPending ||
-														items.length === 0
-													}
-													className="mt-2 flex h-10 w-full items-center justify-center rounded-xl border border-[#B3261E]/20 text-[12px] font-semibold text-[#B3261E] transition-colors hover:bg-[#B3261E]/10 disabled:pointer-events-none disabled:opacity-45 dark:text-[#FF6B61] dark:hover:bg-[#FF6B61]/10"
-													whileTap={
-														shouldReduceMotion ||
-														submitMutation.isPending ||
-														saveMutation.isPending
-															? undefined
-															: { scale: 0.985 }
-													}
-												>
-													{t('market.clearCart')}
-												</motion.button>
-											</div>
-										</motion.form>
-									)}
-								</AnimatePresence>
-								<DraftProductSearch
-									open={searchOpen && open}
-									onClose={() => setSearchOpen(false)}
+		<>
+			<AnimatePresence onExitComplete={handleDrawerExitComplete}>
+				{open && (
+					<>
+						<motion.button
+							key="draft-quote-backdrop"
+							type="button"
+							aria-label={t('market.closeCart')}
+							className="fixed inset-0 z-[78] bg-black/25"
+							onClick={onClose}
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{ duration: shouldReduceMotion ? 0.01 : 0.18 }}
+						/>
+						<motion.aside
+							key="draft-quote-drawer"
+							role="dialog"
+							aria-modal="true"
+							aria-hidden={quoteFlowOpen || undefined}
+							inert={quoteFlowOpen}
+							aria-labelledby="draft-quote-title"
+							className="fixed inset-y-0 right-0 z-[79] flex h-[100dvh] w-[min(100vw,480px)] flex-col overflow-hidden border-l border-[var(--p-border)] bg-[var(--p-bg)] shadow-[0_24px_80px_rgba(0,0,0,0.18)] will-change-transform md:top-4 md:right-4 md:bottom-4 md:h-auto md:w-[460px] md:rounded-2xl lg:w-[480px]"
+							initial={{
+								opacity: shouldReduceMotion ? 1 : 0,
+								x: shouldReduceMotion ? 0 : '100%',
+							}}
+							animate={{ opacity: 1, x: 0 }}
+							exit={{
+								opacity: shouldReduceMotion ? 1 : 0,
+								x: shouldReduceMotion ? 0 : '100%',
+							}}
+							transition={{
+								duration: shouldReduceMotion ? 0.01 : 0.26,
+								ease: DRAWER_EASE,
+							}}
+						>
+							{submittedReference || savedDraftReference ? (
+								<DraftQuoteSuccessMessage
+									reference={submittedReference ?? savedDraftReference ?? ''}
+									shouldReduceMotion={shouldReduceMotion}
+									type={submittedReference ? 'submit' : 'draft'}
 								/>
-								<AnimatePresence>
-									{savedOrdersOpen && (
-										<motion.div
-											key="saved-drafts-panel"
-											className="absolute inset-0 z-20 flex min-h-0 bg-[var(--p-bg)]"
-											initial={{ opacity: 0, x: shouldReduceMotion ? 0 : 18 }}
-											animate={{ opacity: 1, x: 0 }}
-											exit={{ opacity: 0, x: shouldReduceMotion ? 0 : 12 }}
-											transition={{
-												duration: shouldReduceMotion ? 0.01 : 0.2,
-												ease: SNAP_EASE,
-											}}
-										>
-											<SavedDraftsPanel
-												actionMode="add"
-												className="w-full"
-												onAdded={() => setSavedOrdersOpen(false)}
-												headerAction={
+							) : (
+								<>
+									<header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--p-border)] px-4 py-3.5 md:px-5">
+										<div className="min-w-0">
+											<h2
+												id="draft-quote-title"
+												className="text-[15px] font-semibold text-[var(--p-text)]"
+											>
+												{t('market.draftQuote')}
+											</h2>
+											<p className="mt-1 text-[12px] text-[var(--p-text-muted)]">
+												{t('market.cartItemCount', {
+													count: formattedItemCount,
+												})}
+											</p>
+										</div>
+										<div className="flex shrink-0 items-center gap-1">
+											<motion.button
+												type="button"
+												onClick={() => setSearchOpen(true)}
+												className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+												aria-label={t('market.addToQuote')}
+												whileTap={
+													shouldReduceMotion ? undefined : { scale: 0.94 }
+												}
+											>
+												<Plus size={17} strokeWidth={1.8} />
+											</motion.button>
+											<motion.button
+												type="button"
+												onClick={onClose}
+												className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+												aria-label={t('market.closeCart')}
+												whileTap={
+													shouldReduceMotion ? undefined : { scale: 0.94 }
+												}
+											>
+												<PanelRightClose size={17} strokeWidth={1.8} />
+											</motion.button>
+										</div>
+									</header>
+
+									<AnimatePresence mode="wait" initial={false}>
+										{items.length === 0 ? (
+											<motion.div
+												key="empty"
+												{...contentMotion}
+												className="flex flex-1 flex-col items-center justify-center px-8 text-center"
+											>
+												<FilePenLine
+													size={28}
+													strokeWidth={1.5}
+													className="mb-4 text-[var(--p-text-faint)]"
+												/>
+												<h3 className="text-[16px] font-semibold text-[var(--p-text)]">
+													{t('market.cartEmptyTitle')}
+												</h3>
+												<p className="mt-2 max-w-[280px] text-[13px] leading-6 text-[var(--p-text-muted)]">
+													{t('market.cartEmptyBody')}
+												</p>
+												<button
+													type="button"
+													onClick={() => setSavedOrdersOpen(true)}
+													className="mt-5 flex h-10 min-w-40 items-center justify-center rounded-xl border border-[var(--p-border)] px-4 text-[13px] font-semibold text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+												>
+													{t('market.viewSavedOrders')}
+												</button>
+											</motion.div>
+										) : (
+											<motion.form
+												key="items"
+												onSubmit={handleSubmit}
+												{...contentMotion}
+												className="flex min-h-0 flex-1 flex-col"
+											>
+												<div className="flex-1 overflow-y-auto">
+													<AnimatePresence initial={false}>
+														{items.map((item, index) => {
+															const itemName =
+																isAr && item.nameAr ? item.nameAr : item.name
+															const itemUnavailable =
+																validationUnavailableItems.includes(itemName)
+															const categoryLabel =
+																isAr && item.categoryNameAr
+																	? item.categoryNameAr
+																	: item.categoryName
+															const unitLabel =
+																isAr && item.unitOfMeasureAr
+																	? item.unitOfMeasureAr
+																	: item.unitOfMeasure
+															return (
+																<motion.div
+																	key={item.productId}
+																	initial={{
+																		opacity: 0,
+																		y: shouldReduceMotion ? 0 : 4,
+																	}}
+																	animate={{ opacity: 1, y: 0 }}
+																	exit={{
+																		opacity: 0,
+																		x: shouldReduceMotion ? 0 : -8,
+																	}}
+																	transition={{
+																		duration: shouldReduceMotion ? 0.01 : 0.14,
+																		ease: SNAP_EASE,
+																	}}
+																	className={[
+																		'overflow-hidden px-4 py-3 md:px-5',
+																		index > 0
+																			? 'border-t border-[var(--p-border)]'
+																			: '',
+																		itemUnavailable ? 'opacity-55' : '',
+																	].join(' ')}
+																>
+																	<div className="flex min-w-0 items-center gap-3">
+																		{item.imageUrl ? (
+																			<img
+																				src={item.imageUrl}
+																				alt=""
+																				loading="lazy"
+																				decoding="async"
+																				className="h-11 w-11 shrink-0 rounded-lg bg-[var(--p-surface)] object-cover ring-1 ring-inset ring-[var(--p-border)]"
+																			/>
+																		) : (
+																			<div
+																				aria-hidden="true"
+																				className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[var(--p-surface)] text-[var(--p-text-faint)] ring-1 ring-inset ring-[var(--p-border)]"
+																			>
+																				<Package size={15} />
+																			</div>
+																		)}
+																		<div className="min-w-0 flex-1">
+																			<p className="truncate text-[13px] font-medium leading-snug text-[var(--p-text)]">
+																				{itemName}
+																			</p>
+																			<p className="mt-1 truncate text-[11px] text-[var(--p-text-muted)]">
+																				{categoryLabel}
+																			</p>
+																			{itemUnavailable && (
+																				<span className="mt-1 inline-flex rounded-full border border-[var(--p-error)]/25 px-2 py-0.5 text-[10px] font-semibold text-[var(--p-error)]">
+																					{t('market.outOfStock')}
+																				</span>
+																			)}
+																		</div>
+																		<label className="flex h-10 w-[144px] shrink-0 items-center justify-end gap-2 px-1">
+																			<span className="sr-only">
+																				{t('market.quantity')}
+																			</span>
+																			<input
+																				type="number"
+																				inputMode="numeric"
+																				min={0}
+																				value={item.quantity}
+																				onKeyDown={(event) => {
+																					if (
+																						item.quantity !== 0 ||
+																						!/^\d$/.test(event.key)
+																					) {
+																						return
+																					}
+																					event.preventDefault()
+																					updateQuantity(
+																						item.productId,
+																						Number(event.key),
+																					)
+																				}}
+																				onPaste={(event) => {
+																					if (item.quantity !== 0) return
+																					const pastedValue =
+																						event.clipboardData
+																							.getData('text')
+																							.trim()
+																					if (!/^\d+$/.test(pastedValue)) return
+																					event.preventDefault()
+																					updateQuantity(
+																						item.productId,
+																						Number.parseInt(pastedValue, 10),
+																					)
+																				}}
+																				onChange={(event) => {
+																					const rawValue =
+																						event.currentTarget.value.trim()
+																					if (rawValue === '') {
+																						updateQuantity(item.productId, 0)
+																						return
+																					}
+																					const next = Number.parseInt(
+																						rawValue,
+																						10,
+																					)
+																					if (
+																						Number.isFinite(next) &&
+																						next >= 0
+																					) {
+																						updateQuantity(item.productId, next)
+																					}
+																				}}
+																				className="h-full min-w-0 flex-1 bg-transparent text-end font-mono text-[15px] font-semibold text-[var(--p-text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+																				style={{
+																					fontVariantNumeric: 'tabular-nums',
+																				}}
+																			/>
+																			<span className="min-w-0 truncate text-[12px] text-[var(--p-text-muted)]">
+																				{unitLabel}
+																			</span>
+																		</label>
+																		<motion.button
+																			type="button"
+																			onClick={() => remove(item.productId)}
+																			className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-error)]"
+																			aria-label={t('market.removeItem')}
+																			whileTap={
+																				shouldReduceMotion
+																					? undefined
+																					: { scale: 0.92 }
+																			}
+																		>
+																			<X size={15} strokeWidth={1.8} />
+																		</motion.button>
+																	</div>
+																</motion.div>
+															)
+														})}
+													</AnimatePresence>
+												</div>
+
+												<div className="relative shrink-0 px-4 pt-5 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] md:px-5 md:pb-4">
+													<motion.div
+														aria-hidden="true"
+														className="absolute inset-x-0 top-0 z-10 h-px bg-[var(--p-border)]"
+														initial={false}
+														animate={{ y: notesRailY }}
+														transition={snapTransition(shouldReduceMotion, 0.2)}
+													/>
 													<motion.button
 														type="button"
-														onClick={() => setSavedOrdersOpen(false)}
-														className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
-														aria-label={t('market.closeCart')}
+														onClick={() => setNotesOpen((value) => !value)}
+														className={`absolute -top-5 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full border bg-[var(--p-card)] shadow-sm transition-colors md:right-5 ${
+															notesOpen
+																? 'border-[var(--p-accent)] text-[var(--p-accent)]'
+																: 'border-[var(--p-border)] text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]'
+														}`}
+														aria-label={t('market.cartNotesLabel')}
+														aria-expanded={notesOpen}
+														aria-pressed={notesOpen}
+														initial={false}
+														animate={{ y: notesRailY }}
 														whileTap={
 															shouldReduceMotion ? undefined : { scale: 0.94 }
 														}
+														transition={snapTransition(shouldReduceMotion, 0.2)}
 													>
-														<X size={17} strokeWidth={1.8} />
+														<StickyNote size={17} strokeWidth={1.8} />
 													</motion.button>
-												}
-											/>
-										</motion.div>
-									)}
-								</AnimatePresence>
-							</>
-						)}
-					</motion.aside>
-				</>
-			)}
-		</AnimatePresence>,
+													<AnimatePresence initial={false}>
+														{notesOpen && (
+															<motion.div
+																key="cart-notes"
+																className="absolute inset-x-4 top-0 z-10 md:inset-x-5"
+																{...drawerNotesPanelMotion(shouldReduceMotion)}
+															>
+																<label className="block">
+																	<span className="sr-only">
+																		{t('market.cartNotesLabel')}
+																	</span>
+																	<textarea
+																		value={globalNote}
+																		onChange={(event) =>
+																			setGlobalNote(event.currentTarget.value)
+																		}
+																		rows={3}
+																		placeholder={t(
+																			'market.cartNotesPlaceholder',
+																		)}
+																		className="block max-h-32 min-h-20 w-full resize-none rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 text-[13px] leading-5 text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+																	/>
+																</label>
+															</motion.div>
+														)}
+													</AnimatePresence>
+
+													{(hasUnavailableCartItems ||
+														isCartValidationFailed ||
+														saveMutation.isError) && (
+														<p className="mt-3 text-[12px] text-[var(--p-error)]">
+															{cartErrorText}
+														</p>
+													)}
+
+													<AnimatePresence initial={false}>
+														{draftNameEntryOpen && !isDraftSaved && (
+															<motion.div
+																key="draft-name-entry"
+																className="mt-2 flex items-center gap-2 overflow-hidden"
+																{...drawerRevealMotion(shouldReduceMotion)}
+															>
+																<input
+																	type="text"
+																	value={draftName}
+																	onChange={(event) =>
+																		setDraftName(event.currentTarget.value)
+																	}
+																	onKeyDown={(event) => {
+																		if (event.key === 'Enter') {
+																			event.preventDefault()
+																			handleConfirmSaveDraft()
+																		}
+																	}}
+																	maxLength={120}
+																	aria-label={t('market.draftNameLabel')}
+																	placeholder={defaultDraftName}
+																	className="h-10 min-w-0 flex-1 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 text-[13px] font-semibold text-[var(--p-text)] outline-none transition-colors placeholder:text-[var(--p-text-faint)] focus:border-[var(--p-border-strong)]"
+																/>
+															</motion.div>
+														)}
+													</AnimatePresence>
+
+													<div className="mt-3 grid grid-cols-[minmax(0,1fr)_2.5rem_2.5rem_2.5rem] gap-1.5">
+														<motion.button
+															type="submit"
+															disabled={
+																quoteRequestItems.length === 0 ||
+																isCartValidationBlocked ||
+																saveMutation.isPending
+															}
+															className="group flex h-10 min-w-0 items-stretch overflow-hidden rounded-[10px] border border-[var(--p-accent-hover)] bg-[var(--p-accent)] text-[var(--p-accent-contrast)] transition-colors hover:bg-[var(--p-accent-hover)] disabled:pointer-events-none disabled:opacity-50"
+															whileTap={
+																shouldReduceMotion ||
+																isCartValidationBlocked ||
+																saveMutation.isPending
+																	? undefined
+																	: { scale: 0.985 }
+															}
+														>
+															<span className="flex min-w-0 flex-1 items-center justify-center truncate px-2.5 text-[12px] font-semibold">
+																{t('market.submitQuote')}
+															</span>
+															<span className="flex w-9 shrink-0 items-center justify-center border-s border-white/20 group-hover:bg-white/[0.06]">
+																<Send size={13} strokeWidth={1.8} />
+															</span>
+														</motion.button>
+														<motion.button
+															type="button"
+															onClick={() => setSavedOrdersOpen(true)}
+															className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-[var(--p-border)] text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+															aria-label={t('market.viewSavedOrders')}
+															whileTap={
+																shouldReduceMotion ? undefined : { scale: 0.94 }
+															}
+														>
+															<FileText size={17} strokeWidth={1.8} />
+														</motion.button>
+														<motion.button
+															type="button"
+															onClick={() => {
+																if (isDraftSaved) return
+																if (draftNameEntryOpen) {
+																	handleConfirmSaveDraft()
+																	return
+																}
+																setDraftName(
+																	savedDraftId ? persistedDraftName : '',
+																)
+																setDraftNameEntryOpen(true)
+															}}
+															disabled={
+																saveMutation.isPending ||
+																quoteRequestItems.length === 0 ||
+																isCartValidationBlocked ||
+																isDraftSaved
+															}
+															title={
+																isDraftSaved ? persistedDraftName : undefined
+															}
+															className={`flex h-10 w-10 items-center justify-center rounded-[10px] border transition-colors disabled:pointer-events-none ${
+																draftNameEntryOpen && !isDraftSaved
+																	? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-500'
+																	: 'border-[var(--p-border)] text-[var(--p-text-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-text)] disabled:bg-[var(--p-surface)] disabled:text-[var(--p-text-faint)] disabled:opacity-60'
+															}`}
+															aria-label={
+																isDraftSaved
+																	? persistedDraftName
+																	: t('market.saveDraft')
+															}
+															whileTap={
+																shouldReduceMotion ||
+																saveMutation.isPending ||
+																isCartValidationBlocked ||
+																isDraftSaved
+																	? undefined
+																	: { scale: 0.94 }
+															}
+														>
+															{saveMutation.isPending ? (
+																<span className="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" />
+															) : (
+																<Save size={17} strokeWidth={1.8} />
+															)}
+														</motion.button>
+														<motion.button
+															type="button"
+															onClick={handleClearCart}
+															disabled={
+																saveMutation.isPending || items.length === 0
+															}
+															aria-label={
+																clearArmed
+																	? t('market.clearConfirm')
+																	: t('market.clearCart')
+															}
+															title={
+																clearArmed
+																	? t('market.clearConfirm')
+																	: t('market.clearCart')
+															}
+															className={`flex h-10 w-10 items-center justify-center rounded-[10px] border transition-colors disabled:pointer-events-none disabled:opacity-45 ${
+																clearArmed
+																	? 'border-[#B3261E]/35 bg-[#B3261E]/10 text-[#B3261E] dark:text-[#FF6B61]'
+																	: 'border-[var(--p-border)] text-[var(--p-text-muted)] hover:border-[#B3261E]/25 hover:bg-[#B3261E]/8 hover:text-[#B3261E] dark:hover:text-[#FF6B61]'
+															}`}
+															whileTap={
+																shouldReduceMotion || saveMutation.isPending
+																	? undefined
+																	: { scale: 0.94 }
+															}
+														>
+															{clearArmed ? (
+																<Check size={16} strokeWidth={2} />
+															) : (
+																<Trash2 size={16} strokeWidth={1.8} />
+															)}
+														</motion.button>
+													</div>
+												</div>
+											</motion.form>
+										)}
+									</AnimatePresence>
+									<DraftProductSearch
+										open={searchOpen && open}
+										onClose={() => setSearchOpen(false)}
+									/>
+									<AnimatePresence>
+										{savedOrdersOpen && (
+											<motion.div
+												key="saved-drafts-panel"
+												className="absolute inset-0 z-20 flex min-h-0 bg-[var(--p-bg)]"
+												initial={{ opacity: 0, x: shouldReduceMotion ? 0 : 18 }}
+												animate={{ opacity: 1, x: 0 }}
+												exit={{ opacity: 0, x: shouldReduceMotion ? 0 : 12 }}
+												transition={{
+													duration: shouldReduceMotion ? 0.01 : 0.2,
+													ease: SNAP_EASE,
+												}}
+											>
+												<SavedDraftsPanel
+													actionMode="add"
+													className="w-full"
+													onAdded={() => setSavedOrdersOpen(false)}
+													headerAction={
+														<motion.button
+															type="button"
+															onClick={() => setSavedOrdersOpen(false)}
+															className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+															aria-label={t('market.closeCart')}
+															whileTap={
+																shouldReduceMotion ? undefined : { scale: 0.94 }
+															}
+														>
+															<X size={17} strokeWidth={1.8} />
+														</motion.button>
+													}
+												/>
+											</motion.div>
+										)}
+									</AnimatePresence>
+								</>
+							)}
+						</motion.aside>
+					</>
+				)}
+			</AnimatePresence>
+			<PortalQuoteRequestDialog
+				draftId={savedDraftId}
+				isOpen={open && quoteFlowOpen}
+				onClose={handleQuoteFlowClose}
+				onSubmitted={handleQuoteSubmitted}
+			/>
+		</>,
 		document.body,
 	)
 }

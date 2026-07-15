@@ -9,13 +9,20 @@ interface RasterMapStyle {
 			type: 'raster'
 		}
 	}
-	layers: Array<{
-		id: string
-		maxzoom: number
-		minzoom: number
-		source: 'osm'
-		type: 'raster'
-	}>
+	layers: Array<
+		| {
+				id: string
+				paint: { 'background-color': string }
+				type: 'background'
+		  }
+		| {
+				id: string
+				maxzoom: number
+				minzoom: number
+				source: 'osm'
+				type: 'raster'
+		  }
+	>
 }
 
 export function createOpenStreetMapRasterStyle(): RasterMapStyle {
@@ -32,6 +39,11 @@ export function createOpenStreetMapRasterStyle(): RasterMapStyle {
 			},
 		},
 		layers: [
+			{
+				id: 'map-background',
+				paint: { 'background-color': '#e8ecef' },
+				type: 'background',
+			},
 			{
 				id: 'osm-tiles',
 				maxzoom: 19,

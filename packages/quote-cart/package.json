@@ -5,10 +5,11 @@
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
+		"./checkout": "./src/checkout.ts",
 		"./server": "./src/server.ts"
 	},
 	"scripts": {
-		"test": "bun test src/server.test.ts",
+		"test": "bun test src/*.test.ts",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {

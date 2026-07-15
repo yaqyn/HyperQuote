@@ -1,5 +1,12 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowDown, ArrowLeft, ArrowUpRight } from 'lucide-react'
+import {
+	ArrowDown,
+	ArrowLeft,
+	ArrowUpRight,
+	Minus,
+	Plus,
+	X,
+} from 'lucide-react'
 import {
 	AnimatePresence,
 	cubicBezier,
@@ -14,6 +21,7 @@ import { useQuoteCart } from '../../hooks/useQuoteCart'
 import type { PublicMarketPreviewCategory } from '../../lib/catalog'
 import { COMPANY_LOCATION_HREF } from '../../lib/company'
 import { DocsSearch as RealDocsSearch } from '../docs/DocsSearch'
+import { QuoteListActions } from '../quote/QuoteListActions'
 import { ContactForm } from '../support/ContactForm'
 import { ContactInfo } from '../support/ContactInfo'
 
@@ -291,16 +299,24 @@ function MaterialDocket({
 }) {
 	const { t } = useTranslation('website')
 	const items = useQuoteCart((state) => state.items)
-	const visibleItems = items.slice(0, 4)
+	const remove = useQuoteCart((state) => state.remove)
+	const updateQuantity = useQuoteCart((state) => state.updateQuantity)
 	const visibleCategories = categories.slice(0, 4)
-	const hasItems = visibleItems.length > 0
+	const hasItems = items.length > 0
 
 	return (
 		<div className="hq-material-docket hq-photo-frame overflow-hidden rounded-[24px] border border-[var(--site-rule)] bg-[var(--color-card)] text-start lg:rotate-[0.7deg]">
-			<div className="border-b border-[var(--site-rule)] px-5 py-4 sm:px-6">
+			<div className="flex items-center justify-between border-b border-[var(--site-rule)] px-5 py-3.5 sm:px-6">
 				<p className="hq-kicker text-[var(--color-primary)]">
 					{t('hero.docket.label')}
 				</p>
+				<Link
+					to="/market"
+					aria-label={t('hero.docket.addMaterial')}
+					className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-[var(--site-rule)] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-primary)]/30 hover:bg-[var(--site-blue-wash)] hover:text-[var(--color-primary)]"
+				>
+					<Plus size={14} strokeWidth={1.8} />
+				</Link>
 			</div>
 
 			<div className="border-b border-[var(--site-rule)] bg-[var(--site-concrete)]/70 px-5 py-5 sm:px-6">
@@ -314,7 +330,7 @@ function MaterialDocket({
 				)}
 			</div>
 
-			<div className="hq-docket-lines min-h-[216px]">
+			<div className="hq-docket-lines min-h-[192px]">
 				{hasItems && (
 					<div className="grid grid-cols-[1fr_auto_auto] gap-4 border-b border-[var(--site-rule)] px-5 py-3 font-mono text-[9px] uppercase tracking-[0.1em] text-[var(--color-text-subtle)] sm:px-6">
 						<span>{t('hero.docket.categoryColumn')}</span>
@@ -323,60 +339,106 @@ function MaterialDocket({
 					</div>
 				)}
 
-				{hasItems
-					? visibleItems.map((item) => (
-							<Link
+				{hasItems ? (
+					<div className="max-h-[224px] overflow-y-auto overscroll-contain">
+						{items.map((item) => (
+							<div
 								key={item.productId}
-								to="/market/$productSlug"
-								params={{ productSlug: item.slug }}
-								className="group grid min-h-12 grid-cols-[1fr_auto_auto] items-center gap-4 px-5 py-3 text-[13px] transition-colors hover:bg-[var(--site-blue-wash)] sm:px-6"
+								className="grid min-h-12 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-5 py-2.5 text-[13px] transition-colors hover:bg-[var(--site-blue-wash)] sm:px-6"
 							>
-								<span className="min-w-0 truncate font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)]">
+								<Link
+									to="/market/$productSlug"
+									params={{ productSlug: item.slug }}
+									className="min-w-0 truncate font-semibold text-[var(--color-text)] hover:text-[var(--color-primary)]"
+								>
 									{isArabic && item.nameAr ? item.nameAr : item.name}
-								</span>
-								<span className="font-mono text-[12px] text-[var(--color-text-muted)]">
-									{item.quantity}
-								</span>
-								<span className="min-w-12 text-end font-mono text-[10px] text-[var(--color-text-subtle)]">
-									{isArabic && item.unitOfMeasureAr
-										? item.unitOfMeasureAr
-										: item.unitOfMeasure}
-								</span>
-							</Link>
-						))
-					: visibleCategories.map((category) => (
-							<Link
-								key={category.slug}
-								to="/market"
-								search={{ category: category.slug }}
-								className="group flex min-h-12 items-center justify-between gap-4 px-5 py-3 text-[13px] transition-colors hover:bg-[var(--site-blue-wash)] sm:px-6"
-							>
-								<span className="font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)]">
-									{isArabic && category.name_ar
-										? category.name_ar
-										: category.name}
-								</span>
-								<span className="flex items-center gap-2 text-[10px] text-[var(--color-text-subtle)]">
-									{t('hero.docket.browse')}
-									<ArrowUpRight size={13} className="icon-end" />
-								</span>
-							</Link>
+								</Link>
+								<div className="flex h-8 items-center overflow-hidden rounded-[8px] border border-[var(--site-rule)] bg-[var(--color-card)]">
+									<button
+										type="button"
+										onClick={() =>
+											updateQuantity(item.productId, item.quantity - 1)
+										}
+										aria-label={t('cart.decreaseQuantity')}
+										className="flex h-8 w-7 items-center justify-center text-[var(--color-text-muted)] hover:bg-[var(--site-concrete)] hover:text-[var(--color-text)]"
+									>
+										<Minus size={11} strokeWidth={1.8} />
+									</button>
+									<input
+										type="number"
+										min={0}
+										inputMode="numeric"
+										value={item.quantity}
+										onChange={(event) =>
+											updateQuantity(
+												item.productId,
+												Number.parseInt(event.currentTarget.value || '0', 10),
+											)
+										}
+										aria-label={t('product.quantityLabel')}
+										className="h-8 w-8 bg-transparent text-center font-mono text-[11px] font-semibold outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+									/>
+									<button
+										type="button"
+										onClick={() =>
+											updateQuantity(item.productId, item.quantity + 1)
+										}
+										aria-label={t('cart.increaseQuantity')}
+										className="flex h-8 w-7 items-center justify-center text-[var(--color-text-muted)] hover:bg-[var(--site-concrete)] hover:text-[var(--color-text)]"
+									>
+										<Plus size={11} strokeWidth={1.8} />
+									</button>
+								</div>
+								<button
+									type="button"
+									onClick={() => remove(item.productId)}
+									aria-label={t('cart.remove')}
+									className="flex h-8 w-8 items-center justify-center rounded-[8px] text-[var(--color-text-subtle)] hover:bg-[var(--color-error)]/8 hover:text-[var(--color-error)]"
+								>
+									<X size={13} strokeWidth={1.8} />
+								</button>
+							</div>
 						))}
+					</div>
+				) : (
+					visibleCategories.map((category) => (
+						<Link
+							key={category.slug}
+							to="/market"
+							search={{ category: category.slug }}
+							className="group flex min-h-12 items-center justify-between gap-4 px-5 py-3 text-[13px] transition-colors hover:bg-[var(--site-blue-wash)] sm:px-6"
+						>
+							<span className="font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)]">
+								{isArabic && category.name_ar
+									? category.name_ar
+									: category.name}
+							</span>
+							<span className="flex items-center gap-2 text-[10px] text-[var(--color-text-subtle)]">
+								{t('hero.docket.browse')}
+								<ArrowUpRight size={13} className="icon-end" />
+							</span>
+						</Link>
+					))
+				)}
 			</div>
 
-			<div className="flex items-center justify-end gap-4 border-t border-[var(--site-rule)] px-5 py-4 sm:px-6">
-				{hasItems && (
-					<span className="me-auto font-mono text-[10px] text-[var(--color-text-subtle)]">
-						{items.length} {t('hero.docket.items')}
-					</span>
+			<div className="flex items-center justify-end gap-3 border-t border-[var(--site-rule)] px-5 py-3.5 sm:px-6">
+				{hasItems ? (
+					<>
+						<span className="me-auto hidden font-mono text-[10px] text-[var(--color-text-subtle)] sm:block">
+							{t('cart.itemCount', { count: items.length })}
+						</span>
+						<QuoteListActions source="hero" />
+					</>
+				) : (
+					<Link
+						to="/market"
+						className="inline-flex items-center gap-2 text-[12px] font-semibold text-[var(--color-primary)]"
+					>
+						{t('cta.browseMarket')}
+						<ArrowUpRight size={14} className="icon-end" />
+					</Link>
 				)}
-				<Link
-					to="/market"
-					className="inline-flex items-center gap-2 text-[12px] font-semibold text-[var(--color-primary)]"
-				>
-					{hasItems ? t('hero.docket.continue') : t('cta.browseMarket')}
-					<ArrowUpRight size={14} className="icon-end" />
-				</Link>
 			</div>
 		</div>
 	)

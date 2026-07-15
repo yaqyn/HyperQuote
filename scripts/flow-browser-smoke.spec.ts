@@ -110,7 +110,7 @@ test('portal rejects unauthenticated protected routes and fake OTP cannot sign i
 test('portal customer market and orders load Supabase-backed data', async ({
 	browser,
 }) => {
-	test.setTimeout(90_000)
+	test.setTimeout(150_000)
 	const service = createLocalServiceClient()
 	const flowStartedAt = new Date().toISOString()
 	const context = await browser.newContext({
@@ -145,7 +145,7 @@ test('portal customer market and orders load Supabase-backed data', async ({
 		.getByRole('button', { name: /^Record$/i })
 		.last()
 		.click()
-	await page.getByRole('button', { name: /^Draft Quote$/i }).click()
+	await page.getByRole('button', { name: /Draft Quote|Open cart/i }).click()
 	await confirmDraftSave(page)
 
 	await page.goto(`${URLS.portal}/orders`, { waitUntil: 'domcontentloaded' })
@@ -166,6 +166,10 @@ test('portal customer market and orders load Supabase-backed data', async ({
 	await expect(page.locator('body')).not.toContainText(/Failed to load/i)
 	await page.goto(`${URLS.portal}/orders`, { waitUntil: 'domcontentloaded' })
 	await waitForHydration(page)
+	await page.getByRole('button', { name: /Draft Quote|Open cart/i }).click()
+	await page.getByRole('button', { name: /^Send request$/i }).click()
+	await expectGuidedQuoteDesktopDialog(page)
+	await completeGuidedQuoteFlow(page)
 
 	await page.goto(`${URLS.website}/market`, { waitUntil: 'domcontentloaded' })
 	await waitForHydration(page)
@@ -177,25 +181,28 @@ test('portal customer market and orders load Supabase-backed data', async ({
 		.locator('button')
 		.filter({ hasText: /^Add to Quote$/i })
 		.click()
-	await page.getByRole('button', { name: /Quote Cart/i }).click()
-	const websiteDraftName = `Smoke website draft ${Date.now()}`
-	const websiteFlowNote = `Smoke website submit clone ${Date.now()}`
-	await page.getByRole('button', { name: /^Notes$/i }).click()
+	await page.getByRole('button', { name: /Material list|Quote Cart/i }).click()
+	const websiteFlowNote = `Smoke website draft submission ${Date.now()}`
+	await page.getByRole('button', { name: /^(Notes|Add a note)$/i }).click()
 	await page
 		.getByPlaceholder(/Delivery timing, site access/i)
 		.fill(websiteFlowNote)
-	await confirmDraftSave(page, websiteDraftName)
-	await page.getByRole('button', { name: /Quote Cart/i }).click()
-	await page.getByRole('button', { name: /Request Quote/i }).click()
-	await page.getByRole('button', { name: /^Send request$/i }).click()
-	await expect(page.locator('body')).toContainText(
-		/Quote request submitted|QR-2026/i,
-		{ timeout: 15_000 },
-	)
-	await expectCustomerDraftArtifactsSince(
+	await confirmDraftSave(page)
+	const requestQuoteButton = page.getByRole('button', {
+		name: /Request Quote/i,
+	})
+	if (!(await requestQuoteButton.isVisible().catch(() => false))) {
+		await page
+			.getByRole('button', { name: /Material list|Quote Cart/i })
+			.click()
+	}
+	await requestQuoteButton.click()
+	await expectGuidedQuoteResponsiveDialog(page)
+	await completeGuidedQuoteFlow(page)
+	await expectGuidedQuoteArtifactsSince(service, flowStartedAt)
+	await expectWebsiteDraftSubmissionSince(
 		service,
 		flowStartedAt,
-		websiteDraftName,
 		websiteFlowNote,
 	)
 
@@ -1085,6 +1092,106 @@ async function confirmDraftSave(page: Page, draftName?: string) {
 	}
 }
 
+async function completeGuidedQuoteFlow(page: Page) {
+	const flowDialog = page.getByRole('dialog', {
+		name: /Request a quote|اطلب عرض سعر/i,
+	})
+	await expect(
+		flowDialog.getByRole('heading', {
+			name: /Delivery location|موقع التوصيل/i,
+		}),
+	).toBeVisible({ timeout: 15_000 })
+	await flowDialog.getByRole('button', { name: /Continue|متابعة/i }).click()
+
+	await expect(
+		flowDialog.getByRole('heading', {
+			name: /Delivery preference|موعد التوصيل/i,
+		}),
+	).toBeVisible({ timeout: 15_000 })
+	await flowDialog
+		.getByRole('button', { name: /Morning|صباح/i })
+		.first()
+		.click()
+	await flowDialog.getByRole('button', { name: /Continue|متابعة/i }).click()
+
+	await expect(
+		flowDialog.getByRole('heading', {
+			name: /Contact information|بيانات التواصل/i,
+		}),
+	).toBeVisible({ timeout: 15_000 })
+	await expect(
+		flowDialog.getByLabel(/Email address|البريد الإلكتروني/i),
+	).not.toHaveValue('')
+	await expect(
+		flowDialog.getByLabel(/Egypt mobile number|رقم موبايل مصري/i),
+	).not.toHaveValue('')
+	await flowDialog.getByRole('button', { name: /Continue|متابعة/i }).click()
+
+	await expect(
+		flowDialog.getByRole('heading', { name: /Before you send|قبل الإرسال/i }),
+	).toBeVisible({ timeout: 15_000 })
+	await flowDialog.getByRole('checkbox').check()
+	await flowDialog
+		.getByRole('button', { name: /^Send request$|^إرسال الطلب$/i })
+		.click()
+	await expect(
+		flowDialog.getByRole('heading', { name: /Request received|استلمنا طلبك/i }),
+	).toBeVisible({ timeout: 15_000 })
+	await flowDialog
+		.getByRole('button', { name: /Close|إغلاق/i })
+		.last()
+		.click()
+}
+
+function quoteFlowDialog(page: Page) {
+	return page.getByRole('dialog', {
+		name: /Request a quote|اطلب عرض سعر/i,
+	})
+}
+
+async function expectGuidedQuoteDesktopDialog(page: Page) {
+	const dialog = quoteFlowDialog(page)
+	await expect(dialog).toBeVisible({ timeout: 15_000 })
+	await expect
+		.poll(async () => {
+			const box = await dialog.boundingBox()
+			return Boolean(box && box.x > 0 && box.width <= 1040 && box.height < 1000)
+		})
+		.toBe(true)
+}
+
+async function expectGuidedQuoteResponsiveDialog(page: Page) {
+	const originalViewport = page.viewportSize()
+	if (!originalViewport) throw new Error('Quote flow requires a fixed viewport')
+
+	await expectGuidedQuoteDesktopDialog(page)
+	for (const viewport of [
+		{ height: 768, width: 1024 },
+		{ height: 844, width: 390 },
+	]) {
+		await page.setViewportSize(viewport)
+		await expect
+			.poll(async () => {
+				const box = await quoteFlowDialog(page).boundingBox()
+				const scrollWidth = await page.evaluate(
+					() => document.documentElement.scrollWidth,
+				)
+				return Boolean(
+					box &&
+						box.x === 0 &&
+						box.y === 0 &&
+						box.width === viewport.width &&
+						box.height === viewport.height &&
+						scrollWidth === viewport.width,
+				)
+			})
+			.toBe(true)
+	}
+
+	await page.setViewportSize(originalViewport)
+	await expectGuidedQuoteDesktopDialog(page)
+}
+
 function slugPart(value: string): string {
 	return value
 		.trim()
@@ -1101,10 +1208,39 @@ function skuPart(value: string): string {
 		.replace(/^-+|-+$/g, '')
 }
 
-async function expectCustomerDraftArtifactsSince(
+async function expectGuidedQuoteArtifactsSince(
 	service: ReturnType<typeof createLocalServiceClient>,
 	sinceIso: string,
-	websiteDraftName: string,
+) {
+	await expect
+		.poll(
+			async () => {
+				const { data, error } = await service
+					.from('quote_requests')
+					.select(
+						'agreement_accepted_at, agreement_version, delivery_address_id, delivery_date, preferred_delivery_window, request_contact_email, request_contact_phone, submitted_at',
+					)
+					.gte('submitted_at', sinceIso)
+				if (error) return -1
+				return (data ?? []).filter(
+					(row) =>
+						Boolean(row.agreement_accepted_at) &&
+						Boolean(row.agreement_version) &&
+						Boolean(row.delivery_address_id) &&
+						Boolean(row.delivery_date) &&
+						Boolean(row.preferred_delivery_window) &&
+						Boolean(row.request_contact_email) &&
+						/^\+20(10|11|12|15)\d{8}$/.test(row.request_contact_phone ?? ''),
+				).length
+			},
+			{ timeout: 15_000 },
+		)
+		.toBeGreaterThanOrEqual(2)
+}
+
+async function expectWebsiteDraftSubmissionSince(
+	service: ReturnType<typeof createLocalServiceClient>,
+	sinceIso: string,
 	websiteFlowNote: string,
 ) {
 	await expect
@@ -1118,28 +1254,20 @@ async function expectCustomerDraftArtifactsSince(
 
 				const rows = data ?? []
 				const websiteRows = rows.filter((row) => row.notes === websiteFlowNote)
-				const hasSavedWebsiteDraft = websiteRows.some(
-					(row) =>
-						row.status === 'draft' && row.draft_name === websiteDraftName,
-				)
-				const hasSubmittedWebsiteClone = websiteRows.some(
+				const hasSubmittedWebsiteDraft = websiteRows.some(
 					(row) =>
 						row.status !== 'draft' &&
-						row.draft_name === null &&
+						Boolean(row.draft_name?.trim()) &&
 						row.submitted_at !== null,
 				)
-				const submittedWithDraftName = websiteRows.some(
-					(row) =>
-						row.status !== 'draft' && row.draft_name === websiteDraftName,
+				const hasDuplicateWebsiteDraft = websiteRows.some(
+					(row) => row.status === 'draft',
 				)
-				return hasSavedWebsiteDraft &&
-					hasSubmittedWebsiteClone &&
-					!submittedWithDraftName
+				return hasSubmittedWebsiteDraft && !hasDuplicateWebsiteDraft
 					? 'ready'
 					: [
-							hasSavedWebsiteDraft ? 'draft' : 'no-draft',
-							hasSubmittedWebsiteClone ? 'clone' : 'no-clone',
-							submittedWithDraftName ? 'leaked-name' : 'clean-name',
+							hasSubmittedWebsiteDraft ? 'submitted' : 'not-submitted',
+							hasDuplicateWebsiteDraft ? 'duplicate-draft' : 'promoted',
 							`website:${websiteRows.length}`,
 							`rows:${rows.length}`,
 						].join(':')

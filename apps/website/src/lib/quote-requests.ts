@@ -1,4 +1,9 @@
 import { createSupabaseServiceRoleClient } from '@hyperquote/auth/server'
+import {
+	isValidQuoteDeliveryDate,
+	QUOTE_DELIVERY_WINDOW_IDS,
+	QUOTE_REQUEST_AGREEMENT_VERSION,
+} from '@hyperquote/quote-cart/checkout'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import {
@@ -22,11 +27,17 @@ const quoteRequestItemInput = z.object({
 })
 
 const submitWebsiteQuoteInput = z.object({
+	agreementAccepted: z.literal(true),
+	contactEmail: z.string().trim().toLowerCase().email().max(254),
+	contactPhone: z.string().regex(/^\+20(10|11|12|15)\d{8}$/),
+	deliveryAddressId: z.string().uuid(),
+	deliveryDate: z.iso.date(),
 	draftId: z.string().uuid().optional(),
+	idempotencyKey: z.string().uuid(),
 	items: z.array(quoteRequestItemInput).min(1).max(100),
 	name: z.string().max(120).optional(),
 	notes: z.string().max(2000).optional(),
-	idempotencyKey: z.string().uuid(),
+	preferredDeliveryWindow: z.enum(QUOTE_DELIVERY_WINDOW_IDS),
 })
 
 const saveWebsiteQuoteDraftInput = z.object({
@@ -136,6 +147,21 @@ function normalizeNotes(value: string | undefined): string | null {
 	if (value === undefined) return null
 	const notes = value.trim()
 	return notes || null
+}
+
+async function isOwnedQuoteRequestAddress(
+	client: WebsiteCustomerSupabaseClient,
+	customerId: string,
+	addressId: string,
+): Promise<boolean> {
+	const { data, error } = await client
+		.from('customer_addresses')
+		.select('id')
+		.eq('id', addressId)
+		.eq('customer_id', customerId)
+		.maybeSingle()
+	if (error) throw error
+	return Boolean(data)
 }
 
 function firstRelation<T>(relation: T | T[] | null | undefined): T | null {
@@ -416,6 +442,7 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 						| 'not_configured'
 						| 'not_authenticated'
 						| 'customer_required'
+						| 'invalid_details'
 						| 'items_unavailable'
 						| 'submit_failed'
 					unavailableItems?: string[]
@@ -426,7 +453,18 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 				if ('error' in auth) {
 					return { success: false, error: auth.error ?? 'submit_failed' }
 				}
+				if (
+					!isValidQuoteDeliveryDate(input.deliveryDate) ||
+					!(await isOwnedQuoteRequestAddress(
+						auth.client,
+						auth.customerId,
+						input.deliveryAddressId,
+					))
+				) {
+					return { success: false, error: 'invalid_details' }
+				}
 				await assertQuoteRequestItemsOrderable(auth.client, input.items)
+				const agreementAcceptedAt = new Date().toISOString()
 
 				const existing = await auth.client
 					.from('quote_requests')
@@ -473,7 +511,14 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 
 					const draftSubmitUpdate = {
 						approval_required: false,
+						agreement_accepted_at: agreementAcceptedAt,
+						agreement_version: QUOTE_REQUEST_AGREEMENT_VERSION,
+						delivery_address_id: input.deliveryAddressId,
+						delivery_date: input.deliveryDate,
 						idempotency_key: input.idempotencyKey,
+						preferred_delivery_window: input.preferredDeliveryWindow,
+						request_contact_email: input.contactEmail,
+						request_contact_phone: input.contactPhone,
 						...(input.notes === undefined
 							? {}
 							: { notes: normalizeNotes(input.notes) }),
@@ -522,14 +567,21 @@ export const submitWebsiteQuoteRequest = createServerFn({ method: 'POST' })
 				const { data: requestRow, error: requestError } = await auth.client
 					.from('quote_requests')
 					.insert({
+						agreement_accepted_at: agreementAcceptedAt,
+						agreement_version: QUOTE_REQUEST_AGREEMENT_VERSION,
+						approval_required: false,
+						attachment_urls: [],
 						customer_id: auth.customerId,
+						delivery_address_id: input.deliveryAddressId,
+						delivery_date: input.deliveryDate,
+						draft_name: null,
+						idempotency_key: input.idempotencyKey,
+						notes: normalizeNotes(input.notes),
+						preferred_delivery_window: input.preferredDeliveryWindow,
+						request_contact_email: input.contactEmail,
+						request_contact_phone: input.contactPhone,
 						status: 'draft',
 						urgency: 'standard',
-						draft_name: null,
-						notes: normalizeNotes(input.notes),
-						attachment_urls: [],
-						idempotency_key: input.idempotencyKey,
-						approval_required: false,
 					})
 					.select('id, request_number')
 					.single()

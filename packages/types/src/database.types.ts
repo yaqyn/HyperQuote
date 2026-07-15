@@ -3782,6 +3782,8 @@ export type Database = {
 			}
 			quote_requests: {
 				Row: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
 					approval_required: boolean
 					assigned_at: string | null
 					assigned_employee_id: string | null
@@ -3795,9 +3797,12 @@ export type Database = {
 					id: string
 					idempotency_key: string | null
 					notes: string | null
+					preferred_delivery_window: string | null
 					project_id: string | null
 					rejected_proof: Json | null
 					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
 					request_number: string
 					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
@@ -3806,6 +3811,8 @@ export type Database = {
 					urgency: Database['public']['Enums']['quote_request_urgency']
 				}
 				Insert: {
+					agreement_accepted_at?: string | null
+					agreement_version?: string | null
 					approval_required?: boolean
 					assigned_at?: string | null
 					assigned_employee_id?: string | null
@@ -3819,9 +3826,12 @@ export type Database = {
 					id?: string
 					idempotency_key?: string | null
 					notes?: string | null
+					preferred_delivery_window?: string | null
 					project_id?: string | null
 					rejected_proof?: Json | null
 					rejected_reason?: string | null
+					request_contact_email?: string | null
+					request_contact_phone?: string | null
 					request_number?: string
 					status?: Database['public']['Enums']['quote_request_status']
 					submitted_at?: string | null
@@ -3830,6 +3840,8 @@ export type Database = {
 					urgency?: Database['public']['Enums']['quote_request_urgency']
 				}
 				Update: {
+					agreement_accepted_at?: string | null
+					agreement_version?: string | null
 					approval_required?: boolean
 					assigned_at?: string | null
 					assigned_employee_id?: string | null
@@ -3843,9 +3855,12 @@ export type Database = {
 					id?: string
 					idempotency_key?: string | null
 					notes?: string | null
+					preferred_delivery_window?: string | null
 					project_id?: string | null
 					rejected_proof?: Json | null
 					rejected_reason?: string | null
+					request_contact_email?: string | null
+					request_contact_phone?: string | null
 					request_number?: string
 					status?: Database['public']['Enums']['quote_request_status']
 					submitted_at?: string | null
@@ -6122,6 +6137,8 @@ export type Database = {
 			claim_next_sales_order: {
 				Args: never
 				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
 					approval_required: boolean
 					assigned_at: string | null
 					assigned_employee_id: string | null
@@ -6135,9 +6152,12 @@ export type Database = {
 					id: string
 					idempotency_key: string | null
 					notes: string | null
+					preferred_delivery_window: string | null
 					project_id: string | null
 					rejected_proof: Json | null
 					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
 					request_number: string
 					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
@@ -6155,6 +6175,8 @@ export type Database = {
 			create_manual_order: {
 				Args: { p_customer_id: string; p_items: Json; p_notes?: string }
 				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
 					approval_required: boolean
 					assigned_at: string | null
 					assigned_employee_id: string | null
@@ -6168,9 +6190,12 @@ export type Database = {
 					id: string
 					idempotency_key: string | null
 					notes: string | null
+					preferred_delivery_window: string | null
 					project_id: string | null
 					rejected_proof: Json | null
 					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
 					request_number: string
 					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
@@ -6399,6 +6424,8 @@ export type Database = {
 				| {
 						Args: { p_quote_request_id: string }
 						Returns: {
+							agreement_accepted_at: string | null
+							agreement_version: string | null
 							approval_required: boolean
 							assigned_at: string | null
 							assigned_employee_id: string | null
@@ -6412,9 +6439,12 @@ export type Database = {
 							id: string
 							idempotency_key: string | null
 							notes: string | null
+							preferred_delivery_window: string | null
 							project_id: string | null
 							rejected_proof: Json | null
 							rejected_reason: string | null
+							request_contact_email: string | null
+							request_contact_phone: string | null
 							request_number: string
 							status: Database['public']['Enums']['quote_request_status']
 							submitted_at: string | null
@@ -6432,6 +6462,8 @@ export type Database = {
 				| {
 						Args: { p_quote_request_id: string; p_source: string }
 						Returns: {
+							agreement_accepted_at: string | null
+							agreement_version: string | null
 							approval_required: boolean
 							assigned_at: string | null
 							assigned_employee_id: string | null
@@ -6445,9 +6477,12 @@ export type Database = {
 							id: string
 							idempotency_key: string | null
 							notes: string | null
+							preferred_delivery_window: string | null
 							project_id: string | null
 							rejected_proof: Json | null
 							rejected_reason: string | null
+							request_contact_email: string | null
+							request_contact_phone: string | null
 							request_number: string
 							status: Database['public']['Enums']['quote_request_status']
 							submitted_at: string | null
@@ -7951,6 +7986,8 @@ export type Database = {
 			sales_cancel_order: {
 				Args: { p_order_id: string; p_proof?: Json; p_reason: string }
 				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
 					approval_required: boolean
 					assigned_at: string | null
 					assigned_employee_id: string | null
@@ -7964,9 +8001,12 @@ export type Database = {
 					id: string
 					idempotency_key: string | null
 					notes: string | null
+					preferred_delivery_window: string | null
 					project_id: string | null
 					rejected_proof: Json | null
 					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
 					request_number: string
 					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
@@ -7984,6 +8024,8 @@ export type Database = {
 			sales_claim_order: {
 				Args: { p_order_id: string }
 				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
 					approval_required: boolean
 					assigned_at: string | null
 					assigned_employee_id: string | null
@@ -7997,9 +8039,12 @@ export type Database = {
 					id: string
 					idempotency_key: string | null
 					notes: string | null
+					preferred_delivery_window: string | null
 					project_id: string | null
 					rejected_proof: Json | null
 					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
 					request_number: string
 					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
@@ -8118,6 +8163,8 @@ export type Database = {
 			sales_reject_order: {
 				Args: { p_order_id: string; p_proof: Json; p_reason: string }
 				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
 					approval_required: boolean
 					assigned_at: string | null
 					assigned_employee_id: string | null
@@ -8131,9 +8178,12 @@ export type Database = {
 					id: string
 					idempotency_key: string | null
 					notes: string | null
+					preferred_delivery_window: string | null
 					project_id: string | null
 					rejected_proof: Json | null
 					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
 					request_number: string
 					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
@@ -8151,6 +8201,8 @@ export type Database = {
 			sales_save_and_requeue: {
 				Args: { p_note?: string; p_order_id: string; p_return_minutes?: number }
 				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
 					approval_required: boolean
 					assigned_at: string | null
 					assigned_employee_id: string | null
@@ -8164,9 +8216,12 @@ export type Database = {
 					id: string
 					idempotency_key: string | null
 					notes: string | null
+					preferred_delivery_window: string | null
 					project_id: string | null
 					rejected_proof: Json | null
 					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
 					request_number: string
 					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
@@ -8433,6 +8488,8 @@ export type Database = {
 			service_claim_next_sales_order: {
 				Args: { p_actor_pool: string; p_actor_user_id: string }
 				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
 					approval_required: boolean
 					assigned_at: string | null
 					assigned_employee_id: string | null
@@ -8446,9 +8503,12 @@ export type Database = {
 					id: string
 					idempotency_key: string | null
 					notes: string | null
+					preferred_delivery_window: string | null
 					project_id: string | null
 					rejected_proof: Json | null
 					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
 					request_number: string
 					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
@@ -8493,6 +8553,8 @@ export type Database = {
 					p_notes?: string
 				}
 				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
 					approval_required: boolean
 					assigned_at: string | null
 					assigned_employee_id: string | null
@@ -8506,9 +8568,12 @@ export type Database = {
 					id: string
 					idempotency_key: string | null
 					notes: string | null
+					preferred_delivery_window: string | null
 					project_id: string | null
 					rejected_proof: Json | null
 					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
 					request_number: string
 					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
@@ -8788,6 +8853,8 @@ export type Database = {
 					p_source?: string
 				}
 				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
 					approval_required: boolean
 					assigned_at: string | null
 					assigned_employee_id: string | null
@@ -8801,9 +8868,12 @@ export type Database = {
 					id: string
 					idempotency_key: string | null
 					notes: string | null
+					preferred_delivery_window: string | null
 					project_id: string | null
 					rejected_proof: Json | null
 					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
 					request_number: string
 					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
@@ -10307,6 +10377,8 @@ export type Database = {
 					p_reason: string
 				}
 				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
 					approval_required: boolean
 					assigned_at: string | null
 					assigned_employee_id: string | null
@@ -10320,9 +10392,12 @@ export type Database = {
 					id: string
 					idempotency_key: string | null
 					notes: string | null
+					preferred_delivery_window: string | null
 					project_id: string | null
 					rejected_proof: Json | null
 					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
 					request_number: string
 					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
@@ -10344,6 +10419,8 @@ export type Database = {
 					p_order_id: string
 				}
 				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
 					approval_required: boolean
 					assigned_at: string | null
 					assigned_employee_id: string | null
@@ -10357,9 +10434,12 @@ export type Database = {
 					id: string
 					idempotency_key: string | null
 					notes: string | null
+					preferred_delivery_window: string | null
 					project_id: string | null
 					rejected_proof: Json | null
 					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
 					request_number: string
 					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
@@ -10496,6 +10576,8 @@ export type Database = {
 					p_reason: string
 				}
 				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
 					approval_required: boolean
 					assigned_at: string | null
 					assigned_employee_id: string | null
@@ -10509,9 +10591,12 @@ export type Database = {
 					id: string
 					idempotency_key: string | null
 					notes: string | null
+					preferred_delivery_window: string | null
 					project_id: string | null
 					rejected_proof: Json | null
 					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
 					request_number: string
 					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null
@@ -10535,6 +10620,8 @@ export type Database = {
 					p_return_minutes?: number
 				}
 				Returns: {
+					agreement_accepted_at: string | null
+					agreement_version: string | null
 					approval_required: boolean
 					assigned_at: string | null
 					assigned_employee_id: string | null
@@ -10548,9 +10635,12 @@ export type Database = {
 					id: string
 					idempotency_key: string | null
 					notes: string | null
+					preferred_delivery_window: string | null
 					project_id: string | null
 					rejected_proof: Json | null
 					rejected_reason: string | null
+					request_contact_email: string | null
+					request_contact_phone: string | null
 					request_number: string
 					status: Database['public']['Enums']['quote_request_status']
 					submitted_at: string | null

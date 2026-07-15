@@ -3,6 +3,11 @@
  * Submit, save draft, get drafts, and AI-assisted parsing.
  */
 
+import {
+	isValidQuoteDeliveryDate,
+	QUOTE_DELIVERY_WINDOW_IDS,
+	QUOTE_REQUEST_AGREEMENT_VERSION,
+} from '@hyperquote/quote-cart/checkout'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import {
@@ -34,7 +39,14 @@ const quoteRequestDraftInput = z.object({
 })
 
 const submitQuoteRequestInput = quoteRequestDraftInput.extend({
+	agreementAccepted: z.literal(true).optional(),
+	contactEmail: z.string().trim().toLowerCase().email().max(254).optional(),
+	contactPhone: z
+		.string()
+		.regex(/^\+20(10|11|12|15)\d{8}$/)
+		.optional(),
 	idempotencyKey: z.string().uuid(),
+	preferredDeliveryWindow: z.enum(QUOTE_DELIVERY_WINDOW_IDS).optional(),
 })
 
 const saveDraftInput = quoteRequestDraftInput
@@ -46,8 +58,19 @@ type PortalCustomerSupabase = Awaited<
 	ReturnType<typeof getAuthenticatedPortalCustomer>
 >['supabase']
 type QuoteRequestItemInput = z.infer<typeof quoteRequestItemInputSchema>
+type PortalQuoteSubmitInput = z.infer<typeof submitQuoteRequestInput>
+
+interface GuidedQuoteDetails {
+	contactEmail: string
+	contactPhone: string
+	deliveryAddressId: string
+	deliveryDate: string
+	preferredDeliveryWindow: (typeof QUOTE_DELIVERY_WINDOW_IDS)[number]
+}
 
 interface QuoteRequestUpdate {
+	agreement_accepted_at?: string | null
+	agreement_version?: string | null
 	approval_required?: boolean
 	attachment_urls?: string[]
 	delivery_address_id?: string | null
@@ -55,7 +78,10 @@ interface QuoteRequestUpdate {
 	draft_name?: string | null
 	idempotency_key?: string
 	notes?: string | null
+	preferred_delivery_window?: string | null
 	project_id?: string | null
+	request_contact_email?: string | null
+	request_contact_phone?: string | null
 }
 
 function normalizeDraftName(value: string | undefined): string | null {
@@ -68,6 +94,49 @@ function normalizeNotes(value: string | undefined): string | null {
 	if (value === undefined) return null
 	const notes = value.trim()
 	return notes || null
+}
+
+async function isOwnedAddress(
+	supabase: PortalCustomerSupabase,
+	customerId: string,
+	addressId: string,
+): Promise<boolean> {
+	const { data, error } = await supabase
+		.from('customer_addresses')
+		.select('id')
+		.eq('id', addressId)
+		.eq('customer_id', customerId)
+		.maybeSingle()
+	if (error) throw new Error(error.message)
+	return Boolean(data)
+}
+
+function guidedQuoteDetailsFrom(
+	input: PortalQuoteSubmitInput,
+): GuidedQuoteDetails | null {
+	const guidedRequest =
+		input.agreementAccepted !== undefined ||
+		input.contactEmail !== undefined ||
+		input.contactPhone !== undefined ||
+		input.preferredDeliveryWindow !== undefined
+	if (!guidedRequest) return null
+	if (
+		input.agreementAccepted !== true ||
+		!input.contactEmail ||
+		!input.contactPhone ||
+		!input.deliveryAddressId ||
+		!input.deliveryDate ||
+		!input.preferredDeliveryWindow
+	) {
+		throw new Error('Guided quote request details are incomplete')
+	}
+	return {
+		contactEmail: input.contactEmail,
+		contactPhone: input.contactPhone,
+		deliveryAddressId: input.deliveryAddressId,
+		deliveryDate: input.deliveryDate,
+		preferredDeliveryWindow: input.preferredDeliveryWindow,
+	}
 }
 
 function buildDraftMetadataUpdate(input: {
@@ -233,7 +302,22 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 			data: input,
 		}): Promise<{ requestId: string; reference: string }> => {
 			const { customerId, supabase } = await getAuthenticatedPortalCustomer()
+			const guidedDetails = guidedQuoteDetailsFrom(input)
+			if (
+				guidedDetails &&
+				(!isValidQuoteDeliveryDate(guidedDetails.deliveryDate) ||
+					!(await isOwnedAddress(
+						supabase,
+						customerId,
+						guidedDetails.deliveryAddressId,
+					)))
+			) {
+				throw new Error('Invalid quote request delivery details')
+			}
 			await assertQuoteRequestItemsOrderable(supabase, input.items)
+			const agreementAcceptedAt = guidedDetails
+				? new Date().toISOString()
+				: null
 
 			const { data: existing } = await supabase
 				.from('quote_requests')
@@ -274,6 +358,16 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 						...buildDraftMetadataUpdate(input),
 						approval_required: false,
 						idempotency_key: input.idempotencyKey,
+						...(guidedDetails
+							? {
+									agreement_accepted_at: agreementAcceptedAt,
+									agreement_version: QUOTE_REQUEST_AGREEMENT_VERSION,
+									preferred_delivery_window:
+										guidedDetails.preferredDeliveryWindow,
+									request_contact_email: guidedDetails.contactEmail,
+									request_contact_phone: guidedDetails.contactPhone,
+								}
+							: {}),
 					},
 				})
 				await submitCustomerDraft(supabase, input.draftId)
@@ -287,17 +381,25 @@ export const submitQuoteRequest = createServerFn({ method: 'POST' })
 			const { data: qr, error: qrError } = await supabase
 				.from('quote_requests')
 				.insert({
+					agreement_accepted_at: agreementAcceptedAt,
+					agreement_version: guidedDetails
+						? QUOTE_REQUEST_AGREEMENT_VERSION
+						: null,
+					approval_required: false,
+					attachment_urls: input.attachmentUrls ?? [],
 					customer_id: customerId,
-					status: 'draft',
-					urgency: 'standard',
-					project_id: input.projectId ?? null,
 					delivery_address_id: input.deliveryAddressId ?? null,
 					delivery_date: input.deliveryDate ?? null,
 					draft_name: null,
-					notes: normalizeNotes(input.notes),
-					attachment_urls: input.attachmentUrls ?? [],
 					idempotency_key: input.idempotencyKey,
-					approval_required: false,
+					notes: normalizeNotes(input.notes),
+					preferred_delivery_window:
+						guidedDetails?.preferredDeliveryWindow ?? null,
+					project_id: input.projectId ?? null,
+					request_contact_email: guidedDetails?.contactEmail ?? null,
+					request_contact_phone: guidedDetails?.contactPhone ?? null,
+					status: 'draft',
+					urgency: 'standard',
 				})
 				.select('id, request_number')
 				.single()

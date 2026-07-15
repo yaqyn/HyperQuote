@@ -20,6 +20,9 @@
 		"./pwa/install": "./src/pwa/install.ts",
 		"./pwa/service-worker": "./src/pwa/service-worker.ts",
 		"./quote-cart/SavedDraftsPanelView": "./src/quote-cart/SavedDraftsPanelView.tsx",
+		"./quote-flow/QuoteFlowDialog": "./src/quote-flow/QuoteFlowDialog.tsx",
+		"./quote-flow/QuoteLocationMap": "./src/quote-flow/QuoteLocationMap.tsx",
+		"./quote-flow/QuoteFlowSteps": "./src/quote-flow/QuoteFlowSteps.tsx",
 		"./selection/SelectionCopyToolbar": "./src/selection/SelectionCopyToolbar.tsx",
 		"./text/markdown": "./src/text/markdown.ts",
 		"./utils/cn": "./src/utils/cn.ts",
@@ -32,9 +35,14 @@
 	},
 	"dependencies": {
 		"@hyperquote/i18n": "workspace:*",
-		"motion": "^12.38.0",
+		"@hyperquote/quote-cart": "workspace:*",
+		"@internationalized/date": "^3.12.1",
 		"clsx": "^2.1.1",
 		"lucide-react": "^1.16.0",
+		"maplibre-gl": "^5.24.0",
+		"motion": "^12.38.0",
+		"react-aria-components": "^1.17.0",
+		"react-map-gl": "^8.1.1",
 		"tailwind-merge": "^3.6.0"
 	},
 	"peerDependencies": {

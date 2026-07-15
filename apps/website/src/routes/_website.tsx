@@ -2,6 +2,7 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { WebsiteFooter } from '../components/layout/WebsiteFooter'
 import { WebsiteHeader } from '../components/layout/WebsiteHeader'
+import { QuoteRequestDialog } from '../components/quote/QuoteRequestDialog'
 import { websiteHead } from '../lib/seo'
 
 export const Route = createFileRoute('/_website')({
@@ -38,6 +39,7 @@ function WebsiteLayout() {
 	return (
 		<>
 			<WebsiteHeader />
+			<QuoteRequestDialog />
 			<main
 				id="main"
 				className="relative z-10 bg-[var(--color-base)]"

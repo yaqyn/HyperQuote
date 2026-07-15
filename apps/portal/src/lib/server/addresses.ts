@@ -12,16 +12,24 @@ import { resolveAddressCoordinates } from './address-coordinates'
 // Schemas
 // ============================================================================
 
-const createAddressInput = z.object({
-	label: z.string().optional(),
-	street: z.string().min(1),
-	area: z.string().min(1),
-	city: z.string().min(1),
-	governorate: z.string().min(1),
-	landmark: z.string().optional(),
-	phone: z.string().optional(),
-	isDefault: z.boolean().optional(),
-})
+const createAddressInput = z
+	.object({
+		label: z.string().optional(),
+		street: z.string().min(1),
+		area: z.string().min(1),
+		city: z.string().min(1),
+		governorate: z.string().min(1),
+		landmark: z.string().optional(),
+		phone: z.string().optional(),
+		isDefault: z.boolean().optional(),
+		latitude: z.number().min(21.7).max(31.8).optional(),
+		longitude: z.number().min(24.6).max(36.9).optional(),
+	})
+	.refine(
+		(input) =>
+			(input.latitude === undefined) === (input.longitude === undefined),
+		{ message: 'Latitude and longitude must be provided together' },
+	)
 
 // ============================================================================
 // Types
@@ -39,6 +47,34 @@ export interface CustomerAddress {
 	isDefault: boolean
 	latitude: number | null
 	longitude: number | null
+}
+
+export function toCustomerAddress(row: {
+	area: string | null
+	city: string
+	governorate: string
+	id: string
+	is_default: boolean
+	label: string | null
+	landmark: string | null
+	latitude: number | null
+	longitude: number | null
+	phone: string | null
+	street: string
+}): CustomerAddress {
+	return {
+		area: row.area ?? '',
+		city: row.city,
+		governorate: row.governorate,
+		id: row.id,
+		isDefault: row.is_default,
+		label: row.label,
+		landmark: row.landmark,
+		latitude: row.latitude === null ? null : Number(row.latitude),
+		longitude: row.longitude === null ? null : Number(row.longitude),
+		phone: row.phone,
+		street: row.street,
+	}
 }
 
 // ============================================================================
@@ -60,19 +96,7 @@ export const getCustomerAddresses = createServerFn().handler(
 
 		if (error) throw new Error(error.message)
 
-		return (data ?? []).map((a) => ({
-			id: a.id,
-			label: a.label,
-			street: a.street,
-			area: a.area,
-			city: a.city,
-			governorate: a.governorate,
-			landmark: a.landmark,
-			phone: a.phone,
-			isDefault: a.is_default,
-			latitude: a.latitude === null ? null : Number(a.latitude),
-			longitude: a.longitude === null ? null : Number(a.longitude),
-		}))
+		return (data ?? []).map(toCustomerAddress)
 	},
 )
 
@@ -84,12 +108,15 @@ export const createAddress = createServerFn({ method: 'POST' })
 	.inputValidator(createAddressInput)
 	.handler(async ({ data: input }): Promise<CustomerAddress> => {
 		const { customerId, supabase } = await getAuthenticatedPortalCustomer()
-		const coordinates = await resolveAddressCoordinates({
-			area: input.area,
-			city: input.city,
-			governorate: input.governorate,
-			street: input.street,
-		})
+		const coordinates =
+			input.latitude !== undefined && input.longitude !== undefined
+				? { latitude: input.latitude, longitude: input.longitude }
+				: await resolveAddressCoordinates({
+						area: input.area,
+						city: input.city,
+						governorate: input.governorate,
+						street: input.street,
+					})
 
 		const { data, error } = await supabase
 			.from('customer_addresses')
@@ -115,17 +142,5 @@ export const createAddress = createServerFn({ method: 'POST' })
 			throw new Error(error?.message ?? 'Failed to create address')
 		}
 
-		return {
-			id: data.id,
-			label: data.label,
-			street: data.street,
-			area: data.area,
-			city: data.city,
-			governorate: data.governorate,
-			landmark: data.landmark,
-			phone: data.phone,
-			isDefault: data.is_default,
-			latitude: data.latitude === null ? null : Number(data.latitude),
-			longitude: data.longitude === null ? null : Number(data.longitude),
-		}
+		return toCustomerAddress(data)
 	})

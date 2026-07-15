@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "../../../essential/brand/tokens.css";
 @import "../../../essential/brand/fonts/font-face.css";
+@source "../../../packages/ui/src";
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 @plugin "tailwindcss-react-aria-components";

@@ -35,6 +35,7 @@
 			"unitColumn": "Unit",
 			"browse": "Browse",
 			"continue": "Add more materials",
+			"addMaterial": "Add a material",
 			"items": "items"
 		}
 	},
@@ -124,6 +125,7 @@
 		"browseCta": "Browse materials",
 		"clearAll": "Clear",
 		"clearCart": "Clear list",
+		"clearConfirm": "Press again to clear",
 		"remove": "Remove item",
 		"decreaseQuantity": "Decrease quantity",
 		"increaseQuantity": "Increase quantity",
@@ -174,6 +176,105 @@
 		"itemCount_one": "{{count}} item",
 		"itemCount_other": "{{count}} items",
 		"units": "units"
+	},
+	"quoteFlow": {
+		"eyebrow": "Quote request",
+		"title": "Request a quote",
+		"loading": "Preparing your material list...",
+		"back": "Back",
+		"next": "Continue",
+		"submit": "Send request",
+		"close": "Close",
+		"steps": {
+			"location": "Location",
+			"delivery": "Delivery",
+			"contact": "Contact",
+			"agreement": "Review"
+		},
+		"auth": {
+			"eyebrow": "Your account",
+			"heading": "Sign in to continue",
+			"body": "Your list is safe. Sign in or create an account before you save or send it.",
+			"accountFieldsRequired": "Enter your name and company name to continue."
+		},
+		"location": {
+			"heading": "Delivery location",
+			"body": "Choose a saved site, search for an address, or place the marker on the map.",
+			"searchLabel": "Search for a delivery location",
+			"searchPlaceholder": "Search an area, street, or landmark",
+			"searchAction": "Search",
+			"searchMinimum": "Enter at least three characters to search.",
+			"searchError": "We could not search for that location. Try again.",
+			"noResults": "No matching location found. You can place the marker on the map.",
+			"rateLimited": "Location search is busy. Wait a moment, then search again.",
+			"rateLimitedManual": "The marker is set. Enter the address details while location lookup recovers.",
+			"reverseError": "The marker is set, but the address could not be filled automatically.",
+			"createError": "We could not save this delivery location. Try again.",
+			"addressRequired": "Choose a saved address or set the marker and complete the required address fields.",
+			"savedAddresses": "Saved sites",
+			"siteAddress": "Site address",
+			"newLocation": "New site",
+			"resolving": "Reading location",
+			"street": "Street or landmark",
+			"area": "Area",
+			"city": "City",
+			"governorate": "Governorate",
+			"mapHint": "Pinch and scroll gestures remain available on the map.",
+			"mapLoading": "Loading the map"
+		},
+		"delivery": {
+			"heading": "Delivery preference",
+			"body": "Choose a working day and the time window that best fits your site.",
+			"dateLabel": "Preferred delivery date",
+			"windowLabel": "Time window",
+			"preferenceNote": "This is a preference. We confirm the final delivery time after supplier and transport availability are known.",
+			"required": "Choose a delivery date and time window.",
+			"windows": {
+				"morning": "Morning",
+				"midday": "Afternoon",
+				"evening": "Evening",
+				"night": "Night"
+			}
+		},
+		"contact": {
+			"heading": "Contact information",
+			"body": "Tell us where to send the quote and who to call if we need to confirm a detail.",
+			"email": "Email address",
+			"phone": "Egypt mobile number",
+			"emailInvalid": "Enter a valid email address.",
+			"phoneInvalid": "Enter a valid Egyptian mobile number.",
+			"note": "We save these details with this request. Later profile changes will not alter the submitted record."
+		},
+		"agreement": {
+			"heading": "Before you send",
+			"body": "Review how the request moves from your list to a confirmed quote.",
+			"sourceStatement": "HyperQuote reviews the list, confirms availability, and sources suitable offers from its supplier network.",
+			"pricingStatement": "This request is not a final price. The quote we send confirms pricing, taxes, payment terms, and how long the offer remains valid.",
+			"deliveryStatement": "Your date and time window are preferences. The final schedule is confirmed with the quote and may change with supply or transport availability.",
+			"contactStatement": "Our team may contact you by phone or email to clarify the list, site access, pricing, or delivery details.",
+			"summary": "Request summary",
+			"materials": "Materials",
+			"materialCount": "{{count}} materials",
+			"location": "Location",
+			"delivery": "Delivery preference",
+			"contact": "Contact",
+			"checkbox": "I have reviewed this request and agree that HyperQuote may contact me to prepare and confirm the quote.",
+			"required": "Review and accept the statement before sending your request."
+		},
+		"errors": {
+			"heading": "Something went wrong",
+			"empty": "Add at least one material before continuing.",
+			"defaults": "We could not load your quote details. Try signing in again.",
+			"save": "We could not save this draft. Try again.",
+			"submit": "We could not send this request. Your list is still here; try again.",
+			"invalidDetails": "The location or delivery date is no longer valid. Please review it."
+		},
+		"success": {
+			"heading": "Request received",
+			"body": "We’ll review the materials and contact you with any questions before preparing the quote.",
+			"draftHeading": "Draft saved",
+			"draftBody": "Your material list is saved to your account and remains available in the portal."
+		}
 	},
 	"market": {
 		"pageTitle": "Building materials",
