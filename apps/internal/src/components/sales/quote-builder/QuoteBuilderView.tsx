@@ -2,11 +2,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
 	ArrowRight,
 	CheckCircle2,
+	ChevronDown,
 	CircleAlert,
 	Clock3,
 	FolderKanban,
 	Loader2,
 	MoreHorizontal,
+	PackageOpen,
 	Phone,
 	RefreshCw,
 	Save,
@@ -3132,21 +3134,31 @@ function CustomerProjectsPanel({
 	projectId: string | null
 	projects: SalesCustomerProjectWorkspace[]
 }) {
+	const [openProjectId, setOpenProjectId] = useState<string | null>(projectId)
+	const currentProject = projects.find((project) => project.id === projectId)
+	const recordCount = projects.reduce(
+		(total, project) => total + project.records.length,
+		0,
+	)
+
 	return (
 		<div className="flex h-full min-h-0 flex-col bg-[var(--color-surface)] text-[var(--color-text)]">
 			<header className="shrink-0 border-b border-[var(--color-border)] px-5 py-5">
-				<div className="flex items-center gap-3">
-					<span className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-primary)]">
-						<FolderKanban size={17} strokeWidth={1.8} />
-					</span>
+				<div className="flex items-start justify-between gap-4">
 					<div className="min-w-0">
-						<h2 className="font-[family-name:var(--font-archivo)] text-[15px] font-semibold">
-							Customer projects
+						<p className="font-[family-name:var(--font-plex-mono)] text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary)]">
+							Customer workspace
+						</p>
+						<h2 className="mt-1.5 font-[family-name:var(--font-archivo)] text-[18px] font-semibold tracking-[-0.02em]">
+							Projects
 						</h2>
-						<p className="mt-0.5 font-[family-name:var(--font-archivo)] text-[11px] text-[var(--color-text-muted)]">
-							Browse the customer workspace and assign this request.
+						<p className="mt-1 max-w-[330px] font-[family-name:var(--font-archivo)] text-[11px] leading-5 text-[var(--color-text-muted)]">
+							Open a project to inspect its orders, items, and current status.
 						</p>
 					</div>
+					<span className="shrink-0 font-[family-name:var(--font-plex-mono)] text-[9px] uppercase tracking-[0.12em] text-[var(--color-text-subtle)]">
+						{projects.length} projects · {recordCount} records
+					</span>
 				</div>
 			</header>
 
@@ -3162,21 +3174,26 @@ function CustomerProjectsPanel({
 					</p>
 				)}
 
-				<button
-					type="button"
-					disabled={!canAssign || assigning}
-					onClick={() => onAssign(null)}
-					className={`mb-2 flex w-full items-center justify-between rounded-md border px-3 py-3 text-start outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
-						projectId === null
-							? 'border-[var(--color-primary)]/35 bg-[var(--color-primary)]/[0.06]'
-							: 'border-[var(--color-border)] hover:border-[var(--color-primary)]/25'
-					}`}
-				>
-					<span className="font-[family-name:var(--font-archivo)] text-[12px] font-semibold">
-						Independent request
-					</span>
-					{projectId === null && <CheckCircle2 size={15} />}
-				</button>
+				<div className="mb-4 flex items-center justify-between gap-3 border-b border-[var(--color-border)] pb-4">
+					<div className="min-w-0">
+						<p className="font-[family-name:var(--font-plex-mono)] text-[8px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-subtle)]">
+							Current placement
+						</p>
+						<p className="mt-1 truncate font-[family-name:var(--font-archivo)] text-[12px] font-semibold">
+							{currentProject?.name ?? 'Independent request'}
+						</p>
+					</div>
+					{projectId && (
+						<button
+							type="button"
+							disabled={!canAssign || assigning}
+							onClick={() => onAssign(null)}
+							className="shrink-0 rounded-sm px-2 py-1 font-[family-name:var(--font-archivo)] text-[10px] font-semibold text-[var(--color-text-muted)] outline-none transition-colors hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 disabled:cursor-not-allowed disabled:opacity-45"
+						>
+							{assigning ? 'Removing' : 'Remove from project'}
+						</button>
+					)}
+				</div>
 
 				{projects.length === 0 ? (
 					<div className="mt-8 text-center">
@@ -3191,58 +3208,161 @@ function CustomerProjectsPanel({
 					</div>
 				) : (
 					<div className="space-y-2">
-						{projects.map((project) => (
-							<section
-								key={project.id}
-								className={`overflow-hidden rounded-md border ${
-									projectId === project.id
-										? 'border-[var(--color-primary)]/35'
-										: 'border-[var(--color-border)]'
-								}`}
-							>
-								<button
-									type="button"
-									disabled={!canAssign || assigning}
-									onClick={() => onAssign(project.id)}
-									className={`flex w-full items-start justify-between gap-3 px-3 py-3 text-start outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
-										projectId === project.id
-											? 'bg-[var(--color-primary)]/[0.06]'
-											: 'hover:bg-[var(--color-surface-muted)]'
+						{projects.map((project) => {
+							const isOpen = openProjectId === project.id
+							const isCurrent = projectId === project.id
+							const assignLabel = isCurrent
+								? 'Assigned to this project'
+								: projectId
+									? 'Change to this project'
+									: 'Assign to this project'
+							return (
+								<section
+									key={project.id}
+									className={`relative overflow-hidden rounded-md border transition-colors ${
+										isOpen || isCurrent
+											? 'border-[var(--color-primary)]/30'
+											: 'border-[var(--color-border)]'
 									}`}
 								>
-									<span className="min-w-0">
-										<span className="block truncate font-[family-name:var(--font-archivo)] text-[12px] font-semibold">
-											{project.name}
-										</span>
-										<span className="mt-1 block font-[family-name:var(--font-plex-mono)] text-[9px] uppercase text-[var(--color-text-subtle)]">
-											{project.records.length} records
-										</span>
-									</span>
-									{projectId === project.id && (
-										<CheckCircle2 size={15} className="shrink-0" />
+									{isCurrent && (
+										<span className="absolute inset-y-0 start-0 z-10 w-0.5 bg-[var(--color-primary)]" />
 									)}
-								</button>
-								{project.records.length > 0 && (
-									<div className="divide-y divide-[var(--color-border)] border-t border-[var(--color-border)] px-3">
-										{project.records.map((record) => (
-											<div
-												key={record.id}
-												className="flex items-center justify-between gap-3 py-2.5"
+									<button
+										type="button"
+										aria-expanded={isOpen}
+										onClick={() => setOpenProjectId(isOpen ? null : project.id)}
+										className={`flex w-full items-center justify-between gap-4 px-4 py-3.5 text-start outline-none transition-colors hover:bg-[var(--color-surface-muted)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-primary)]/35 ${
+											isOpen ? 'bg-[var(--color-surface-muted)]/65' : ''
+										}`}
+									>
+										<span className="min-w-0">
+											<span className="flex items-center gap-2">
+												<span className="truncate font-[family-name:var(--font-archivo)] text-[12px] font-semibold">
+													{project.name}
+												</span>
+												{isCurrent && (
+													<span className="shrink-0 font-[family-name:var(--font-plex-mono)] text-[8px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary)]">
+														Current
+													</span>
+												)}
+											</span>
+											<span className="mt-1 block font-[family-name:var(--font-plex-mono)] text-[9px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+												{project.records.length} records
+											</span>
+										</span>
+										<ChevronDown
+											size={14}
+											aria-hidden="true"
+											className={`shrink-0 text-[var(--color-text-subtle)] transition-transform ${isOpen ? 'rotate-180' : ''}`}
+										/>
+									</button>
+
+									{isOpen && (
+										<div className="border-t border-[var(--color-border)] px-3 pb-3 pt-3">
+											{project.description && (
+												<p className="mb-3 px-1 font-[family-name:var(--font-archivo)] text-[11px] leading-5 text-[var(--color-text-muted)]">
+													{project.description}
+												</p>
+											)}
+											<EmployeeActionButton
+												type="button"
+												disabled={!canAssign || assigning || isCurrent}
+												onClick={() => onAssign(project.id)}
+												tone={isCurrent ? 'neutral' : 'success'}
+												size="sm"
+												trailing={
+													isCurrent ? (
+														<CheckCircle2 size={13} />
+													) : (
+														<ArrowRight size={13} />
+													)
+												}
 											>
-												<span className="min-w-0 truncate font-[family-name:var(--font-plex-mono)] text-[10px] text-[var(--color-text-muted)]">
-													{record.reference}
-												</span>
-												<span className="shrink-0 font-[family-name:var(--font-archivo)] text-[9px] uppercase text-[var(--color-text-subtle)]">
-													{record.hasOrder
-														? 'Order'
-														: record.status.replaceAll('_', ' ')}
-												</span>
+												{assigning && !isCurrent
+													? 'Updating project'
+													: assignLabel}
+											</EmployeeActionButton>
+
+											<div className="mt-3 space-y-2">
+												{project.records.length === 0 ? (
+													<div className="flex items-center gap-2 rounded-md bg-[var(--color-surface-muted)] px-3 py-3 text-[var(--color-text-muted)]">
+														<PackageOpen size={14} strokeWidth={1.6} />
+														<span className="font-[family-name:var(--font-archivo)] text-[11px]">
+															No orders in this project yet.
+														</span>
+													</div>
+												) : (
+													project.records.map((record) => (
+														<div
+															key={record.id}
+															className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]"
+														>
+															<div className="flex items-start justify-between gap-3 px-3 py-3">
+																<div className="min-w-0">
+																	<p className="font-[family-name:var(--font-archivo)] text-[11px] font-semibold">
+																		{record.order?.number ?? record.reference}
+																	</p>
+																	<p className="mt-1 font-[family-name:var(--font-plex-mono)] text-[8px] uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+																		Request {record.reference} ·{' '}
+																		{record.items.length} items
+																	</p>
+																	{record.order && (
+																		<p className="mt-1 font-[family-name:var(--font-plex-mono)] text-[8px] tabular-nums text-[var(--color-text-subtle)]">
+																			{formatMoneyAmount(
+																				record.order.totalAmount,
+																			)}{' '}
+																			·{' '}
+																			{new Date(
+																				record.order.createdAt,
+																			).toLocaleDateString('en-EG', {
+																				day: 'numeric',
+																				month: 'short',
+																				year: 'numeric',
+																			})}
+																		</p>
+																	)}
+																</div>
+																<span className="shrink-0 rounded-sm bg-[var(--color-surface-muted)] px-2 py-1 font-[family-name:var(--font-plex-mono)] text-[8px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+																	{(
+																		record.order?.status ?? record.status
+																	).replaceAll('_', ' ')}
+																</span>
+															</div>
+															{record.items.length > 0 && (
+																<div className="divide-y divide-[var(--color-border)] border-t border-[var(--color-border)] px-3">
+																	{record.items.map((item) => (
+																		<div
+																			key={item.id}
+																			className="flex items-center justify-between gap-3 py-2.5"
+																		>
+																			<span className="min-w-0">
+																				<span className="block truncate font-[family-name:var(--font-archivo)] text-[10px] text-[var(--color-text-muted)]">
+																					{item.name}
+																				</span>
+																				{item.description !== item.name && (
+																					<span className="mt-0.5 block truncate font-[family-name:var(--font-archivo)] text-[9px] text-[var(--color-text-subtle)]">
+																						{item.description}
+																					</span>
+																				)}
+																			</span>
+																			<span className="shrink-0 font-[family-name:var(--font-plex-mono)] text-[9px] tabular-nums text-[var(--color-text-subtle)]">
+																				{item.quantity.toLocaleString('en-EG')}{' '}
+																				{item.unit}
+																			</span>
+																		</div>
+																	))}
+																</div>
+															)}
+														</div>
+													))
+												)}
 											</div>
-										))}
-									</div>
-								)}
-							</section>
-						))}
+										</div>
+									)}
+								</section>
+							)
+						})}
 					</div>
 				)}
 			</div>
@@ -4490,7 +4610,18 @@ export function QuoteBuilderView({
 				},
 			})
 			setProjectId(result.projectId)
-			setProjects(result.projects)
+			setProjects((currentProjects) => {
+				const refreshedById = new Map(
+					result.projects.map((project) => [project.id, project]),
+				)
+				const stableProjects = currentProjects.flatMap((project) => {
+					const refreshed = refreshedById.get(project.id)
+					if (!refreshed) return []
+					refreshedById.delete(project.id)
+					return [refreshed]
+				})
+				return [...stableProjects, ...refreshedById.values()]
+			})
 			queryClient.invalidateQueries({ queryKey: ['sales-rfqs'] })
 		} catch {
 			setProjectAssignError('Project assignment could not be saved. Try again.')
@@ -5309,7 +5440,7 @@ export function QuoteBuilderView({
 			<SlidePanel
 				isOpen={projectsOpen}
 				onClose={() => setProjectsOpen(false)}
-				maxWidth={500}
+				maxWidth={620}
 				panelKey="customer-projects"
 				ariaLabel="Customer projects"
 				scope="sales"

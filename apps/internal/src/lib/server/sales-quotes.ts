@@ -290,10 +290,33 @@ interface SupabaseCustomerProjectRow {
 interface SupabaseCustomerProjectRequestRow {
 	id: string
 	project_id: string | null
+	quote_request_items: Array<{
+		customer_description: string
+		id: string
+		products: { name: string } | { name: string }[] | null
+		quantity: number
+		sort_order: number
+		unit_of_measure: string
+	}> | null
 	request_number: string
 	status: string
 	updated_at: string
-	orders: { id: string }[] | { id: string } | null
+	orders:
+		| {
+				created_at: string
+				id: string
+				order_number: string
+				status: string
+				total_amount: number
+		  }
+		| Array<{
+				created_at: string
+				id: string
+				order_number: string
+				status: string
+				total_amount: number
+		  }>
+		| null
 }
 
 export interface SalesCustomerProjectWorkspace {
@@ -306,6 +329,20 @@ export interface SalesCustomerProjectWorkspace {
 	records: Array<{
 		hasOrder: boolean
 		id: string
+		items: Array<{
+			description: string
+			id: string
+			name: string
+			quantity: number
+			unit: string
+		}>
+		order: {
+			createdAt: string
+			id: string
+			number: string
+			status: string
+			totalAmount: number
+		} | null
 		reference: string
 		status: string
 		updatedAt: string
@@ -325,7 +362,22 @@ async function getSalesCustomerProjectWorkspaces(
 			.order('last_activity_at', { ascending: false }),
 		auth.client
 			.from('quote_requests')
-			.select('id, project_id, request_number, status, updated_at, orders(id)')
+			.select(`
+				id,
+				project_id,
+				request_number,
+				status,
+				updated_at,
+				orders (id, order_number, status, total_amount, created_at),
+				quote_request_items (
+					id,
+					customer_description,
+					quantity,
+					unit_of_measure,
+					sort_order,
+					products (name)
+				)
+			`)
 			.eq('customer_id', customerId)
 			.not('project_id', 'is', null),
 	])
@@ -344,15 +396,37 @@ async function getSalesCustomerProjectWorkspaces(
 			name: project.name,
 			records: requests
 				.filter((request) => request.project_id === project.id)
-				.map((request) => ({
-					hasOrder: Array.isArray(request.orders)
-						? request.orders.length > 0
-						: Boolean(request.orders),
-					id: request.id,
-					reference: request.request_number,
-					status: request.status,
-					updatedAt: request.updated_at,
-				})),
+				.map((request) => {
+					const order = firstRelation(request.orders)
+					return {
+						hasOrder: Boolean(order),
+						id: request.id,
+						items: (request.quote_request_items ?? [])
+							.slice()
+							.sort((a, b) => a.sort_order - b.sort_order)
+							.map((item) => ({
+								description: item.customer_description,
+								id: item.id,
+								name:
+									firstRelation(item.products)?.name ??
+									item.customer_description,
+								quantity: Number(item.quantity),
+								unit: item.unit_of_measure,
+							})),
+						order: order
+							? {
+									createdAt: order.created_at,
+									id: order.id,
+									number: order.order_number,
+									status: order.status,
+									totalAmount: Number(order.total_amount),
+								}
+							: null,
+						reference: request.request_number,
+						status: request.status,
+						updatedAt: request.updated_at,
+					}
+				}),
 		}),
 	)
 }
