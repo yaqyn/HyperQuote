@@ -119,6 +119,25 @@
 	);
 }
 
+.hq-material-scroll {
+	scrollbar-color: var(--color-text-subtle) transparent;
+	scrollbar-gutter: stable;
+	scrollbar-width: thin;
+}
+
+.hq-material-scroll::-webkit-scrollbar {
+	width: 5px;
+}
+
+.hq-material-scroll::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.hq-material-scroll::-webkit-scrollbar-thumb {
+	border-radius: 999px;
+	background: var(--color-text-subtle);
+}
+
 .hq-photo-frame {
 	box-shadow: var(--site-shadow);
 }

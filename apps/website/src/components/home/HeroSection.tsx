@@ -301,7 +301,6 @@ function MaterialDocket({
 	const items = useQuoteCart((state) => state.items)
 	const remove = useQuoteCart((state) => state.remove)
 	const updateQuantity = useQuoteCart((state) => state.updateQuantity)
-	const visibleCategories = categories.slice(0, 4)
 	const hasItems = items.length > 0
 
 	return (
@@ -340,7 +339,7 @@ function MaterialDocket({
 				)}
 
 				{hasItems ? (
-					<div className="max-h-[224px] overflow-y-auto overscroll-contain">
+					<div className="hq-material-scroll max-h-[224px] overflow-y-auto">
 						{items.map((item) => (
 							<div
 								key={item.productId}
@@ -401,24 +400,26 @@ function MaterialDocket({
 						))}
 					</div>
 				) : (
-					visibleCategories.map((category) => (
-						<Link
-							key={category.slug}
-							to="/market"
-							search={{ category: category.slug }}
-							className="group flex min-h-12 items-center justify-between gap-4 px-5 py-3 text-[13px] transition-colors hover:bg-[var(--site-blue-wash)] sm:px-6"
-						>
-							<span className="font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)]">
-								{isArabic && category.name_ar
-									? category.name_ar
-									: category.name}
-							</span>
-							<span className="flex items-center gap-2 text-[10px] text-[var(--color-text-subtle)]">
-								{t('hero.docket.browse')}
-								<ArrowUpRight size={13} className="icon-end" />
-							</span>
-						</Link>
-					))
+					<div className="hq-material-scroll max-h-[224px] overflow-y-auto">
+						{categories.map((category) => (
+							<Link
+								key={category.slug}
+								to="/market"
+								search={{ category: category.slug }}
+								className="group flex min-h-12 items-center justify-between gap-4 px-5 py-3 text-[13px] transition-colors hover:bg-[var(--site-blue-wash)] sm:px-6"
+							>
+								<span className="font-semibold text-[var(--color-text)] group-hover:text-[var(--color-primary)]">
+									{isArabic && category.name_ar
+										? category.name_ar
+										: category.name}
+								</span>
+								<span className="flex items-center gap-2 text-[10px] text-[var(--color-text-subtle)]">
+									{t('hero.docket.browse')}
+									<ArrowUpRight size={13} className="icon-end" />
+								</span>
+							</Link>
+						))}
+					</div>
 				)}
 			</div>
 
