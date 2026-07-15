@@ -41,4 +41,30 @@ describe('customer project workspace', () => {
 		expect(server).toContain('products (name)')
 		expect(server).toContain('quantity: Number(item.quantity)')
 	})
+
+	it('refreshes project order delivery history after assignment', () => {
+		const server = readWorkspaceFile(
+			'apps/internal/src/lib/server/sales-quotes.ts',
+		)
+		const builder = readWorkspaceFile(
+			'apps/internal/src/components/sales/quote-builder/QuoteBuilderView.tsx',
+		)
+
+		expect(server).toContain(".from('orders')")
+		expect(server).toContain('quote_requests!inner (')
+		expect(server).toContain(".eq('quote_requests.project_id', projectId)")
+		expect(server).toContain(".neq('quote_requests.id', excludeQuoteRequestId)")
+		expect(server).toContain(
+			'projectRecentLocations: projectDeliveryHistory.locations',
+		)
+		expect(server).toContain(
+			'projectRecentWindows: projectDeliveryHistory.windows',
+		)
+		expect(builder).toContain(
+			'setProjectRecentLocations(result.projectRecentLocations)',
+		)
+		expect(builder).toContain(
+			'setProjectRecentWindows(result.projectRecentWindows)',
+		)
+	})
 })

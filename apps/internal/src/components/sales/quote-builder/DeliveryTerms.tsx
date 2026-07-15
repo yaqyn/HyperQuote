@@ -19,6 +19,7 @@ import { Heading } from 'react-aria-components/Dialog'
 import { createPortal } from 'react-dom'
 import { Controller, useFormContext, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import type { SalesProjectRecentDeliveryOption } from '../../../lib/server/sales-quotes'
 import type { QuoteFormValues } from './types'
 
 const CAIRO_PATTERNS = [
@@ -64,6 +65,9 @@ interface DeliveryTermsProps {
 	highlightDate?: boolean
 	datePickerOpenSignal?: number
 	onAddressPress: () => void
+	onRecentAddressSelect: (option: SalesProjectRecentDeliveryOption) => void
+	projectRecentLocations: SalesProjectRecentDeliveryOption[]
+	projectRecentWindows: string[]
 	totalWeightTons: number
 	leadTimeDays?: number
 }
@@ -73,6 +77,9 @@ export function DeliveryTerms({
 	highlightDate = false,
 	datePickerOpenSignal = 0,
 	onAddressPress,
+	onRecentAddressSelect,
+	projectRecentLocations,
+	projectRecentWindows,
 	totalWeightTons,
 	leadTimeDays = 3,
 }: DeliveryTermsProps) {
@@ -147,6 +154,7 @@ export function DeliveryTerms({
 					openSignal={datePickerOpenSignal}
 					locale={locale}
 					truckBanActive={truckBanActive}
+					projectRecentWindows={projectRecentWindows}
 					onDateChange={(value) =>
 						setFormValue('deliveryDate', value, {
 							shouldDirty: true,
@@ -158,6 +166,29 @@ export function DeliveryTerms({
 					}
 				/>
 			</div>
+
+			{projectRecentLocations.length > 0 && (
+				<div className="mt-2.5">
+					<p className="font-[family-name:var(--font-archivo)] text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-subtle)]">
+						Recent in this project
+					</p>
+					<div className="mt-1.5 flex gap-1.5 overflow-x-auto pb-1">
+						{projectRecentLocations.map((option) => (
+							<button
+								key={`${option.id}-${option.latitude}-${option.longitude}`}
+								type="button"
+								onClick={() => onRecentAddressSelect(option)}
+								className="min-h-10 min-w-[10rem] max-w-[14rem] rounded-md border border-[var(--color-border)] px-2.5 py-1.5 text-start outline-none transition-colors hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-primary)]/[0.035] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35"
+								aria-label={`Use recent project address ${option.address}`}
+							>
+								<span className="line-clamp-2 font-[family-name:var(--font-archivo)] text-[11px] leading-[1.35] text-[var(--color-text-muted)]">
+									{option.address}
+								</span>
+							</button>
+						))}
+					</div>
+				</div>
+			)}
 
 			<div className="mt-3 border-t border-[var(--color-border)] pt-3">
 				<Controller
@@ -199,6 +230,7 @@ function DateTimePicker({
 	openSignal,
 	locale,
 	truckBanActive,
+	projectRecentWindows,
 	onDateChange,
 	onWindowChange,
 }: {
@@ -210,6 +242,7 @@ function DateTimePicker({
 	openSignal: number
 	locale: string
 	truckBanActive: boolean
+	projectRecentWindows: string[]
 	onDateChange: (value: string) => void
 	onWindowChange: (value: WindowId) => void
 }) {
@@ -278,6 +311,7 @@ function DateTimePicker({
 				latestDate={latestDate}
 				locale={locale}
 				truckBanActive={truckBanActive}
+				projectRecentWindows={projectRecentWindows}
 				onClose={() => setOpen(false)}
 				onDateChange={onDateChange}
 				onWindowChange={onWindowChange}
@@ -294,6 +328,7 @@ function DateTimeOverlay({
 	latestDate,
 	locale,
 	truckBanActive,
+	projectRecentWindows,
 	onClose,
 	onDateChange,
 	onWindowChange,
@@ -305,6 +340,7 @@ function DateTimeOverlay({
 	latestDate: CalendarDate
 	locale: string
 	truckBanActive: boolean
+	projectRecentWindows: string[]
 	onClose: () => void
 	onDateChange: (value: string) => void
 	onWindowChange: (value: WindowId) => void
@@ -407,16 +443,22 @@ function DateTimeOverlay({
 				<div className="grid grid-cols-2 gap-2 px-4 pt-3">
 					{ALL_WINDOWS.map((windowOption) => {
 						const selected = selectedWindowId === windowOption.id
+						const usedInProject = projectRecentWindows.includes(windowOption.id)
 						return (
 							<button
 								key={windowOption.id}
 								type="button"
 								onClick={() => onWindowChange(windowOption.id)}
 								aria-pressed={selected}
+								title={
+									usedInProject ? 'Used recently in this project' : undefined
+								}
 								className={`min-h-11 rounded-md border px-3 py-2 text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]/35 ${
 									selected
-										? 'border-[var(--color-primary)]/50 bg-[var(--color-primary)]/[0.08]'
-										: 'border-[var(--color-border)] hover:border-[var(--color-primary)]/35 hover:bg-black/[0.025] dark:hover:bg-white/[0.04]'
+										? `border-[var(--color-primary)]/50 bg-[var(--color-primary)]/[0.08] ${usedInProject ? 'ring-1 ring-violet-500/55' : ''}`
+										: usedInProject
+											? 'border-violet-500/60 dark:border-violet-400/55'
+											: 'border-[var(--color-border)] hover:border-[var(--color-primary)]/35 hover:bg-black/[0.025] dark:hover:bg-white/[0.04]'
 								}`}
 							>
 								<span className="block font-[family-name:var(--font-archivo)] text-[12px] font-semibold capitalize text-[var(--color-text)]">

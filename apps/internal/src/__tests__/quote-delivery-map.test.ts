@@ -34,4 +34,20 @@ describe('quote delivery location', () => {
 		expect(builder).toContain('coordinates={deliveryCoordinates}')
 		expect(builder).toContain('Select the exact delivery point on the map')
 	})
+
+	it('reuses exact project order locations and quietly marks recent windows', () => {
+		const terms = readWorkspaceFile(
+			'apps/internal/src/components/sales/quote-builder/DeliveryTerms.tsx',
+		)
+		const builder = readWorkspaceFile(
+			'apps/internal/src/components/sales/quote-builder/QuoteBuilderView.tsx',
+		)
+
+		expect(terms).toContain('Recent in this project')
+		expect(terms).toContain('onRecentAddressSelect(option)')
+		expect(terms).toContain("'border-violet-500/60 dark:border-violet-400/55'")
+		expect(terms).toContain('Used recently in this project')
+		expect(builder).toContain('latitude: option.latitude')
+		expect(builder).toContain('longitude: option.longitude')
+	})
 })

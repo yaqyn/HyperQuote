@@ -44,6 +44,7 @@ import {
 	getQuoteBuilderData,
 	requestInventoryPriceUpdate,
 	type SalesCustomerProjectWorkspace,
+	type SalesProjectRecentDeliveryOption,
 	saveQuoteDraft,
 	setSalesQuoteRequestProject,
 } from '../../../lib/server/sales-quotes'
@@ -3413,6 +3414,10 @@ export function QuoteBuilderView({
 	const [status, setStatus] = useState<QuoteStatus>('draft')
 	const [projectId, setProjectId] = useState<string | null>(null)
 	const [projects, setProjects] = useState<SalesCustomerProjectWorkspace[]>([])
+	const [projectRecentLocations, setProjectRecentLocations] = useState<
+		SalesProjectRecentDeliveryOption[]
+	>([])
+	const [projectRecentWindows, setProjectRecentWindows] = useState<string[]>([])
 	const [projectsOpen, setProjectsOpen] = useState(false)
 	const [projectAssigning, setProjectAssigning] = useState(false)
 	const [projectAssignError, setProjectAssignError] = useState<string | null>(
@@ -4033,6 +4038,8 @@ export function QuoteBuilderView({
 				setMarginThresholds(data.marginThresholds)
 				setProjectId(data.projectId)
 				setProjects(data.projects)
+				setProjectRecentLocations(data.projectRecentLocations)
+				setProjectRecentWindows(data.projectRecentWindows)
 				setExchangeRates(data.exchangeRates ?? EMPTY_EXCHANGE_RATES)
 				setCustomerCredit(data.customerCredit)
 				if (data.rfqStatus) setRfqStatus(data.rfqStatus)
@@ -4616,6 +4623,8 @@ export function QuoteBuilderView({
 				},
 			})
 			setProjectId(result.projectId)
+			setProjectRecentLocations(result.projectRecentLocations)
+			setProjectRecentWindows(result.projectRecentWindows)
 			setProjects((currentProjects) => {
 				const refreshedById = new Map(
 					result.projects.map((project) => [project.id, project]),
@@ -5002,12 +5011,20 @@ export function QuoteBuilderView({
 										<div className="mt-4 border-t-2 border-[var(--color-border)]">
 											<DeliveryTerms
 												deliveryAddress={deliveryAddress}
+												projectRecentLocations={projectRecentLocations}
+												projectRecentWindows={projectRecentWindows}
 												highlightDate={isDeliveryDateAttentionVisible}
 												datePickerOpenSignal={deliveryDatePickerOpenSignal}
 												onAddressPress={() => {
 													setItemEditIndex(null)
 													setMapOpen(true)
 												}}
+												onRecentAddressSelect={(option) =>
+													handleMappedDeliveryAddressChange(option.address, {
+														latitude: option.latitude,
+														longitude: option.longitude,
+													})
+												}
 												totalWeightTons={12}
 												leadTimeDays={2}
 											/>

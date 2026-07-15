@@ -319,6 +319,41 @@ interface SupabaseCustomerProjectRequestRow {
 		| null
 }
 
+interface SupabaseProjectDeliveryHistoryRequestRow {
+	id: string
+	delivery_address_id: string | null
+	delivery_address_text: string | null
+	delivery_latitude: number | string | null
+	delivery_location_name: string | null
+	delivery_longitude: number | string | null
+	preferred_delivery_window: string | null
+	customer_addresses:
+		| (SupabaseQuoteBuilderAddressRow & { location_name?: string | null })
+		| Array<SupabaseQuoteBuilderAddressRow & { location_name?: string | null }>
+		| null
+}
+
+interface SupabaseProjectDeliveryHistoryOrderRow {
+	created_at: string
+	quote_requests:
+		| SupabaseProjectDeliveryHistoryRequestRow
+		| SupabaseProjectDeliveryHistoryRequestRow[]
+		| null
+}
+
+export interface SalesProjectRecentDeliveryOption {
+	address: string
+	id: string
+	lastUsedAt: string
+	latitude: number
+	longitude: number
+}
+
+interface SalesProjectDeliveryHistory {
+	locations: SalesProjectRecentDeliveryOption[]
+	windows: string[]
+}
+
 export interface SalesCustomerProjectWorkspace {
 	archived: boolean
 	createdAt: string
@@ -429,6 +464,96 @@ async function getSalesCustomerProjectWorkspaces(
 				}),
 		}),
 	)
+}
+
+async function getSalesProjectDeliveryHistory(
+	auth: Awaited<ReturnType<typeof getInternalSupabaseClient>>,
+	projectId: string | null,
+	excludeQuoteRequestId: string,
+): Promise<SalesProjectDeliveryHistory> {
+	if (!projectId) return { locations: [], windows: [] }
+
+	const { data, error } = await auth.client
+		.from('orders')
+		.select(`
+			created_at,
+			quote_requests!inner (
+				id,
+				delivery_address_id,
+				delivery_address_text,
+				delivery_latitude,
+				delivery_location_name,
+				delivery_longitude,
+				preferred_delivery_window,
+				customer_addresses (
+					street,
+					area,
+					city,
+					governorate,
+					landmark,
+					latitude,
+					longitude,
+					location_name
+				)
+			)
+		`)
+		.eq('quote_requests.project_id', projectId)
+		.neq('quote_requests.id', excludeQuoteRequestId)
+		.order('created_at', { ascending: false })
+		.limit(50)
+	if (error) throw new Error(error.message)
+
+	const rows = (
+		(data ?? []) as unknown as SupabaseProjectDeliveryHistoryOrderRow[]
+	)
+		.map((order) => ({ order, row: firstRelation(order.quote_requests) }))
+		.filter(
+			(
+				entry,
+			): entry is typeof entry & {
+				row: SupabaseProjectDeliveryHistoryRequestRow
+			} => entry.row !== null,
+		)
+
+	const locationsByPoint = new Map<string, SalesProjectRecentDeliveryOption>()
+	const windows = new Set<string>()
+	for (const { row, order } of rows) {
+		if (row.preferred_delivery_window) {
+			windows.add(row.preferred_delivery_window)
+		}
+
+		const addressRecord = firstRelation(row.customer_addresses)
+		const latitude =
+			normalizeLatitude(row.delivery_latitude) ??
+			normalizeLatitude(addressRecord?.latitude)
+		const longitude =
+			normalizeLongitude(row.delivery_longitude) ??
+			normalizeLongitude(addressRecord?.longitude)
+		if (latitude === null || longitude === null) continue
+
+		const address = cleanDeliveryAddressText(
+			row.delivery_location_name ??
+				row.delivery_address_text ??
+				addressRecord?.location_name ??
+				formatSupabaseAddress(addressRecord),
+		)
+		if (!address) continue
+
+		const pointKey = `${latitude.toFixed(6)},${longitude.toFixed(6)}`
+		if (locationsByPoint.has(pointKey)) continue
+		locationsByPoint.set(pointKey, {
+			address,
+			id: row.delivery_address_id ?? pointKey,
+			lastUsedAt: order.created_at,
+			latitude,
+			longitude,
+		})
+	}
+
+	return {
+		locations: [...locationsByPoint.values()].slice(0, 6),
+		windows: [...windows],
+	}
 }
 
 interface SupabaseQuoteBuilderSupplierLinkRow {
@@ -992,6 +1117,11 @@ async function buildSupabaseQuoteBuilderData(
 	const projects = request.customer_id
 		? await getSalesCustomerProjectWorkspaces(auth, request.customer_id)
 		: []
+	const projectDeliveryHistory = await getSalesProjectDeliveryHistory(
+		auth,
+		request.project_id,
+		request.id,
+	)
 	const address = firstRelation(request.customer_addresses)
 	const salesAddress = isSalesQuoteAddress(address) ? address : null
 	const deliveryAddress =
@@ -1005,6 +1135,8 @@ async function buildSupabaseQuoteBuilderData(
 		customerId: request.customer_id,
 		projectId: request.project_id,
 		projects,
+		projectRecentLocations: projectDeliveryHistory.locations,
+		projectRecentWindows: projectDeliveryHistory.windows,
 		rfqStatus: request.status,
 		quoteStatus: 'draft' as const,
 		customer: {
@@ -1089,6 +1221,8 @@ async function buildSupabaseManualCustomerQuoteData(
 		customerId: customer.id,
 		projectId: null,
 		projects,
+		projectRecentLocations: [] as SalesProjectRecentDeliveryOption[],
+		projectRecentWindows: [] as string[],
 		rfqStatus: 'submitted' as const,
 		quoteStatus: 'draft' as const,
 		customer: {
@@ -1145,6 +1279,8 @@ async function buildEmptyManualQuoteData(
 		customerId: null,
 		projectId: null,
 		projects: [] as SalesCustomerProjectWorkspace[],
+		projectRecentLocations: [] as SalesProjectRecentDeliveryOption[],
+		projectRecentWindows: [] as string[],
 		rfqStatus: 'submitted' as const,
 		quoteStatus: 'draft' as const,
 		customer: {
@@ -1398,6 +1534,8 @@ export const setSalesQuoteRequestProject = createServerFn({ method: 'POST' })
 			data,
 		}): Promise<{
 			projectId: string | null
+			projectRecentLocations: SalesProjectRecentDeliveryOption[]
+			projectRecentWindows: string[]
 			projects: SalesCustomerProjectWorkspace[]
 		}> => {
 			const auth = await getInternalSupabaseClient({
@@ -1419,8 +1557,15 @@ export const setSalesQuoteRequestProject = createServerFn({ method: 'POST' })
 				.eq('id', data.quoteRequestId)
 				.single()
 			if (requestError) throw new Error(requestError.message)
+			const projectDeliveryHistory = await getSalesProjectDeliveryHistory(
+				auth,
+				request.project_id,
+				data.quoteRequestId,
+			)
 			return {
 				projectId: request.project_id,
+				projectRecentLocations: projectDeliveryHistory.locations,
+				projectRecentWindows: projectDeliveryHistory.windows,
 				projects: request.customer_id
 					? await getSalesCustomerProjectWorkspaces(auth, request.customer_id)
 					: [],
