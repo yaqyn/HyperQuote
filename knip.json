@@ -29,6 +29,7 @@
 	"ignoreBinaries": ["gitleaks", "osv-scanner", "semgrep"],
 	"ignoreDependencies": [
 		"@capacitor/ios",
+		"lefthook",
 		"tailwindcss",
 		"tailwindcss-react-aria-components"
 	],

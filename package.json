@@ -27,7 +27,7 @@
 		"check:ci": "biome check .",
 		"pwa:generate": "node scripts/generate-pwa-assets.mjs && node scripts/generate-service-workers.mjs",
 		"pwa:check": "node scripts/check-pwa-assets.mjs",
-		"knip": "knip",
+		"knip": "bun run --cwd apps/website routes:generate && bun run --cwd apps/portal routes:generate && bun run --cwd apps/internal routes:generate && knip",
 		"knip:deps": "knip --dependencies",
 		"knip:exports": "knip --exports",
 		"sync": "syncpack lint",
@@ -80,6 +80,7 @@
 		"syncpack": "^15.3.1",
 		"turbo": "^2.9.14",
 		"typescript": "^6.0.3",
+		"vite": "~7.3.5",
 		"wrangler": "^4.92.0"
 	},
 	"packageManager": "bun@1.3.11",
