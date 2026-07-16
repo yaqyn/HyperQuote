@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
 	hierarchyChoiceNodesForDraftProducts,
 	hierarchyChoiceNodesForDraftQuery,
+	inferActiveDraftItemEdit,
 	type PortalAiProduct,
 	rankProductsForDraftLine,
 } from './chat'
@@ -10,6 +11,7 @@ import {
 	PORTAL_CHAT_COMMANDS,
 	parsePortalChatCommand,
 	portalChatCommandInputMode,
+	portalChatCommandPaletteGroups,
 } from './portal-chat-commands'
 import {
 	buildPortalCustomerAgentPrompt,
@@ -21,6 +23,7 @@ import {
 	portalCustomerActionNeedsConfirmation,
 	portalCustomerPolicyRefusal,
 	portalCustomerToolDefinitions,
+	propagateSharedDraftQuantity,
 	routePortalChatCommand,
 } from './portal-customer-agent'
 import { editableDraftDescriptorFromText } from './portal-draft-targeting'
@@ -301,7 +304,7 @@ describe('portal customer AI agent', () => {
 				unitHint: undefined,
 			},
 			{
-				query: 'cement just for good old days',
+				query: 'cement',
 				quantity: 10,
 				rawText: 'some 10 cement just for good old days',
 				unitHint: undefined,
@@ -559,6 +562,8 @@ describe('portal customer AI agent', () => {
 				'search_catalog',
 				'resolve_product_choice',
 				'read_draft',
+				'clarify_draft_edit',
+				'show_command_desk',
 				'preview_draft_changes',
 				'save_confirmed_draft_changes',
 				'validate_draft',
@@ -622,6 +627,53 @@ describe('portal customer AI agent', () => {
 			draftItemAction: 'remove_item',
 			itemQuery: 'wood',
 			targetReference: 'QR-2026-00003',
+		})
+		expect(
+			parsePortalCustomerToolCall(
+				{
+					content: '',
+					toolCalls: [
+						{
+							function: {
+								arguments: JSON.stringify({
+									search_query: 'edit an item in my cart',
+									target_reference: 'cart',
+								}),
+								name: 'clarify_draft_edit',
+							},
+							id: 'call-clarify-edit',
+							type: 'function',
+						},
+					],
+				},
+				'edit an item in my cart',
+			),
+		).toMatchObject({
+			action: 'update_draft_items',
+			searchQuery: 'edit an item in my cart',
+			targetReference: 'cart',
+		})
+		expect(
+			parsePortalCustomerToolCall(
+				{
+					content: '',
+					toolCalls: [
+						{
+							function: {
+								arguments: '{}',
+								name: 'show_command_desk',
+							},
+							id: 'call-show-commands',
+							type: 'function',
+						},
+					],
+				},
+				'what can you do?',
+			),
+		).toMatchObject({
+			action: 'chat',
+			commandName: '/commands',
+			searchQuery: '',
 		})
 	})
 
@@ -886,14 +938,80 @@ describe('portal customer AI agent', () => {
 			true,
 		)
 		expect(isLocalPortalChatCommand('/clear')).toBe(true)
+		expect(isLocalPortalChatCommand('/commands')).toBe(true)
 		expect(isLocalPortalChatCommand('/help')).toBe(true)
 		expect(isLocalPortalChatCommand('/cart')).toBe(true)
 		expect(isLocalPortalChatCommand('/open-cart')).toBe(true)
 		expect(portalChatCommandInputMode('/feedback')).toBe('prefill')
+		expect(portalChatCommandInputMode('/edit-cart')).toBe('prefill')
 		expect(portalChatCommandInputMode('/profile')).toBe('run')
+		expect(portalChatCommandPaletteGroups()[0]).toMatchObject({
+			title: 'Start here',
+		})
+		expect(
+			portalChatCommandPaletteGroups()[0]?.commands.every(
+				(command) => command.featured && command.example,
+			),
+		).toBe(true)
+		expect(routePortalChatCommand('/commands')).toMatchObject({
+			action: 'chat',
+			commandName: '/commands',
+		})
 		expect(routePortalChatCommand('/help')).toMatchObject({
 			action: 'chat',
 			commandName: '/help',
+		})
+		expect(
+			routePortalChatCommand('/plan-quote rebar and steel both 400'),
+		).toMatchObject({
+			action: 'create_draft_from_plan',
+			commandName: '/plan-quote',
+			draftLines: [
+				{ query: 'rebar', quantity: 400 },
+				{ query: 'steel', quantity: 400 },
+			],
+		})
+		expect(
+			fallbackPortalCustomerToolRequest(
+				'/plan-quote villa roof with wood and rebar',
+			),
+		).toMatchObject({
+			action: 'chat',
+			commandName: '/commands',
+		})
+		expect(
+			fallbackPortalCustomerToolRequest('/plan-quote rebar and steel both 400'),
+		).toMatchObject({
+			action: 'create_draft_from_plan',
+			draftLines: [
+				{ query: 'rebar', quantity: 400 },
+				{ query: 'steel', quantity: 400 },
+			],
+		})
+		expect(routePortalChatCommand('/search-products plywod')).toMatchObject({
+			action: 'product_search',
+			commandName: '/search-products',
+			searchQuery: 'plywod',
+		})
+		expect(routePortalChatCommand('/add-to-cart 200 plywood')).toMatchObject({
+			action: 'draft_add_items',
+			commandName: '/add-to-cart',
+			draftLines: [{ query: 'plywood', quantity: 200 }],
+			targetReference: 'active',
+		})
+		expect(
+			routePortalChatCommand('/edit-cart deduct 100 plywood'),
+		).toMatchObject({
+			action: 'update_draft_items',
+			clarificationScope: 'draft_edit',
+			commandName: '/edit-cart',
+			searchQuery: 'deduct 100 plywood',
+			targetReference: 'active',
+		})
+		expect(routePortalChatCommand('/ticket checkout is broken')).toMatchObject({
+			action: 'support_request',
+			commandName: '/ticket',
+			supportMessage: 'checkout is broken',
 		})
 		expect(routePortalChatCommand('/products')).toMatchObject({
 			action: 'product_search',
@@ -1098,6 +1216,25 @@ describe('portal customer AI agent', () => {
 			commandName: '/docs-search',
 			searchQuery: 'warranty',
 		})
+	})
+
+	it('preserves known cart edit fields and asks only for what is missing', () => {
+		expect(inferActiveDraftItemEdit('/edit-cart deduct 100 plywood')).toEqual({
+			draftItemAction: 'decrease_quantity',
+			itemQuery: 'plywood',
+			quantity: 100,
+		})
+		expect(inferActiveDraftItemEdit('/edit-cart add plywood')).toEqual({
+			draftItemAction: 'increase_quantity',
+			itemQuery: 'plywood',
+			quantity: undefined,
+		})
+		expect(inferActiveDraftItemEdit('/edit-cart اخصم ١٠٠ خشب')).toEqual({
+			draftItemAction: 'decrease_quantity',
+			itemQuery: 'خشب',
+			quantity: 100,
+		})
+		expect(inferActiveDraftItemEdit('/edit-cart')).toBeNull()
 	})
 
 	it('requires explicit button confirmation for risky writes', () => {
@@ -1434,7 +1571,7 @@ describe('portal customer AI agent', () => {
 		})
 	})
 
-	it('supplies binary customer catalog status in the agent prompt', () => {
+	it('keeps catalog contents out of the prompt and requires live retrieval', () => {
 		const prompt = buildPortalCustomerAgentPrompt({
 			catalogComplete: true,
 			totalVisibleProducts: 2,
@@ -1460,18 +1597,143 @@ describe('portal customer AI agent', () => {
 			],
 		})
 
-		expect(prompt).toContain('"status": "Available"')
-		expect(prompt).toContain('"status": "Unavailable"')
+		expect(prompt).toContain('Catalog retrieval is live and tool-backed')
+		expect(prompt).toContain('metadata is 2/2 products')
+		expect(prompt).not.toContain('Low-stock board')
+		expect(prompt).not.toContain('Sold-out cement')
 		expect(prompt).toContain('Never ask for SKU')
 		expect(prompt).toContain('asks in any language')
 		expect(prompt).toContain('server tools must do writes')
 		expect(prompt).toContain('use search_catalog')
+		expect(prompt).toContain('show_command_desk')
+		expect(prompt).toContain('must never manufacture or execute slash-command')
 		expect(prompt).toContain('Never answer catalog contents from memory')
 		expect(prompt).toContain('ask which one is better')
 		expect(prompt).toContain('keep the earlier requested quantities')
 		expect(prompt).toContain('do not replace it with a broader synonym')
-		expect(prompt).toContain('real catalog variations')
+		expect(prompt).toContain('catalog facets that genuinely distinguish')
 		expect(prompt).not.toMatch(/low_stock|Low Stock/i)
+	})
+
+	it('preserves a product request when the model leaves quantity unknown', () => {
+		const route = parsePortalCustomerToolCall(
+			{
+				content: '',
+				toolCalls: [
+					{
+						function: {
+							arguments: JSON.stringify({
+								draft_lines: [{ query: 'خشب plywood' }],
+							}),
+							name: 'resolve_product_choice',
+						},
+						id: 'missing-quantity',
+						type: 'function',
+					},
+				],
+			},
+			'I need خشب plywood',
+		)
+
+		expect(route).toMatchObject({
+			action: 'create_draft_from_plan',
+			draftLines: [
+				{ query: 'خشب plywood', quantity: 0, rawText: 'خشب plywood' },
+			],
+		})
+	})
+
+	it('propagates one shared quantity only to missing product lines', () => {
+		expect(
+			parsePortalDraftMaterialRequestLines('i want rebar and steel both 400'),
+		).toEqual([
+			{
+				query: 'rebar',
+				quantity: 400,
+				rawText: '400 i want rebar',
+				unitHint: undefined,
+			},
+			{
+				query: 'steel',
+				quantity: 400,
+				rawText: 'steel both 400',
+				unitHint: undefined,
+			},
+		])
+		expect(
+			propagateSharedDraftQuantity(
+				{
+					action: 'create_draft_from_plan',
+					draftLines: [
+						{ query: 'rebar', quantity: 400, rawText: 'rebar' },
+						{ query: 'steel', quantity: 1, rawText: 'steel' },
+					],
+					searchQuery: 'rebar and steel both 400',
+				},
+				'rebar and steel both 400',
+			),
+		).toMatchObject({
+			draftLines: [
+				{ query: 'rebar', quantity: 400 },
+				{ query: 'steel', quantity: 400 },
+			],
+		})
+		expect(
+			propagateSharedDraftQuantity(
+				{
+					action: 'create_draft_from_plan',
+					draftLines: [
+						{ query: 'حديد', quantity: 0, rawText: 'حديد' },
+						{ query: 'صلب', quantity: 0, rawText: 'صلب' },
+					],
+					searchQuery: 'حديد وصلب ٤٠٠',
+				},
+				'حديد وصلب ٤٠٠',
+			),
+		).toMatchObject({
+			draftLines: [
+				{ query: 'حديد', quantity: 400 },
+				{ query: 'صلب', quantity: 400 },
+			],
+		})
+	})
+
+	it('preserves additive and deductive cart edit semantics', () => {
+		for (const [draftItemAction, message] of [
+			['increase_quantity', 'add 100 plywood to the cart'],
+			['decrease_quantity', 'deduct 50 plywood from the cart'],
+		] as const) {
+			expect(
+				parsePortalCustomerToolCall(
+					{
+						content: '',
+						toolCalls: [
+							{
+								function: {
+									arguments: JSON.stringify({
+										draft_item_action: draftItemAction,
+										item_query: 'plywood',
+										operation: 'update_items',
+										quantity:
+											draftItemAction === 'increase_quantity' ? 100 : 50,
+										target_reference: 'cart',
+									}),
+									name: 'preview_draft_changes',
+								},
+								id: draftItemAction,
+								type: 'function',
+							},
+						],
+					},
+					message,
+				),
+			).toMatchObject({
+				action: 'update_draft_items',
+				draftItemAction,
+				itemQuery: 'plywood',
+				targetReference: 'cart',
+			})
+		}
 	})
 
 	it('supplies the open draft desk context to the agent prompt', () => {

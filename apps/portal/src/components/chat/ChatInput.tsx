@@ -12,15 +12,19 @@ import { flushSync } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import type { usePortalChat } from '../../hooks/usePortalChat'
 import {
+	type ClarificationSheetData,
 	PORTAL_CHAT_RUN_COMMAND_EVENT,
 	type PortalConfirmedActionPayload,
 	type ProductChoiceListData,
 } from '../../lib/chat-types'
 import {
 	PORTAL_CHAT_COMMANDS,
+	type PortalChatCommandDefinition,
 	parsePortalChatCommand,
+	portalChatCommandDefinition,
 	portalChatCommandInputMode,
 } from '../../lib/portal-chat-commands'
+import { ClarificationSheet } from './ClarificationSheet'
 import { ProductChoiceList } from './ProductChoiceList'
 
 const SMOOTH_EASE = cubicBezier(0.22, 1, 0.36, 1)
@@ -78,12 +82,17 @@ interface SpeechRecognitionLike {
 
 interface ChatInputProps {
 	chat: ReturnType<typeof usePortalChat>
+	pendingClarification?: ClarificationSheetData
 	pendingProductChoice?: ProductChoiceListData
 }
 
 type PortalChatCommand = (typeof PORTAL_CHAT_COMMANDS)[number]
 
-export function ChatInput({ chat, pendingProductChoice }: ChatInputProps) {
+export function ChatInput({
+	chat,
+	pendingClarification,
+	pendingProductChoice,
+}: ChatInputProps) {
 	const { t, i18n } = useTranslation('portal')
 	const isAr = i18n.language === 'ar'
 	const [value, setValue] = useState('')
@@ -107,6 +116,10 @@ export function ChatInput({ chat, pendingProductChoice }: ChatInputProps) {
 	const transcriptRef = useRef('')
 	const accumulatedRef = useRef('')
 	const trimmedLeadingValue = value.trimStart()
+	const parsedActiveCommand = parsePortalChatCommand(trimmedLeadingValue)
+	const activeCommand = parsedActiveCommand
+		? portalChatCommandDefinition(parsedActiveCommand.name)
+		: undefined
 	const commandToken = trimmedLeadingValue.split(/\s+/)[0] ?? ''
 	const commandNeedle = commandToken.startsWith('/')
 		? commandToken.slice(1).toLowerCase()
@@ -119,12 +132,16 @@ export function ChatInput({ chat, pendingProductChoice }: ChatInputProps) {
 		if (!canShowCommandMenu) return []
 		if (!commandNeedle) return PORTAL_CHAT_COMMANDS
 		return PORTAL_CHAT_COMMANDS.filter((command) => {
+			const definition: PortalChatCommandDefinition = command
 			const haystack = [
-				command.name,
-				command.title,
-				command.description,
-				command.scope,
+				definition.name,
+				definition.title,
+				definition.description,
+				definition.argumentHint,
+				definition.example,
+				definition.scope,
 			]
+				.filter(Boolean)
 				.join(' ')
 				.toLowerCase()
 			return haystack.includes(commandNeedle)
@@ -454,12 +471,18 @@ export function ChatInput({ chat, pendingProductChoice }: ChatInputProps) {
 	}, [])
 
 	const hasText = value.trim().length > 0
+	const commandGuidance =
+		activeCommand?.inputMode === 'prefill' ? activeCommand : undefined
 
-	if (pendingProductChoice) {
+	if (pendingClarification || pendingProductChoice) {
 		return (
 			<div className="office-composer">
 				<div className="min-w-0 flex-1">
-					<ProductChoiceList data={pendingProductChoice} />
+					{pendingClarification ? (
+						<ClarificationSheet data={pendingClarification} />
+					) : pendingProductChoice ? (
+						<ProductChoiceList data={pendingProductChoice} />
+					) : null}
 				</div>
 			</div>
 		)
@@ -505,10 +528,12 @@ export function ChatInput({ chat, pendingProductChoice }: ChatInputProps) {
 							}}
 							onKeyDown={handleKeyDown}
 							rows={1}
-							placeholder={t('chat.writingPlaceholder')}
+							placeholder={
+								commandGuidance?.argumentHint ?? t('chat.writingPlaceholder')
+							}
 							aria-label={t('a11y.sendMessage')}
 							aria-multiline="true"
-							spellCheck={false}
+							spellCheck
 							dir={inputDir}
 							className="min-h-8 flex-1 resize-none bg-transparent py-1.5 font-sans text-[14px] text-[var(--p-text)] outline-none placeholder:text-[var(--p-text-faint)] sm:min-h-9 sm:text-[15px]"
 							style={{
@@ -528,6 +553,22 @@ export function ChatInput({ chat, pendingProductChoice }: ChatInputProps) {
 						</AnimatePresence>
 
 						<div className="flex shrink-0 items-center gap-1 pb-0.5">
+							<button
+								type="button"
+								onClick={() => {
+									setValue('/')
+									setCommandMenuDismissed(false)
+									setActiveCommandIndex(0)
+									requestAnimationFrame(() => textareaRef.current?.focus())
+								}}
+								className="flex h-8 items-center justify-center gap-1.5 rounded-lg px-2 text-[var(--p-text-muted)] transition-colors hover:bg-[var(--p-hover)] hover:text-[var(--p-text)]"
+								aria-label="Open Lyon commands"
+							>
+								<Command size={14} strokeWidth={1.6} />
+								<span className="hidden text-[11px] font-semibold sm:inline">
+									Commands
+								</span>
+							</button>
 							<button
 								type="button"
 								onClick={startListening}
@@ -559,6 +600,19 @@ export function ChatInput({ chat, pendingProductChoice }: ChatInputProps) {
 						</div>
 					</div>
 					<div className="h-px w-full bg-[var(--p-rule-strong)]" aria-hidden />
+					{commandGuidance ? (
+						<div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-2 text-[10px] leading-4 text-[var(--p-text-faint)]">
+							<span>
+								Tell Lyon what you know. Missing details are asked one at a
+								time.
+							</span>
+							{commandGuidance.example ? (
+								<span className="voice-mono truncate">
+									Example · {commandGuidance.example}
+								</span>
+							) : null}
+						</div>
+					) : null}
 				</div>
 			</div>
 		</>
@@ -618,6 +672,7 @@ function CommandMenu({
 			</div>
 			<div ref={scrollRef} className="max-h-[280px] overflow-y-auto p-1.5">
 				{commands.map((command, index) => {
+					const definition: PortalChatCommandDefinition = command
 					const active = index === activeIndex
 					return (
 						<button
@@ -647,6 +702,18 @@ function CommandMenu({
 								</span>
 								<span className="mt-1 block text-[12px] leading-4 text-[var(--p-text-muted)]">
 									{command.description}
+								</span>
+								<span className="mt-1.5 flex flex-wrap items-center gap-2 voice-mono text-[9px] uppercase tracking-[0.12em] text-[var(--p-text-faint)]">
+									<span>
+										{definition.inputMode === 'prefill'
+											? 'Guided · add details'
+											: 'Run now'}
+									</span>
+									{definition.example ? (
+										<span className="normal-case tracking-normal">
+											{definition.example}
+										</span>
+									) : null}
 								</span>
 							</span>
 						</button>

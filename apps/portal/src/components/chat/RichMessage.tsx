@@ -7,6 +7,7 @@
 import { motion } from 'motion/react'
 import type { RichContent } from '../../lib/chat-types'
 import { ActionButton } from './ActionButton'
+import { ClarificationSheet } from './ClarificationSheet'
 import { CommandPalette } from './CommandPalette'
 import { DeliveryTrackingCard } from './DeliveryTrackingCard'
 import { DraftCleanupResult } from './DraftCleanupResult'
@@ -99,6 +100,20 @@ function RichMessage({ type, data }: RichMessageProps) {
 				/>
 			)
 			break
+		case 'clarification_sheet':
+			content = (
+				<ClarificationSheet
+					data={
+						data as RichContent extends {
+							type: 'clarification_sheet'
+							data: infer D
+						}
+							? D
+							: never
+					}
+				/>
+			)
+			break
 		case 'delivery_tracking':
 			content = (
 				<DeliveryTrackingCard
@@ -133,9 +148,9 @@ function RichMessage({ type, data }: RichMessageProps) {
 
 	return (
 		<motion.div
-			initial={{ opacity: 0, scale: 0.95 }}
-			animate={{ opacity: 1, scale: 1 }}
-			transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+			initial={{ opacity: 0, y: 6, scale: 0.99 }}
+			animate={{ opacity: 1, y: 0, scale: 1 }}
+			transition={{ type: 'spring', stiffness: 240, damping: 24 }}
 		>
 			{content}
 		</motion.div>
@@ -157,7 +172,7 @@ export function RichMessageList({ items }: RichMessageListProps) {
 	const otherItems = items.filter((item) => item.type !== 'action_button')
 
 	return (
-		<div className="flex flex-col gap-2 mt-2">
+		<div className="mt-2 flex flex-col gap-3">
 			{otherItems.map((item) => (
 				<RichMessage
 					key={`${item.type}-${JSON.stringify(item.data).slice(0, 64)}`}
@@ -168,10 +183,10 @@ export function RichMessageList({ items }: RichMessageListProps) {
 
 			{actionButtons.length > 0 && (
 				<motion.div
-					initial={{ opacity: 0, scale: 0.95 }}
-					animate={{ opacity: 1, scale: 1 }}
-					transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-					className="flex flex-wrap gap-2 mt-1"
+					initial={{ opacity: 0, y: 4 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{ type: 'spring', stiffness: 240, damping: 24 }}
+					className="mt-1 flex flex-wrap gap-2"
 				>
 					{actionButtons.map((item) => (
 						<ActionButton

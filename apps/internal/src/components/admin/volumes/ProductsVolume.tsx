@@ -59,6 +59,7 @@ function blankProduct(): ProductDraft {
 		lowStockThreshold: 0,
 		goodStockThreshold: 0,
 		pictureUrl: null,
+		tags: [],
 	}
 }
 
@@ -80,6 +81,7 @@ function productToDraft(row: AdminProduct): ProductDraft {
 		lowStockThreshold: row.lowStockThreshold,
 		goodStockThreshold: row.goodStockThreshold,
 		pictureUrl: row.pictureUrl ?? null,
+		tags: row.tags,
 	}
 }
 
@@ -100,6 +102,7 @@ function draftToPayload(draft: ProductDraft): AdminProductPayload {
 		lowStockThreshold: draft.lowStockThreshold,
 		goodStockThreshold: draft.goodStockThreshold,
 		pictureUrl: draft.pictureUrl,
+		tags: draft.tags,
 	}
 }
 
@@ -370,6 +373,16 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 								ariaLabel={t('editor.fields.manufacturer')}
 							/>
 						</Field>
+						<Field label={t('editor.fields.tags')}>
+							<TextControl
+								value={draft.tags.join(', ')}
+								onChange={(value) =>
+									setDraft({ ...draft, tags: splitSearchTerms(value) })
+								}
+								readOnly={readOnly}
+								ariaLabel={t('editor.fields.tags')}
+							/>
+						</Field>
 					</div>
 
 					<Section title={t('editor.section.commercial')} />
@@ -463,6 +476,13 @@ export function ProductsVolume({ onOpenVolumes }: ProductsVolumeProps) {
 			)}
 		</VolumeWorkspace>
 	)
+}
+
+function splitSearchTerms(value: string): string[] {
+	return value
+		.split(',')
+		.map((term) => term.trim())
+		.filter(Boolean)
 }
 
 function hierarchyPathLabel(parts: Array<string | null | undefined>) {

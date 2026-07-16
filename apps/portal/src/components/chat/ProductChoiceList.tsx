@@ -1,4 +1,11 @@
-import { ArrowRight, Check, PackageSearch, X } from 'lucide-react'
+import {
+	ArrowRight,
+	Check,
+	CirclePlus,
+	PackageSearch,
+	Store,
+	X,
+} from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -188,6 +195,13 @@ export function ProductChoiceList({ data }: ProductChoiceListProps) {
 													}
 												>
 													<div className="min-w-0">
+														{group.choiceKind !== 'hierarchy' ? (
+															<ProductEffectLabel
+																currentQuantity={option.currentQuantity}
+																effect={option.effect}
+																isArabic={isArabic}
+															/>
+														) : null}
 														<p className="break-words text-[13px] font-semibold text-[var(--p-text)]">
 															{name}
 														</p>
@@ -198,6 +212,7 @@ export function ProductChoiceList({ data }: ProductChoiceListProps) {
 													<ProductChoiceButton
 														action={option.action}
 														defaultQuantity={group.quantity}
+														effect={option.effect}
 														groupId={group.pendingChoiceId}
 														label={
 															group.choiceKind === 'hierarchy'
@@ -208,9 +223,13 @@ export function ProductChoiceList({ data }: ProductChoiceListProps) {
 																	? isArabic
 																		? `التالي: ${name}`
 																		: `Next: ${name}`
-																	: isArabic
-																		? `أضف ${name}`
-																		: `Add ${name}`
+																	: option.effect === 'increase'
+																		? isArabic
+																			? `زوّد ${name}`
+																			: `Add more ${name}`
+																		: isArabic
+																			? `أضف ${name}`
+																			: `Add ${name}`
 														}
 														quantityRequired={Boolean(group.quantityRequired)}
 														quantityText={String(group.quantity)}
@@ -234,9 +253,37 @@ export function ProductChoiceList({ data }: ProductChoiceListProps) {
 	)
 }
 
+function ProductEffectLabel({
+	currentQuantity,
+	effect,
+	isArabic,
+}: {
+	currentQuantity: number | undefined
+	effect: 'increase' | 'new_line' | undefined
+	isArabic: boolean
+}) {
+	if (effect === 'increase') {
+		return (
+			<span className="mb-1.5 inline-flex items-center gap-1 rounded-md bg-emerald-500/12 px-1.5 py-1 text-[9px] font-semibold uppercase tracking-[0.06em] text-emerald-700 dark:text-emerald-200">
+				<CirclePlus size={11} />
+				{isArabic
+					? `زيادة على الموجود${currentQuantity ? ` · ${currentQuantity}` : ''}`
+					: `Add to existing${currentQuantity ? ` · ${currentQuantity}` : ''}`}
+			</span>
+		)
+	}
+	return (
+		<span className="mb-1.5 inline-flex items-center gap-1 rounded-md bg-blue-500/12 px-1.5 py-1 text-[9px] font-semibold uppercase tracking-[0.06em] text-blue-700 dark:text-blue-200">
+			<Store size={11} />
+			{isArabic ? 'بند جديد من السوق' : 'New market item'}
+		</span>
+	)
+}
+
 function ProductChoiceButton({
 	action,
 	defaultQuantity,
+	effect,
 	groupId,
 	label,
 	quantityLabel,
@@ -247,6 +294,7 @@ function ProductChoiceButton({
 }: {
 	action: ActionButtonData
 	defaultQuantity: number
+	effect: 'increase' | 'new_line' | undefined
 	groupId: string
 	label: string
 	quantityLabel: string
@@ -256,7 +304,9 @@ function ProductChoiceButton({
 	shouldReduceMotion: boolean | null
 }) {
 	const [isEditingQuantity, setIsEditingQuantity] = useState(false)
-	const [draftQuantity, setDraftQuantity] = useState(String(defaultQuantity))
+	const [draftQuantity, setDraftQuantity] = useState(
+		defaultQuantity > 0 ? String(defaultQuantity) : '',
+	)
 	const [quantityError, setQuantityError] = useState(false)
 	const inputRef = useRef<HTMLInputElement | null>(null)
 	const buttonQuantity = Number.parseFloat(quantityText)
@@ -302,7 +352,7 @@ function ProductChoiceButton({
 
 	const cancelQuantityEditor = () => {
 		setIsEditingQuantity(false)
-		setDraftQuantity(String(defaultQuantity))
+		setDraftQuantity(defaultQuantity > 0 ? String(defaultQuantity) : '')
 		setQuantityError(false)
 	}
 
@@ -332,7 +382,9 @@ function ProductChoiceButton({
 						'grid min-h-11 grid-cols-[minmax(0,1fr)_44px] overflow-hidden rounded-xl border bg-[var(--p-card)] sm:w-[176px]',
 						quantityError
 							? 'border-[var(--color-danger)]'
-							: 'border-[var(--p-brand-blue)]',
+							: effect === 'increase'
+								? 'border-emerald-500'
+								: 'border-[var(--p-brand-blue)]',
 					].join(' ')}
 					initial={
 						shouldReduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.92 }
@@ -373,7 +425,12 @@ function ProductChoiceButton({
 					/>
 					<motion.button
 						type="submit"
-						className="flex h-11 items-center justify-center bg-[var(--p-brand-blue)] text-[var(--p-brand-blue-contrast)] transition-colors hover:bg-[var(--p-brand-blue-hover)]"
+						className={[
+							'flex h-11 items-center justify-center text-white transition-colors',
+							effect === 'increase'
+								? 'bg-emerald-600 hover:bg-emerald-700'
+								: 'bg-[var(--p-brand-blue)] hover:bg-[var(--p-brand-blue-hover)]',
+						].join(' ')}
 						aria-label={validEditableQuantity ? label : 'Cancel'}
 						whileTap={shouldReduceMotion ? undefined : { scale: 0.94 }}
 					>
@@ -422,7 +479,12 @@ function ProductChoiceButton({
 					if (!confirmedAction) return
 					dispatchConfirmedAction(buttonQuantity)
 				}}
-				className="inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl bg-[var(--p-brand-blue)] px-3 text-[12px] font-semibold text-[var(--p-brand-blue-contrast)] transition-colors hover:bg-[var(--p-brand-blue-hover)] disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[132px]"
+				className={[
+					'inline-flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl px-3 text-[12px] font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40 sm:min-w-[132px]',
+					effect === 'increase'
+						? 'bg-emerald-600 hover:bg-emerald-700'
+						: 'bg-[var(--p-brand-blue)] hover:bg-[var(--p-brand-blue-hover)]',
+				].join(' ')}
 				layout
 				initial={
 					shouldReduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.92 }
@@ -437,7 +499,11 @@ function ProductChoiceButton({
 				whileHover={shouldReduceMotion ? undefined : { scale: 1.02 }}
 				whileTap={shouldReduceMotion ? undefined : { scale: 0.96 }}
 			>
-				<Check size={14} strokeWidth={2} />
+				{effect === 'increase' ? (
+					<CirclePlus size={14} strokeWidth={2} />
+				) : (
+					<Store size={14} strokeWidth={2} />
+				)}
 				<span className="truncate">{label}</span>
 				<ArrowRight size={13} strokeWidth={2} />
 			</motion.button>

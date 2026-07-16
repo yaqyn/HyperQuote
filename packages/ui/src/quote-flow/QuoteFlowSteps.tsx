@@ -7,6 +7,7 @@ import {
 	type QuoteProjectSummary,
 	type QuoteRecentLocation,
 } from '@hyperquote/quote-cart/checkout'
+import type { DateValue } from '@internationalized/date'
 import {
 	Check,
 	CheckCircle2,
@@ -38,7 +39,6 @@ import {
 	CalendarGridHeader,
 	CalendarHeaderCell,
 } from 'react-aria-components/Calendar'
-import type { DateValue } from 'react-aria-components/DateField'
 import { Heading } from 'react-aria-components/Dialog'
 import { useTranslation } from 'react-i18next'
 import type { QuoteFlowNamespace } from './QuoteFlowDialog'

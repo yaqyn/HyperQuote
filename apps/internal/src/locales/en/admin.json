@@ -253,6 +253,7 @@
 			"description": "Description",
 			"descriptionAr": "Description (Arabic)",
 			"tags": "Tags",
+			"searchAliases": "AI search aliases",
 			"isStockable": "Stockable",
 			"pictureUrl": "Picture URL",
 			"imageUrls": "Image URLs",

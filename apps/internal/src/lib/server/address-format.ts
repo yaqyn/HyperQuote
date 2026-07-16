@@ -7,7 +7,7 @@ interface SupabaseAddressParts {
 	street: string | null
 }
 
-export const SALES_QUOTE_ADDRESS_LABEL = 'Sales quote site'
+const SALES_QUOTE_ADDRESS_LABEL = 'Sales quote site'
 
 function normalizeAddressPart(value: string): string {
 	return value.trim().replace(/\s+/g, ' ').toLowerCase()

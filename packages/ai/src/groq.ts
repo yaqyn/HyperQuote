@@ -23,6 +23,8 @@ export { runtimeEnvValue } from '@hyperquote/runtime/env'
 const DEFAULT_GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b'
 const CLASSIFIER_LEAK_BUFFER_CHARACTERS = 120
+export const AI_UNAVAILABLE_MESSAGE =
+	"I'm having trouble connecting right now. Please try again in a moment."
 const RUNTIME_KEYS = [
 	'GROQ_API_KEY',
 	'GROQ_MODEL',
@@ -106,8 +108,12 @@ interface ChatCompletionOptions {
 	temperature?: number
 }
 
+export interface ChatToolCompletionOptions extends ChatCompletionOptions {
+	toolChoice?: 'auto' | 'none' | 'required'
+}
+
 interface ChatCompletionRequestOptions extends ChatCompletionOptions {
-	toolChoice?: 'auto' | 'none'
+	toolChoice?: ChatToolCompletionOptions['toolChoice']
 	tools?: ChatToolDefinition[]
 }
 
@@ -300,13 +306,12 @@ export async function* streamChat(
 		if (!flushedText && pendingText) {
 			yield textContentChunk(sanitizeClassifierLeak(pendingText))
 		}
-	} catch (err) {
-		const msg = err instanceof Error ? err.message : 'unreachable'
+	} catch {
 		if (!emittedText) {
 			const fallbackText = await completeChat(messages, systemPrompt).catch(
 				() => null,
 			)
-			yield textContentChunk(fallbackText ?? `— AI unavailable (${msg}). —`)
+			yield textContentChunk(fallbackText ?? AI_UNAVAILABLE_MESSAGE)
 		}
 	}
 
@@ -338,16 +343,25 @@ export async function completeChatWithTools(
 	messages: { role: 'user' | 'assistant'; content: string }[],
 	systemPrompt: string,
 	tools: ChatToolDefinition[],
-	options: ChatCompletionOptions = {},
+	options: ChatToolCompletionOptions = {},
 ): Promise<ChatToolCompletion> {
-	const message = await completeChatMessage(
+	return completeChatWithToolsFromMessages(
 		chatMessagesWithSystem(messages, systemPrompt),
-		{
-			...options,
-			toolChoice: 'auto',
-			tools,
-		},
+		tools,
+		options,
 	)
+}
+
+export async function completeChatWithToolsFromMessages(
+	messages: ChatRequestMessage[],
+	tools: ChatToolDefinition[],
+	options: ChatToolCompletionOptions = {},
+): Promise<ChatToolCompletion> {
+	const message = await completeChatMessage(messages, {
+		...options,
+		toolChoice: options.toolChoice ?? 'auto',
+		tools,
+	})
 	return {
 		content: message.content ? sanitizeClassifierLeak(message.content) : '',
 		toolCalls: message.tool_calls ?? [],

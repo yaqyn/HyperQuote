@@ -251,6 +251,8 @@ export type Database = {
 					name: string
 					name_ar: string
 					parent_id: string | null
+					portal_search_vector: unknown
+					search_aliases: string[]
 					slug: string
 					updated_at: string
 				}
@@ -264,6 +266,8 @@ export type Database = {
 					name: string
 					name_ar?: string
 					parent_id?: string | null
+					portal_search_vector?: unknown
+					search_aliases?: string[]
 					slug: string
 					updated_at?: string
 				}
@@ -277,6 +281,8 @@ export type Database = {
 					name?: string
 					name_ar?: string
 					parent_id?: string | null
+					portal_search_vector?: unknown
+					search_aliases?: string[]
 					slug?: string
 					updated_at?: string
 				}
@@ -3192,6 +3198,8 @@ export type Database = {
 					is_active: boolean
 					name: string
 					name_ar: string
+					portal_search_vector: unknown
+					search_aliases: string[]
 					slug: string
 					updated_at: string
 				}
@@ -3205,6 +3213,8 @@ export type Database = {
 					is_active?: boolean
 					name: string
 					name_ar: string
+					portal_search_vector?: unknown
+					search_aliases?: string[]
 					slug: string
 					updated_at?: string
 				}
@@ -3218,6 +3228,8 @@ export type Database = {
 					is_active?: boolean
 					name?: string
 					name_ar?: string
+					portal_search_vector?: unknown
+					search_aliases?: string[]
 					slug?: string
 					updated_at?: string
 				}
@@ -3248,7 +3260,9 @@ export type Database = {
 					is_active: boolean
 					name: string
 					name_ar: string
+					portal_search_vector: unknown
 					product_family_id: string
+					search_aliases: string[]
 					slug: string
 					updated_at: string
 				}
@@ -3261,7 +3275,9 @@ export type Database = {
 					is_active?: boolean
 					name: string
 					name_ar: string
+					portal_search_vector?: unknown
 					product_family_id: string
+					search_aliases?: string[]
 					slug: string
 					updated_at?: string
 				}
@@ -3274,7 +3290,9 @@ export type Database = {
 					is_active?: boolean
 					name?: string
 					name_ar?: string
+					portal_search_vector?: unknown
 					product_family_id?: string
+					search_aliases?: string[]
 					slug?: string
 					updated_at?: string
 				}
@@ -3310,6 +3328,7 @@ export type Database = {
 					manufacturer: string | null
 					name: string
 					name_ar: string
+					portal_search_vector: unknown
 					price_range_max: number | null
 					price_range_min: number | null
 					price_tier: Database['public']['Enums']['price_tier'] | null
@@ -3341,6 +3360,7 @@ export type Database = {
 					manufacturer?: string | null
 					name: string
 					name_ar?: string
+					portal_search_vector?: unknown
 					price_range_max?: number | null
 					price_range_min?: number | null
 					price_tier?: Database['public']['Enums']['price_tier'] | null
@@ -3372,6 +3392,7 @@ export type Database = {
 					manufacturer?: string | null
 					name?: string
 					name_ar?: string
+					portal_search_vector?: unknown
 					price_range_max?: number | null
 					price_range_min?: number | null
 					price_tier?: Database['public']['Enums']['price_tier'] | null
@@ -7707,6 +7728,7 @@ export type Database = {
 					manufacturer: string | null
 					name: string
 					name_ar: string
+					portal_search_vector: unknown
 					price_range_max: number | null
 					price_range_min: number | null
 					price_tier: Database['public']['Enums']['price_tier'] | null
@@ -10283,6 +10305,7 @@ export type Database = {
 					manufacturer: string | null
 					name: string
 					name_ar: string
+					portal_search_vector: unknown
 					price_range_max: number | null
 					price_range_min: number | null
 					price_tier: Database['public']['Enums']['price_tier'] | null
@@ -11110,6 +11133,42 @@ export type Database = {
 					isOneToOne: true
 					isSetofReturn: false
 				}
+			}
+			service_search_portal_catalog: {
+				Args: { p_limit?: number; p_orderable_only?: boolean; p_query?: string }
+				Returns: {
+					availability_status: Database['public']['Enums']['catalog_availability_status']
+					brand: string
+					category: string
+					category_name: string
+					category_name_ar: string
+					description: string
+					description_ar: string
+					id: string
+					image_urls: string[]
+					manufacturer: string
+					name: string
+					name_ar: string
+					price_range_max: number
+					price_range_min: number
+					product_family_name: string
+					product_family_name_ar: string
+					product_family_slug: string
+					product_type_name: string
+					product_type_name_ar: string
+					product_type_slug: string
+					search_rank: number
+					sku: string
+					slug: string
+					specifications: Json
+					specifications_ar: Json
+					subcategory: string
+					subcategory_ar: string
+					total_matches: number
+					total_visible_products: number
+					unit_of_measure: string
+					unit_of_measure_ar: string
+				}[]
 			}
 			service_send_support_conversation_reply: {
 				Args: {

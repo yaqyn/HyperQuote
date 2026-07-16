@@ -283,15 +283,36 @@ function localHelpResponse(): {
 	text: string
 } {
 	return {
-		text: '## Command Guide\nRun safe shortcuts below, or prepare commands that need details.',
+		text: '## Lyon Command Desk\nChoose a guided workflow or run a direct Portal tool. These controls stay available even when open-ended AI chat is temporarily offline.',
 		richContent: [
 			{
 				type: 'command_palette',
 				data: {
 					description:
-						'Run safe shortcuts directly, or prepare commands that need a target, product, date, or message.',
+						'Tell Lyon what you want through a guided command, or run a direct Portal tool for your catalog, cart, drafts, orders, account, docs, and support.',
 					groups: portalChatCommandPaletteGroups(),
-					title: 'Portal Command Desk',
+					title: 'What should we do next?',
+				},
+			},
+		],
+	}
+}
+
+function localUnknownCommandResponse(input: string): {
+	richContent: RichContent[]
+	text: string
+} {
+	const token = input.trim().split(/\s+/)[0] ?? input.trim()
+	return {
+		text: `## Command not found\nI couldn’t find \`${token}\`. Choose the closest guided workflow below, or type \`/commands\` at any time.`,
+		richContent: [
+			{
+				type: 'command_palette',
+				data: {
+					description:
+						'The command was not recognized, so nothing ran. Choose a verified command below.',
+					groups: portalChatCommandPaletteGroups(),
+					title: 'Choose a verified command',
 				},
 			},
 		],
@@ -380,6 +401,10 @@ export function usePortalChat({
 	const chat = useChat({
 		connection: stream(async function* (messages) {
 			try {
+				// Bind confirmation data to this request before yielding. A previous
+				// request must never clear or consume a newly confirmed action.
+				const confirmedAction = pendingConfirmedActionRef.current
+				pendingConfirmedActionRef.current = null
 				// Convert UIMessage[] to simple format for server function
 				const outgoingMessages = messages as UIMessage[]
 				const historyById = new Map(
@@ -398,7 +423,7 @@ export function usePortalChat({
 				const raw = await portalChatFn({
 					data: {
 						activeDraft: activeDraftRef.current,
-						confirmedAction: pendingConfirmedActionRef.current,
+						confirmedAction,
 						messages: simpleMessages,
 						conversationId:
 							conversationKeyRef.current === 'default'
@@ -406,7 +431,6 @@ export function usePortalChat({
 								: conversationKeyRef.current,
 					},
 				})
-				pendingConfirmedActionRef.current = null
 				const chunks = raw as unknown as StreamChunk[]
 
 				lastChunksRef.current = chunks
@@ -630,8 +654,24 @@ export function usePortalChat({
 		) => {
 			pendingConfirmedActionRef.current = options?.confirmedAction ?? null
 			const command = parsePortalChatCommand(message)
+			if (!command && /^\s*\/\S+/.test(message)) {
+				const response = localUnknownCommandResponse(message)
+				const userMessage = textMessage('user', message)
+				const assistantMessage = textMessage('assistant', response.text)
+				setRichContentForMessage(
+					richContentByMessageIdRef.current,
+					assistantMessage.id,
+					response.richContent,
+				)
+				chat.setMessages([
+					...chatMessagesRef.current,
+					userMessage,
+					assistantMessage,
+				])
+				return
+			}
 			if (command && isLocalPortalChatCommand(command.name)) {
-				if (command.name === '/help') {
+				if (command.name === '/commands' || command.name === '/help') {
 					const response = localHelpResponse()
 					const userMessage = textMessage('user', message)
 					const assistantMessage = textMessage('assistant', response.text)

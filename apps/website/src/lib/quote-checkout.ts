@@ -30,15 +30,6 @@ const reverseLocationInput = z.object({
 	longitude: z.number().min(24.6).max(36.9),
 })
 
-const createAddressInput = z.object({
-	area: z.string().trim().max(160),
-	city: z.string().trim().min(1).max(160),
-	governorate: z.string().trim().min(1).max(160),
-	latitude: z.number().min(21.7).max(31.8),
-	longitude: z.number().min(24.6).max(36.9),
-	street: z.string().trim().min(2).max(300),
-})
-
 const nominatimAddressSchema = z.record(z.string(), z.string()).default({})
 const nominatimSearchRowSchema = z.object({
 	address: nominatimAddressSchema,
@@ -405,56 +396,6 @@ export const reverseWebsiteQuoteLocation = createServerFn({ method: 'POST' })
 					error,
 				)
 				return { success: false, error: 'search_failed' }
-			}
-		},
-	)
-
-export const createQuoteRequestAddress = createServerFn({ method: 'POST' })
-	.inputValidator(createAddressInput)
-	.handler(
-		async ({
-			data: input,
-		}): Promise<
-			| { success: true; address: QuoteRequestAddress }
-			| {
-					success: false
-					error:
-						| 'create_failed'
-						| 'not_authenticated'
-						| 'customer_required'
-						| 'not_configured'
-			  }
-		> => {
-			const auth = await getAuthenticatedWebsiteCustomer()
-			if ('error' in auth) return { success: false, error: auth.error }
-
-			try {
-				const { data, error } = await auth.client
-					.from('customer_addresses')
-					.insert({
-						area: input.area || null,
-						city: input.city,
-						customer_id: auth.customerId,
-						governorate: input.governorate,
-						is_default: false,
-						label: null,
-						latitude: input.latitude,
-						longitude: input.longitude,
-						street: input.street,
-					})
-					.select(
-						'id, label, street, area, city, governorate, is_default, latitude, longitude',
-					)
-					.single()
-				if (error || !data) throw error ?? new Error('Address insert failed')
-				await appendWebsiteAuthCookies(auth)
-				return { success: true, address: mapAddressRow(data) }
-			} catch (error) {
-				logWebsiteServerError(
-					'website.quote_request.address_create_failed',
-					error,
-				)
-				return { success: false, error: 'create_failed' }
 			}
 		},
 	)

@@ -53,6 +53,7 @@ export interface AdminProductPayload {
 	lowStockThreshold: number
 	goodStockThreshold: number
 	pictureUrl: string | null
+	tags: string[]
 }
 
 export type AdminEmployeeRole =
@@ -93,6 +94,7 @@ export interface AdminCategoryRow {
 	parentId: string | null
 	parentSlug: string | null
 	isActive: boolean
+	searchAliases: string[]
 }
 
 export interface AdminCategoryPayload {
@@ -102,6 +104,7 @@ export interface AdminCategoryPayload {
 	description: string
 	description_ar: string
 	pictureUrl: string | null
+	searchAliases: string[]
 }
 
 export interface AdminCustomerAddressRow {
@@ -223,6 +226,7 @@ interface SupabaseCategoryRow {
 	image_url: string | null
 	parent_id: string | null
 	is_active: boolean
+	search_aliases: string[]
 	parent: { slug: string } | { slug: string }[] | null
 }
 
@@ -394,7 +398,7 @@ const PRODUCT_COLUMNS =
 const PRODUCT_HIERARCHY_COLUMNS =
 	'id, slug, sku, name, name_ar, description, description_ar, category, category_name, category_name_ar, product_family_slug, product_family_name, product_family_name_ar, product_type_slug, product_type_name, product_type_name_ar, subcategory, subcategory_ar, brand, manufacturer, specifications, specifications_ar, unit_of_measure, unit_of_measure_ar, weight_kg, price_range_min, price_range_max, price_tier, availability_status, image_urls, tags, is_stockable, is_active'
 const CATEGORY_COLUMNS =
-	'id, slug, name, name_ar, description, description_ar, image_url, parent_id, is_active, parent:parent_id(slug)'
+	'id, slug, name, name_ar, description, description_ar, image_url, search_aliases, parent_id, is_active, parent:parent_id(slug)'
 const EMPLOYEE_COLUMNS =
 	'id, user_id, full_name, email, phone, status, is_ceo, employee_roles(role)'
 const EMPLOYEE_COMPENSATION_COLUMNS =
@@ -565,6 +569,7 @@ function supabaseCategoryToAdmin(row: SupabaseCategoryRow): AdminCategoryRow {
 		parentId: row.parent_id,
 		parentSlug: firstRelation(row.parent)?.slug ?? null,
 		isActive: row.is_active,
+		searchAliases: row.search_aliases ?? [],
 	}
 }
 
@@ -827,6 +832,10 @@ function cleanText(value: string): string {
 	return value.trim()
 }
 
+function normalizedSearchTerms(values: string[]): string[] {
+	return [...new Set(values.map((value) => cleanText(value)).filter(Boolean))]
+}
+
 function nullableCleanText(value: string | null): string | null {
 	const clean = value?.trim() ?? ''
 	return clean.length > 0 ? clean : null
@@ -935,7 +944,7 @@ function productPayloadForSupabase(
 			? ('available' as const)
 			: ('hidden' as const),
 		image_urls: pictureUrl ? [pictureUrl] : [],
-		tags: [],
+		tags: normalizedSearchTerms(data.tags),
 		is_stockable: true,
 		is_active: data.isVisible,
 	}
@@ -966,6 +975,7 @@ function productPatchForSupabase(data: Partial<AdminProductPayload>) {
 		patch.unit_of_measure_ar = cleanText(data.unit_of_measure_ar)
 	}
 	if (data.weight_kg !== undefined) patch.weight_kg = data.weight_kg
+	if (data.tags !== undefined) patch.tags = normalizedSearchTerms(data.tags)
 	if (data.cost !== undefined) {
 		const cost = roundCurrency(data.cost)
 		patch.price_range_min = cost
@@ -2289,6 +2299,7 @@ const ProductPayloadBase = z.object({
 	lowStockThreshold: z.number().min(0),
 	goodStockThreshold: z.number().min(0),
 	pictureUrl: nullableUrlSchema,
+	tags: z.array(z.string().trim().min(1).max(80)).max(40),
 })
 
 const ProductPayload = ProductPayloadBase.superRefine((value, ctx) => {
@@ -2504,6 +2515,7 @@ const CategoryPayload = z.object({
 	description: z.string().trim().min(1),
 	description_ar: z.string().trim().min(1),
 	pictureUrl: nullableUrlSchema,
+	searchAliases: z.array(z.string().trim().min(1).max(80)).max(40),
 })
 
 async function uniqueCategorySlug(
@@ -2538,6 +2550,7 @@ function categoryPayloadForSupabase(data: AdminCategoryPayload) {
 		description_ar: cleanText(data.description_ar),
 		image_url: nullableCleanText(data.pictureUrl),
 		is_active: data.isActive,
+		search_aliases: normalizedSearchTerms(data.searchAliases),
 	}
 }
 

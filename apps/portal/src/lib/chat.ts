@@ -9,8 +9,12 @@
  */
 
 import {
+	AI_UNAVAILABLE_MESSAGE,
+	type ChatRequestMessage,
+	type ChatToolCompletion,
+	type ChatToolDefinition,
 	completeChat,
-	completeChatWithTools,
+	completeChatWithToolsFromMessages,
 	isAIEnabled,
 	LYON_PORTAL,
 	streamChat,
@@ -24,6 +28,7 @@ import {
 	publicDocsSourceLinks,
 	retrieveWebsiteDocs,
 } from '@hyperquote/docs/retrieval'
+import type { Database, Json } from '@hyperquote/types'
 import type { StreamChunk } from '@tanstack/ai'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
@@ -31,9 +36,11 @@ import type {
 	ActionButtonData,
 	ActiveChatDraftContext,
 	ChatTempDraftData,
+	ClarificationSheetData,
 	CommandPaletteData,
 	PortalConfirmedActionPayload,
 	PortalConfirmedDraftLinePayload,
+	PortalDraftItemAction,
 	ProductChoiceListData,
 	SupportOptionsData,
 } from './chat-types'
@@ -46,7 +53,6 @@ import {
 	draftProductIntentTerms,
 	isBroadCatalogReadRequest,
 	isOpenEndedCatalogSelectionRequest,
-	productIntentTerms,
 	productSearchTerm,
 } from './portal-catalog-intent'
 import { portalChatCommandPaletteGroups } from './portal-chat-commands'
@@ -57,8 +63,6 @@ import {
 	enforcePortalCustomerToolRequest,
 	fallbackPortalCustomerToolRequest,
 	inferDraftItemEdit,
-	isDraftWriteAction,
-	type PortalCustomerCatalogSnapshot,
 	type PortalCustomerToolRequest,
 	parsePortalCustomerToolCall,
 	parsePortalCustomerToolRequest,
@@ -66,6 +70,7 @@ import {
 	portalCustomerActionNeedsConfirmation,
 	portalCustomerPolicyRefusal,
 	portalCustomerToolDefinitions,
+	propagateSharedDraftQuantity,
 	routePortalChatCommand,
 } from './portal-customer-agent'
 import {
@@ -103,7 +108,7 @@ const OPEN_ENDED_DRAFT_ITEM_COUNT = 3
 const PRODUCT_CATALOG_CONTEXT_LIMIT = 160
 const PRODUCT_CATALOG_ROUTE_MATCH_LIMIT = 2500
 const PORTAL_AI_PRODUCT_SELECT =
-	'id, sku, slug, name, name_ar, category, category_name, category_name_ar, product_family_slug, product_family_name, product_family_name_ar, product_type_slug, product_type_name, product_type_name_ar, subcategory, subcategory_ar, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar'
+	'id, sku, slug, name, name_ar, category, category_name, category_name_ar, product_family_slug, product_family_name, product_family_name_ar, product_type_slug, product_type_name, product_type_name_ar, subcategory, subcategory_ar, brand, manufacturer, unit_of_measure, unit_of_measure_ar, price_range_min, price_range_max, availability_status, image_urls, specifications, specifications_ar, description, description_ar'
 const WEBSITE_URL = (
 	import.meta.env.VITE_WEBSITE_URL ?? 'https://www.hyperquote.net'
 ).replace(/\/+$/, '')
@@ -112,6 +117,29 @@ const SUPPORT_EMAIL =
 const SUPPORT_PHONE_E164 = import.meta.env.VITE_SUPPORT_PHONE_E164 ?? ''
 const PRODUCT_CATALOG_RESULT_COUNT = 12
 const SALES_QUOTE_ADDRESS_LABEL = 'Sales quote site'
+
+const PORTAL_INTENT_REVIEW_TOOL: ChatToolDefinition = {
+	function: {
+		description:
+			'Classify an ambiguous Portal message after the first routing attempt.',
+		name: 'review_portal_intent',
+		parameters: {
+			properties: {
+				intent: {
+					enum: ['conversation', 'draft_edit', 'product_request'],
+					type: 'string',
+				},
+			},
+			required: ['intent'],
+			type: 'object',
+		},
+	},
+	type: 'function',
+}
+
+const portalIntentReviewInput = z.object({
+	intent: z.enum(['conversation', 'draft_edit', 'product_request']),
+})
 
 const activeDraftInput = z
 	.object({
@@ -155,7 +183,14 @@ const confirmedActionInput = z
 		]),
 		cleanupMode: z.enum(['delete_all', 'merge', 'remove_empty']).optional(),
 		draftItemAction: z
-			.enum(['clear_items', 'remove_item', 'set_item_notes', 'set_quantity'])
+			.enum([
+				'clear_items',
+				'decrease_quantity',
+				'increase_quantity',
+				'remove_item',
+				'set_item_notes',
+				'set_quantity',
+			])
 			.optional(),
 		draftLines: z
 			.array(
@@ -209,6 +244,7 @@ type QuoteRequestItemInput = Parameters<
 
 export interface PortalAiProduct {
 	availability_status: string
+	brand?: string | null
 	category: string
 	category_name?: string | null
 	category_name_ar?: string | null
@@ -216,6 +252,7 @@ export interface PortalAiProduct {
 	description_ar: string | null
 	id: string
 	image_urls: string[] | null
+	manufacturer?: string | null
 	name: string
 	name_ar: string | null
 	price_range_max: number | null
@@ -228,8 +265,8 @@ export interface PortalAiProduct {
 	product_type_name_ar?: string | null
 	sku: string
 	slug: string
-	specifications: Record<string, unknown> | null
-	specifications_ar: Record<string, unknown> | null
+	specifications: Json | null
+	specifications_ar: Json | null
 	subcategory: string | null
 	subcategory_ar: string | null
 	unit_of_measure: string
@@ -453,6 +490,7 @@ interface DraftHierarchyChoiceNode {
 }
 
 interface DraftProductChoiceGroup {
+	candidateProducts: PortalAiProduct[]
 	choiceKind?: 'hierarchy' | 'product'
 	options: DraftProductChoiceOption[]
 	pendingChoiceId: string
@@ -465,6 +503,7 @@ interface DraftProductChoiceGroup {
 interface DraftProductChoiceContext {
 	action: 'create_draft_from_plan' | 'draft_add_items'
 	baseLines: PortalConfirmedDraftLinePayload[]
+	existingItems?: DraftMaterialItem[]
 	groups: DraftProductChoiceGroup[]
 	locale: 'ar' | 'en'
 	targetReference?: string
@@ -472,6 +511,7 @@ interface DraftProductChoiceContext {
 }
 
 interface DraftWriteContext {
+	clarification?: ClarificationSheetData
 	clearThreadSessionKeys?: string[]
 	draftId?: string
 	editRoute?: string
@@ -530,6 +570,7 @@ type PortalToolContext =
 	| { type: 'draft_write'; operation: string; result: DraftWriteContext }
 
 interface PortalToolResult {
+	agentAnswer?: string
 	context: PortalToolContext
 	invalidatesOrders: boolean
 	readEntities: string[]
@@ -552,74 +593,56 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 		const confirmedRoute = confirmedActionToToolRequest(
 			input.confirmedAction ?? null,
 		)
-		const agentCatalog = await loadVisibleProductCatalog(
-			supabase,
-			PRODUCT_CATALOG_CONTEXT_LIMIT,
-		)
-		const initialRoute =
-			confirmedRoute ??
-			routePortalChatCommand(userText) ??
-			explicitSupportTicketRoute(userText) ??
-			(await requestPortalCustomerTool(
+		const commandRoute = routePortalChatCommand(userText)
+		const commandNeedsAgent =
+			commandRoute?.commandName === '/plan-quote' &&
+			!commandRoute.draftLines?.length
+		const directRoute =
+			confirmedRoute ?? (commandNeedsAgent ? null : commandRoute)
+		let result: PortalToolResult
+		if (directRoute) {
+			const route = confirmedRoute
+				? directRoute
+				: applyActiveDraftContextToRoute(directRoute, userText, activeDraft)
+			result = await executePortalCustomerToolRequest(
+				supabase,
+				customerId,
+				route,
+				userText,
+				supportIdentity,
+				activeDraft,
+			)
+		} else {
+			const outcome = await requestPortalCustomerTool(
+				supabase,
+				customerId,
 				modelMessages,
 				userText,
-				agentCatalog,
+				supportIdentity,
 				activeDraft,
-			))
-		const routeRepairCatalog = shouldLoadCatalogForRouteRepair(
-			initialRoute,
-			userText,
-			activeDraft,
-		)
-			? await loadVisibleProductCatalog(
-					supabase,
-					PRODUCT_CATALOG_ROUTE_MATCH_LIMIT,
-				)
-			: agentCatalog
-		const route = confirmedRoute
-			? initialRoute
-			: forceActiveDraftItemEditRoute(
-					applyActiveDraftContextToRoute(
-						restorePendingChoiceQuantity(
-							preserveUserDraftLineWording(
-								correctPendingChoiceSelectionRoute(
-									correctProductLineDraftRoute(
-										correctActiveDraftItemEditRoute(
-											await repairActiveDraftChatRoute(
-												initialRoute,
-												modelMessages,
-												userText,
-												activeDraft,
-											),
-											userText,
-											activeDraft,
-										),
-										userText,
-										activeDraft,
-										routeRepairCatalog,
-									),
-									modelMessages,
-									userText,
-								),
-								userText,
-							),
+			)
+			if (outcome.kind === 'result') {
+				result = outcome.result
+			} else {
+				const route = outcome.legacyRepair
+					? await repairFallbackPortalRoute(
+							supabase,
+							outcome.route,
 							modelMessages,
 							userText,
-						),
-						userText,
-						activeDraft,
-					),
+							activeDraft,
+						)
+					: applyActiveDraftContextToRoute(outcome.route, userText, activeDraft)
+				result = await executePortalCustomerToolRequest(
+					supabase,
+					customerId,
+					route,
 					userText,
+					supportIdentity,
 					activeDraft,
 				)
-		const result = await executePortalCustomerToolRequest(
-			supabase,
-			customerId,
-			route,
-			userText,
-			supportIdentity,
-			activeDraft,
-		)
+			}
+		}
 		const chunks = await renderPortalCustomerResponse(
 			modelMessages,
 			result,
@@ -637,30 +660,6 @@ export const portalChatFn = createServerFn({ method: 'POST' })
 		// biome-ignore lint/complexity/noBannedTypes: TanStack server-fn serialization accepts this historical chunk boundary type.
 		return chunks as unknown as Array<{ [k: string]: {} }>
 	})
-
-function explicitSupportTicketRoute(
-	userText: string,
-): PortalCustomerToolRequest | null {
-	const normalized = normalizeForMatch(userText)
-	if (
-		!/\b(?:send|create|open|submit|file|raise|log)\s+support\b/.test(
-			normalized,
-		) &&
-		!/\b(?:support request|support ticket|ticket|feedback)\s*[:-]/.test(
-			normalized,
-		)
-	) {
-		return null
-	}
-	const message = userText.trim()
-	if (!message) return null
-	return {
-		action: 'support_request',
-		searchQuery: message,
-		supportMessage: message,
-		supportSubject: supportSubjectFromMessage(message),
-	}
-}
 
 function confirmedActionToToolRequest(
 	action: PortalConfirmedActionPayload | null,
@@ -729,55 +728,429 @@ function correctBroadCatalogReadRoute(
 }
 
 async function requestPortalCustomerTool(
+	supabase: AuthedSupabase,
+	customerId: string,
 	messages: ChatMessageInput[],
 	userText: string,
-	catalog: ProductCatalogResult,
+	supportIdentity: PortalSupportIdentity,
 	activeDraft: ActiveChatDraftContext | null,
-): Promise<PortalCustomerToolRequest> {
+): Promise<PortalAgentOutcome> {
 	const safeFallback = fallbackPortalCustomerToolRequest(userText)
-	if (safeFallback.action === 'refuse') return safeFallback
+	if (safeFallback.action === 'refuse') {
+		return { kind: 'route', legacyRepair: false, route: safeFallback }
+	}
 
-	if (!(await isAIEnabled())) return safeFallback
+	if (!(await isAIEnabled())) {
+		return { kind: 'route', legacyRepair: true, route: safeFallback }
+	}
 
 	try {
-		const rawRoute = await completeChatWithTools(
-			recentRouteMessages(messages),
-			buildPortalCustomerAgentPrompt(
-				toAgentCatalogSnapshot(catalog),
-				activeDraft,
-			),
-			portalCustomerToolDefinitions(),
-			{ temperature: 0 },
-		)
-		return correctBroadCatalogReadRoute(
-			enforcePortalCustomerToolRequest(
-				parsePortalCustomerToolCall(rawRoute, userText) ??
-					parsePortalCustomerToolRequest(rawRoute.content, userText),
-				userText,
-			),
-			userText,
-		)
+		const agentMessages: ChatRequestMessage[] = [
+			{
+				role: 'system',
+				content: buildPortalCustomerAgentPrompt(
+					{
+						catalogComplete: false,
+						products: [],
+						totalVisibleProducts: 0,
+					},
+					activeDraft,
+				),
+			},
+			...recentRouteMessages(messages),
+		]
+		const readEntities = new Set<string>()
+		let lastReadResult: PortalToolResult | null = null
+		let proposedDraftEdit: PortalCustomerToolRequest | null = null
+		for (let step = 0; step < 4; step += 1) {
+			const completion = await completeChatWithToolsFromMessages(
+				agentMessages,
+				portalCustomerToolDefinitions(),
+				{ temperature: 0, toolChoice: 'required' },
+			)
+			if (completion.toolCalls.length === 0) {
+				if (isGenericDraftEditClarificationIntent(userText, activeDraft)) {
+					return {
+						kind: 'route',
+						legacyRepair: false,
+						route: draftEditClarificationRoute(userText, activeDraft),
+					}
+				}
+				const answer = completion.content.trim()
+				if (lastReadResult) {
+					if (
+						lastReadResult.context.type === 'products' &&
+						asksForProductHelp(userText)
+					) {
+						return {
+							kind: 'route',
+							legacyRepair: true,
+							route: {
+								action: 'chat',
+								finalResponse: answer || undefined,
+								searchQuery: userText,
+							},
+						}
+					}
+					lastReadResult.agentAnswer = answer || undefined
+					lastReadResult.readEntities = [...readEntities]
+					return { kind: 'result', result: lastReadResult }
+				}
+				return {
+					kind: 'route',
+					legacyRepair: true,
+					route: {
+						action: 'chat',
+						finalResponse: answer || undefined,
+						searchQuery: userText,
+					},
+				}
+			}
+
+			const routes = completion.toolCalls.map((toolCall) =>
+				enforcePortalCustomerToolRequest(
+					parsePortalCustomerToolCall(
+						{ content: '', toolCalls: [toolCall] },
+						userText,
+					) ?? fallbackPortalCustomerToolRequest(userText),
+					userText,
+				),
+			)
+			const terminalRoute = routes.find(
+				(route) => !isPortalAgentReadRoute(route.action),
+			)
+			if (terminalRoute) {
+				if (
+					terminalRoute.action === 'chat' &&
+					terminalRoute.clarificationScope === 'draft_edit'
+				) {
+					return {
+						kind: 'route',
+						legacyRepair: false,
+						route: {
+							action: 'update_draft_items',
+							searchQuery: userText,
+							targetReference:
+								activeDraft?.id ?? activeDraft?.sessionKey ?? 'active',
+						},
+					}
+				}
+				if (
+					step === 0 &&
+					terminalRoute.action === 'chat' &&
+					routes.every((route) => route.action === 'chat')
+				) {
+					const reviewedIntent = await reviewPortalAgentIntent(
+						agentMessages,
+						completion,
+					)
+					if (
+						reviewedIntent === 'draft_edit' ||
+						isGenericDraftEditClarificationIntent(userText, activeDraft)
+					) {
+						return {
+							kind: 'route',
+							legacyRepair: false,
+							route: {
+								action: 'update_draft_items',
+								searchQuery: userText,
+								targetReference:
+									activeDraft?.id ?? activeDraft?.sessionKey ?? 'active',
+							},
+						}
+					}
+					if (reviewedIntent === 'conversation') {
+						return {
+							kind: 'route',
+							legacyRepair: true,
+							route: terminalRoute,
+						}
+					}
+				}
+				if (proposedDraftEdit && terminalRoute.action === 'chat') {
+					return {
+						kind: 'route',
+						legacyRepair: false,
+						route: proposedDraftEdit,
+					}
+				}
+				if (
+					step === 0 &&
+					((terminalRoute.action === 'chat' &&
+						routes.every((route) => route.action === 'chat')) ||
+						terminalRoute.action === 'update_draft_items')
+				) {
+					if (terminalRoute.action === 'update_draft_items') {
+						proposedDraftEdit = terminalRoute
+					}
+					agentMessages.push({
+						content: completion.content || null,
+						role: 'assistant',
+						tool_calls: completion.toolCalls,
+					})
+					for (const toolCall of completion.toolCalls) {
+						agentMessages.push({
+							content: safeJson({
+								instruction:
+									'Re-check the complete original customer intent before answering. Distinguish one existing-line edit from a request for one or several products. For product additions, call resolve_product_choice with one draft line per product and preserve a shared quantity on every applicable line. For an existing-line edit, call preview_draft_changes and preserve each known operation, item, and quantity while omitting only unknown fields; call clarify_draft_edit when none of those details is known. The app, not chat text, asks the missing clarification questions. Use chat only when no Portal data or action is needed.',
+								status: 'semantic_review_required',
+							}),
+							name: toolCall.function.name,
+							role: 'tool',
+							tool_call_id: toolCall.id,
+						})
+					}
+					continue
+				}
+				return {
+					kind: 'route',
+					legacyRepair: terminalRoute.action === 'chat',
+					route: preserveUserDraftLineWording(
+						propagateSharedDraftQuantity(terminalRoute, userText),
+						userText,
+					),
+				}
+			}
+
+			agentMessages.push({
+				content: completion.content || null,
+				role: 'assistant',
+				tool_calls: completion.toolCalls,
+			})
+			const results = await Promise.all(
+				routes.map((route) =>
+					executePortalCustomerToolRequest(
+						supabase,
+						customerId,
+						route,
+						userText,
+						supportIdentity,
+						activeDraft,
+					),
+				),
+			)
+			for (const result of results) {
+				for (const entity of result.readEntities) readEntities.add(entity)
+			}
+			lastReadResult = results.at(-1) ?? lastReadResult
+			for (const [index, result] of results.entries()) {
+				const toolCall = completion.toolCalls[index]
+				if (!toolCall) continue
+				agentMessages.push({
+					content: safeJson(result.context),
+					name: toolCall.function.name,
+					role: 'tool',
+					tool_call_id: toolCall.id,
+				})
+			}
+		}
+		if (lastReadResult) {
+			lastReadResult.readEntities = [...readEntities]
+			return { kind: 'result', result: lastReadResult }
+		}
+		return { kind: 'route', legacyRepair: true, route: safeFallback }
 	} catch {
-		return fallbackPortalCustomerToolRequest(userText)
+		if (isGenericDraftEditClarificationIntent(userText, activeDraft)) {
+			return {
+				kind: 'route',
+				legacyRepair: false,
+				route: draftEditClarificationRoute(userText, activeDraft),
+			}
+		}
+		return { kind: 'route', legacyRepair: true, route: safeFallback }
 	}
 }
 
-function toAgentCatalogSnapshot(
-	catalog: ProductCatalogResult,
-): PortalCustomerCatalogSnapshot {
-	return {
-		catalogComplete: catalog.catalogComplete,
-		products: catalog.products.map((product) => ({
-			category: catalogHierarchyPath(product, 'en'),
-			name: product.name,
-			nameAr: product.name_ar,
-			priceRange: formatPriceRange(product, 'en'),
-			productId: product.id,
-			status: isCustomerVisibleAvailable(product) ? 'Available' : 'Unavailable',
-			unit: product.unit_of_measure,
-		})),
-		totalVisibleProducts: catalog.totalVisibleProducts,
+async function reviewPortalAgentIntent(
+	agentMessages: ChatRequestMessage[],
+	completion: ChatToolCompletion,
+): Promise<'conversation' | 'draft_edit' | 'product_request'> {
+	const reviewMessages: ChatRequestMessage[] = [
+		...agentMessages,
+		{
+			content: completion.content || null,
+			role: 'assistant',
+			tool_calls: completion.toolCalls,
+		},
+		...completion.toolCalls.map(
+			(toolCall): ChatRequestMessage => ({
+				content: safeJson({ status: 'routing_attempt_needs_review' }),
+				name: toolCall.function.name,
+				role: 'tool',
+				tool_call_id: toolCall.id,
+			}),
+		),
+		{
+			content:
+				'Classify the original latest customer message, not the proposed answer. Choose draft_edit when they intend to change an existing cart or draft even if operation, item, or quantity is missing. Choose product_request when they intend to acquire, add, or select products. Choose conversation only when neither applies.',
+			role: 'system',
+		},
+	]
+	const review = await completeChatWithToolsFromMessages(
+		reviewMessages,
+		[PORTAL_INTENT_REVIEW_TOOL],
+		{ temperature: 0, toolChoice: 'required' },
+	)
+	const call = review.toolCalls.find(
+		(candidate) => candidate.function.name === 'review_portal_intent',
+	)
+	if (!call) return 'conversation'
+	try {
+		const parsed = portalIntentReviewInput.safeParse(
+			JSON.parse(call.function.arguments || '{}'),
+		)
+		return parsed.success ? parsed.data.intent : 'conversation'
+	} catch {
+		return 'conversation'
 	}
+}
+
+function isGenericDraftEditClarificationIntent(
+	userText: string,
+	activeDraft: ActiveChatDraftContext | null,
+): boolean {
+	if (!activeDraft || activeDraft.items.length === 0) return false
+	const tokens = normalizeForMatch(userText).split(' ').filter(Boolean)
+	const hasEditVerb = tokens.some((token) =>
+		matchesIntentConcept(token, [
+			'adjust',
+			'amend',
+			'change',
+			'edit',
+			'modify',
+			'revise',
+			'update',
+			'تعديل',
+			'تغيير',
+			'عدل',
+			'غير',
+		]),
+	)
+	if (!hasEditVerb) return false
+	return tokens.some((token) =>
+		matchesIntentConcept(token, [
+			'basket',
+			'cart',
+			'draft',
+			'entry',
+			'item',
+			'line',
+			'qty',
+			'quantity',
+			'بند',
+			'سله',
+			'صنف',
+			'كميه',
+			'مسوده',
+		]),
+	)
+}
+
+function draftEditClarificationRoute(
+	userText: string,
+	activeDraft: ActiveChatDraftContext | null,
+): PortalCustomerToolRequest {
+	return {
+		action: 'update_draft_items',
+		searchQuery: userText,
+		targetReference: activeDraft?.id ?? activeDraft?.sessionKey ?? 'active',
+	}
+}
+
+function matchesIntentConcept(token: string, concepts: string[]): boolean {
+	return concepts.some((concept) => {
+		if (token === concept) return true
+		if (token.length < 4 || concept.length < 4) return false
+		return levenshteinDistance(token, concept) <= 1
+	})
+}
+
+type PortalAgentOutcome =
+	| { kind: 'result'; result: PortalToolResult }
+	| {
+			kind: 'route'
+			legacyRepair: boolean
+			route: PortalCustomerToolRequest
+	  }
+
+function isPortalAgentReadRoute(
+	action: PortalCustomerToolRequest['action'],
+): boolean {
+	return (
+		action === 'public_docs' ||
+		action === 'customer_profile' ||
+		action === 'customer_orders' ||
+		action === 'order_detail' ||
+		action === 'delivery_tracking' ||
+		action === 'delivery_list' ||
+		action === 'product_search' ||
+		action === 'compare_products' ||
+		action === 'recommend_materials' ||
+		action === 'address_list' ||
+		action === 'project_list' ||
+		action === 'account_health' ||
+		action === 'draft_detail' ||
+		action === 'draft_validate' ||
+		action === 'order_activity'
+	)
+}
+
+async function repairFallbackPortalRoute(
+	supabase: AuthedSupabase,
+	initialRoute: PortalCustomerToolRequest,
+	modelMessages: ChatMessageInput[],
+	userText: string,
+	activeDraft: ActiveChatDraftContext | null,
+): Promise<PortalCustomerToolRequest> {
+	const agentCatalog = await loadVisibleProductCatalog(
+		supabase,
+		PRODUCT_CATALOG_CONTEXT_LIMIT,
+	)
+	const broadRoute = correctBroadCatalogReadRoute(initialRoute, userText)
+	const routeRepairCatalog = shouldLoadCatalogForRouteRepair(
+		broadRoute,
+		userText,
+		activeDraft,
+	)
+		? await loadVisibleProductCatalog(
+				supabase,
+				PRODUCT_CATALOG_ROUTE_MATCH_LIMIT,
+			)
+		: agentCatalog
+	return forceActiveDraftItemEditRoute(
+		applyActiveDraftContextToRoute(
+			restorePendingChoiceQuantity(
+				preserveUserDraftLineWording(
+					correctPendingChoiceSelectionRoute(
+						correctProductLineDraftRoute(
+							correctActiveDraftItemEditRoute(
+								await repairActiveDraftChatRoute(
+									broadRoute,
+									modelMessages,
+									userText,
+									activeDraft,
+								),
+								userText,
+								activeDraft,
+							),
+							userText,
+							activeDraft,
+							routeRepairCatalog,
+						),
+						modelMessages,
+						userText,
+					),
+					userText,
+				),
+				modelMessages,
+				userText,
+			),
+			userText,
+			activeDraft,
+		),
+		userText,
+		activeDraft,
+	)
 }
 
 function correctProductLineDraftRoute(
@@ -973,7 +1346,10 @@ function missingQuantityDraftMaterial(
 	userText: string,
 	catalog: ProductCatalogResult,
 ): string | null {
-	return catalogProductTermFromRequest(userText, catalog.products)
+	const catalogTerm = catalogProductTermFromRequest(userText, catalog.products)
+	if (catalogTerm) return catalogTerm
+	const retrievalTerm = productSearchTerm(userText).trim()
+	return retrievalTerm || null
 }
 
 function catalogProductTermFromRequest(
@@ -1179,10 +1555,26 @@ function inferSingleActiveDraftItemQuantityDelta(
 	}
 }
 
-function inferActiveDraftItemEdit(
+export function inferActiveDraftItemEdit(
 	userText: string,
 ): ReturnType<typeof inferDraftItemEdit> {
 	const normalized = normalizeForMatch(userText)
+	const requestedQuantity = draftEditQuantityFromText(userText)
+	const increasesQuantity =
+		/\b(?:add|increase|plus|raise|boost)\b/.test(normalized) ||
+		/(?:زود|زوّد|اضف|أضف|زيد)/.test(userText)
+	const decreasesQuantity =
+		/\b(?:deduct|subtract|minus|decrease|reduce|take off)\b/.test(normalized) ||
+		/(?:اخصم|إخصم|خصم|انقص|نقص|قلل)/.test(userText)
+	if (increasesQuantity || decreasesQuantity) {
+		return {
+			draftItemAction: increasesQuantity
+				? 'increase_quantity'
+				: 'decrease_quantity',
+			itemQuery: draftEditItemQuery(userText),
+			quantity: requestedQuantity ?? undefined,
+		}
+	}
 	const setMatch = userText.match(
 		/\b(?:make|set|change|update)\s+(.+?)\s+(?:to\s+)?(\d+(?:[.,]\d+)?)\b/i,
 	)
@@ -1203,20 +1595,55 @@ function inferActiveDraftItemEdit(
 	if (/\b(?:clear|empty|remove all|delete all)\b/.test(normalized)) {
 		return { draftItemAction: 'clear_items' }
 	}
-	if (!/\b(?:remove|delete|drop|deduct)\b/.test(normalized)) return null
+	if (
+		!/\b(?:remove|delete|drop)\b/.test(normalized) &&
+		!/(?:شيل|احذف|امسح)/.test(userText)
+	) {
+		return null
+	}
 	const directRemove = userText.match(
-		/\b(?:remove|delete|drop|deduct)\s+(.+?)(?:\s+(?:from|too|actually|please|pls)\b|[.,;?!]|$)/i,
+		/\b(?:remove|delete|drop)\s+(.+?)(?:\s+(?:from|too|actually|please|pls)\b|[.,;?!]|$)/i,
 	)?.[1]
-	const itemQuery = (directRemove ?? userText)
-		.replace(/\b(?:remove|delete|drop|deduct)\b/gi, ' ')
-		.replace(/\b(?:from|in|the|this|that|draft|quote|item|line)\b/gi, ' ')
-		.replace(/\b(?:actually|please|pls|too|also)\b/gi, ' ')
-		.replace(/\s+/g, ' ')
-		.trim()
+	const itemQuery = draftEditItemQuery(directRemove ?? userText)
 	return {
 		draftItemAction: 'remove_item',
 		itemQuery: itemQuery || undefined,
 	}
+}
+
+function draftEditQuantityFromText(value: string): number | null {
+	const normalized = value
+		.replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+		.replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+	const match = normalized.match(/\d+(?:[.,]\d+)?/)
+	if (!match) return null
+	const quantity = Number.parseFloat(match[0].replace(',', '.'))
+	return normalizeDraftQuantity(quantity)
+}
+
+function draftEditItemQuery(value: string): string | undefined {
+	const query = value
+		.replace(/^\s*\/edit-cart\b/i, ' ')
+		.replace(
+			/\b(?:add|increase|plus|raise|boost|deduct|subtract|minus|decrease|reduce|take\s+off|remove|delete|drop|make|set|change|update)\b/gi,
+			' ',
+		)
+		.replace(
+			/(?:زود|زوّد|اضف|أضف|زيد|اخصم|إخصم|خصم|انقص|نقص|قلل|شيل|احذف|امسح|غير|غيّر)/g,
+			' ',
+		)
+		.replace(/[\d٠-٩۰-۹]+(?:[.,][\d٠-٩۰-۹]+)?/g, ' ')
+		.replace(
+			/\b(?:by|from|in|to|the|this|that|cart|draft|quote|item|line|qty|quantity|pieces?|pcs?|units?|actually|please|pls|too|also)\b/gi,
+			' ',
+		)
+		.replace(
+			/(?:من|في|الى|إلى|السله|السلة|المسوده|المسودة|البند|المنتج|الكميه|الكمية)/g,
+			' ',
+		)
+		.replace(/\s+/g, ' ')
+		.trim()
+	return query || undefined
 }
 
 function preserveUserDraftLineWording(
@@ -1846,16 +2273,12 @@ async function executePortalCustomerToolRequest(
 			}
 		}
 		case 'product_search': {
-			const catalog = isBroadCatalogReadRequest(userText)
-				? await loadVisibleProductCatalog(
-						supabase,
-						PRODUCT_CATALOG_CONTEXT_LIMIT,
-					)
-				: await findPublishedProducts(
-						supabase,
-						route.searchQuery || userText,
-						PRODUCT_CATALOG_RESULT_COUNT,
-					)
+			const catalog = await findPublishedProducts(
+				supabase,
+				route.searchQuery ||
+					(isBroadCatalogReadRequest(userText) ? '' : userText),
+				PRODUCT_CATALOG_RESULT_COUNT,
+			)
 			return {
 				context: {
 					catalogComplete: catalog.catalogComplete,
@@ -2045,6 +2468,7 @@ function draftWriteToolResult(
 }
 
 function draftWriteChanged(result: DraftWriteContext): boolean {
+	if (result.clarification || result.productChoice) return false
 	return Boolean(
 		result.draftId ||
 			result.clearThreadSessionKeys?.length ||
@@ -2489,6 +2913,20 @@ async function renderPortalCustomerResponse(
 	activeDraft: ActiveChatDraftContext | null,
 ): Promise<StreamChunk[]> {
 	const customEvents = richEventsForToolResult(result)
+	if (result.agentAnswer) {
+		const answer =
+			result.context.type === 'public_docs'
+				? appendDocsSources(
+						result.agentAnswer,
+						publicDocsSourceLinks(
+							result.context.docs.chunks,
+							result.context.docs.locale,
+						),
+						result.context.docs.locale,
+					)
+				: result.agentAnswer
+		return textOnlyChunks(answer, customEvents)
+	}
 
 	if (result.context.type === 'chat') {
 		const simpleAnswer = simpleCustomerChatAnswer(modelMessages)
@@ -2545,6 +2983,9 @@ async function renderPortalCustomerResponse(
 		return textOnlyChunks(fallbackText, customEvents)
 	}
 	if (result.context.type === 'draft_write') {
+		return textOnlyChunks(fallbackText, customEvents)
+	}
+	if (result.context.type === 'support_request') {
 		return textOnlyChunks(fallbackText, customEvents)
 	}
 	if (
@@ -2749,8 +3190,10 @@ function commandToolAnswer(
 	const commandName = result.route.commandName
 	if (!commandName) return fallbackText
 	switch (commandName) {
+		case '/commands':
 		case '/help':
 			return helpCommandAnswer()
+		case '/search-products':
 		case '/products':
 		case '/compare-products':
 		case '/recommend-materials':
@@ -2808,6 +3251,9 @@ function commandToolAnswer(
 				result.context.events,
 			)
 		case '/delete-draft':
+		case '/plan-quote':
+		case '/add-to-cart':
+		case '/edit-cart':
 		case '/clear-draft':
 		case '/remove-from-draft':
 		case '/rename-draft':
@@ -2846,11 +3292,14 @@ function commandToolAnswer(
 		case '/contact':
 			return supportCommandAnswer(commandName)
 		case '/feedback':
+		case '/ticket':
 			return result.context.type === 'support_request'
 				? supportRequestFallbackAnswer(result.context)
 				: [
-						'## Feedback',
-						'Send a short message after `/feedback`, or use the support button below.',
+						commandName === '/ticket' ? '## Draft a ticket' : '## Feedback',
+						commandName === '/ticket'
+							? 'Describe the issue after `/ticket`. Lyon will draft it for review and submit it only after your confirmation.'
+							: 'Send a short message after `/feedback`, or use the support button below.',
 					].join('\n')
 		case '/docs':
 		case '/docs-search':
@@ -2871,8 +3320,8 @@ function commandToolAnswer(
 
 function helpCommandAnswer(): string {
 	return [
-		'## Command Guide',
-		'Run safe shortcuts below, or prepare commands that need details.',
+		'## Lyon Command Desk',
+		'Choose a guided workflow or run a direct Portal tool. The desk remains available if open-ended AI chat is temporarily offline.',
 	].join('\n')
 }
 
@@ -3280,7 +3729,9 @@ function supportRequestFallbackAnswer(context: SupportRequestContext): string {
 		return `## Support Request\n\n${context.message ?? 'No support ticket was created.'}`
 	}
 	return [
-		'## Support Request',
+		'## Support ticket created',
+		'',
+		'Your support ticket has been created.',
 		'',
 		'| Field | Value |',
 		'| --- | --- |',
@@ -3350,7 +3801,10 @@ function productFallbackAnswer(
 
 function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 	const events: StreamChunk[] = []
-	if (result.route.commandName === '/help') {
+	if (
+		result.route.commandName === '/commands' ||
+		result.route.commandName === '/help'
+	) {
 		events.push(commandPaletteEvent())
 	}
 	if (
@@ -3407,6 +3861,11 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 			break
 		case 'draft_write':
 			events.push(draftCleanupEvent(result.context.result))
+			if (result.context.result.clarification) {
+				events.push(
+					clarificationSheetEvent(result.context.result.clarification),
+				)
+			}
 			if (result.context.result.productChoice) {
 				events.push(productChoiceListEvent(result.context.result.productChoice))
 			}
@@ -3417,13 +3876,25 @@ function richEventsForToolResult(result: PortalToolResult): StreamChunk[] {
 					),
 				)
 			}
-			if (result.context.result.tempDraft) {
+			if (
+				result.context.result.tempDraft &&
+				!result.context.result.productChoice &&
+				!result.context.result.clarification
+			) {
 				events.push(portalOpenDraftPanelEvent(result.context.result.tempDraft))
 			}
-			if (result.context.result.draftId) {
+			if (
+				result.context.result.draftId &&
+				!result.context.result.productChoice &&
+				!result.context.result.clarification
+			) {
 				events.push(portalOpenDraftPanelEvent(result.context.result.draftId))
 			}
-			if (result.context.result.items) {
+			if (
+				result.context.result.items &&
+				!result.context.result.productChoice &&
+				!result.context.result.clarification
+			) {
 				events.push(materialListEvent(result.context.result))
 			}
 			break
@@ -3726,18 +4197,38 @@ async function findPublishedProducts(
 	userText: string,
 	limit: number,
 ): Promise<ProductCatalogResult> {
-	const catalog = await loadVisibleProductCatalog(
-		supabase,
-		PRODUCT_CATALOG_CONTEXT_LIMIT,
-	)
+	return searchPortalCatalog(supabase, userText, limit, false)
+}
+
+async function searchPortalCatalog(
+	supabase: AuthedSupabase,
+	query: string,
+	limit: number,
+	orderableOnly: boolean,
+): Promise<ProductCatalogResult> {
+	const { data, error } = await supabase.rpc('service_search_portal_catalog', {
+		p_limit: limit,
+		p_orderable_only: orderableOnly,
+		p_query: query.trim(),
+	})
+	if (error) throw new Error(error.message)
+
+	const rows = data ?? []
+	const first = rows[0]
+	const totalMatches = first?.total_matches ?? 0
+	const totalVisibleProducts = first?.total_visible_products ?? 0
 	return {
-		...catalog,
-		products: rankProductsForPlanning(
-			catalog.products,
-			productIntentTerms(userText),
-			limit,
-		),
+		catalogComplete:
+			(query.trim() ? totalMatches : totalVisibleProducts) <= rows.length,
+		products: rows.map(portalAiProductFromSearchRow),
+		totalVisibleProducts,
 	}
+}
+
+function portalAiProductFromSearchRow(
+	row: Database['public']['Functions']['service_search_portal_catalog']['Returns'][number],
+): PortalAiProduct {
+	return row
 }
 
 async function loadVisibleProductCatalog(
@@ -3767,81 +4258,21 @@ async function findOrderableProductsForDraft(
 	searchText?: string,
 ): Promise<PortalAiProduct[]> {
 	const openEndedSelection = isOpenEndedCatalogSelectionRequest(userText)
-	const intentTerms = draftProductIntentTerms(userText)
-	if (intentTerms.length > 0 || openEndedSelection) {
-		let builder = supabase
-			.from('catalog_product_hierarchy')
-			.select(PORTAL_AI_PRODUCT_SELECT)
-			.eq('is_active', true)
-			.neq('availability_status', 'hidden')
-			.neq('availability_status', 'out_of_stock')
-			.order('name', { ascending: true })
-			.limit(OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE)
-		const query = openEndedSelection ? null : productSearchTerm(userText)
-		const filter = query ? publicProductSearchFilter(query) : ''
-		if (filter) builder = builder.or(filter)
-		const { data, error } = await builder
-		if (error) throw new Error(error.message)
-		const products = (data ?? []) as PortalAiProduct[]
-		if (openEndedSelection && intentTerms.length === 0) {
-			return deterministicProductSample(
-				products,
-				userText,
-				OPEN_ENDED_DRAFT_ITEM_COUNT,
-			)
-		}
-		return rankProductsForPlanning(
-			products,
-			intentTerms,
-			openEndedSelection ? OPEN_ENDED_DRAFT_ITEM_COUNT : 8,
-		)
-	}
-
-	const query = openEndedSelection
-		? null
-		: productSearchTerm(searchText?.trim() || userText)
-	const limit = openEndedSelection ? OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE : 8
-	let builder = supabase
-		.from('catalog_product_hierarchy')
-		.select(PORTAL_AI_PRODUCT_SELECT)
-		.eq('is_active', true)
-		.neq('availability_status', 'hidden')
-		.neq('availability_status', 'out_of_stock')
-		.order('name', { ascending: true })
-		.limit(limit)
-	if (query) {
-		const filter = publicProductSearchFilter(query)
-		if (filter) builder = builder.or(filter)
-	}
-
-	const { data, error } = await builder
-	if (error) throw new Error(error.message)
-	const products = (data ?? []) as PortalAiProduct[]
-	if (!openEndedSelection && query && products.length === 0) {
-		return loadOrderableDraftProductPool(supabase)
-	}
+	const query = openEndedSelection ? '' : searchText?.trim() || userText.trim()
+	const catalog = await searchPortalCatalog(
+		supabase,
+		query,
+		openEndedSelection ? OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE : 12,
+		true,
+	)
+	const products = catalog.products
 	return openEndedSelection
 		? deterministicProductSample(
 				products,
 				userText,
 				OPEN_ENDED_DRAFT_ITEM_COUNT,
 			)
-		: products
-}
-
-async function loadOrderableDraftProductPool(
-	supabase: AuthedSupabase,
-): Promise<PortalAiProduct[]> {
-	const { data, error } = await supabase
-		.from('catalog_product_hierarchy')
-		.select(PORTAL_AI_PRODUCT_SELECT)
-		.eq('is_active', true)
-		.neq('availability_status', 'hidden')
-		.neq('availability_status', 'out_of_stock')
-		.order('name', { ascending: true })
-		.limit(OPEN_ENDED_DRAFT_PRODUCT_POOL_SIZE)
-	if (error) throw new Error(error.message)
-	return (data ?? []) as PortalAiProduct[]
+		: products.slice(0, 8)
 }
 
 async function createDraftFromPlan(
@@ -4048,7 +4479,10 @@ async function addItemsToTempDraft(
 		return {
 			items: currentItems,
 			message: resolvedItems.message,
-			productChoice: resolvedItems.productChoice,
+			productChoice: productChoiceWithExistingItems(
+				resolvedItems.productChoice,
+				currentItems,
+			),
 			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
 		}
 	}
@@ -4104,6 +4538,212 @@ function mergeDraftMaterialItems(
 	return merged
 }
 
+function draftEditClarification(
+	route: PortalCustomerToolRequest,
+	userText: string,
+	items: DraftMaterialItem[],
+	workspaceLabel: string,
+	targetReference: string,
+): ClarificationSheetData | null {
+	if (items.length === 0) return null
+	const inferred =
+		inferActiveDraftItemEdit(userText) ??
+		inferDraftItemEdit(userText) ??
+		inferActiveDraftItemEdit(route.searchQuery || '') ??
+		inferDraftItemEdit(route.searchQuery || '')
+	const action = route.draftItemAction ?? inferred?.draftItemAction
+	if (action === 'clear_items' || action === 'set_item_notes') return null
+	const itemQuery = route.itemQuery ?? inferred?.itemQuery
+	const previousQuantity = route.previousQuantity ?? inferred?.previousQuantity
+	const target = findActiveTempDraftItemTarget(
+		items,
+		itemQuery,
+		previousQuantity,
+	)
+	const selectedItem = typeof target === 'number' ? items[target] : undefined
+	const quantity = route.quantity ?? inferred?.quantity
+	const locale = detectPortalAiLocale(userText)
+	const questions: ClarificationSheetData['questions'] = []
+
+	if (!action) {
+		questions.push({
+			id: 'operation',
+			kind: 'choice',
+			label: 'What should I change?',
+			labelAr: 'تحب أغيّر إيه؟',
+			options: draftEditOperationOptions(),
+			required: true,
+		})
+	}
+	if (!selectedItem) {
+		questions.push({
+			id: 'item',
+			kind: 'choice',
+			label: `Which ${workspaceLabel} item?`,
+			labelAr:
+				workspaceLabel === 'cart' ? 'أي بند في السلة؟' : 'أي بند في المسودة؟',
+			options: items.slice(0, 40).map((item, index) => ({
+				effect: draftEditEffect(action),
+				id: item.productId ?? `line-${index}`,
+				itemQuery: item.name,
+				label: `${item.name} · ${item.qty} ${item.unit}`,
+				labelAr: `${item.nameAr || item.name} · ${item.qty} ${item.unitAr || item.unit}`,
+				previousQuantity: item.qty,
+			})),
+			required: true,
+		})
+	}
+	if (!quantity && action !== 'remove_item') {
+		questions.push({
+			id: 'quantity',
+			kind: 'number',
+			label: draftEditQuantityLabel(action, false),
+			labelAr: draftEditQuantityLabel(action, true),
+			placeholder: 'Enter quantity',
+			placeholderAr: 'اكتب الكمية',
+			required: true,
+			visibleForDraftItemActions: [
+				'decrease_quantity',
+				'increase_quantity',
+				'set_quantity',
+			],
+		})
+	}
+	if (questions.length === 0) return null
+
+	const knownFacts: ClarificationSheetData['knownFacts'] = []
+	if (action) {
+		knownFacts.push({
+			label: 'Change',
+			labelAr: 'التغيير',
+			value: draftEditActionLabel(action, false),
+			valueAr: draftEditActionLabel(action, true),
+		})
+	}
+	if (selectedItem) {
+		knownFacts.push({
+			label: 'Item',
+			labelAr: 'البند',
+			value: selectedItem.name,
+			valueAr: selectedItem.nameAr,
+		})
+		knownFacts.push({
+			label: 'Current quantity',
+			labelAr: 'الكمية الحالية',
+			value: `${selectedItem.qty} ${selectedItem.unit}`,
+			valueAr: `${selectedItem.qty} ${selectedItem.unitAr}`,
+		})
+	}
+	if (quantity) {
+		knownFacts.push({
+			label: 'Requested quantity',
+			labelAr: 'الكمية المطلوبة',
+			value: String(quantity),
+		})
+	}
+
+	return {
+		action: {
+			action: 'update_draft_items',
+			draftItemAction: action,
+			itemQuery: selectedItem?.name ?? itemQuery,
+			previousQuantity: selectedItem?.qty ?? previousQuantity,
+			quantity,
+			searchQuery: route.searchQuery || userText,
+			targetReference,
+		},
+		description:
+			locale === 'ar'
+				? 'اختر المعلومة الناقصة فقط. لن أغيّر أي بند قبل اكتمال التفاصيل.'
+				: 'Choose only the missing detail. Nothing changes until the edit is clear.',
+		knownFacts,
+		locale,
+		mode: 'draft_edit',
+		questions,
+		submitLabel: 'Apply this change',
+		submitLabelAr: 'طبّق التغيير',
+		title:
+			locale === 'ar'
+				? `تعديل ${workspaceLabel === 'cart' ? 'السلة' : 'المسودة'}`
+				: `Edit ${workspaceLabel}`,
+	}
+}
+
+function draftEditOperationOptions(): NonNullable<
+	ClarificationSheetData['questions'][number]['options']
+> {
+	return [
+		{
+			draftItemAction: 'increase_quantity',
+			effect: 'increase',
+			id: 'increase',
+			label: 'Add to its quantity',
+			labelAr: 'زوّد على الكمية',
+		},
+		{
+			draftItemAction: 'decrease_quantity',
+			effect: 'decrease',
+			id: 'decrease',
+			label: 'Deduct from its quantity',
+			labelAr: 'اخصم من الكمية',
+		},
+		{
+			draftItemAction: 'set_quantity',
+			effect: 'neutral',
+			id: 'set',
+			label: 'Set an exact quantity',
+			labelAr: 'حدد كمية نهائية',
+		},
+		{
+			draftItemAction: 'remove_item',
+			effect: 'decrease',
+			id: 'remove',
+			label: 'Remove the item',
+			labelAr: 'احذف البند',
+		},
+	]
+}
+
+function draftEditEffect(
+	action: PortalDraftItemAction | undefined,
+): 'decrease' | 'increase' | 'neutral' {
+	if (action === 'increase_quantity') return 'increase'
+	if (action === 'decrease_quantity' || action === 'remove_item') {
+		return 'decrease'
+	}
+	return 'neutral'
+}
+
+function draftEditActionLabel(
+	action: PortalDraftItemAction,
+	isArabic: boolean,
+): string {
+	const labels: Record<PortalDraftItemAction, [string, string]> = {
+		clear_items: ['Clear all items', 'افرغ كل البنود'],
+		decrease_quantity: ['Deduct quantity', 'اخصم كمية'],
+		increase_quantity: ['Add quantity', 'زوّد كمية'],
+		remove_item: ['Remove item', 'احذف البند'],
+		set_item_notes: ['Update item note', 'حدّث ملاحظة البند'],
+		set_quantity: ['Set exact quantity', 'حدد كمية نهائية'],
+	}
+	return labels[action][isArabic ? 1 : 0]
+}
+
+function draftEditQuantityLabel(
+	action: PortalDraftItemAction | undefined,
+	isArabic: boolean,
+): string {
+	if (action === 'increase_quantity') {
+		return isArabic ? 'تضيف كمية قد إيه؟' : 'How much should I add?'
+	}
+	if (action === 'decrease_quantity') {
+		return isArabic ? 'تخصم كمية قد إيه؟' : 'How much should I deduct?'
+	}
+	return isArabic
+		? 'الكمية النهائية كام؟'
+		: 'What should the final quantity be?'
+}
+
 async function updateTempDraftItems(
 	supabase: AuthedSupabase,
 	route: PortalCustomerToolRequest,
@@ -4118,6 +4758,21 @@ async function updateTempDraftItems(
 		inferDraftItemEdit(route.searchQuery || '')
 	const action = route.draftItemAction ?? inferred?.draftItemAction
 	const currentItems = activeTempDraftItems(activeDraft)
+	const clarification = draftEditClarification(
+		route,
+		userText,
+		currentItems,
+		workspaceLabel,
+		activeDraft.id ?? activeDraft.sessionKey ?? 'active',
+	)
+	if (clarification) {
+		return {
+			clarification,
+			items: currentItems,
+			message: clarification.description,
+			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
+		}
+	}
 	if (!action) {
 		return {
 			items: currentItems,
@@ -4134,8 +4789,8 @@ async function updateTempDraftItems(
 	}
 	const target = findActiveTempDraftItemTarget(
 		currentItems,
-		inferred?.itemQuery ?? route.itemQuery,
-		inferred?.previousQuantity ?? route.previousQuantity,
+		route.itemQuery ?? inferred?.itemQuery,
+		route.previousQuantity ?? inferred?.previousQuantity,
 	)
 	if (typeof target === 'string') {
 		return {
@@ -4162,13 +4817,35 @@ async function updateTempDraftItems(
 			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
 		}
 	}
-	const quantity = normalizeDraftQuantity(
-		inferred?.quantity ?? route.quantity ?? 0,
+	const requestedQuantity = normalizeDraftQuantity(
+		route.quantity ?? inferred?.quantity ?? 0,
 	)
-	if (!quantity) {
+	if (!requestedQuantity) {
 		return {
 			items: currentItems,
 			message: 'Tell me the new quantity for that item.',
+			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
+		}
+	}
+	const currentItem = currentItems[target]
+	if (!currentItem) throw new Error('Draft item target is missing')
+	const quantity = draftEditFinalQuantity(
+		action,
+		currentItem.qty,
+		requestedQuantity,
+	)
+	if (!quantity) {
+		const correction = draftEditClarification(
+			{ ...route, quantity: undefined },
+			userText,
+			currentItems,
+			workspaceLabel,
+			activeDraft.id ?? activeDraft.sessionKey ?? 'active',
+		)
+		return {
+			clarification: correction ?? undefined,
+			items: currentItems,
+			message: `The deduction must be smaller than the current quantity of ${currentItem.qty}.`,
 			tempDraft: activeTempDraftPayload(activeDraft, currentItems),
 		}
 	}
@@ -4191,9 +4868,47 @@ async function updateTempDraftItems(
 	)
 	return {
 		items: nextItems,
-		message: `I set ${currentItems[target]?.name ?? 'that line'} to ${quantity} in the ${workspaceLabel}.`,
+		message: draftEditSuccessMessage(
+			action,
+			currentItem.name,
+			currentItem.qty,
+			requestedQuantity,
+			quantity,
+			workspaceLabel,
+		),
 		tempDraft: activeTempDraftPayload(activeDraft, nextItems),
 	}
+}
+
+function draftEditFinalQuantity(
+	action: PortalDraftItemAction,
+	currentQuantity: number,
+	requestedQuantity: number,
+): number | null {
+	if (action === 'increase_quantity') {
+		return normalizeDraftQuantity(currentQuantity + requestedQuantity)
+	}
+	if (action === 'decrease_quantity') {
+		return normalizeDraftQuantity(currentQuantity - requestedQuantity)
+	}
+	return normalizeDraftQuantity(requestedQuantity)
+}
+
+function draftEditSuccessMessage(
+	action: PortalDraftItemAction,
+	itemName: string,
+	fromQuantity: number,
+	requestedQuantity: number,
+	toQuantity: number,
+	workspaceLabel: string,
+): string {
+	if (action === 'increase_quantity') {
+		return `I added ${requestedQuantity} to ${itemName} in the ${workspaceLabel}, from ${fromQuantity} to ${toQuantity}.`
+	}
+	if (action === 'decrease_quantity') {
+		return `I deducted ${requestedQuantity} from ${itemName} in the ${workspaceLabel}, from ${fromQuantity} to ${toQuantity}.`
+	}
+	return `I set ${itemName} to ${toQuantity} in the ${workspaceLabel}.`
 }
 
 function findActiveTempDraftItemTarget(
@@ -4431,7 +5146,10 @@ async function addItemsToDraft(
 			items: sortedQuoteRequestItems(draft).map(toDraftMaterialItem),
 			reference: draft.request_number,
 			message: resolvedItems.message,
-			productChoice: resolvedItems.productChoice,
+			productChoice: productChoiceWithExistingItems(
+				resolvedItems.productChoice,
+				sortedQuoteRequestItems(draft).map(toDraftMaterialItem),
+			),
 		}
 	}
 	const { items, unavailableQueries: resolvedUnavailableQueries } =
@@ -5002,6 +5720,23 @@ async function updateDraftItems(
 	const currentItems = sortedQuoteRequestItems(draft)
 	const inferred = inferDraftItemEdit(route.searchQuery || userText)
 	const action = route.draftItemAction ?? inferred?.draftItemAction
+	const clarification = draftEditClarification(
+		route,
+		userText,
+		currentItems.map(toDraftMaterialItem),
+		'draft',
+		draft.id,
+	)
+	if (clarification) {
+		return {
+			clarification,
+			draftId: draft.id,
+			editRoute: `/orders/edit/${draft.id}`,
+			items: currentItems.map(toDraftMaterialItem),
+			message: clarification.description,
+			reference: draft.request_number,
+		}
+	}
 
 	if (!action) {
 		return {
@@ -5127,9 +5862,13 @@ async function updateDraftItems(
 		}
 	}
 
-	if (action === 'set_quantity') {
-		const quantity = route.quantity ?? inferred?.quantity
-		if (!quantity) {
+	if (
+		action === 'set_quantity' ||
+		action === 'increase_quantity' ||
+		action === 'decrease_quantity'
+	) {
+		const requestedQuantity = route.quantity ?? inferred?.quantity
+		if (!requestedQuantity) {
 			return {
 				draftId: draft.id,
 				editRoute: `/orders/edit/${draft.id}`,
@@ -5137,6 +5876,28 @@ async function updateDraftItems(
 				reference: draft.request_number,
 				message:
 					'Tell me the new quantity for that item, for example "set Wood to 340 pieces".',
+			}
+		}
+		const quantity = draftEditFinalQuantity(
+			action,
+			item.quantity,
+			requestedQuantity,
+		)
+		if (!quantity) {
+			const correction = draftEditClarification(
+				{ ...route, quantity: undefined },
+				userText,
+				currentItems.map(toDraftMaterialItem),
+				'draft',
+				draft.id,
+			)
+			return {
+				clarification: correction ?? undefined,
+				draftId: draft.id,
+				editRoute: `/orders/edit/${draft.id}`,
+				items: currentItems.map(toDraftMaterialItem),
+				message: `The deduction must be smaller than the current quantity of ${item.quantity}.`,
+				reference: draft.request_number,
 			}
 		}
 		const { error } = await supabase
@@ -5168,7 +5929,14 @@ async function updateDraftItems(
 			editRoute: `/orders/edit/${draft.id}`,
 			items: materialItems,
 			reference: draft.request_number,
-			message: `I changed ${draftItemDisplayName(item)} in ${draft.request_number} from ${item.quantity} to ${quantity} ${item.unit_of_measure}.`,
+			message: draftEditSuccessMessage(
+				action,
+				draftItemDisplayName(item),
+				item.quantity,
+				requestedQuantity,
+				quantity,
+				draft.request_number,
+			),
 		}
 	}
 
@@ -5989,10 +6757,12 @@ async function buildDraftItemsFromRequestedLines(
 			resolvedLines.push(confirmedDraftLineFromResolvedProduct(line, product))
 			continue
 		}
-		const broadChoiceQuery = isBroadDraftChoiceQuery(line.query)
-		const products = broadChoiceQuery
-			? await loadOrderableDraftProductPool(supabase)
-			: await findOrderableProductsForDraft(supabase, line.query, line.query)
+		const products = await findOrderableProductsForDraft(
+			supabase,
+			line.query,
+			line.query,
+		)
+		const broadChoiceQuery = catalogCandidatesNeedFacetClarification(products)
 		const candidateProducts = broadChoiceQuery
 			? productsMatchingDraftHierarchyQuery(products, line.query)
 			: products
@@ -6113,6 +6883,7 @@ function confirmedDraftLineFromResolvedProduct(
 function draftLineRequiresQuantity(
 	line: ReturnType<typeof parsePortalDraftMaterialRequestLines>[number],
 ): boolean {
+	if (!Number.isFinite(line.quantity) || line.quantity <= 0) return true
 	const numericParts = line.rawText.match(/\d+(?:[,.]\d+)?/g) ?? []
 	if (numericParts.length === 0) return true
 	return !numericParts.some((part) => {
@@ -6126,6 +6897,7 @@ function draftProductChoiceGroupFromLine(
 	products: PortalAiProduct[],
 ): DraftProductChoiceGroup {
 	return {
+		candidateProducts: products,
 		choiceKind: 'product',
 		options: products.map((product) => ({ product })),
 		pendingChoiceId:
@@ -6145,6 +6917,7 @@ function draftHierarchyChoiceGroupFromLine(
 	const nodes = hierarchyChoiceNodesForDraftProducts(products)
 	if (nodes.length <= 1) return null
 	return {
+		candidateProducts: products,
 		choiceKind: 'hierarchy',
 		options: nodes.map((node) => ({ node })),
 		pendingChoiceId:
@@ -6155,6 +6928,24 @@ function draftHierarchyChoiceGroupFromLine(
 		rawText: line.rawText,
 		unitHint: line.unitHint,
 	}
+}
+
+function catalogCandidatesNeedFacetClarification(
+	products: PortalAiProduct[],
+): boolean {
+	const families = new Set<string>()
+	const manufacturers = new Set<string>()
+	for (const product of products) {
+		const family = normalizeForMatch(
+			product.product_family_slug ?? product.product_family_name ?? '',
+		)
+		if (family) families.add(family)
+		const manufacturer = normalizeForMatch(
+			product.manufacturer ?? product.brand ?? '',
+		)
+		if (manufacturer) manufacturers.add(manufacturer)
+	}
+	return families.size > 1 || manufacturers.size > 1
 }
 
 function productsMatchingDraftHierarchyQuery(
@@ -6293,6 +7084,13 @@ function draftProductChoiceResolution(
 			unavailableQueries,
 		},
 	}
+}
+
+function productChoiceWithExistingItems(
+	context: DraftProductChoiceContext | undefined,
+	existingItems: DraftMaterialItem[],
+): DraftProductChoiceContext | undefined {
+	return context ? { ...context, existingItems } : undefined
 }
 
 function buildDraftItemsFromPlan(
@@ -6976,7 +7774,10 @@ function draftCleanupEvent(result: DraftWriteContext): StreamChunk {
 	}
 }
 
-function commandPaletteEvent(): StreamChunk {
+function commandPaletteEvent(options?: {
+	description?: string
+	title?: string
+}): StreamChunk {
 	const groups = commandPaletteGroups()
 	return {
 		type: 'CUSTOM' as const,
@@ -6986,9 +7787,10 @@ function commandPaletteEvent(): StreamChunk {
 			type: 'command_palette',
 			data: {
 				description:
-					'Run safe shortcuts directly, or prepare commands that need a target, product, date, or message.',
+					options?.description ??
+					'Tell Lyon what you want through a guided command, or run a direct Portal tool for your catalog, cart, drafts, orders, account, docs, and support.',
 				groups,
-				title: 'Portal Command Desk',
+				title: options?.title ?? 'What should we do next?',
 			} satisfies CommandPaletteData,
 		},
 	}
@@ -7082,6 +7884,7 @@ function commandPaletteGroups(): CommandPaletteData['groups'] {
 
 function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 	switch (result.route.commandName) {
+		case '/commands':
 		case '/help':
 			return [
 				actionButtonEvent({
@@ -7103,6 +7906,7 @@ function toolActionEvents(result: PortalToolResult): StreamChunk[] {
 					route: '/market',
 				}),
 			]
+		case '/search-products':
 		case '/products':
 		case '/compare-products':
 		case '/recommend-materials':
@@ -7462,6 +8266,57 @@ function productChoiceListEvent(
 	}
 }
 
+function clarificationSheetEvent(data: ClarificationSheetData): StreamChunk {
+	return {
+		type: 'CUSTOM' as const,
+		timestamp: Date.now(),
+		name: 'rich_message',
+		value: {
+			type: 'clarification_sheet',
+			data,
+		},
+	}
+}
+
+function draftChoiceActionLines(
+	context: DraftProductChoiceContext,
+	selectedGroup: DraftProductChoiceGroup,
+	selection?: { productId?: string; query?: string },
+): PortalConfirmedDraftLinePayload[] {
+	return [
+		...context.baseLines,
+		{
+			pendingChoiceId: selectedGroup.pendingChoiceId,
+			...(selection?.productId ? { productId: selection.productId } : {}),
+			query: selection?.query ?? selectedGroup.query,
+			quantity: selectedGroup.quantity,
+			rawText: selectedGroup.rawText,
+			unitHint: selectedGroup.unitHint,
+		},
+		...context.groups
+			.filter(
+				(group) => group.pendingChoiceId !== selectedGroup.pendingChoiceId,
+			)
+			.map((group) => ({
+				pendingChoiceId: group.pendingChoiceId,
+				query: group.query,
+				quantity: group.quantity,
+				rawText: group.rawText,
+				unitHint: group.unitHint,
+			})),
+	]
+}
+
+function draftGroupQuantityRequired(group: DraftProductChoiceGroup): boolean {
+	if (!Number.isFinite(group.quantity) || group.quantity <= 0) return true
+	const numericParts = group.rawText.match(/\d+(?:[,.]\d+)?/g) ?? []
+	if (numericParts.length === 0) return true
+	return !numericParts.some((part) => {
+		const value = Number.parseFloat(part.replace(/,/g, ''))
+		return Number.isFinite(value) && Math.abs(value - group.quantity) < 0.0001
+	})
+}
+
 function productChoiceListData(
 	context: DraftProductChoiceContext,
 ): ProductChoiceListData {
@@ -7519,9 +8374,14 @@ function productChoiceListOption(
 	if (!product) {
 		throw new Error('Product choice option is missing a product')
 	}
+	const existingItem = context.existingItems?.find(
+		(item) => item.productId === product.id,
+	)
 	return {
 		action: productChoiceAction(context, group, option),
 		category: catalogHierarchyPath(product, context.locale),
+		currentQuantity: existingItem?.qty,
+		effect: existingItem ? 'increase' : 'new_line',
 		name: product.name,
 		nameAr: product.name_ar ?? product.name,
 		priceRange: formatPriceRange(product, context.locale),
@@ -7541,12 +8401,7 @@ function productChoiceQuantityRequired(
 	group: DraftProductChoiceGroup,
 ): boolean {
 	if (group.choiceKind === 'hierarchy') return false
-	const numericParts = group.rawText.match(/\d+(?:[,.]\d+)?/g) ?? []
-	if (numericParts.length === 0) return true
-	return !numericParts.some((part) => {
-		const value = Number.parseFloat(part.replace(/,/g, ''))
-		return Number.isFinite(value) && Math.abs(value - group.quantity) < 0.0001
-	})
+	return draftGroupQuantityRequired(group)
 }
 
 function productChoiceAction(
@@ -7582,28 +8437,10 @@ function productChoiceActionDraftLines(
 	const selectedNode = selectedOption.node
 	const selectedQuery =
 		selectedProduct?.name ?? selectedNode?.query ?? selectedGroup.query
-	return [
-		...context.baseLines,
-		{
-			pendingChoiceId: selectedGroup.pendingChoiceId,
-			productId: selectedProduct?.id,
-			query: selectedQuery,
-			quantity: selectedGroup.quantity,
-			rawText: selectedGroup.rawText,
-			unitHint: selectedGroup.unitHint,
-		},
-		...context.groups
-			.filter(
-				(group) => group.pendingChoiceId !== selectedGroup.pendingChoiceId,
-			)
-			.map((group) => ({
-				pendingChoiceId: group.pendingChoiceId,
-				query: group.query,
-				quantity: group.quantity,
-				rawText: group.rawText,
-				unitHint: group.unitHint,
-			})),
-	]
+	return draftChoiceActionLines(context, selectedGroup, {
+		productId: selectedProduct?.id,
+		query: selectedQuery,
+	})
 }
 
 function customerOrdersInvalidationEvent(): StreamChunk {
@@ -7684,16 +8521,57 @@ async function streamWithCustomEvents(
 ): Promise<StreamChunk[]> {
 	const chunks: StreamChunk[] = []
 	let finishChunk: StreamChunk | null = null
+	let aiUnavailable = false
 	for await (const chunk of streamChat(messages, systemPrompt)) {
 		if (chunk.type === 'RUN_FINISHED') {
 			finishChunk = chunk
 			continue
 		}
+		if (
+			chunk.type === 'TEXT_MESSAGE_CONTENT' &&
+			chunk.delta === AI_UNAVAILABLE_MESSAGE
+		) {
+			aiUnavailable = true
+			chunks.push({
+				...chunk,
+				delta:
+					detectPortalAiLocale(lastUserMessageText(messages)) === 'ar'
+						? 'أنا غير متصل مؤقتًا للمحادثة المفتوحة، لكن أدوات البوابة ما زالت شغالة. استخدم `/commands` أو اختر أداة بالأسفل وسأكمل معك.'
+						: 'I’m temporarily offline for open-ended conversation, but your Portal tools are still live. Use `/commands` or choose a tool below and I’ll keep working with you.',
+			})
+			continue
+		}
 		chunks.push(chunk)
 	}
 	chunks.push(...customEvents)
+	if (
+		aiUnavailable &&
+		!customEvents.some(
+			(event) =>
+				event.type === 'CUSTOM' &&
+				event.name === 'rich_message' &&
+				(event.value as { type?: string } | undefined)?.type ===
+					'command_palette',
+		)
+	) {
+		chunks.push(
+			commandPaletteEvent({
+				description:
+					'Open-ended AI is temporarily unavailable. These deterministic Portal tools still let you search products, manage the cart and drafts, inspect orders, read docs, and draft support tickets.',
+				title: 'Lyon is still ready to work',
+			}),
+		)
+	}
 	if (finishChunk) chunks.push(finishChunk)
 	return chunks
+}
+
+function lastUserMessageText(messages: ChatMessageInput[]): string {
+	for (let index = messages.length - 1; index >= 0; index -= 1) {
+		const message = messages[index]
+		if (message?.role === 'user') return message.content
+	}
+	return ''
 }
 
 function textOnlyChunks(
@@ -7739,33 +8617,6 @@ function modelChatMessages(messages: ChatMessageInput[]): ChatMessageInput[] {
 		role: message.role,
 		content: message.content.slice(0, MODEL_CHAT_MESSAGE_CHARACTERS),
 	}))
-}
-
-function publicProductSearchFilter(search: string): string | null {
-	const term = search
-		.replace(/[,%*()]/g, ' ')
-		.replace(/\s+/g, ' ')
-		.trim()
-	if (!term) return null
-	const pattern = `*${term}*`
-	return [
-		`name.ilike.${pattern}`,
-		`name_ar.ilike.${pattern}`,
-		`sku.ilike.${pattern}`,
-		`category.ilike.${pattern}`,
-		`category_name.ilike.${pattern}`,
-		`category_name_ar.ilike.${pattern}`,
-		`product_family_name.ilike.${pattern}`,
-		`product_family_name_ar.ilike.${pattern}`,
-		`product_type_name.ilike.${pattern}`,
-		`product_type_name_ar.ilike.${pattern}`,
-		`subcategory.ilike.${pattern}`,
-		`subcategory_ar.ilike.${pattern}`,
-		`brand.ilike.${pattern}`,
-		`manufacturer.ilike.${pattern}`,
-		`description.ilike.${pattern}`,
-		`description_ar.ilike.${pattern}`,
-	].join(',')
 }
 
 function rankProductsForPlanning(
@@ -7908,7 +8759,7 @@ async function recordPortalAiAudit(
 		.join('')
 	const { error } = await supabase.rpc('record_ai_tool_call', {
 		p_agent_scope: 'portal',
-		p_approved_by_user: isDraftWriteAction(result.route.action),
+		p_approved_by_user: result.route.confirmedAction === true,
 		p_input_summary: {
 			customer_id: customerId,
 			prompt: userText.slice(0, 240),

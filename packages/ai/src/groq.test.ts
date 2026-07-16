@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
 	completeChat,
 	completeChatWithTools,
+	completeChatWithToolsFromMessages,
 	isAIEnabled,
 	runtimeEnvValue,
 	streamChat,
@@ -162,6 +163,62 @@ describe('Groq runtime env', () => {
 		})
 	})
 
+	it('continues tool conversations with assistant calls and tool results intact', async () => {
+		process.env.GROQ_API_KEY = 'operator-key'
+		process.env.GROQ_URL = 'https://groq.test/openai/v1/chat/completions'
+
+		const fetchMock = vi.fn<typeof fetch>(async () =>
+			Response.json({
+				choices: [
+					{ message: { content: 'The matching product is available.' } },
+				],
+			}),
+		)
+		vi.stubGlobal('fetch', fetchMock)
+
+		const toolCall = {
+			function: { arguments: '{"query":"plywod"}', name: 'search_catalog' },
+			id: 'call_catalog',
+			type: 'function' as const,
+		}
+		await expect(
+			completeChatWithToolsFromMessages(
+				[
+					{ role: 'system', content: 'Use tools.' },
+					{ role: 'user', content: 'Do you have plywod?' },
+					{ role: 'assistant', content: null, tool_calls: [toolCall] },
+					{
+						role: 'tool',
+						name: 'search_catalog',
+						tool_call_id: 'call_catalog',
+						content: '{"products":[{"name":"Film Faced Plywood"}]}',
+					},
+				],
+				[],
+				{ toolChoice: 'required' },
+			),
+		).resolves.toEqual({
+			content: 'The matching product is available.',
+			toolCalls: [],
+		})
+
+		expect(
+			JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)),
+		).toMatchObject({
+			messages: [
+				{ role: 'system' },
+				{ role: 'user' },
+				{ role: 'assistant', tool_calls: [toolCall] },
+				{
+					role: 'tool',
+					name: 'search_catalog',
+					tool_call_id: 'call_catalog',
+				},
+			],
+			tool_choice: 'required',
+		})
+	})
+
 	it('falls back to a non-streaming completion when streaming drops before text', async () => {
 		process.env.GROQ_API_KEY = 'normal-key'
 		process.env.GROQ_MODEL = 'openai/gpt-oss-120b'
@@ -210,5 +267,36 @@ describe('Groq runtime env', () => {
 		expect(
 			JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)),
 		).toMatchObject({ stream: false })
+	})
+
+	it('does not expose provider errors when both completion attempts fail', async () => {
+		process.env.GROQ_API_KEY = 'normal-key'
+		process.env.GROQ_URL = 'https://groq.test/openai/v1/chat/completions'
+
+		vi.stubGlobal(
+			'fetch',
+			vi.fn<typeof fetch>(async () =>
+				Promise.resolve(
+					new Response('provider account and quota details', { status: 429 }),
+				),
+			),
+		)
+
+		const chunks = []
+		for await (const chunk of streamChat(
+			[{ role: 'user', content: 'hi' }],
+			'system',
+		)) {
+			chunks.push(chunk)
+		}
+
+		const answer = chunks
+			.filter((chunk) => chunk.type === 'TEXT_MESSAGE_CONTENT')
+			.map((chunk) => chunk.delta)
+			.join('')
+		expect(answer).toBe(
+			"I'm having trouble connecting right now. Please try again in a moment.",
+		)
+		expect(answer).not.toContain('provider account')
 	})
 })

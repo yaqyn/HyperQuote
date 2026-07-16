@@ -7,6 +7,7 @@ type TableAlign = 'center' | 'left' | 'right' | null
 type MarkdownBlock =
 	| { depth: number; text: string; type: 'heading' }
 	| { text: string; type: 'paragraph' }
+	| { text: string; type: 'blockquote' }
 	| { items: string[]; ordered: boolean; type: 'list' }
 	| {
 			align: TableAlign[]
@@ -74,6 +75,16 @@ function parseMarkdown(content: string): MarkdownBlock[] {
 				type: 'heading',
 			})
 			index += 1
+			continue
+		}
+
+		if (/^\s*>\s?/.test(line)) {
+			const quoteLines: string[] = []
+			while (index < lines.length && /^\s*>\s?/.test(lines[index] ?? '')) {
+				quoteLines.push((lines[index] ?? '').replace(/^\s*>\s?/, '').trim())
+				index += 1
+			}
+			blocks.push({ text: quoteLines.join(' '), type: 'blockquote' })
 			continue
 		}
 
@@ -148,6 +159,15 @@ function renderBlock(
 				<p key={`paragraph:${index}`} className="leading-[inherit]">
 					{renderInlineMarkdown(block.text, isArabic, `paragraph:${index}`)}
 				</p>
+			)
+		case 'blockquote':
+			return (
+				<blockquote
+					key={`blockquote:${index}`}
+					className="rounded-e-lg border-s-2 border-[var(--p-accent)] bg-[var(--p-surface-subtle)] px-3 py-2 font-sans text-[13px] leading-6 text-[var(--p-text-secondary)]"
+				>
+					{renderInlineMarkdown(block.text, isArabic, `blockquote:${index}`)}
+				</blockquote>
 			)
 		case 'list': {
 			const ListTag = block.ordered ? 'ol' : 'ul'
@@ -267,7 +287,7 @@ function renderTableBlock(
 							return (
 								<tr
 									key={`table:${index}:row:${rowKey}`}
-									className="border-b border-[var(--p-border)] last:border-b-0"
+									className="border-b border-[var(--p-border)] transition-colors last:border-b-0 hover:bg-[var(--p-hover)]"
 								>
 									{row.map((cell, cellIndex) => {
 										const cellKey = stableKey(
@@ -448,6 +468,7 @@ function isSpecialStart(lines: string[], index: number): boolean {
 		/^\s*```/.test(line) ||
 		/^\s*---+\s*$/.test(line) ||
 		/^\s*#{1,4}\s+/.test(line) ||
+		/^\s*>\s?/.test(line) ||
 		isTableAt(lines, index) ||
 		Boolean(matchListLine(line))
 	)

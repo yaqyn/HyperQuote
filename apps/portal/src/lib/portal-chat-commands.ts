@@ -1,6 +1,87 @@
 import type { CommandPaletteData } from './chat-types'
 
+type PortalChatCommandCategory =
+	| 'Start here'
+	| 'Workspace'
+	| 'Catalog'
+	| 'Drafts'
+	| 'Orders'
+	| 'Account'
+	| 'Support'
+
+export interface PortalChatCommandDefinition {
+	argumentHint?: string
+	category: PortalChatCommandCategory
+	description: string
+	example?: string
+	featured?: boolean
+	inputMode: 'prefill' | 'run'
+	name: `/${string}`
+	scope: 'local' | 'server'
+	title: string
+}
+
 export const PORTAL_CHAT_COMMANDS = [
+	{
+		category: 'Start here',
+		description:
+			'Turn a project idea or material list into a quote plan, one clear question at a time.',
+		example: '/plan-quote villa roof with wood and rebar',
+		featured: true,
+		inputMode: 'prefill',
+		name: '/plan-quote',
+		scope: 'server',
+		title: 'Plan a quote',
+		argumentHint: 'Describe the project, materials, quantities, or constraints',
+	},
+	{
+		category: 'Start here',
+		description:
+			'Find real catalog matches by material, type, company, specification, or a misspelled name.',
+		example: '/search-products red brik from El Sewedy',
+		featured: true,
+		inputMode: 'prefill',
+		name: '/search-products',
+		scope: 'server',
+		title: 'Search products',
+		argumentHint: 'What product, material, company, or specification?',
+	},
+	{
+		category: 'Start here',
+		description:
+			'Add a product and quantity to the live quote cart; Lyon asks only for missing details.',
+		example: '/add-to-cart 400 rebar',
+		featured: true,
+		inputMode: 'prefill',
+		name: '/add-to-cart',
+		scope: 'server',
+		title: 'Add to cart',
+		argumentHint: 'What should I add, and how much?',
+	},
+	{
+		category: 'Start here',
+		description:
+			'Increase, deduct, set, replace, or remove a cart item with progressive clarification.',
+		example: '/edit-cart deduct 100 plywood',
+		featured: true,
+		inputMode: 'prefill',
+		name: '/edit-cart',
+		scope: 'server',
+		title: 'Edit cart',
+		argumentHint: 'What should change? Include the item and quantity if known',
+	},
+	{
+		category: 'Start here',
+		description:
+			'Draft a support ticket, review it, and submit only after your confirmation.',
+		example: '/ticket delivery address is not updating',
+		featured: true,
+		inputMode: 'prefill',
+		name: '/ticket',
+		scope: 'server',
+		title: 'Draft a ticket',
+		argumentHint: 'Describe the problem or request',
+	},
 	{
 		category: 'Workspace',
 		description: 'Start a clean chat page without contacting the server.',
@@ -11,11 +92,21 @@ export const PORTAL_CHAT_COMMANDS = [
 	},
 	{
 		category: 'Workspace',
+		description:
+			'Open the full interactive command desk. This works even when open-ended AI chat is unavailable.',
+		featured: true,
+		inputMode: 'run',
+		name: '/commands',
+		scope: 'local',
+		title: 'Command desk',
+	},
+	{
+		category: 'Workspace',
 		description: 'Show this command menu without contacting the server.',
 		inputMode: 'run',
 		name: '/help',
 		scope: 'local',
-		title: 'Command guide',
+		title: 'Command desk alias',
 	},
 	{
 		category: 'Catalog',
@@ -330,12 +421,10 @@ export const PORTAL_CHAT_COMMANDS = [
 		scope: 'server',
 		title: 'Docs search',
 	},
-] as const
+] as const satisfies readonly PortalChatCommandDefinition[]
 
 export type PortalChatCommandName =
 	(typeof PORTAL_CHAT_COMMANDS)[number]['name']
-type PortalChatCommandCategory =
-	(typeof PORTAL_CHAT_COMMANDS)[number]['category']
 export type PortalChatCommandInputMode =
 	(typeof PORTAL_CHAT_COMMANDS)[number]['inputMode']
 
@@ -380,8 +469,30 @@ export function portalChatCommandInputMode(
 	)
 }
 
+export function portalChatCommandDefinition(
+	name: PortalChatCommandName,
+): PortalChatCommandDefinition | undefined {
+	return PORTAL_CHAT_COMMANDS.find((command) => command.name === name)
+}
+
+function commandPaletteEntry(
+	command: PortalChatCommandDefinition,
+): CommandPaletteData['groups'][number]['commands'][number] {
+	return {
+		argumentHint: command.argumentHint,
+		command: command.name,
+		description: command.description,
+		example: command.example,
+		featured: command.featured,
+		inputMode: command.inputMode,
+		scope: command.scope,
+		title: command.title,
+	}
+}
+
 export function portalChatCommandPaletteGroups(): CommandPaletteData['groups'] {
 	const order: PortalChatCommandCategory[] = [
+		'Start here',
 		'Workspace',
 		'Catalog',
 		'Drafts',
@@ -393,13 +504,7 @@ export function portalChatCommandPaletteGroups(): CommandPaletteData['groups'] {
 		.map((category) => ({
 			commands: PORTAL_CHAT_COMMANDS.filter(
 				(command) => command.category === category,
-			).map((command) => ({
-				command: command.name,
-				description: command.description,
-				inputMode: command.inputMode,
-				scope: command.scope,
-				title: command.title,
-			})),
+			).map(commandPaletteEntry),
 			title: category,
 		}))
 		.filter((group) => group.commands.length > 0)

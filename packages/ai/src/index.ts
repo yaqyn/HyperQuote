@@ -1,4 +1,5 @@
 export {
+	AI_UNAVAILABLE_MESSAGE,
 	type ChatRequestMessage,
 	type ChatToolCall,
 	type ChatToolCompletion,
@@ -6,6 +7,7 @@ export {
 	completeChat,
 	completeChatFromMessages,
 	completeChatWithTools,
+	completeChatWithToolsFromMessages,
 	isAIEnabled,
 	streamChat,
 } from './groq'

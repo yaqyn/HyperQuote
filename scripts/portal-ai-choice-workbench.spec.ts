@@ -42,157 +42,456 @@ const STRESS_SESSION_CASES: WorkbenchCase[] = [
 		expectNotText:
 			/Standard Freight Quote|Express Air Quote|Customs Brokerage|six are the only|only six/i,
 		expectText:
-			/Cement[\s\S]*Plywood[\s\S]*Ready Mix[\s\S]*Rebar[\s\S]*Steel Angle[\s\S]*Steel Mesh[\s\S]*Timber Beam[\s\S]*White Cement[\s\S]*Wood/i,
+			/Beshay Rebar[\s\S]*Cemex Ready Mix[\s\S]*Egyptian Steel Mesh[\s\S]*Film Faced Plywood[\s\S]*Lafarge Portland Cement[\s\S]*Marine Plywood/i,
 		prompt:
 			"boss mode, what do u have in products rn? quick catalog dump, don't freestyle",
 	},
 	{
 		expectDraft: [
-			{ name: 'Plywood', quantity: 200 },
-			{ name: 'Steel Mesh', quantity: 2000 },
-			{ name: 'Cement', quantity: 10 },
+			{ name: 'Film Faced Plywood 18mm', quantity: 200 },
+			{ name: 'Egyptian Steel Mesh A142', quantity: 2000 },
+			{ name: 'Lafarge Portland Cement', quantity: 10 },
 		],
 		expectAbsentDraft: ['Milk'],
 		expectText: /did not add: milk/i,
 		prompt:
 			'hook me up with 200 wood, 1000 milk and 2000 steel... maybe also some 10 cement just for good old days',
-		selections: ['Plywood', 'Steel Mesh', 'Cement'],
+		selections: [
+			'Plywood',
+			'Film Faced Plywood 18mm',
+			'Steel Mesh',
+			'Egyptian Steel Mesh A142',
+			'Portland Cement',
+			'Lafarge Portland Cement',
+		],
 	},
 	{
 		expectDraft: [
-			{ name: 'Plywood', quantity: 200 },
-			{ name: 'Steel Mesh', quantity: 2000 },
-			{ name: 'Cement', quantity: 10 },
-			{ name: 'White Cement', quantity: 44 },
-			{ name: 'Ready Mix', quantity: 12 },
+			{ name: 'Film Faced Plywood 18mm', quantity: 200 },
+			{ name: 'Egyptian Steel Mesh A142', quantity: 2000 },
+			{ name: 'Lafarge Portland Cement', quantity: 10 },
+			{ name: 'Ezz Al Arab White Cement', quantity: 44 },
+			{ name: 'Cemex Ready Mix Concrete C25', quantity: 12 },
 		],
 		prompt: 'also add 44 white cement and 12 ready mix to that same thing, thx',
+		selections: ['Ezz Al Arab White Cement', 'Cemex Ready Mix Concrete C25'],
 	},
 	{
 		expectDraft: [
-			{ name: 'Plywood', quantity: 200 },
-			{ name: 'Steel Mesh', quantity: 2000 },
-			{ name: 'Cement', quantity: 10 },
-			{ name: 'White Cement', quantity: 44 },
-			{ name: 'Ready Mix', quantity: 12 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Timber Beam', quantity: 90 },
+			{ name: 'Film Faced Plywood 18mm', quantity: 200 },
+			{ name: 'Egyptian Steel Mesh A142', quantity: 2000 },
+			{ name: 'Lafarge Portland Cement', quantity: 10 },
+			{ name: 'Ezz Al Arab White Cement', quantity: 44 },
+			{ name: 'Cemex Ready Mix Concrete C25', quantity: 12 },
+			{ name: 'Beshay Rebar 16mm', quantity: 800 },
+			{ name: 'Swedish Pine Timber', quantity: 90 },
 		],
 		prompt:
 			'how about some 800 steel too, plus 90 timber, same draft, moving fast',
-		selections: ['Rebar'],
+		selections: [
+			'Rebar',
+			'Beshay Rebar 16mm',
+			'Structural Timber',
+			'Swedish Pine Timber',
+		],
 	},
 	{
 		expectDraft: [
-			{ name: 'Plywood', quantity: 200 },
-			{ name: 'Steel Mesh', quantity: 2000 },
-			{ name: 'Cement', quantity: 10 },
-			{ name: 'White Cement', quantity: 44 },
-			{ name: 'Ready Mix', quantity: 12 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Timber Beam', quantity: 90 },
-			{ name: 'Steel Angle', quantity: 75 },
+			{ name: 'Film Faced Plywood 18mm', quantity: 200 },
+			{ name: 'Egyptian Steel Mesh A142', quantity: 2000 },
+			{ name: 'Lafarge Portland Cement', quantity: 10 },
+			{ name: 'Ezz Al Arab White Cement', quantity: 44 },
+			{ name: 'Cemex Ready Mix Concrete C25', quantity: 12 },
+			{ name: 'Beshay Rebar 16mm', quantity: 800 },
+			{ name: 'Swedish Pine Timber', quantity: 90 },
+			{ name: 'Suez Steel Angle Profile', quantity: 75 },
 		],
 		prompt:
 			'forgot profiles: put 75 steel angle in there, dont wipe the old stuff',
 	},
 	{
 		expectDraft: [
-			{ name: 'Plywood', quantity: 1800 },
-			{ name: 'Steel Mesh', quantity: 2000 },
-			{ name: 'Cement', quantity: 10 },
-			{ name: 'White Cement', quantity: 44 },
-			{ name: 'Ready Mix', quantity: 12 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Timber Beam', quantity: 90 },
-			{ name: 'Steel Angle', quantity: 75 },
+			{ name: 'Film Faced Plywood 18mm', quantity: 1800 },
+			{ name: 'Egyptian Steel Mesh A142', quantity: 2000 },
+			{ name: 'Lafarge Portland Cement', quantity: 10 },
+			{ name: 'Ezz Al Arab White Cement', quantity: 44 },
+			{ name: 'Cemex Ready Mix Concrete C25', quantity: 12 },
+			{ name: 'Beshay Rebar 16mm', quantity: 800 },
+			{ name: 'Swedish Pine Timber', quantity: 90 },
+			{ name: 'Suez Steel Angle Profile', quantity: 75 },
 		],
 		prompt: 'repeat check: make plywood 1800. plywood one eight zero zero.',
 	},
 	{
 		expectDraft: [
-			{ name: 'Plywood', quantity: 1800 },
-			{ name: 'Steel Mesh', quantity: 2000 },
-			{ name: 'Cement', quantity: 10 },
-			{ name: 'White Cement', quantity: 44 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Timber Beam', quantity: 90 },
-			{ name: 'Steel Angle', quantity: 75 },
+			{ name: 'Film Faced Plywood 18mm', quantity: 1800 },
+			{ name: 'Egyptian Steel Mesh A142', quantity: 2000 },
+			{ name: 'Lafarge Portland Cement', quantity: 10 },
+			{ name: 'Ezz Al Arab White Cement', quantity: 44 },
+			{ name: 'Beshay Rebar 16mm', quantity: 800 },
+			{ name: 'Swedish Pine Timber', quantity: 90 },
+			{ name: 'Suez Steel Angle Profile', quantity: 75 },
 		],
 		expectAbsentDraft: ['Ready Mix'],
 		prompt: 'deduct ready mix from this draft, actually remove ready mix',
 	},
 	{
 		expectDraft: [
-			{ name: 'Plywood', quantity: 1800 },
-			{ name: 'Steel Mesh', quantity: 2000 },
-			{ name: 'Cement', quantity: 10 },
-			{ name: 'White Cement', quantity: 44 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Timber Beam', quantity: 125 },
-			{ name: 'Steel Angle', quantity: 75 },
+			{ name: 'Film Faced Plywood 18mm', quantity: 1800 },
+			{ name: 'Egyptian Steel Mesh A142', quantity: 2000 },
+			{ name: 'Lafarge Portland Cement', quantity: 10 },
+			{ name: 'Ezz Al Arab White Cement', quantity: 44 },
+			{ name: 'Beshay Rebar 16mm', quantity: 800 },
+			{ name: 'Swedish Pine Timber', quantity: 125 },
+			{ name: 'Suez Steel Angle Profile', quantity: 75 },
 		],
 		expectAbsentDraft: ['Ready Mix'],
 		prompt: 'make timber beam 125, repeat: timber beam one two five',
 	},
 	{
 		expectDraft: [
-			{ name: 'Plywood', quantity: 1800 },
-			{ name: 'Cement', quantity: 10 },
-			{ name: 'White Cement', quantity: 44 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Timber Beam', quantity: 125 },
-			{ name: 'Steel Angle', quantity: 75 },
+			{ name: 'Film Faced Plywood 18mm', quantity: 1800 },
+			{ name: 'Lafarge Portland Cement', quantity: 10 },
+			{ name: 'Ezz Al Arab White Cement', quantity: 44 },
+			{ name: 'Beshay Rebar 16mm', quantity: 800 },
+			{ name: 'Swedish Pine Timber', quantity: 125 },
+			{ name: 'Suez Steel Angle Profile', quantity: 75 },
 		],
 		expectAbsentDraft: ['Ready Mix', 'Steel Mesh'],
 		prompt: 'drop steel mesh too; too much mesh, remove it',
 	},
 	{
 		expectDraft: [
-			{ name: 'Plywood', quantity: 1800 },
-			{ name: 'Cement', quantity: 10 },
-			{ name: 'White Cement', quantity: 44 },
-			{ name: 'Rebar', quantity: 800 },
-			{ name: 'Timber Beam', quantity: 125 },
-			{ name: 'Steel Angle', quantity: 75 },
-			{ name: 'Wood', quantity: 33 },
+			{ name: 'Film Faced Plywood 18mm', quantity: 1800 },
+			{ name: 'Lafarge Portland Cement', quantity: 10 },
+			{ name: 'Ezz Al Arab White Cement', quantity: 44 },
+			{ name: 'Beshay Rebar 16mm', quantity: 800 },
+			{ name: 'Swedish Pine Timber', quantity: 125 },
+			{ name: 'Suez Steel Angle Profile', quantity: 75 },
+			{ name: 'Romanian Whitewood Timber', quantity: 33 },
 		],
 		expectAbsentDraft: ['Ready Mix', 'Steel Mesh'],
 		prompt: 'now add 33 wood pieces, not plywood, actual wood line',
-		selections: ['Wood'],
+		selections: ['Structural Timber', 'Romanian Whitewood Timber'],
 	},
 ]
 
 test.describe.configure({ mode: 'serial' })
 
+test('portal command desk is discoverable and guides command details locally', async ({
+	browser,
+}) => {
+	test.setTimeout(90_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await page
+			.getByRole('button', { exact: true, name: 'Lyon commands' })
+			.click()
+		const desk = page
+			.locator('section')
+			.filter({ hasText: 'What should we do next?' })
+			.last()
+		await expect(desk).toBeVisible()
+		await expect(desk).toContainText('Start here')
+		await expect(desk.getByText('/plan-quote', { exact: true })).toBeVisible()
+		await expect(
+			desk.getByText('/search-products', { exact: true }),
+		).toBeVisible()
+		await expect(desk.getByText('/add-to-cart', { exact: true })).toBeVisible()
+		await expect(desk.getByText('/edit-cart', { exact: true })).toBeVisible()
+		await expect(desk.getByText('/ticket', { exact: true })).toBeVisible()
+		await page.screenshot({
+			fullPage: true,
+			path: '/tmp/hyperquote-command-desk.png',
+		})
+
+		const editCard = desk
+			.getByText('/edit-cart', { exact: true })
+			.locator('xpath=ancestor::div[./button][1]')
+		await editCard.getByRole('button', { name: 'Tell Lyon' }).click()
+		const input = page.locator('[data-chat-input]').last()
+		await expect(input).toHaveValue('/edit-cart ')
+		await expect(input).toHaveAttribute('placeholder', /what should change/i)
+		await expect(
+			page.getByText(/missing details are asked one at a time/i),
+		).toBeVisible()
+
+		await input.fill('/does-not-exist')
+		await input.press('Enter')
+		await expect(
+			page.getByRole('heading', { name: 'Command not found' }),
+		).toBeVisible()
+		await expect(page.getByText(/nothing ran/i)).toBeVisible()
+	} finally {
+		await context.close()
+	}
+})
+
+test('portal AI keeps known facts and asks only for a missing quantity', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await sendPortalChat(page, 'i want plywood')
+		await expectProductChoiceCard(page)
+		const productChoice = page.locator('[data-product-choice-list]').last()
+		const startingQuantity = await readCartQuantity(
+			page,
+			'Film Faced Plywood 18mm',
+		)
+		await expect(productChoice.locator('input')).toHaveCount(0)
+		await productChoice
+			.getByRole('button', {
+				name: productChoiceButtonRegex('Film Faced Plywood 18mm'),
+			})
+			.click()
+		const quantity = productChoice.getByLabel(/quantity for plywood/i)
+		await expect(quantity).toBeFocused()
+		await expect(page.getByText('Draft materials')).toHaveCount(0)
+		await quantity.fill('80')
+		await quantity.press('Enter')
+		await waitForPortalChatIdle(page)
+		await expectDraftLine(page, {
+			name: 'Film Faced Plywood 18mm',
+			quantity: startingQuantity + 80,
+		})
+	} finally {
+		await context.close()
+	}
+})
+
+test('portal AI does not ask for a quantity it already understood', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await sendPortalChat(page, 'I need 2000 wood')
+		await expectProductChoiceCard(page)
+		const startingQuantity = await readCartQuantity(page, 'Marine Plywood 18mm')
+		await expect(
+			page.locator('[data-product-choice-list]').last().locator('input'),
+		).toHaveCount(0)
+		await chooseProduct(page, 'Plywood')
+		await chooseProduct(page, 'Marine Plywood 18mm')
+		await expectDraftLine(page, {
+			name: 'Marine Plywood 18mm',
+			quantity: startingQuantity + 2000,
+		})
+	} finally {
+		await context.close()
+	}
+})
+
+test('portal AI resolves mixed Arabic and misspelled catalog requests', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await sendPortalChat(page, 'عايز 25 plywod أبلكاش')
+		await expectProductChoiceCard(page)
+		const startingQuantity = await readCartQuantity(page, 'Marine Plywood 18mm')
+		await expect(
+			page.getByRole('button', {
+				name: productChoiceButtonRegex('Film Faced Plywood 18mm'),
+			}),
+		).toBeVisible()
+		await chooseProduct(page, 'Marine Plywood 18mm')
+		await expectDraftLine(page, {
+			name: 'Marine Plywood 18mm',
+			quantity: startingQuantity + 25,
+		})
+	} finally {
+		await context.close()
+	}
+})
+
+test('portal AI drafts a support ticket and submits it only after confirmation', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await sendPortalChat(
+			page,
+			'Please draft a support ticket: the delivery address on my latest order is wrong.',
+		)
+		await expect(
+			page.getByRole('button', { name: 'Submit ticket' }),
+		).toBeVisible({
+			timeout: 30_000,
+		})
+		await expect(page.getByText(/Support ticket submitted/i)).toHaveCount(0)
+		await page.getByRole('button', { name: 'Submit ticket' }).click()
+		const confirmation = page.getByRole('dialog', { name: 'Confirm action' })
+		await expect(confirmation).toBeVisible()
+		await expect(page.locator('body')).not.toContainText(/SUP-/i)
+		await confirmation.getByRole('button', { name: 'Submit ticket' }).click()
+		await waitForPortalChatIdle(page)
+		await expect(
+			page.getByText(/support ticket has been created/i).last(),
+		).toBeVisible({
+			timeout: 30_000,
+		})
+		await expect(page.locator('body')).toContainText(/TK-\d{4}-[A-Z0-9]+/i)
+	} finally {
+		await context.close()
+	}
+})
+
+test('portal AI progressively clarifies an underspecified cart edit', async ({
+	browser,
+}) => {
+	test.setTimeout(240_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		let startingPlywood = await readCartQuantity(
+			page,
+			'Film Faced Plywood 18mm',
+		)
+		let startingMesh = await readCartQuantity(page, 'Egyptian Steel Mesh A142')
+		if (startingPlywood <= 25) {
+			await sendPortalChat(page, 'I want 100 Film Faced Plywood 18mm')
+			startingPlywood += 100
+			await expectDraftLine(page, {
+				name: 'Film Faced Plywood 18mm',
+				quantity: startingPlywood,
+			})
+			await closeCartIfOpen(page)
+		}
+		if (startingMesh <= 0) {
+			await sendPortalChat(page, 'add 50 Egyptian Steel Mesh A142 to my cart')
+			startingMesh += 50
+			await expectDraftLine(page, {
+				name: 'Egyptian Steel Mesh A142',
+				quantity: startingMesh,
+			})
+			await closeCartIfOpen(page)
+		}
+
+		await sendPortalChat(page, 'edit an item in my cart')
+		const sheet = await expectClarificationSheet(page)
+		await expect(
+			sheet.getByRole('button', { name: 'Add to its quantity' }),
+		).toBeVisible()
+		await expect(
+			sheet.getByText(/Film Faced Plywood 18mm · \d+(?:\.\d+)? sheet/),
+		).toHaveCount(0)
+		await sheet
+			.getByRole('button', { name: 'Deduct from its quantity' })
+			.click()
+		const plywoodLine = sheet.getByRole('button', {
+			name: /Film Faced Plywood 18mm · \d+(?:\.\d+)? sheet/,
+		})
+		await expect(plywoodLine).toBeVisible()
+		const quantityBeforeEdit = Number.parseFloat(
+			(await plywoodLine.textContent())?.match(/·\s*(\d+(?:\.\d+)?)/)?.[1] ??
+				'',
+		)
+		expect(quantityBeforeEdit).toBeGreaterThan(25)
+		await expect(plywoodLine).toHaveClass(/red-500/)
+		await plywoodLine.click()
+		const quantity = sheet.getByLabel('How much should I deduct?')
+		await expect(quantity).toBeFocused()
+		await expect(quantity.locator('xpath=..')).toHaveClass(/red-500/)
+		await quantity.fill('25')
+		await sheet.getByRole('button', { name: 'Apply this change' }).click()
+		await waitForPortalChatIdle(page)
+		await expect(
+			page.getByText(/I deducted 25 from Film Faced Plywood 18mm/i).last(),
+		).toBeVisible({ timeout: 30_000 })
+		await page.waitForTimeout(800)
+		const quantityAfterEdit = await readCartQuantity(
+			page,
+			'Film Faced Plywood 18mm',
+		)
+		expect(
+			quantityAfterEdit,
+			`Expected ${quantityBeforeEdit} - 25 in the live cart`,
+		).toBe(quantityBeforeEdit - 25)
+	} finally {
+		await context.close()
+	}
+})
+
+test('portal AI labels new and additive product choices', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await removeCartLineIfPresent(page, 'Marine Plywood 18mm')
+		let startingPlywood = await readCartQuantity(
+			page,
+			'Film Faced Plywood 18mm',
+		)
+		if (startingPlywood <= 0) {
+			await sendPortalChat(page, 'I want 100 Film Faced Plywood 18mm')
+			startingPlywood = 100
+			await expectDraftLine(page, {
+				name: 'Film Faced Plywood 18mm',
+				quantity: startingPlywood,
+			})
+		}
+		await sendPortalChat(page, 'add 20 plywood to my cart')
+		await expectProductChoiceCard(page)
+		await expect(
+			page.getByText(`Add to existing · ${startingPlywood}`),
+		).toBeVisible()
+		await expect(page.getByText('New market item').first()).toBeVisible()
+		const increaseButton = page.getByRole('button', {
+			name: productChoiceButtonRegex('Film Faced Plywood 18mm'),
+		})
+		await expect(increaseButton).toHaveClass(/emerald-600/)
+	} finally {
+		await context.close()
+	}
+})
+
+test('portal AI keeps one shared quantity across multiple requested materials', async ({
+	browser,
+}) => {
+	test.setTimeout(180_000)
+	const env = readLocalSupabaseEnv()
+	const { context, page } = await openCustomerPortal(browser, env)
+	try {
+		await sendPortalChat(page, 'i want rebar and steel both 400')
+		await expectProductChoiceCard(page)
+		const productChoice = page.locator('[data-product-choice-list]').last()
+		await expect(
+			productChoice.getByText(/quantity you gave: 400/i),
+		).toBeVisible()
+		await expect(productChoice.locator('input')).toHaveCount(0)
+		await expect(page.getByText(/options for 2 items/i).first()).toBeVisible()
+	} finally {
+		await context.close()
+	}
+})
+
 test('portal AI product-choice workbench survives one 10-prompt pre-production stress session', async ({
 	browser,
 }) => {
-	test.setTimeout(600_000)
+	test.setTimeout(900_000)
 	const env = readLocalSupabaseEnv()
-	const failures: string[] = []
 
 	const { context, page } = await openCustomerPortal(browser, env)
 	try {
-		for (const [index, workbenchCase] of STRESS_SESSION_CASES.entries()) {
-			const label = `${index + 1}/${STRESS_SESSION_CASES.length} ${workbenchCase.prompt}`
-			try {
-				await runWorkbenchCase(page, workbenchCase)
-			} catch (error) {
-				const debugState = await readWorkbenchDebugState(page).catch(
-					(debugError) =>
-						`Could not read page state: ${debugError instanceof Error ? debugError.message : debugError}`,
-				)
-				failures.push(
-					`${label}: ${error instanceof Error ? error.message : error}\n${debugState}`,
-				)
-			}
+		await clearCartForWorkbench(page)
+		for (const workbenchCase of STRESS_SESSION_CASES) {
+			await runWorkbenchCase(page, workbenchCase)
 		}
 	} finally {
 		await context.close()
 	}
-
-	expect(failures).toEqual([])
 })
 
 test('portal AI product choices keep noisy material requests inside the right family', async ({
@@ -204,37 +503,37 @@ test('portal AI product choices keep noisy material requests inside the right fa
 		{
 			absent: [
 				'Rebar',
-				'Steel Angle',
 				'Steel Mesh',
+				'Steel Profiles',
 				'Plywood',
-				'Timber Beam',
-				'Wood',
+				'Formwork Boards',
+				'Structural Timber',
 			],
-			present: ['Cement', 'Ready Mix', 'White Cement'],
+			present: ['Portland Cement', 'Ready Mix Concrete', 'White Cement'],
 			prompt: '301 cement. make it fast :D',
 		},
 		{
 			absent: [
-				'Cement',
-				'Ready Mix',
+				'Portland Cement',
+				'Ready Mix Concrete',
 				'White Cement',
 				'Plywood',
-				'Timber Beam',
-				'Wood',
+				'Formwork Boards',
+				'Structural Timber',
 			],
-			present: ['Rebar', 'Steel Angle', 'Steel Mesh'],
+			present: ['Rebar', 'Steel Mesh', 'Steel Profiles'],
 			prompt: '222 steel. rush please',
 		},
 		{
 			absent: [
-				'Cement',
-				'Ready Mix',
+				'Portland Cement',
+				'Ready Mix Concrete',
 				'White Cement',
 				'Rebar',
-				'Steel Angle',
 				'Steel Mesh',
+				'Steel Profiles',
 			],
-			present: ['Plywood', 'Wood'],
+			present: ['Plywood', 'Formwork Boards', 'Structural Timber'],
 			prompt: '333 wood. urgent if possible',
 		},
 	]) {
@@ -273,30 +572,44 @@ test('portal AI lets customers choose quantity before adding a product choice', 
 	const env = readLocalSupabaseEnv()
 	const { context, page } = await openCustomerPortal(browser, env)
 	try {
+		await clearCartForWorkbench(page)
 		await sendPortalChat(page, 'hey, i want some cement')
 		await expectProductChoiceCard(page)
 		await expect(
 			page.getByText(/If you did not give a quantity/i).last(),
 		).toBeVisible({ timeout: 30_000 })
-		await expect(page.getByLabel(/quantity for cement/i)).toHaveCount(0)
+		await expect(page.getByLabel(/quantity for .*cement/i)).toHaveCount(0)
 		await page
-			.getByRole('button', { name: productChoiceButtonRegex('Cement') })
+			.getByRole('button', {
+				name: productChoiceButtonRegex('Portland Cement'),
+			})
 			.last()
 			.click()
-		const quantityInput = page.getByLabel(/quantity for cement/i).last()
+		await expectProductChoiceCard(page)
+		await page
+			.getByRole('button', {
+				name: productChoiceButtonRegex('Lafarge Portland Cement'),
+			})
+			.last()
+			.click()
+		const quantityInput = page.getByLabel(/quantity for .*cement/i).last()
 		await expect(quantityInput).toBeVisible({ timeout: 30_000 })
 		await expect(quantityInput).toBeFocused()
 		await quantityInput.fill('0')
-		await expect(page.getByLabel(/quantity for cement/i)).toHaveCount(0)
+		await expect(page.getByLabel(/quantity for .*cement/i)).toHaveCount(0)
 		await expect(page.getByText('Draft materials')).toHaveCount(0, {
 			timeout: 3_000,
 		})
 		await expectProductChoiceCard(page)
 		await page
-			.getByRole('button', { name: productChoiceButtonRegex('Cement') })
+			.getByRole('button', {
+				name: productChoiceButtonRegex('Lafarge Portland Cement'),
+			})
 			.last()
 			.click()
-		const reopenedQuantityInput = page.getByLabel(/quantity for cement/i).last()
+		const reopenedQuantityInput = page
+			.getByLabel(/quantity for .*cement/i)
+			.last()
 		await expect(reopenedQuantityInput).toBeVisible({ timeout: 30_000 })
 		await reopenedQuantityInput.fill('')
 		await reopenedQuantityInput.press('Enter')
@@ -307,7 +620,10 @@ test('portal AI lets customers choose quantity before adding a product choice', 
 		await reopenedQuantityInput.fill('301')
 		await reopenedQuantityInput.press('Enter')
 		await waitForPortalChatIdle(page)
-		await expectDraftLine(page, { name: 'Cement', quantity: 301 })
+		await expectDraftLine(page, {
+			name: 'Lafarge Portland Cement',
+			quantity: 301,
+		})
 	} finally {
 		await context.close()
 	}
@@ -316,25 +632,54 @@ test('portal AI lets customers choose quantity before adding a product choice', 
 test('portal AI asks before adding ambiguous follow-up materials to an active draft', async ({
 	browser,
 }) => {
-	test.setTimeout(240_000)
+	test.setTimeout(360_000)
 	const env = readLocalSupabaseEnv()
 	const { context, page } = await openCustomerPortal(browser, env)
 	try {
+		await clearCartForWorkbench(page)
 		await sendPortalChat(page, 'hey, i want some wood')
 		await expectProductChoiceCard(page)
-		await chooseProductWithQuantity(page, 'Plywood', /quantity for wood/i, 500)
-		await expectDraftLine(page, { name: 'Plywood', quantity: 500 })
+		await chooseProduct(page, 'Plywood')
+		await chooseProductWithQuantity(
+			page,
+			'Film Faced Plywood 18mm',
+			/quantity for .*wood/i,
+			500,
+		)
+		await expectDraftLine(page, {
+			name: 'Film Faced Plywood 18mm',
+			quantity: 500,
+		})
 
 		await sendPortalChat(page, 'how about some cement')
 		await expectProductChoiceCard(page)
-		await expectDraftLine(page, { name: 'Plywood', quantity: 500 })
-		for (const productName of ['Cement', 'Ready Mix', 'White Cement']) {
+		await expectDraftLine(page, {
+			name: 'Film Faced Plywood 18mm',
+			quantity: 500,
+		})
+		for (const productName of [
+			'Lafarge Portland Cement',
+			'Cemex Ready Mix Concrete C25',
+			'Ezz Al Arab White Cement',
+		]) {
 			await expectNoDraftLine(page, productName)
 		}
 
-		await chooseProductWithQuantity(page, 'Cement', /quantity for cement/i, 301)
-		await expectDraftLine(page, { name: 'Plywood', quantity: 500 })
-		await expectDraftLine(page, { name: 'Cement', quantity: 301 })
+		await chooseProduct(page, 'Portland Cement')
+		await chooseProductWithQuantity(
+			page,
+			'Lafarge Portland Cement',
+			/quantity for .*cement/i,
+			301,
+		)
+		await expectDraftLine(page, {
+			name: 'Film Faced Plywood 18mm',
+			quantity: 500,
+		})
+		await expectDraftLine(page, {
+			name: 'Lafarge Portland Cement',
+			quantity: 301,
+		})
 		await expectNoDraftLine(page, 'Ready Mix')
 		await expectNoDraftLine(page, 'White Cement')
 	} finally {
@@ -563,13 +908,12 @@ async function openCustomerPortal(
 	await context.addCookies(
 		await createAuthCookies(env, CUSTOMER, CUSTOMER_COOKIE, PORTAL_URL),
 	)
-	const page = await context.newPage()
-	await page.goto(PORTAL_URL, { waitUntil: 'domcontentloaded' })
-	await page.evaluate(() => {
+	await context.addInitScript(() => {
 		window.localStorage.removeItem('hq-portal-chat')
 		window.sessionStorage.removeItem('hq-portal-chat-draft-workspace:v1')
 	})
-	await page.reload({ waitUntil: 'domcontentloaded' })
+	const page = await context.newPage()
+	await page.goto(PORTAL_URL, { waitUntil: 'domcontentloaded' })
 	await waitForHydration(page)
 	if (/\/login/.test(page.url())) {
 		await signInWithEmailPassword(page)
@@ -592,6 +936,7 @@ async function signInWithEmailPassword(page: Page) {
 
 async function sendPortalChat(page: Page, text: string) {
 	await waitForPortalChatIdle(page)
+	await closeCartIfOpen(page)
 	const input = page.locator('[data-chat-input]').last()
 	await expect(input).toBeEnabled({ timeout: 30_000 })
 	await input.fill(text)
@@ -602,6 +947,7 @@ async function sendPortalChat(page: Page, text: string) {
 
 async function chooseProduct(page: Page, productName: string) {
 	await waitForPortalChatIdle(page)
+	await closeCartIfOpen(page)
 	await expectProductChoiceCard(page)
 	const button = page
 		.getByRole('button', { name: productChoiceButtonRegex(productName) })
@@ -618,6 +964,7 @@ async function chooseProductWithQuantity(
 	quantity: number,
 ) {
 	await waitForPortalChatIdle(page)
+	await closeCartIfOpen(page)
 	await expectProductChoiceCard(page)
 	const button = page
 		.getByRole('button', { name: productChoiceButtonRegex(productName) })
@@ -633,14 +980,20 @@ async function chooseProductWithQuantity(
 }
 
 async function expectProductChoiceCard(page: Page) {
-	await expect(
-		page.getByText(/Pick the product that matches your request/i).last(),
-	).toBeVisible({ timeout: 30_000 })
+	await expect(page.locator('[data-product-choice-list]').last()).toBeVisible({
+		timeout: 30_000,
+	})
+}
+
+async function expectClarificationSheet(page: Page) {
+	const sheet = page.locator('[data-clarification-sheet]').last()
+	await expect(sheet).toBeVisible({ timeout: 30_000 })
+	return sheet
 }
 
 function productChoiceButtonRegex(productName: string): RegExp {
 	return new RegExp(
-		`^(?:(?:Add|Use)\\s+|Next:\\s*)?${escapeRegex(productName)}$`,
+		`^(?:(?:Add more|Add|Use|Open)\\s+|Next:\\s*)?${escapeRegex(productName)}$`,
 		'i',
 	)
 }
@@ -649,26 +1002,81 @@ async function expectDraftLine(page: Page, expected: ExpectedDraftLine) {
 	await expect(page.getByText('Draft materials').last()).toBeVisible({
 		timeout: 30_000,
 	})
-	await page.waitForFunction(
-		({ name, quantity }) => {
-			const inputs = Array.from(
-				document.querySelectorAll<HTMLInputElement>('input[aria-label]'),
-			).filter((input) => !input.closest('[data-product-choice-list]'))
-			return inputs.some((input) => {
-				const label = input.getAttribute('aria-label') ?? ''
-				if (!label.toLowerCase().includes(name.toLowerCase())) return false
-				const rect = input.getBoundingClientRect()
-				const visible =
-					rect.width > 0 &&
-					rect.height > 0 &&
-					getComputedStyle(input).visibility !== 'hidden' &&
-					getComputedStyle(input).display !== 'none'
-				return visible && input.value === String(quantity)
-			})
-		},
-		expected,
-		{ timeout: 30_000 },
+	const openCart = page.getByRole('button', { name: 'Open cart' }).last()
+	if (await openCart.isVisible().catch(() => false)) await openCart.click()
+	try {
+		await page.waitForFunction(
+			({ name, quantity }) => {
+				const inputs = Array.from(
+					document.querySelectorAll<HTMLInputElement>('input[aria-label]'),
+				).filter((input) => !input.closest('[data-product-choice-list]'))
+				return inputs.some((input) => {
+					const label = input.getAttribute('aria-label') ?? ''
+					if (!label.toLowerCase().includes(name.toLowerCase())) return false
+					const rect = input.getBoundingClientRect()
+					const visible =
+						rect.width > 0 &&
+						rect.height > 0 &&
+						getComputedStyle(input).visibility !== 'hidden' &&
+						getComputedStyle(input).display !== 'none'
+					return visible && input.value === String(quantity)
+				})
+			},
+			expected,
+			{ timeout: 30_000 },
+		)
+	} catch (error) {
+		throw new Error(
+			`${error instanceof Error ? error.message : error}\n${await readWorkbenchDebugState(page)}`,
+		)
+	}
+}
+
+async function readCartQuantity(page: Page, productName: string) {
+	const input = page.getByLabel(
+		new RegExp(`quantity for ${escapeRegex(productName)}`, 'i'),
 	)
+	if ((await input.count()) === 0) return 0
+	const value = Number.parseInt(await input.last().inputValue(), 10)
+	return Number.isFinite(value) ? value : 0
+}
+
+async function removeCartLineIfPresent(page: Page, productName: string) {
+	const input = page
+		.getByLabel(new RegExp(`quantity for ${escapeRegex(productName)}`, 'i'))
+		.last()
+	if (!(await input.isVisible().catch(() => false))) return
+	const row = input.locator(
+		'xpath=ancestor::div[.//button[@aria-label="Remove item"]][1]',
+	)
+	await row.getByRole('button', { name: 'Remove item' }).click()
+	await expect(input).toBeHidden({ timeout: 10_000 })
+	await page.waitForTimeout(800)
+}
+
+async function clearCartForWorkbench(page: Page) {
+	const quantityInputs = page.locator('input[aria-label^="Quantity for "]')
+	if ((await quantityInputs.count()) === 0) return
+	const clearButton = page.getByRole('button', { name: 'Clear Cart' }).last()
+	await expect(clearButton).toBeEnabled({ timeout: 10_000 })
+	await clearButton.click()
+	await expect(quantityInputs).toHaveCount(0, { timeout: 10_000 })
+	await page.waitForTimeout(800)
+}
+
+async function closeCartIfOpen(page: Page) {
+	const cartDialog = page.getByRole('dialog', { name: 'Cart' })
+	for (let attempt = 0; attempt < 3; attempt += 1) {
+		if (!(await cartDialog.isVisible().catch(() => false))) return
+		await page.keyboard.press('Escape')
+		if (await cartDialog.isVisible().catch(() => false)) {
+			await cartDialog
+				.getByRole('button', { name: 'Close cart' })
+				.evaluate((button: HTMLButtonElement) => button.click())
+		}
+		await expect(cartDialog).toBeHidden({ timeout: 5_000 })
+		await page.waitForTimeout(250)
+	}
 }
 
 async function expectNoDraftLine(page: Page, name: string) {

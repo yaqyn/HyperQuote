@@ -13,6 +13,7 @@ const BOTTOM_THRESHOLD = 120
 
 export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 	const scrollRef = useRef<HTMLDivElement>(null)
+	const listRef = useRef<HTMLUListElement>(null)
 	const [showScrollBtn, setShowScrollBtn] = useState(false)
 	const userScrolledRef = useRef(false)
 
@@ -46,11 +47,37 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 	// glyph reveal itself. The dep list references the signals whose *change*
 	// should trigger the scroll; they're not read inside the body.
 	const lastContent = lastMessage?.content ?? ''
+	const lastRole = lastMessage?.role
+	const lastRichContentCount = lastMessage?.richContent?.length ?? 0
 	useEffect(() => {
-		void [messages.length, lastContent, isLoading]
+		void [
+			messages.length,
+			lastContent,
+			isLoading,
+			lastRole,
+			lastRichContentCount,
+		]
 		if (userScrolledRef.current) return
+		if (lastRole === 'assistant' && lastRichContentCount > 0 && !isLoading) {
+			const scroller = scrollRef.current
+			const entries = listRef.current?.querySelectorAll<HTMLElement>(
+				'[data-chat-message]',
+			)
+			const entry = entries?.[entries.length - 1]
+			if (scroller && entry) {
+				scroller.scrollTo({ behavior: 'smooth', top: entry.offsetTop - 20 })
+				return
+			}
+		}
 		scrollMessagesToBottom(messages.length <= 1 ? 'auto' : 'smooth')
-	}, [messages.length, lastContent, isLoading, scrollMessagesToBottom])
+	}, [
+		messages.length,
+		lastContent,
+		isLoading,
+		lastRole,
+		lastRichContentCount,
+		scrollMessagesToBottom,
+	])
 
 	const scrollToBottom = useCallback(() => {
 		scrollMessagesToBottom('auto')
@@ -68,6 +95,7 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
 				className="flex-1 touch-pan-y overflow-y-auto overscroll-contain px-5 pb-4 pt-6 [-webkit-overflow-scrolling:touch] sm:px-8 sm:pb-7 sm:pt-7 lg:px-12"
 			>
 				<ul
+					ref={listRef}
 					className="mx-auto flex w-full max-w-[820px] flex-col gap-4 sm:gap-6"
 					role="log"
 					aria-live="polite"

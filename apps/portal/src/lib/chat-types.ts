@@ -85,6 +85,14 @@ export interface PortalConfirmedDraftLinePayload {
 	unitHint?: string
 }
 
+export type PortalDraftItemAction =
+	| 'clear_items'
+	| 'decrease_quantity'
+	| 'increase_quantity'
+	| 'remove_item'
+	| 'set_item_notes'
+	| 'set_quantity'
+
 export interface PortalConfirmedActionPayload {
 	action:
 		| 'cleanup_drafts'
@@ -96,11 +104,7 @@ export interface PortalConfirmedActionPayload {
 		| 'update_draft_items'
 		| 'update_draft_metadata'
 	cleanupMode?: 'delete_all' | 'merge' | 'remove_empty'
-	draftItemAction?:
-		| 'clear_items'
-		| 'remove_item'
-		| 'set_item_notes'
-		| 'set_quantity'
+	draftItemAction?: PortalDraftItemAction
 	draftLines?: PortalConfirmedDraftLinePayload[]
 	draftName?: string
 	draftNotes?: string
@@ -157,8 +161,11 @@ export interface CommandPaletteData {
 	description: string
 	groups: {
 		commands: {
+			argumentHint?: string
 			command: string
 			description: string
+			example?: string
+			featured?: boolean
 			inputMode: 'prefill' | 'run'
 			scope: 'local' | 'server'
 			title: string
@@ -201,6 +208,8 @@ export interface ProductChoiceListData {
 		options: {
 			action: ActionButtonData
 			category: string
+			currentQuantity?: number
+			effect?: 'increase' | 'new_line'
 			name: string
 			nameAr?: string
 			priceRange: string
@@ -215,6 +224,44 @@ export interface ProductChoiceListData {
 		quantityRequired?: boolean
 		title: string
 	}[]
+	title: string
+}
+
+export interface ClarificationSheetData {
+	action: PortalConfirmedActionPayload
+	description: string
+	knownFacts: {
+		label: string
+		labelAr: string
+		value: string
+		valueAr?: string
+	}[]
+	locale: 'ar' | 'en'
+	mode: 'draft_edit' | 'product_choice'
+	pendingChoiceId?: string
+	questions: {
+		allowCustom?: boolean
+		id: string
+		kind: 'choice' | 'number'
+		label: string
+		labelAr: string
+		options?: {
+			draftItemAction?: PortalDraftItemAction
+			effect?: 'decrease' | 'increase' | 'neutral' | 'new_line'
+			id: string
+			itemQuery?: string
+			label: string
+			labelAr: string
+			previousQuantity?: number
+			queryValue?: string
+		}[]
+		placeholder?: string
+		placeholderAr?: string
+		required: boolean
+		visibleForDraftItemActions?: PortalDraftItemAction[]
+	}[]
+	submitLabel: string
+	submitLabelAr: string
 	title: string
 }
 
@@ -256,6 +303,7 @@ export type RichContent =
 	| { type: 'support_options'; data: SupportOptionsData }
 	| { type: 'material_list'; data: MaterialListData }
 	| { type: 'product_choice_list'; data: ProductChoiceListData }
+	| { type: 'clarification_sheet'; data: ClarificationSheetData }
 	| { type: 'delivery_tracking'; data: DeliveryTrackingData }
 	| { type: 'draft_cleanup_result'; data: DraftCleanupResultData }
 	| { type: 'disclaimer'; data: DisclaimerData }

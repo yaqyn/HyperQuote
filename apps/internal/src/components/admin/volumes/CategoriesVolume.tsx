@@ -9,8 +9,8 @@ import {
 	adminUpdateCategory,
 } from '../../../lib/server/admin'
 import { getVolume } from '../../../types/admin'
-import { StatusTag } from '../AdminControls'
-import { Section } from '../EntityEditor'
+import { StatusTag, TextControl } from '../AdminControls'
+import { Field, Section } from '../EntityEditor'
 import type { ColumnDef } from '../EntityIndex'
 import {
 	CatalogDescriptionFields,
@@ -43,6 +43,7 @@ function blankCategory(): CategoryDraft {
 		description: '',
 		description_ar: '',
 		pictureUrl: null,
+		searchAliases: [],
 	}
 }
 
@@ -55,6 +56,7 @@ function categoryToDraft(row: AdminCategoryRow): CategoryDraft {
 		description: row.description,
 		description_ar: row.description_ar,
 		pictureUrl: row.pictureUrl,
+		searchAliases: row.searchAliases,
 	}
 }
 
@@ -66,6 +68,7 @@ function draftToPayload(draft: CategoryDraft): AdminCategoryPayload {
 		description: draft.description,
 		description_ar: draft.description_ar,
 		pictureUrl: draft.pictureUrl,
+		searchAliases: draft.searchAliases,
 	}
 }
 
@@ -250,6 +253,23 @@ export function CategoriesVolume({ onOpenVolumes }: CategoriesVolumeProps) {
 						onChange={(checked) => setDraft({ ...draft, isActive: checked })}
 						readOnly={readOnly}
 					/>
+
+					<Field label={t('editor.fields.searchAliases')}>
+						<TextControl
+							value={draft.searchAliases.join(', ')}
+							onChange={(value) =>
+								setDraft({
+									...draft,
+									searchAliases: value
+										.split(',')
+										.map((term) => term.trim())
+										.filter(Boolean),
+								})
+							}
+							readOnly={readOnly}
+							ariaLabel={t('editor.fields.searchAliases')}
+						/>
+					</Field>
 
 					<CatalogDescriptionFields
 						description={draft.description}

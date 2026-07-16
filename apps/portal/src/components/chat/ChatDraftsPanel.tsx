@@ -1792,6 +1792,9 @@ export function ChatDraftsPanel({
 																	type="number"
 																	inputMode="numeric"
 																	min={0}
+																	aria-label={t('quoteBuilder.quantityFor', {
+																		name: itemName,
+																	})}
 																	value={item.quantity}
 																	onChange={(event) => {
 																		const rawValue =

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type QuoteRequestFlowIntent = 'save' | 'submit'
+type QuoteRequestFlowIntent = 'save' | 'submit'
 export type QuoteRequestFlowSource = 'cart' | 'hero'
 
 interface SavedWebsiteDraftLink {

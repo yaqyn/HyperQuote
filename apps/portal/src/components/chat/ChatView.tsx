@@ -3,7 +3,14 @@ import {
 	useDocumentScrollLock,
 	useVisualViewportKeyboard,
 } from '@hyperquote/ui/viewport/keyboard'
-import { ArrowLeft, X } from 'lucide-react'
+import {
+	ArrowLeft,
+	Command,
+	PackageSearch,
+	ShoppingCart,
+	Sparkles,
+	X,
+} from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import {
 	type CSSProperties,
@@ -17,7 +24,9 @@ import { usePortalChat } from '../../hooks/usePortalChat'
 import {
 	type ActiveChatDraftContext,
 	type ChatMessage,
+	type ClarificationSheetData,
 	PORTAL_CHAT_OPEN_DRAFT_EVENT,
+	PORTAL_CHAT_RUN_COMMAND_EVENT,
 	type ProductChoiceListData,
 } from '../../lib/chat-types'
 import { PortalTitleRow } from '../shell/PortalTitleRow'
@@ -70,6 +79,13 @@ export function ChatView({ locale }: ChatViewProps) {
 	const handleNewPage = useCallback(() => {
 		chat.clear()
 	}, [chat])
+	const handleQuickCommand = useCallback((command: string, run = false) => {
+		window.dispatchEvent(
+			new CustomEvent(PORTAL_CHAT_RUN_COMMAND_EVENT, {
+				detail: { command, run },
+			}),
+		)
+	}, [])
 
 	const realMessages = useMemo(
 		() =>
@@ -89,8 +105,18 @@ export function ChatView({ locale }: ChatViewProps) {
 		}
 		return undefined
 	}, [chat.isLoading, chat.richContent])
+	const pendingClarification = useMemo(():
+		| ClarificationSheetData
+		| undefined => {
+		if (chat.isLoading) return undefined
+		for (let index = chat.richContent.length - 1; index >= 0; index -= 1) {
+			const item = chat.richContent[index]
+			if (item?.type === 'clarification_sheet') return item.data
+		}
+		return undefined
+	}, [chat.isLoading, chat.richContent])
 	const displayMessages = useMemo(
-		() => realMessages.map(withoutProductChoiceRichContent),
+		() => realMessages.map(withoutPendingInteractionRichContent),
 		[realMessages],
 	)
 
@@ -153,6 +179,17 @@ export function ChatView({ locale }: ChatViewProps) {
 						className="mx-auto w-full max-w-[820px]"
 						action={
 							<div className="flex items-center gap-2">
+								<button
+									type="button"
+									onClick={() => handleQuickCommand('/commands', true)}
+									className="office-quiet inline-flex items-center gap-1.5"
+									aria-label={isArabic ? 'أوامر ليون' : 'Lyon commands'}
+								>
+									<Command size={13} strokeWidth={1.7} />
+									<span className="hidden sm:inline">
+										{isArabic ? 'الأوامر' : 'Commands'}
+									</span>
+								</button>
 								{hasMessages ? (
 									<button
 										type="button"
@@ -180,7 +217,11 @@ export function ChatView({ locale }: ChatViewProps) {
 				{hasMessages ? (
 					<ActiveLedger messages={displayMessages} isLoading={chat.isLoading} />
 				) : (
-					<EmptyDesk heading={t('chat.newProject')} isArabic={isArabic} />
+					<EmptyDesk
+						heading={t('chat.newProject')}
+						isArabic={isArabic}
+						onCommand={handleQuickCommand}
+					/>
 				)}
 
 				<div className="relative z-[2] shrink-0">
@@ -188,6 +229,7 @@ export function ChatView({ locale }: ChatViewProps) {
 						<div className="mx-auto w-full max-w-[820px]">
 							<ChatInput
 								chat={chat}
+								pendingClarification={pendingClarification}
 								pendingProductChoice={pendingProductChoice}
 							/>
 						</div>
@@ -258,9 +300,13 @@ export function ChatView({ locale }: ChatViewProps) {
 	)
 }
 
-function withoutProductChoiceRichContent(message: ChatMessage): ChatMessage {
+function withoutPendingInteractionRichContent(
+	message: ChatMessage,
+): ChatMessage {
 	const richContent = message.richContent?.filter(
-		(item) => item.type !== 'product_choice_list',
+		(item) =>
+			item.type !== 'product_choice_list' &&
+			item.type !== 'clarification_sheet',
 	)
 	if (richContent?.length === message.richContent?.length) return message
 	return {
@@ -312,10 +358,47 @@ function ChatWorkspaceIntro({
 function EmptyDesk({
 	heading,
 	isArabic,
+	onCommand,
 }: {
 	heading: string
 	isArabic: boolean
+	onCommand: (command: string, run?: boolean) => void
 }) {
+	const shortcuts = [
+		{
+			command: '/plan-quote',
+			description: isArabic
+				? 'احكي ليون عن المشروع والمواد'
+				: 'Describe the project and materials',
+			icon: Sparkles,
+			title: isArabic ? 'خطط عرض سعر' : 'Plan a quote',
+		},
+		{
+			command: '/search-products',
+			description: isArabic
+				? 'ابحث بالنوع أو الشركة أو المواصفة'
+				: 'Find by type, company, or specification',
+			icon: PackageSearch,
+			title: isArabic ? 'ابحث عن منتجات' : 'Search products',
+		},
+		{
+			command: '/edit-cart',
+			description: isArabic
+				? 'زوّد أو اخصم أو غيّر بند'
+				: 'Add, deduct, set, or remove an item',
+			icon: ShoppingCart,
+			title: isArabic ? 'عدّل السلة' : 'Edit the cart',
+		},
+		{
+			command: '/commands',
+			description: isArabic
+				? 'شاهد كل ما يستطيع ليون تنفيذه'
+				: 'See everything Lyon can help with',
+			icon: Command,
+			run: true,
+			title: isArabic ? 'كل الأوامر' : 'All commands',
+		},
+	]
 	return (
 		<div className="relative z-[2] flex flex-1 items-center justify-center overflow-hidden px-4 py-[calc(env(safe-area-inset-top)+3rem)] sm:px-6 lg:px-10 lg:py-0">
 			<div className="relative z-[2] flex w-full max-w-[720px] flex-col items-center text-center">
@@ -339,6 +422,41 @@ function EmptyDesk({
 					className="mt-5 h-px w-20 origin-center bg-[var(--p-rule-strong)] sm:w-24"
 					aria-hidden
 				/>
+
+				<motion.div
+					initial={{ opacity: 0, y: 8 }}
+					animate={{ opacity: 1, y: 0 }}
+					transition={{
+						duration: 0.5,
+						delay: 0.36,
+						ease: [0.2, 0.8, 0.2, 1],
+					}}
+					className="mt-6 grid w-full gap-2 text-start sm:grid-cols-2"
+				>
+					{shortcuts.map((shortcut) => {
+						const Icon = shortcut.icon
+						return (
+							<button
+								key={shortcut.command}
+								type="button"
+								onClick={() => onCommand(shortcut.command, shortcut.run)}
+								className="group flex min-h-20 items-start gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3 transition-[border-color,background-color,transform] hover:-translate-y-0.5 hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)]"
+							>
+								<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--p-border)] bg-[var(--p-surface-subtle)] text-[var(--p-accent)] transition-colors group-hover:bg-[var(--p-card)]">
+									<Icon size={16} strokeWidth={1.7} />
+								</span>
+								<span className="min-w-0">
+									<span className="block text-[13px] font-semibold text-[var(--p-text)]">
+										{shortcut.title}
+									</span>
+									<span className="mt-1 block text-[11px] leading-4 text-[var(--p-text-muted)]">
+										{shortcut.description}
+									</span>
+								</span>
+							</button>
+						)
+					})}
+				</motion.div>
 			</div>
 		</div>
 	)

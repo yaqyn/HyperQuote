@@ -41,17 +41,20 @@ const AGENT_TOOL_ACTIONS = [
 	'refuse',
 ] as const
 
-export type PortalCustomerAgentAction = (typeof AGENT_TOOL_ACTIONS)[number]
+type PortalCustomerAgentAction = (typeof AGENT_TOOL_ACTIONS)[number]
 
 export interface PortalCustomerToolRequest {
 	action: PortalCustomerAgentAction
 	addressQuery?: string
+	clarificationScope?: 'draft_edit'
 	cleanupMode?: 'delete_all' | 'merge' | 'remove_empty'
 	commandName?: PortalChatCommandName
 	confirmedAction?: boolean
 	draftLines?: PortalDraftMaterialRequestLine[]
 	deliveryDate?: string
 	draftItemAction?:
+		| 'decrease_quantity'
+		| 'increase_quantity'
 		| 'set_quantity'
 		| 'remove_item'
 		| 'clear_items'
@@ -233,11 +236,36 @@ export function portalCustomerToolDefinitions(): ChatToolDefinition[] {
 				type: 'object',
 			},
 		),
+		toolDefinition(
+			'clarify_draft_edit',
+			'Open structured clarification for an intended cart or draft-line edit whose operation, item, or quantity is not fully known.',
+			{
+				properties: {
+					search_query: { type: 'string' },
+					target_reference: { type: 'string' },
+				},
+				required: ['search_query'],
+				type: 'object',
+			},
+		),
+		toolDefinition(
+			'show_command_desk',
+			'Open Lyon’s interactive command desk when the customer asks what is possible, wants a menu, seems stuck, or would benefit from seeing several valid next actions. This presents choices only and never executes another command.',
+			{
+				properties: {},
+				type: 'object',
+			},
+		),
 		toolDefinition('chat', 'Answer directly or ask one clarification.', {
 			properties: {
+				intent: {
+					enum: ['conversation', 'draft_edit'],
+					type: 'string',
+				},
 				final_response: { type: 'string' },
 				search_query: { type: 'string' },
 			},
+			required: ['intent', 'final_response'],
 			type: 'object',
 		}),
 	]
@@ -265,7 +293,7 @@ function draftLinesSchema(): Record<string, unknown> {
 				raw_text: { type: 'string' },
 				unit_hint: { type: 'string' },
 			},
-			required: ['query', 'quantity'],
+			required: ['query'],
 			type: 'object',
 		},
 		type: 'array',
@@ -275,7 +303,14 @@ function draftLinesSchema(): Record<string, unknown> {
 function draftChangeProperties(): Record<string, unknown> {
 	return {
 		draft_item_action: {
-			enum: ['clear_items', 'remove_item', 'set_item_notes', 'set_quantity'],
+			enum: [
+				'clear_items',
+				'decrease_quantity',
+				'increase_quantity',
+				'remove_item',
+				'set_item_notes',
+				'set_quantity',
+			],
 			type: 'string',
 		},
 		draft_name: { type: 'string' },
@@ -308,11 +343,13 @@ export function buildPortalCustomerAgentPrompt(
 ): string {
 	return `You are Lyon inside the signed-in HyperQuote customer portal.
 
-Choose one internal tool only when it helps. Use chat for normal conversation or one short clarification.
+	Every response must call a tool. Choose tools whenever live Portal data is needed. You may use several read tools before answering. Use chat only for normal conversation or a clarification unrelated to products, quotes, drafts, orders, deliveries, profile data, documentation, or support.
 When writing final_response, sound like a capable teammate: short, direct, and inviting. Prefer one strong sentence or two tight bullets. Ask only the missing question.
 
 Tools:
-- chat: friendly talk, clarification, or final_response.
+- chat: friendly talk, clarification, or final_response. Always set intent to conversation or draft_edit. Use draft_edit whenever the customer intends to edit the current cart/draft but any required operation, item, or quantity is unknown; the app will ask those missing fields.
+- clarify_draft_edit: use when the customer clearly wants to edit an existing cart/draft line but one or more of operation, item, or quantity is unknown. Never ask those edit fields only as free text; this tool opens the app's structured clarification UI.
+- show_command_desk: proactively present the interactive command desk when the customer asks what Lyon can do, asks for commands or a menu, is stuck, or has a broad goal with several sensible starting points. It only presents customer-controlled choices. Never use it instead of a clear requested action, never execute a slash command on the customer's behalf, and do not show it in every response.
 - public_docs: public HyperQuote docs.
 - customer_profile: the signed-in customer's company/account info, contact details, addresses, or projects.
 - customer_orders: customer-owned records. Set order_scope: all, drafts, submitted, active, or completed.
@@ -321,7 +358,7 @@ Tools:
 - product_search, compare_products, recommend_materials: catalog search, comparison, or material planning. Ask before writing plans to drafts.
 - address_list, project_list, account_health: customer-owned account context.
 - draft_detail, draft_validate, order_activity: inspect customer-owned records.
-- resolve_product_choice: customer buy intent or draft-create/catalog-selection. Include draft_lines for every requested product line. If the customer names a product but gives no quantity, set quantity to 1 so the app can show product choices with an editable quantity. Keep the original wording, quantity, unit hint, and pending choice id when applicable. Server writes only real Available product IDs.
+	- resolve_product_choice: always use this for customer buy intent or draft-create/catalog-selection, including short requests such as "I want plywood" or "عايز خشب". Include one draft_lines entry for every requested product, even when one quantity applies to several products (for example, "rebar and steel both 400" means two lines with quantity 400). Preserve every quantity the customer supplied. If quantity is missing, omit it; never invent a default and never ask for product details through chat. The app will ask only for missing facts using live catalog facets. Keep the original wording, unit hint, and pending choice id when applicable. Server writes only real Available product IDs. When the customer wants to add to the open cart or draft, include its id or sessionKey as target_reference.
 - read_draft, validate_draft: inspect the active or named editable draft.
 - preview_draft_changes: use for draft edits that may need confirmation or clarification.
 - save_confirmed_draft_changes: use only when the app sends a confirmed action payload.
@@ -329,7 +366,7 @@ Tools:
 - support_request: when the user asks to create, send, submit, or file a support ticket/feedback, or says they need to contact support about a concrete issue or complaint. Do not ask them for a separate subject/title/description; infer the subject and use their natural message as the description. If they only ask for support contact details, docs, FAQ, or help finding something, use public_docs or chat instead.
 - refuse: submit/confirm/place/cancel orders, payments, cross-customer data, internal finance, supplier costs/margins, employee data, secrets, or unrelated driver-only data.
 
-Use the conversation like a capable assistant. Decide from intent and context, not isolated keywords. Put natural draft targets in search_query when no exact reference exists. Slash commands are user shortcuts, not words to repeat back.
+Use the conversation like a capable assistant. Decide from intent and context, not isolated keywords. Put natural draft targets in search_query when no exact reference exists. Slash commands are customer-controlled shortcuts: you may open the command desk when useful, but you must never manufacture or execute slash-command text yourself.
 For factual questions about what products, materials, inventory, stock, or catalog items are available, use search_catalog. Never answer catalog contents from memory or general industry knowledge.
 If you previously asked the customer to choose between multiple catalog products and they ask which one is better, cheaper, stronger, bigger, or otherwise ask for advice, use compare_products or chat. Do not choose for them or create/update a draft until they actually select an option.
 When the customer answers a previous catalog choice, keep the earlier requested quantities attached to their original product lines; only replace the ambiguous line with the selected real product.
@@ -339,15 +376,15 @@ Never answer delivery location from memory or coordinates. Use delivery_tracking
 Current cart / draft desk:
 ${activeDraft ? JSON.stringify(activeDraft, null, 2) : 'No cart or saved draft is currently open in the chat desk.'}
 If the current desk has "sessionKey": "cart" and no id, treat it as the customer's live Cart. If the customer asks what is in it, what they already selected, or wants planning advice based on it, answer directly from this Current cart / draft desk JSON. Never say you cannot view the selected Cart when this context is present. For customer requests to add products, remove products, change quantities, or clear items, use resolve_product_choice or preview_draft_changes so the app can update the live Cart. Do not call it a saved draft.
+For an edit to an existing cart or draft line, preserve exactly which facts the customer supplied. Use increase_quantity when their number is an amount to add, decrease_quantity when it is an amount to deduct, set_quantity when it is the desired final quantity, and remove_item only when they want the whole line removed. Omit any unknown operation, item_query, or quantity instead of guessing; the app will ask only for the missing fields.
 If a saved current draft is shown and the user says this draft, it, them, the open draft, or asks for an edit without naming a different draft, use that draft id as target_reference. If the user names another draft or describes one by title/material/old quantity, keep that description in search_query so the server can resolve the right editable draft.
 If a saved current draft is shown and the user asks in any language to inspect it or plan around it, answer directly from this Current cart / draft desk JSON. If they ask to clear, remove from, change quantities, rename, or update notes for that draft, use the matching draft tool. Never claim a draft changed from chat; server tools must do writes.
 
-Do not invent products. Customers may use only product names. English and Arabic names in the catalog describe the same product identity; treat name and nameAr as aliases for one product, and keep the user's language in draft_lines.query. Never ask for SKU, product code, size, or specifications. For a buy request, extract each requested product phrase exactly as the customer meant it into draft_lines.query; do not replace it with a broader synonym or category. Let the server match the live catalog. If one requested product name has multiple real catalog variations, present the available choices as numbered options and let the customer choose by number, letter, "the second one", "cheapest", "biggest", or natural wording.
+	Do not invent products. English and Arabic names describe the same product identity; treat them as aliases and keep the customer's mixed-language wording in draft_lines.query. Never ask for SKU or product code. Ask only for a missing quantity or for catalog facets that genuinely distinguish the live matches, such as type, manufacturer, or specification. Do not ask again for a fact already present. For a buy request, extract each requested product phrase exactly as the customer meant it; do not replace it with a broader synonym or category. Let search_catalog and the server match spelling variants against the live catalog.
 
 For draft_name, write a short natural title, never a "Draft:" prefix. For draft_notes, write one simple description of what the order is about or what the current materials are. No review/submit instructions, edit links, "Lyon selected", or catalog/process boilerplate.
 
-Visible catalog snapshot (${catalog.products.length}/${catalog.totalVisibleProducts}; complete: ${catalog.catalogComplete ? 'yes' : 'no'}):
-${JSON.stringify(catalog.products, null, 2)}`
+	Catalog retrieval is live and tool-backed. The supplied snapshot metadata is ${catalog.products.length}/${catalog.totalVisibleProducts} products (complete: ${catalog.catalogComplete ? 'yes' : 'no'}). Never treat this metadata as catalog contents; use search_catalog for every catalog fact.`
 }
 
 export function detectPortalAiLocale(userMessage: string): 'ar' | 'en' {
@@ -379,7 +416,23 @@ export function fallbackPortalCustomerToolRequest(
 	userMessage: string,
 ): PortalCustomerToolRequest {
 	const commandRoute = routePortalChatCommand(userMessage)
-	if (commandRoute) return commandRoute
+	if (commandRoute) {
+		if (
+			commandRoute.commandName === '/plan-quote' &&
+			!commandRoute.draftLines?.length
+		) {
+			return {
+				action: 'chat',
+				commandName: '/commands',
+				finalResponse:
+					detectPortalAiLocale(userMessage) === 'ar'
+						? 'تخطيط مشروع مفتوح يحتاج ليون متصل. أدوات البوابة المباشرة ما زالت متاحة من مكتب الأوامر.'
+						: 'Open-ended project planning needs Lyon online. The direct Portal tools are still available from the command desk.',
+				searchQuery: '',
+			}
+		}
+		return commandRoute
+	}
 
 	const refusal = portalCustomerPolicyRefusal(userMessage)
 	if (refusal) {
@@ -407,7 +460,59 @@ export function routePortalChatCommand(
 	const confirmedAction = confirmation.confirmed ? true : undefined
 	const searchQuery = commandArgs
 	switch (command.name) {
+		case '/commands':
 		case '/help':
+			return {
+				action: 'chat',
+				commandName: command.name,
+				searchQuery: '',
+			}
+		case '/plan-quote': {
+			const draftLines = parsePortalDraftMaterialRequestLines(commandArgs)
+			return {
+				action: 'create_draft_from_plan',
+				commandName: command.name,
+				draftLines: draftLines.length > 0 ? draftLines : undefined,
+				searchQuery,
+			}
+		}
+		case '/search-products':
+			return {
+				action: 'product_search',
+				commandName: command.name,
+				searchQuery,
+			}
+		case '/add-to-cart': {
+			const draftLines = parsePortalDraftMaterialRequestLines(commandArgs)
+			return {
+				action: 'draft_add_items',
+				commandName: command.name,
+				draftLines: draftLines.length > 0 ? draftLines : undefined,
+				itemQuery: commandArgs || undefined,
+				searchQuery,
+				targetReference: 'active',
+			}
+		}
+		case '/edit-cart':
+			return {
+				action: 'update_draft_items',
+				clarificationScope: 'draft_edit',
+				commandName: command.name,
+				searchQuery,
+				targetReference: 'active',
+			}
+		case '/ticket':
+			if (commandArgs) {
+				const supportMessage = cleanCommandText(commandArgs) ?? commandArgs
+				return {
+					action: 'support_request',
+					commandName: command.name,
+					confirmedAction,
+					searchQuery,
+					supportMessage,
+					supportSubject: supportSubjectFromText(supportMessage),
+				}
+			}
 			return {
 				action: 'chat',
 				commandName: command.name,
@@ -885,6 +990,9 @@ export function parsePortalCustomerToolRequest(
 		) {
 			request.finalResponse = parsed.final_response.trim().slice(0, 1200)
 		}
+		if (parsed.clarification_scope === 'draft_edit') {
+			request.clarificationScope = 'draft_edit'
+		}
 
 		return enforcePortalCustomerToolRequest(request, userMessage)
 	} catch {
@@ -913,18 +1021,22 @@ export function parsePortalCustomerToolCall(
 	switch (call.function.name) {
 		case 'search_catalog':
 			return { action: 'product_search', searchQuery }
-		case 'resolve_product_choice':
+		case 'resolve_product_choice': {
+			const targetReference = readString(args.target_reference)
 			return enforcePortalCustomerToolRequest(
 				{
-					action: 'create_draft_from_plan',
+					action: targetReference
+						? 'draft_add_items'
+						: 'create_draft_from_plan',
 					draftLines: readDraftLines(args.draft_lines),
 					draftName: readString(args.draft_name),
 					draftNotes: readString(args.draft_notes),
 					searchQuery,
-					targetReference: readString(args.target_reference),
+					targetReference,
 				},
 				userMessage,
 			)
+		}
 		case 'read_draft':
 			return {
 				action: 'draft_detail',
@@ -984,10 +1096,31 @@ export function parsePortalCustomerToolCall(
 				userMessage,
 			)
 		}
+		case 'clarify_draft_edit':
+			return {
+				action: 'update_draft_items',
+				searchQuery,
+				targetReference: readString(args.target_reference),
+			}
+		case 'show_command_desk':
+			return {
+				action: 'chat',
+				commandName: '/commands',
+				finalResponse:
+					detectPortalAiLocale(userMessage) === 'ar'
+						? 'أكيد. اختار اللي محتاجه من مكتب أوامر ليون، وأنا هكمل معاك خطوة بخطوة.'
+						: 'Absolutely. Choose where you want to start from Lyon’s command desk, and I’ll guide the next step.',
+				searchQuery: '',
+			}
 		case 'chat':
 			return enforcePortalCustomerToolRequest(
 				{
 					action: 'chat',
+					clarificationScope:
+						args.intent === 'draft_edit' ||
+						args.clarification_scope === 'draft_edit'
+							? 'draft_edit'
+							: undefined,
 					finalResponse: readString(args.final_response),
 					searchQuery,
 				},
@@ -1070,15 +1203,16 @@ export function enforcePortalCustomerToolRequest(
 	request: PortalCustomerToolRequest,
 	userMessage: string,
 ): PortalCustomerToolRequest {
+	const normalizedRequest = propagateSharedDraftQuantity(request, userMessage)
 	const refusal = portalCustomerPolicyRefusal(userMessage)
 	if (refusal) {
 		return { action: 'refuse', reason: refusal, searchQuery: '' }
 	}
-	if (request.action === 'refuse') {
+	if (normalizedRequest.action === 'refuse') {
 		return {
 			action: 'refuse',
 			reason:
-				request.reason ||
+				normalizedRequest.reason ||
 				portalCustomerPolicyRefusal(userMessage) ||
 				defaultRefusal(userMessage),
 			searchQuery: '',
@@ -1086,17 +1220,20 @@ export function enforcePortalCustomerToolRequest(
 	}
 	const naturalSupportRequest = inferNaturalSupportTicketRequest(userMessage)
 	if (
-		request.action === 'support_request' &&
-		!isExplicitSupportTicketRequest(userMessage, request)
+		normalizedRequest.action === 'support_request' &&
+		!isExplicitSupportTicketRequest(userMessage, normalizedRequest)
 	) {
 		if (naturalSupportRequest) {
 			return {
-				...request,
-				searchQuery: request.searchQuery || naturalSupportRequest.searchQuery,
+				...normalizedRequest,
+				searchQuery:
+					normalizedRequest.searchQuery || naturalSupportRequest.searchQuery,
 				supportMessage:
-					request.supportMessage ?? naturalSupportRequest.supportMessage,
+					normalizedRequest.supportMessage ??
+					naturalSupportRequest.supportMessage,
 				supportSubject:
-					request.supportSubject ?? naturalSupportRequest.supportSubject,
+					normalizedRequest.supportSubject ??
+					naturalSupportRequest.supportSubject,
 			}
 		}
 		return {
@@ -1106,13 +1243,15 @@ export function enforcePortalCustomerToolRequest(
 	}
 	if (
 		naturalSupportRequest &&
-		(request.action === 'chat' || request.action === 'public_docs')
+		(normalizedRequest.action === 'chat' ||
+			normalizedRequest.action === 'public_docs')
 	) {
 		return naturalSupportRequest
 	}
 	if (
-		(request.action === 'chat' || request.action === 'public_docs') &&
-		isExplicitSupportTicketRequest(userMessage, request)
+		(normalizedRequest.action === 'chat' ||
+			normalizedRequest.action === 'public_docs') &&
+		isExplicitSupportTicketRequest(userMessage, normalizedRequest)
 	) {
 		const message = userMessage.trim()
 		return {
@@ -1122,14 +1261,18 @@ export function enforcePortalCustomerToolRequest(
 			supportSubject: supportSubjectFromText(message),
 		}
 	}
-	if (request.action === 'chat' && request.draftLines?.length) {
+	if (
+		normalizedRequest.action === 'chat' &&
+		normalizedRequest.draftLines?.length
+	) {
 		return {
-			...request,
+			...normalizedRequest,
 			action: 'create_draft_from_plan',
 		}
 	}
 	if (
-		(request.action === 'chat' || request.action === 'public_docs') &&
+		(normalizedRequest.action === 'chat' ||
+			normalizedRequest.action === 'public_docs') &&
 		isBroadCatalogReadRequest(userMessage)
 	) {
 		return {
@@ -1138,13 +1281,61 @@ export function enforcePortalCustomerToolRequest(
 		}
 	}
 
-	return request
+	return normalizedRequest
+}
+
+export function propagateSharedDraftQuantity(
+	request: PortalCustomerToolRequest,
+	userMessage: string,
+): PortalCustomerToolRequest {
+	if (!request.draftLines || request.draftLines.length < 2) return request
+	const quantities = numericValuesInText(userMessage)
+	if (quantities.length !== 1) return request
+	const sharedQuantity = quantities[0]
+	if (!sharedQuantity) return request
+	if (request.draftLines.every(draftLineQuantityIsGrounded)) return request
+	return {
+		...request,
+		draftLines: request.draftLines.map((line) =>
+			draftLineQuantityIsGrounded(line)
+				? line
+				: {
+						...line,
+						quantity: sharedQuantity,
+						rawText: `${sharedQuantity} ${line.rawText || line.query}`,
+					},
+		),
+	}
+}
+
+function draftLineQuantityIsGrounded(
+	line: PortalDraftMaterialRequestLine,
+): boolean {
+	if (!Number.isFinite(line.quantity) || line.quantity <= 0) return false
+	return numericValuesInText(line.rawText).some(
+		(value) => Math.abs(value - line.quantity) < 0.0001,
+	)
+}
+
+function numericValuesInText(value: string): number[] {
+	const normalized = value
+		.replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+		.replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+	return [...normalized.matchAll(/\d+(?:[.,]\d+)?/g)]
+		.map((match) => Number.parseFloat((match[0] ?? '').replace(',', '.')))
+		.filter((number) => Number.isFinite(number) && number > 0)
 }
 
 export function parsePortalDraftMaterialRequestLines(
 	userMessage: string,
 ): PortalDraftMaterialRequestLine[] {
-	const lines = draftRequestSegments(userMessage).flatMap(
+	const segments = draftRequestSegments(userMessage)
+	const numericValues = numericValuesInText(userMessage)
+	const sharedQuantity =
+		segments.length > 1 && numericValues.length === 1
+			? (numericValues[0] ?? null)
+			: null
+	const lines = segments.flatMap(
 		(segment): PortalDraftMaterialRequestLine[] => {
 			const materialFirst = segment.match(
 				/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*(bags?|tons?|tonnes?|pieces?|pcs?|units?|bars?|sheets?|kg|m2|m3)?$/iu,
@@ -1154,19 +1345,20 @@ export function parsePortalDraftMaterialRequestLines(
 				: segment.match(
 						/(?:^|\bfor\s+)(?:.*?\s)?(?:some\s+)?(\d+(?:[.,]\d+)?)\s*(?:(bags?|tons?|tonnes?|pieces?|pcs?|units?|bars?|sheets?|kg|m2|m3)\s+)?(.+)$/iu,
 					)
-			const quantity = readPositiveNumber(
+			const parsedQuantity = readPositiveNumber(
 				(quantityFirst?.[1] ?? materialFirst?.[2] ?? '').replace(',', '.'),
 			)
+			const quantity = parsedQuantity ?? sharedQuantity
 			if (quantity === null) return []
 			const rawQuery = cleanMaterialLineQuery(
-				quantityFirst?.[3] ?? materialFirst?.[1] ?? '',
+				quantityFirst?.[3] ?? materialFirst?.[1] ?? segment,
 			)
 			if (!rawQuery || !looksLikeMaterialRequest(rawQuery)) return []
 			return [
 				{
 					query: rawQuery,
 					quantity,
-					rawText: segment,
+					rawText: parsedQuantity ? segment : `${quantity} ${segment}`,
 					unitHint: normalizeUnitHint(quantityFirst?.[2] ?? materialFirst?.[3]),
 				},
 			]
@@ -1191,9 +1383,17 @@ function cleanMaterialLineQuery(value: string): string {
 	return value
 		.split(/[.?!]+/u)[0]
 		.replace(
+			/^(?:(?:i|we)\s+)?(?:want|need|wanna|would\s+like|get|give\s+me|add|include|put)\s+(?:some\s+)?/i,
+			'',
+		)
+		.replace(/^(?:عايز|عاوزه|عاوز|محتاج|هات|ضيف)\s+/u, '')
+		.replace(/\s+both$/i, '')
+		.replace(/\s+(?:الاتنين|الاثنين|كلاهما)$/u, '')
+		.replace(
 			/\b(?:for|to|into)\s+(?:a|an|the|my|our)?\s*(?:draft|quote|rfq|order|project|site)\b.*$/i,
 			'',
 		)
+		.replace(/\s+(?:just\s+)?for\b.*$/i, '')
 		.replace(
 			/\b(?:for|to|into)\s+(?:that|this|the|same|current|active|open|opened|it|them)\s+(?:same\s+)?(?:thing|one|draft|quote|rfq|order|list)\b.*$/i,
 			'',
@@ -1204,6 +1404,7 @@ function cleanMaterialLineQuery(value: string): string {
 		)
 		.replace(/\b(?:dont|don't|do not)\s+wipe\b.*$/i, '')
 		.replace(/\b(?:please|pls|thanks|thank you)\b/gi, ' ')
+		.replace(/\s+(?:also|too|as well)$/i, '')
 		.replace(/\b(?:draft|quote|rfq|order|request)\b/gi, ' ')
 		.replace(/[.?!]+$/g, '')
 		.replace(/\s+/g, ' ')
@@ -1268,21 +1469,6 @@ function mergeAdjacentDuplicateMaterialLines(
 		merged.push({ ...line })
 	}
 	return merged
-}
-
-export function isDraftWriteAction(action: PortalCustomerAgentAction): boolean {
-	return (
-		action === 'create_draft_from_plan' ||
-		action === 'draft_add_items' ||
-		action === 'draft_replace_item' ||
-		action === 'draft_set_delivery' ||
-		action === 'update_draft_items' ||
-		action === 'duplicate_order_to_draft' ||
-		action === 'update_draft_metadata' ||
-		action === 'cleanup_drafts' ||
-		action === 'delete_draft' ||
-		action === 'support_request'
-	)
 }
 
 export function portalCustomerActionNeedsConfirmation(
@@ -1543,8 +1729,8 @@ function readDraftLines(value: unknown): PortalDraftMaterialRequestLine[] {
 	return value.flatMap((line): PortalDraftMaterialRequestLine[] => {
 		if (!isRecord(line)) return []
 		const query = readDraftLineQuery(line.query)
-		const quantity = readPositiveNumber(line.quantity)
-		if (!query || quantity === null) return []
+		const quantity = readPositiveNumber(line.quantity) ?? 0
+		if (!query) return []
 		const unitHint =
 			typeof line.unit_hint === 'string'
 				? normalizeUnitHint(line.unit_hint)
@@ -1563,7 +1749,7 @@ function readDraftLines(value: unknown): PortalDraftMaterialRequestLine[] {
 				productId: productId || undefined,
 				query,
 				quantity,
-				rawText: query,
+				rawText: readString(line.raw_text) ?? query,
 				unitHint,
 			},
 		]
@@ -1581,6 +1767,8 @@ function isDraftItemAction(
 ): value is NonNullable<PortalCustomerToolRequest['draftItemAction']> {
 	return (
 		value === 'set_quantity' ||
+		value === 'increase_quantity' ||
+		value === 'decrease_quantity' ||
 		value === 'remove_item' ||
 		value === 'clear_items' ||
 		value === 'set_item_notes'
