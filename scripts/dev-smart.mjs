@@ -53,25 +53,14 @@ async function main() {
 	requireCommand('node', 'Node is required by the repository scripts.')
 	status('Runtime', 'OK', 'Bun and Node are available')
 
-	if (!process.env[INFISICAL_DEV_SENTINEL] && !skipToolUpdates) {
-		status('Dev tools', 'CHECK', 'official GitHub releases, at most daily')
-		const updated = spawnSync(
-			process.execPath,
-			['scripts/update-dev-tools.mjs', '--quiet'],
-			{
-				cwd: repoRoot,
-				encoding: protocolMode ? 'utf8' : undefined,
-				stdio: protocolMode ? ['ignore', 'pipe', 'pipe'] : 'inherit',
-			},
-		)
-		if (updated.status !== 0) {
-			warn(
-				'Automatic CLI update check failed; continuing with installed tools.',
-			)
-		} else {
-			status('Dev tools', 'OK', 'integrity-checked')
-		}
-	}
+	ensureDevToolsAvailable()
+	status(
+		'Dev tools',
+		'OK',
+		skipToolUpdates
+			? 'installed; automatic refresh skipped'
+			: 'installed; daily refresh is non-blocking',
+	)
 
 	if (!skipInfisical()) {
 		loadInfisicalDevSecrets()
@@ -79,14 +68,10 @@ async function main() {
 		warn('Infisical loading is disabled by HYPERQUOTE_SKIP_INFISICAL.')
 	}
 
-	requireCommand('supabase', 'Run `bun run dev:tools:update`, then retry.')
-	if (!skipInfisical()) {
-		requireCommand('infisical', 'Run `bun run dev:tools:update`, then retry.')
-	}
-
 	ensureWorkspaceDependencies()
 	await ensureSupabase()
 	ensureLocalMigrations()
+	startDevToolRefresh()
 
 	let busyPorts = await busyAppPorts()
 	if (busyPorts.length === APP_PORTS.length) {
@@ -135,6 +120,54 @@ async function main() {
 		if (signal) process.kill(process.pid, signal)
 		process.exit(code ?? 0)
 	})
+}
+
+function ensureDevToolsAvailable() {
+	const requiredTools = skipInfisical()
+		? ['supabase']
+		: ['supabase', 'infisical']
+	const missingTools = requiredTools.filter(
+		(command) => !commandAvailable(command),
+	)
+	if (missingTools.length > 0 && !skipToolUpdates) {
+		status('Dev tools', 'INSTALL', `missing ${missingTools.join(', ')}`)
+		const installed = spawnSync(
+			process.execPath,
+			['scripts/update-dev-tools.mjs', '--force', '--quiet'],
+			{
+				cwd: repoRoot,
+				encoding: 'utf8',
+				stdio: ['ignore', 'pipe', 'pipe'],
+			},
+		)
+		if (installed.status !== 0) {
+			failWithOutput(
+				'Missing development tools could not be installed.',
+				installed.stderr || installed.stdout,
+			)
+		}
+	}
+
+	for (const command of requiredTools) {
+		requireCommand(command, 'Run `bun run dev:tools:update`, then retry.')
+	}
+}
+
+function startDevToolRefresh() {
+	if (skipToolUpdates) return
+	const updater = spawn(
+		process.execPath,
+		['scripts/update-dev-tools.mjs', '--quiet'],
+		{
+			cwd: repoRoot,
+			detached: true,
+			stdio: 'ignore',
+		},
+	)
+	updater.once('error', () => {
+		warn('Automatic CLI refresh could not start; using installed tools.')
+	})
+	updater.unref()
 }
 
 function loadInfisicalDevSecrets() {
@@ -296,12 +329,17 @@ function isOwnedDevPid(pid) {
 }
 
 function requireCommand(command, hint) {
-	const result = spawnSync(command, ['--version'], {
-		encoding: 'utf8',
-		stdio: ['ignore', 'ignore', 'ignore'],
-	})
-	if (result.status === 0) return
+	if (commandAvailable(command)) return
 	fail(`Missing required command: ${command}\n${hint}`)
+}
+
+function commandAvailable(command) {
+	return (
+		spawnSync(command, ['--version'], {
+			encoding: 'utf8',
+			stdio: ['ignore', 'ignore', 'ignore'],
+		}).status === 0
+	)
 }
 
 async function waitForLocalSupabaseEnv() {

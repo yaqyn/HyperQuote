@@ -168,7 +168,7 @@ async function runTuiLauncher() {
 	function runPreview(previewView) {
 		const stages = [
 			['Runtime', 'OK', 'Bun and Node are available'],
-			['Dev tools', 'OK', 'integrity-checked'],
+			['Dev tools', 'OK', 'installed; daily refresh is non-blocking'],
 			['Secrets', 'OK', 'Infisical dev /Projects/HyperQuote'],
 			['Dependencies', 'OK', 'lockfile-consistent'],
 			['Local backend', 'OK', 'Supabase is healthy'],

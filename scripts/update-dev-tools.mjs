@@ -17,6 +17,9 @@ import { join } from 'node:path'
 import process from 'node:process'
 
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1_000
+const RELEASE_LOOKUP_TIMEOUT_MS = 15_000
+const DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1_000
+const LOCAL_COMMAND_TIMEOUT_MS = 15_000
 const cacheDir = join(homedir(), '.cache', 'hyperquote')
 const cachePath = join(cacheDir, 'dev-tools.json')
 const installDir = join(homedir(), '.local', 'bin')
@@ -95,31 +98,33 @@ function updateTool(tool) {
 
 	const workDir = mkdtempSync(join(tmpdir(), 'hyperquote-dev-tool-'))
 	try {
-		run('gh', [
-			'release',
-			'download',
-			release.tagName,
-			'--repo',
-			tool.repository,
-			'--pattern',
-			assetName,
-			'--pattern',
-			tool.checksumAsset,
-			'--dir',
-			workDir,
-		])
+		run(
+			'gh',
+			[
+				'release',
+				'download',
+				release.tagName,
+				'--repo',
+				tool.repository,
+				'--pattern',
+				assetName,
+				'--pattern',
+				tool.checksumAsset,
+				'--dir',
+				workDir,
+			],
+			DOWNLOAD_TIMEOUT_MS,
+		)
 		verifyChecksum(
 			join(workDir, assetName),
 			join(workDir, tool.checksumAsset),
 			assetName,
 		)
-		run('tar', [
-			'-xzf',
-			join(workDir, assetName),
-			'-C',
-			workDir,
-			tool.binaryName,
-		])
+		run(
+			'tar',
+			['-xzf', join(workDir, assetName), '-C', workDir, tool.binaryName],
+			LOCAL_COMMAND_TIMEOUT_MS,
+		)
 
 		const candidate = join(workDir, tool.binaryName)
 		chmodSync(candidate, 0o755)
@@ -145,14 +150,11 @@ function updateTool(tool) {
 }
 
 function readLatestRelease(repository) {
-	const result = run('gh', [
-		'release',
-		'view',
-		'--repo',
-		repository,
-		'--json',
-		'tagName,assets',
-	])
+	const result = run(
+		'gh',
+		['release', 'view', '--repo', repository, '--json', 'tagName,assets'],
+		RELEASE_LOOKUP_TIMEOUT_MS,
+	)
 	const parsed = JSON.parse(result.stdout)
 	if (
 		!parsed ||
@@ -189,6 +191,7 @@ function readBinaryVersion(command) {
 	const result = spawnSync(command, ['--version'], {
 		encoding: 'utf8',
 		stdio: ['ignore', 'pipe', 'ignore'],
+		timeout: LOCAL_COMMAND_TIMEOUT_MS,
 	})
 	if (result.status !== 0) return null
 	return /\d+\.\d+\.\d+/.exec(result.stdout)?.[0] ?? null
@@ -198,18 +201,24 @@ function commandExists(command) {
 	return (
 		spawnSync(command, ['--version'], {
 			stdio: ['ignore', 'ignore', 'ignore'],
+			timeout: LOCAL_COMMAND_TIMEOUT_MS,
 		}).status === 0
 	)
 }
 
-function run(command, args) {
+function run(command, args, timeout) {
 	const result = spawnSync(command, args, {
 		encoding: 'utf8',
 		stdio: ['ignore', 'pipe', 'pipe'],
+		timeout,
 	})
 	if (result.status !== 0) {
 		const details = (result.stderr || result.stdout).trim().split('\n').at(-1)
-		throw new Error(details || `${command} exited with ${result.status}`)
+		throw new Error(
+			details ||
+				result.error?.message ||
+				`${command} exited with ${result.status}`,
+		)
 	}
 	return result
 }
