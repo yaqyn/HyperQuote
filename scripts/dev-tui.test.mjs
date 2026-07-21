@@ -248,6 +248,42 @@ describe('development TUI rendering and controls', () => {
 		setup.renderer.destroy()
 	})
 
+	test('keeps the specific launcher error when the child exits', async () => {
+		const setup = await createTestRenderer({ width: 100, height: 20 })
+		const view = new DevDashboardView(setup.renderer)
+		view.handleEvent({
+			type: 'log',
+			level: 'error',
+			message: 'Infisical login is not ready.',
+			source: 'system',
+		})
+		view.handleEvent({
+			type: 'log',
+			level: 'error',
+			message: 'Run `infisical login`, then retry.',
+			source: 'system',
+		})
+		view.handleEvent({ type: 'process-exit', code: 1, expected: false })
+		await Bun.sleep(25)
+		await setup.flush()
+		const frame = setup.captureCharFrame()
+		expect(view.state.error).toContain('Infisical login is not ready')
+		expect(frame).toContain('Infisical login is not ready')
+		expect(frame).toContain('Run `infisical login`, then retry.')
+		expect(frame).not.toContain('Launcher exited with code 1')
+		view.destroy()
+		setup.renderer.destroy()
+	})
+
+	test('reports an exit code when no specific launcher error was captured', async () => {
+		const setup = await createTestRenderer({ width: 100, height: 20 })
+		const view = new DevDashboardView(setup.renderer)
+		view.handleEvent({ type: 'process-exit', code: 7, expected: false })
+		expect(view.state.error).toBe('Launcher exited with code 7.')
+		view.destroy()
+		setup.renderer.destroy()
+	})
+
 	test('dispatches reset only after exact local confirmation', async () => {
 		const commands = []
 		const setup = await createTestRenderer({ width: 90, height: 24 })

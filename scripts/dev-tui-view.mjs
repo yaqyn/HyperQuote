@@ -266,7 +266,13 @@ export class DevDashboardView {
 			case 'process-exit':
 				if (event.expected) this.state.phase = 'stopped'
 				else {
-					this.state.error = `Launcher exited with code ${event.code ?? 'unknown'}.`
+					const capturedErrors = this.state.logs
+						.filter((line) => line.level === 'error')
+						.slice(-12)
+						.map((line) => line.message)
+					this.state.error ??=
+						capturedErrors.join('\n') ||
+						`Launcher exited with code ${event.code ?? 'unknown'}.`
 					this.state.phase = 'error'
 				}
 				break
@@ -864,10 +870,13 @@ export class DevDashboardView {
 	}
 
 	renderError(shell, layout) {
+		const details = (
+			this.state.error ?? 'The local launcher stopped unexpectedly.'
+		).split('\n')
 		this.renderCenteredPanel(shell, layout, ' Launcher error ', [
-			this.state.error ?? 'The local launcher stopped unexpectedly.',
+			...details,
 			'',
-			'Review the captured logs, then press Q to exit.',
+			'Press Q to exit.',
 		])
 	}
 
