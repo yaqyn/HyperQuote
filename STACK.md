@@ -32,7 +32,8 @@ alone unless the user names them directly:
 - Cloudflare Worker: `modern`.
 - Cloudflare R2 buckets: `modern`, `othren-assets`.
 - Cloudflare Secrets Store entries: `modern_*`.
-- GitHub repos: `yaqyn/Modern`, `yaqyn/qv`, `yaqyn/HyperQuote`.
+- GitHub repos: `Yaqyn-Modern/Modern`, `yaqyn/qv`,
+  `Yaqyn-Modern/HyperQuote`.
 
 Current HyperQuote production resources are source-controlled from this repo:
 

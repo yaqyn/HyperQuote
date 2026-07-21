@@ -35,7 +35,7 @@ reopens architecture again.
 Leave the retained non-HyperQuote Cloudflare resources alone unless the user
 names them directly: the `modern` Worker, `modern` R2 bucket, `modern_*`
 Secrets Store entries, and `othren-assets` R2 bucket. Also leave the GitHub
-repos `yaqyn/Modern`, `yaqyn/qv`, and `yaqyn/HyperQuote`.
+repos `Yaqyn-Modern/Modern`, `yaqyn/qv`, and `Yaqyn-Modern/HyperQuote`.
 
 Production deploys are source-controlled in `.github/workflows/production.yml`.
 If GitHub still lists old `Deploy Staging Workers` records, treat those as
@@ -126,8 +126,9 @@ runs with `concurrency: production` and performs, in order:
 
 Do not push unless the user explicitly asks. When a push is requested, run the
 local verification that matches the blast radius first, commit coherently, push
-`main`, then find the run with `gh run list --repo yaqyn/HyperQuote --branch main`.
-Watch it with `gh run watch <run-id> --repo yaqyn/HyperQuote --exit-status`.
+`main`, then find the run with
+`gh run list --repo Yaqyn-Modern/HyperQuote --branch main`. Watch it with
+`gh run watch <run-id> --repo Yaqyn-Modern/HyperQuote --exit-status`.
 After GitHub succeeds, run `bun run smoke:production` locally when practical
 before claiming the production path is healthy.
 
