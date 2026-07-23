@@ -260,7 +260,7 @@ requests an operator override and the risk is understood.
 
 ## Git And Local Workflow
 
-- For commits, use `Abdulrahman M. Yaqyn <Hi@Yaqyn.dev>` as author and
+- For commits, use `Abdulrahman M. Yaqyn <Yaqyn@pm.me>` as author and
   committer. Verify local `git config` first and set it if needed.
 - Use small coherent commits when committing is part of the task. Do not commit
   exploratory, broken, or incomplete work unless asked for a checkpoint.
