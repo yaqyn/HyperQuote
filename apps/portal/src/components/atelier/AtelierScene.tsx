@@ -15,7 +15,7 @@ export function AtelierScene({
 	children: ReactNode
 }) {
 	return (
-		<div className="relative flex min-h-dvh w-full items-center justify-center overflow-visible px-0 py-0 sm:px-6 sm:py-8 sm:pb-[calc(env(safe-area-inset-bottom)+5.75rem)]">
+		<div className="relative flex min-h-dvh w-full items-center justify-center overflow-visible px-0 py-0 lg:px-6 lg:py-8 lg:pb-[calc(env(safe-area-inset-bottom)+5.75rem)]">
 			{lit && (
 				<div className={`absolute inset-0 atelier-lamp-on`} aria-hidden>
 					<div className="atelier-pendant" />

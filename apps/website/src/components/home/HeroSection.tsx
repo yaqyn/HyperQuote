@@ -94,7 +94,7 @@ export function HeroSection({
 							<HeroMaterialAccents />
 							<div className="relative z-[1] flex min-h-full items-center pb-8 pt-24 sm:pb-10 sm:pt-28 lg:pb-14 lg:pt-32">
 								<div className="hq-page-shell hq-hero-shell grid items-center gap-12 lg:grid-cols-[minmax(0,1.08fr)_minmax(420px,0.92fr)] lg:gap-16 xl:gap-24">
-									<div className="max-w-[760px] text-center lg:text-start">
+									<div className="mx-auto w-full max-w-[760px] text-center lg:mx-0 lg:text-start">
 										<p className="hq-kicker mb-6 text-[var(--color-primary)]">
 											{t('hero.eyebrow')}
 										</p>
@@ -311,7 +311,7 @@ function MaterialDocket({
 	const hasItems = items.length > 0
 
 	return (
-		<div className="hq-material-docket hq-photo-frame hidden overflow-hidden rounded-[24px] border border-[var(--site-rule)] bg-[var(--color-card)] text-start md:block lg:rotate-[0.7deg]">
+		<div className="hq-material-docket hq-photo-frame mx-auto hidden w-full max-w-[640px] overflow-hidden rounded-[24px] border border-[var(--site-rule)] bg-[var(--color-card)] text-start md:block lg:mx-0 lg:max-w-none lg:rotate-[0.7deg]">
 			<div className="flex items-center justify-between border-b border-[var(--site-rule)] px-5 py-3.5 sm:px-6">
 				<p className="hq-kicker text-[var(--color-primary)]">
 					{t('hero.docket.label')}

@@ -49,6 +49,7 @@
 		"flow:tasklist": "node scripts/flow-human-tasklist.mjs --write",
 		"flow:tasklist:check": "node scripts/flow-human-tasklist.mjs --check",
 		"flow:browser-smoke": "env -u NO_COLOR playwright test scripts/flow-browser-smoke.spec.ts --reporter=line --workers=1",
+		"portfolio:browser-smoke": "env -u NO_COLOR playwright test scripts/portfolio-browser-smoke.spec.ts --reporter=line --workers=1",
 		"leaks": "gitleaks git --verbose --redact --no-banner",
 		"scan:arch": "depcruise --config .dependency-cruiser.cjs --include-only \"^(apps|packages)/\" --exclude \"node_modules|dist|\\.output|\\.turbo|routeTree\\.gen\\.ts|apps/driver/(android/app/src/main/assets/public|ios/App/App/public)\" apps packages --output-type err",
 		"scan:duplicates": "jscpd apps packages --config .jscpd.json --gitignore --noSymlinks --noTips",

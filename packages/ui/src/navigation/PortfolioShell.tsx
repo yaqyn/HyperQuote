@@ -1,7 +1,11 @@
 import arCommon from '@hyperquote/i18n/locales/ar/common'
 import enCommon from '@hyperquote/i18n/locales/en/common'
-import type { ReactNode } from 'react'
+import { Info, X } from 'lucide-react'
+import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
+import { Dialog } from 'react-aria-components/Dialog'
+import { Modal, ModalOverlay } from 'react-aria-components/Modal'
 import { useTranslation } from 'react-i18next'
+import demoAccounts from '../../../../supabase/showcase-accounts.json'
 
 type PortfolioApp = 'website' | 'portal' | 'internal' | 'driver'
 
@@ -51,6 +55,37 @@ export function PortfolioShell({
 	children: ReactNode
 }) {
 	const { i18n } = useTranslation()
+	const [expanded, setExpanded] = useState(false)
+	const [infoOpen, setInfoOpen] = useState(false)
+	const [ready, setReady] = useState(false)
+	const dockRef = useRef<HTMLElement | null>(null)
+	const currentButtonRef = useRef<HTMLButtonElement | null>(null)
+	const dockId = useId()
+
+	useEffect(() => setReady(true), [])
+
+	useEffect(() => {
+		if (!expanded) return
+		currentButtonRef.current?.focus()
+	}, [expanded])
+
+	useEffect(() => {
+		if (!expanded || infoOpen) return
+		function dismiss(event: PointerEvent) {
+			if (
+				event.target instanceof Node &&
+				!dockRef.current?.contains(event.target)
+			)
+				setExpanded(false)
+		}
+		document.addEventListener('pointerdown', dismiss)
+		return () => document.removeEventListener('pointerdown', dismiss)
+	}, [expanded, infoOpen])
+
+	function collapse() {
+		setExpanded(false)
+		requestAnimationFrame(() => currentButtonRef.current?.focus())
+	}
 	const enabled =
 		env.VITE_PORTFOLIO_MODE === undefined
 			? env.DEV
@@ -63,33 +98,148 @@ export function PortfolioShell({
 
 	return (
 		<>
+			{children}
 			<nav
-				className="hq-portfolio-bar"
+				ref={dockRef}
+				id={dockId}
+				className="hq-portfolio-launcher"
+				data-expanded={expanded}
 				aria-label={labels.navigation}
 				dir={i18n.dir()}
+				onKeyDown={(event) => {
+					if (event.key === 'Escape') {
+						event.stopPropagation()
+						collapse()
+					}
+				}}
 			>
-				<p className="hq-portfolio-title">{labels.title}</p>
-				<div className="hq-portfolio-links">
-					{portfolioLinks(env).map(({ id, href }) =>
-						id === app || href ? (
-							<a
-								key={id}
-								href={id === app ? '/' : href}
-								aria-current={id === app ? 'true' : undefined}
-							>
-								{labels[id]}
-							</a>
-						) : (
-							<span key={id} aria-disabled="true" title={labels.unavailable}>
-								{labels[id]}
-							</span>
-						),
-					)}
-				</div>
+				{!expanded ? (
+					<button
+						ref={currentButtonRef}
+						type="button"
+						className="hq-portfolio-toggle"
+						disabled={!ready}
+						aria-label={labels.open}
+						aria-expanded={false}
+						aria-controls={dockId}
+						title={labels.open}
+						onClick={() => setExpanded(true)}
+					>
+						<AppIcon app={app} />
+						<span className="hq-portfolio-orbit" aria-hidden />
+					</button>
+				) : (
+					<div className="hq-portfolio-actions">
+						{portfolioLinks(env).map(({ id, href }) =>
+							id === app ? (
+								<button
+									key={id}
+									ref={currentButtonRef}
+									type="button"
+									aria-label={`${labels[id]} · ${labels.close}`}
+									title={`${labels[id]} · ${labels.close}`}
+									aria-current="true"
+									aria-expanded={true}
+									aria-controls={dockId}
+									onClick={collapse}
+								>
+									<AppIcon app={id} />
+								</button>
+							) : href ? (
+								<a
+									key={id}
+									href={href}
+									aria-label={labels[id]}
+									title={labels[id]}
+								>
+									<AppIcon app={id} />
+								</a>
+							) : (
+								<button
+									key={id}
+									type="button"
+									disabled
+									aria-label={labels[id]}
+									title={labels.unavailable}
+								>
+									<AppIcon app={id} />
+								</button>
+							),
+						)}
+						<button
+							type="button"
+							aria-label={labels.info}
+							title={labels.info}
+							onClick={() => setInfoOpen(true)}
+						>
+							<Info size={22} strokeWidth={1.6} aria-hidden />
+						</button>
+					</div>
+				)}
 			</nav>
-			<div className="hq-portfolio-surface" data-portfolio-app={app}>
-				{children}
-			</div>
+			<ModalOverlay
+				isOpen={infoOpen}
+				onOpenChange={setInfoOpen}
+				isDismissable
+				className="hq-portfolio-backdrop"
+			>
+				<Modal className="hq-portfolio-modal">
+					<Dialog
+						aria-label={labels.info}
+						className="hq-portfolio-dialog"
+						dir={i18n.dir()}
+					>
+						<header className="hq-portfolio-info-header">
+							<div>
+								<p className="hq-portfolio-eyebrow">{labels.title}</p>
+								<h2>{labels.infoTitle}</h2>
+							</div>
+							<button
+								type="button"
+								onClick={() => setInfoOpen(false)}
+								aria-label={labels.closeInfo}
+							>
+								<X size={20} aria-hidden />
+							</button>
+						</header>
+						<p className="hq-portfolio-description">{labels.description}</p>
+						<div className="hq-portfolio-flow">
+							{destinations.map(({ id }) => (
+								<div key={id}>
+									<AppIcon app={id} />
+									<h3>{labels[id]}</h3>
+									<p>{labels.tour[id]}</p>
+								</div>
+							))}
+						</div>
+						<section className="hq-portfolio-accounts">
+							<h3>{labels.accountsTitle}</h3>
+							<p>{labels.loginTip}</p>
+							{Object.entries(demoAccounts).map(([id, account]) => (
+								<dl key={id}>
+									<div>
+										<dt>{labels.email}</dt>
+										<dd>
+											<code dir="ltr">{account.email}</code>
+										</dd>
+									</div>
+									<div>
+										<dt>{labels.password}</dt>
+										<dd>
+											<code dir="ltr">{account.password}</code>
+										</dd>
+									</div>
+								</dl>
+							))}
+						</section>
+						<p className="hq-portfolio-footnote">{labels.seedNote}</p>
+					</Dialog>
+				</Modal>
+			</ModalOverlay>
 		</>
 	)
+}
+
+function AppIcon({ app }: { app: PortfolioApp }) {
+	return <span className="hq-portfolio-app-icon" data-app={app} aria-hidden />
 }

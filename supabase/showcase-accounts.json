@@ -1,0 +1,7 @@
+{
+	"customer": { "email": "customer@hyperquote.net", "password": "123456" },
+	"admin": { "email": "admin@hyperquote.net", "password": "123456" },
+	"manager": { "email": "manager@hyperquote.net", "password": "123456" },
+	"advisor": { "email": "advisor@hyperquote.net", "password": "123456" },
+	"driver": { "email": "driver@hyperquote.net", "password": "123456" }
+}

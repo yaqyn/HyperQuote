@@ -6,7 +6,24 @@
 		"portal": "Portal",
 		"internal": "Internal",
 		"driver": "Driver",
-		"unavailable": "Demo link not configured yet"
+		"unavailable": "Demo link not configured yet",
+		"open": "Explore HyperQuote",
+		"close": "Collapse app switcher",
+		"info": "About the project and demo access",
+		"closeInfo": "Close project information",
+		"infoTitle": "One project. Four perspectives.",
+		"description": "A building-materials platform for Egypt, connecting customer quote requests with the teams that price, fulfil, and deliver them.",
+		"tour": {
+			"website": "Explore the catalog and build a material list.",
+			"portal": "Request quotes, track orders, and plan with Lyon AI.",
+			"internal": "Follow sales, inventory, finance, warehouse, and dispatch operations.",
+			"driver": "Explore assignments, delivery progress, and proof of delivery."
+		},
+		"accountsTitle": "Demo access",
+		"loginTip": "Choose email and password sign-in. Customer access is shared by the website and portal; admin, manager, and advisor accounts belong to Internal; the driver account belongs to Driver.",
+		"email": "EMAIL",
+		"password": "PASSWORD",
+		"seedNote": "These fictional accounts come from the showcase seed. Login becomes available once the demo backend is configured."
 	},
 	"greeting": "Welcome",
 	"greeting_morning": "Good morning",

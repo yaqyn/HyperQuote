@@ -1224,7 +1224,11 @@ input::placeholder {
 	}
 }
 
-@media (max-width: 639px) {
+body:has(.hq-portfolio-launcher) .auth-legal-footer {
+	inset-block-end: 74px;
+}
+
+@media (max-width: 1023px) {
 	.auth-layout {
 		min-height: 100dvh;
 		max-width: none;
@@ -1241,7 +1245,7 @@ input::placeholder {
 		justify-content: center;
 		padding-block: calc(env(safe-area-inset-top) + 84px)
 			calc(env(safe-area-inset-bottom) + 108px);
-		padding-inline: 20px;
+		padding-inline: clamp(20px, 5vw, 48px);
 		background:
 			linear-gradient(
 				180deg,
@@ -1252,6 +1256,12 @@ input::placeholder {
 		border: 0;
 		border-radius: 0;
 		box-shadow: none;
+	}
+
+	.atelier-page > div {
+		width: 100%;
+		max-width: 480px;
+		margin-inline: auto;
 	}
 
 	[data-theme="dark"] .atelier-page {

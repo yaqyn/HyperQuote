@@ -188,7 +188,7 @@ export function WebsiteHeader() {
 			{isHome && (
 				<div
 					dir="ltr"
-					className="pointer-events-none fixed inset-x-0 top-[var(--hq-portfolio-height,0px)] z-39 flex h-[68px] items-center justify-between overflow-hidden bg-transparent px-4 sm:px-6 lg:px-8"
+					className="pointer-events-none fixed inset-x-0 top-0 z-39 flex h-[68px] items-center justify-between overflow-hidden bg-transparent px-4 sm:px-6 lg:px-8"
 					style={{
 						opacity: scrolled ? 0 : 1,
 						transition: 'opacity 0.7s ease-out',
@@ -245,7 +245,7 @@ export function WebsiteHeader() {
 				dir="ltr"
 				aria-hidden={heroMode || atPageBottom}
 				inert={heroMode || atPageBottom}
-				className="hq-site-header fixed inset-x-0 top-[var(--hq-portfolio-height,0px)] z-40 flex h-[68px] items-center justify-between border-b border-[var(--site-rule)] px-4 backdrop-blur-xl transition-transform duration-500 ease-out sm:px-6 lg:px-8"
+				className="hq-site-header fixed inset-x-0 top-0 z-40 flex h-[68px] items-center justify-between border-b border-[var(--site-rule)] px-4 backdrop-blur-xl transition-transform duration-500 ease-out sm:px-6 lg:px-8"
 				style={{
 					transform:
 						heroMode || atPageBottom ? 'translateY(-100%)' : 'translateY(0)',

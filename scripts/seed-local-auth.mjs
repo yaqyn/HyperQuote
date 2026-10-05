@@ -2,19 +2,20 @@
 import { spawnSync } from 'node:child_process'
 import { inspect } from 'node:util'
 import { createClient } from '@supabase/supabase-js'
+import showcaseAccounts from '../supabase/showcase-accounts.json' with {
+	type: 'json',
+}
 
 const LOCAL_ACCOUNTS = {
 	customer: {
 		companyName: 'Customer Company',
 		contactName: 'Customer',
-		email: 'customer@hyperquote.net',
-		password: '123456',
+		...showcaseAccounts.customer,
 		phone: '+201000000000',
 	},
 	driver: {
-		email: 'driver@hyperquote.net',
+		...showcaseAccounts.driver,
 		fullName: 'Driver',
-		password: '123456',
 		phone: '+201000000002',
 		truckPlateNumber: 'HQ-TRUCK-1',
 		vehicleLabel: 'Truck 1',
@@ -49,17 +50,16 @@ const EMPLOYEE_ROLES = [
 ]
 
 const ADMIN_ACCOUNT = {
-	email: 'admin@hyperquote.net',
+	...showcaseAccounts.admin,
 	fullName: 'Admin',
 	isCeo: true,
 	panels: PANEL_PERMISSIONS,
-	password: '123456',
 	phone: '+201000000003',
 	roles: EMPLOYEE_ROLES,
 }
 
 const MANAGER_ACCOUNT = {
-	email: 'manager@hyperquote.net',
+	...showcaseAccounts.manager,
 	fullName: 'Manager',
 	panels: [
 		'sales',
@@ -70,7 +70,6 @@ const MANAGER_ACCOUNT = {
 		'customer_service',
 		'search',
 	],
-	password: '123456',
 	phone: '+201000000001',
 	roles: [
 		'sales',
@@ -84,10 +83,9 @@ const MANAGER_ACCOUNT = {
 }
 
 const ADVISOR_ACCOUNT = {
-	email: 'advisor@hyperquote.net',
+	...showcaseAccounts.advisor,
 	fullName: 'Advisor',
 	panels: ['sales', 'warehouse'],
-	password: '123456',
 	phone: '+201000000005',
 	roles: ['sales', 'warehouse'],
 }

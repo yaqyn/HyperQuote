@@ -175,7 +175,11 @@ the four production apps above unless a new production surface is designed.
 
 ### Portfolio Navigation
 
-All four apps share a portfolio navigation bar, including their sign-in screens.
+All four apps share a floating portfolio launcher, including their sign-in screens.
+It expands into five icon controls for Website, Portal, Internal, Driver, and
+project information. It does not wrap or resize app content. The Info dialog
+explains the workflow and shows fictional demo credentials from
+`supabase/showcase-accounts.json`, which is also used by the account seed script.
 It is enabled by default in Vite development. Set `VITE_PORTFOLIO_MODE=false`
 to hide it locally, or `VITE_PORTFOLIO_MODE=true` to include it in a hosted
 portfolio build. Hosted builds keep it disabled unless explicitly enabled.
@@ -186,6 +190,10 @@ ports 3000–3003; hosted portfolio links must use HTTPS. The Worker build scrip
 forwards these settings from the build environment. Changing them requires
 rebuilding the apps. Navigation uses the current tab and preserves each app's
 normal authentication requirements.
+
+Run `bun run portfolio:browser-smoke` with all four local apps running to verify
+login breakpoints, tablet hero alignment, launcher controls, and the Info dialog.
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` optionally selects an installed Chromium.
 
 1. Start or reset local Supabase with `bun run db:start` or `bun run db:reset`.
 2. Start all app surfaces with `bun run dev`.

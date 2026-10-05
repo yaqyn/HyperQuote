@@ -61,6 +61,11 @@ export function DriverApp() {
 		}
 
 		function handleKeyDown(event: KeyboardEvent) {
+			if (
+				event.target instanceof HTMLElement &&
+				event.target.closest('[role="dialog"]')
+			)
+				return
 			if (!ROOT_SCROLL_KEYS.has(event.key) || isEditableTarget(event.target)) {
 				return
 			}

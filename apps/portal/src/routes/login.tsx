@@ -1510,7 +1510,7 @@ function LegalFooter({ leaving }: { leaving: boolean }) {
 				delay: leaving ? 0 : 0.9,
 				ease: 'easeOut',
 			}}
-			className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:px-6 sm:pb-6"
+			className="auth-legal-footer pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:px-6 sm:pb-6"
 		>
 			<p className="atelier-legal-copy pointer-events-auto max-w-[36rem] text-center">
 				{t('login.atelier.legalPrefix')}{' '}
