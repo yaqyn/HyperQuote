@@ -438,7 +438,7 @@ function EmptyDesk({
 								<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--p-border)] bg-[var(--p-surface-subtle)] text-[var(--p-accent)] transition-colors group-hover:bg-[var(--p-card)]">
 									<Icon size={16} strokeWidth={1.7} />
 								</span>
-								<span className="min-w-0 flex-1">
+								<span className="min-w-0 flex-1 text-center">
 									<span className="block text-[13px] font-semibold leading-5 text-[var(--p-text)]">
 										{shortcut.title}
 									</span>
