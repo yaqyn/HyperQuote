@@ -7,6 +7,7 @@
  * MUST be wrapped in ClientOnly at call site.
  */
 import { buildDetailedQuoteLocationName } from '@hyperquote/quote-cart/checkout'
+import type { FeatureCollection } from 'geojson'
 import { Search, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapLayerMouseEvent, MapRef } from 'react-map-gl/maplibre'
@@ -239,7 +240,7 @@ export function DeliveryMap({
 		[findSearchAddress],
 	)
 
-	const routeGeoJSON: GeoJSON.FeatureCollection = useMemo(
+	const routeGeoJSON: FeatureCollection = useMemo(
 		() => ({ type: 'FeatureCollection', features: [] }),
 		[],
 	)

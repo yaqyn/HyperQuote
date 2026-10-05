@@ -189,6 +189,10 @@ login breakpoints, tablet hero alignment, launcher controls, and the Info dialog
    runtime. Production Supabase values live in Infisical `prod`.
 7. Use `bun run secrets:check:dev` and `bun run secrets:check:production` to
    verify required secret groups without printing values.
+   Email/SMS providers may be omitted for the portfolio deployment. Missing
+   provider credentials disable those integrations; partial provider credentials
+   fail validation. `FILL_ME` is a placeholder, never a usable credential. AI and
+   maps are optional and must not be enabled with placeholder keys.
 8. Cloudflare Secrets Store is not a runtime source for this repo. GitHub stores
    only scoped deploy credentials, including the `INFISICAL_TOKEN` production
    read token.

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
 import {
+	configuredEnvValue,
 	missingEnvNames,
 	optionalRuntimeSecretNamesForApp,
 	requiredRuntimeSecretNamesForApp,
@@ -24,7 +25,7 @@ for (const app of apps) {
 		process.exit(1)
 	}
 	const optionalSecretNames = optionalRuntimeSecretNamesForApp(app).filter(
-		(name) => process.env[name]?.trim(),
+		(name) => configuredEnvValue(process.env[name]),
 	)
 	const secretNames = [...requiredSecretNames, ...optionalSecretNames]
 

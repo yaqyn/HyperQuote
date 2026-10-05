@@ -63,7 +63,7 @@ const commonRuntimeSecretNames = [
 	'SUPABASE_URL',
 ]
 
-const aiRuntimeSecretNames = ['GROQ_API_KEY']
+const aiRuntimeSecretNames = ['GROQ_API_KEY', 'USE_AI']
 
 const supportRuntimeSecretNames = [
 	'RESEND_API_KEY',
@@ -106,7 +106,9 @@ export function productionBuildEnv(app, env = process.env) {
 		VITE_DRIVER_URL: env.VITE_DRIVER_URL ?? productionUrls.driver,
 		VITE_DRIVER_API_BASE: productionUrls.driver,
 		VITE_INTERNAL_URL: env.VITE_INTERNAL_URL ?? productionUrls.internal,
-		VITE_MAPTILER_KEY: env.VITE_MAPTILER_KEY ?? env.MAPTILER_KEY ?? '',
+		VITE_MAPTILER_KEY:
+			configuredEnvValue(env.VITE_MAPTILER_KEY) ||
+			configuredEnvValue(env.MAPTILER_KEY),
 		VITE_PORTAL_URL: env.VITE_PORTAL_URL ?? productionUrls.portal,
 		VITE_ROAD_ROUTE_ENDPOINT:
 			env.VITE_ROAD_ROUTE_ENDPOINT ??
@@ -125,29 +127,34 @@ export function productionBuildEnv(app, env = process.env) {
 			env.VITE_SUPPORT_PHONE_LABEL ?? env.SUPPORT_PHONE_LABEL ?? '',
 		VITE_SUPPORT_WHATSAPP_E164:
 			env.VITE_SUPPORT_WHATSAPP_E164 ?? env.SUPPORT_WHATSAPP_E164 ?? '',
-		VITE_USE_AI: env.VITE_USE_AI ?? env.USE_AI ?? 'true',
+		VITE_USE_AI:
+			env.VITE_USE_AI ??
+			env.USE_AI ??
+			(configuredEnvValue(env.GROQ_API_KEY) ? 'true' : 'false'),
 		VITE_WEBSITE_URL: env.VITE_WEBSITE_URL ?? productionUrls.website,
 	}
 }
 
-export function requiredRuntimeSecretNamesForApp(app) {
-	const names = new Set(commonRuntimeSecretNames)
-	if (app.id !== 'driver') {
-		for (const name of aiRuntimeSecretNames) names.add(name)
-	}
-	if (app.id === 'internal') {
-		for (const name of supportRuntimeSecretNames) names.add(name)
-	}
-	return [...names]
+export function requiredRuntimeSecretNamesForApp() {
+	return [...commonRuntimeSecretNames]
 }
 
 export function optionalRuntimeSecretNamesForApp(app) {
-	if (app.id !== 'internal') return []
-	return [...optionalSupportRuntimeSecretNames]
+	return [
+		...(app.id !== 'driver' ? aiRuntimeSecretNames : []),
+		...(app.id === 'internal'
+			? [...supportRuntimeSecretNames, ...optionalSupportRuntimeSecretNames]
+			: []),
+	]
+}
+
+export function configuredEnvValue(value) {
+	const trimmed = value?.trim() ?? ''
+	return trimmed === 'FILL_ME' ? '' : trimmed
 }
 
 export function missingEnvNames(names, env = process.env) {
-	return names.filter((name) => !env[name]?.trim())
+	return names.filter((name) => !configuredEnvValue(env[name]))
 }
 
 export function productionSupabaseDatabaseUrl(env = process.env) {

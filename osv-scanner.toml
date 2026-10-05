@@ -1,0 +1,4 @@
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2026-11-05
+reason = "No upstream fix exists for braces 3.0.3. It is used only by the development-only jscpd -> fast-glob -> micromatch chain with trusted repository-owned patterns, not application input or production bundles. Reassess at expiry."

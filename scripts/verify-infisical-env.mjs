@@ -2,6 +2,7 @@
 import { spawnSync } from 'node:child_process'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import { configuredEnvValue } from './production-config.mjs'
 
 const VERIFY_SENTINEL = 'HYPERQUOTE_VERIFY_INFISICAL_ENV'
 const HYPERQUOTE_INFISICAL_PATH = '/Projects/HyperQuote'
@@ -110,11 +111,14 @@ function requiredSecretGroups(infisicalEnv) {
 		},
 	]
 
-	if (infisicalEnv === 'dev') return [...twilioVerify, ...resendEmail]
+	const optionalProviders = [
+		...(twilioVerify.some(hasGroupValue) ? twilioVerify : []),
+		...(resendEmail.some(hasGroupValue) ? resendEmail : []),
+	]
+	if (infisicalEnv === 'dev') return optionalProviders
 
 	return [
-		...twilioVerify,
-		...resendEmail,
+		...optionalProviders,
 		{
 			label: 'Resend inbound webhook secret (RESEND_WEBHOOK_SECRET)',
 			names: ['RESEND_WEBHOOK_SECRET'],
@@ -195,7 +199,13 @@ function requiredSecretGroups(infisicalEnv) {
 			names: ['GROQ_API_KEY'],
 			isValid: (value) => value.length > 0,
 		},
-	]
+	].filter((group) => {
+		const name = group.names[0]
+		if (name === 'GROQ_API_KEY') return isGroupConfigured(group)
+		if (name === 'RESEND_WEBHOOK_SECRET') return isGroupConfigured(group)
+		if (name.startsWith('SUPPORT_')) return resendEmail.some(hasGroupValue)
+		return true
+	})
 }
 
 function optionalSecretGroups() {
@@ -215,9 +225,13 @@ function optionalSecretGroups() {
 
 function isGroupConfigured(group) {
 	return group.names.some((name) => {
-		const value = process.env[name]?.trim()
+		const value = configuredEnvValue(process.env[name])
 		return value ? group.isValid(value) : false
 	})
+}
+
+function hasGroupValue(group) {
+	return group.names.some((name) => configuredEnvValue(process.env[name]))
 }
 
 function isEmail(value) {

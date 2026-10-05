@@ -41,7 +41,7 @@
 		"@internationalized/date": "^3.12.1",
 		"clsx": "^2.1.1",
 		"lucide-react": "^1.16.0",
-		"maplibre-gl": "^5.24.0",
+		"maplibre-gl": "^6.4.1",
 		"motion": "^12.38.0",
 		"react-aria-components": "^1.17.0",
 		"react-map-gl": "^8.1.1",
@@ -55,6 +55,6 @@
 	},
 	"devDependencies": {
 		"@types/react": "^19.2.14",
-		"vitest": "^4.1.6"
+		"vitest": "4.1.11"
 	}
 }
