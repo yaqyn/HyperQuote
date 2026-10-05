@@ -45,7 +45,14 @@ Current HyperQuote production resources are source-controlled from this repo:
   `https://www.hyperquote.net/$1`.
 - Cloudflare Email Routing rule: `support@hyperquote.net` to the Internal
   Worker, preserving the existing root MX/catch-all setup.
-- Supabase Cloud project: `hyperquote-production` in `eu-west-1`.
+- Supabase Cloud project: `hyperquote-production` in `eu-west-1`, project ref
+  `neqhqzwsgiexqifyrxtm`, under organization `yaqyn` (`oiiwgsuxldlczwntcutq`).
+
+The new portfolio project was provisioned and this checkout linked on 2026-10-05.
+The Supabase CLI login for this account uses the `hyperquote` profile. The retained
+old project `iypuhjnaprojmqbyixrn` is not the deployment target and must remain
+untouched. Provisioning and linking do not apply migrations or configure Auth;
+those remain separate setup steps before the portfolio is ready.
 
 If old `Deploy Staging Workers` records still appear in GitHub, they are stale.
 Do not re-enable staging or preview workflows.
