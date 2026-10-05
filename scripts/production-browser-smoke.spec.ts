@@ -28,7 +28,14 @@ for (const [app, origin, account, path] of [
 		await expect(email).toBeEditable({ timeout: 30_000 })
 		await email.fill(account.email)
 		await password.fill(account.password)
-		await page.locator('button[type="submit"]').click()
+		if (app === 'website')
+			await page
+				.getByRole('main')
+				.getByRole('button', { name: 'Sign in', exact: true })
+				.click()
+		else if (app === 'portal')
+			await page.getByRole('button', { name: 'Sign In', exact: true }).click()
+		else await page.locator('button[type="submit"]').click()
 		await expect(email).toBeHidden({ timeout: 30_000 })
 		if (app !== 'driver') await expect(page).not.toHaveURL(/\/login/)
 		else
