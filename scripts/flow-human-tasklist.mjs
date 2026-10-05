@@ -374,6 +374,8 @@ function render(checklistRows) {
 		'',
 		'Source of truth: `Flow.md`.',
 		'',
+		'Historical acceptance record. Checked rows retain dated evidence from earlier local runs; they do not certify the current hosted deployment. A new acceptance run requires fresh verification.',
+		'',
 		'This checklist is regenerated from every bullet requirement in `Flow.md`. Every status is intentionally `[ ]` until the final fresh browser/API/DB/security run proves that row in this run.',
 		'',
 		'Status legend: `[ ]` not tested in the final pass, `[x]` passed in the final live human/browser/API/DB test, `[!]` failed and needs a root fix plus retest, `[~]` external provider/config-limited with local persistence and fail-closed proof.',

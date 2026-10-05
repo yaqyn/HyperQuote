@@ -14,64 +14,37 @@ verification. `package.json` and `bun.lock` remain the live version authority.
 - `apps/driver`: Vite SPA + Capacitor locally and static assets on production
   Workers, EN + AR, light + dark.
 
-Hosted architecture is reopened as production-only. There is no staging,
-preview, or Cloudflare Pages deploy path. Protected `main` runs checks,
-production Supabase migrations/config, Worker secret sync, Worker deploys, and
-live smoke checks through `.github/workflows/production.yml`.
+Hosted architecture is production-only. There is no staging, preview, or
+Cloudflare Pages deploy path. Pushes to `main` run checks, production Supabase
+migrations and showcase initialization, Worker secret sync, Worker deploys, and
+live smoke checks through `.github/workflows/production.yml`. Supabase Auth/project
+configuration is a separate administrator setup step.
 
-## External Resource Baseline
+## Hosted Architecture
 
-The 2026-05-24 cloud reset removed the HyperQuote Cloudflare deploy/runtime
-surface that was in scope: HyperQuote Workers, D1, R2, Vectorize,
-Hyperdrive, AI Gateway, AI Search, KV, Pages, Tunnels, Workflows, and
-HyperQuote/qvOS Secrets Store entries were absent after verification.
-
-Retained resources are outside the HyperQuote reset scope and must be left
-alone unless the user names them directly:
-
-- Cloudflare Worker: `modern`.
-- Cloudflare R2 buckets: `modern`, `othren-assets`.
-- Cloudflare Secrets Store entries: `modern_*`.
-- GitHub repos: `Yaqyn-Modern/Modern`, `yaqyn/qv`,
-  `Yaqyn-Modern/HyperQuote`.
-
-Current HyperQuote production resources are source-controlled from this repo:
+The intended production deployment is defined in source-controlled configuration:
 
 - Cloudflare Workers: `hyperquote-website`, `hyperquote-portal`,
   `hyperquote-internal`, and `hyperquote-driver`.
-- Custom domains: `www.hyperquote.net`, `portal.hyperquote.net`,
+- App origins: `www.hyperquote.net`, `portal.hyperquote.net`,
   `internal.hyperquote.net`, and `driver.hyperquote.net`.
-- Cloudflare redirect rule: `hyperquote.net/*` to
-  `https://www.hyperquote.net/$1`.
-- Cloudflare Email Routing rule: `support@hyperquote.net` to the Internal
-  Worker, preserving the existing root MX/catch-all setup.
-- Supabase Cloud project: `hyperquote-production` in `eu-west-1`, project ref
-  `neqhqzwsgiexqifyrxtm`, under organization `yaqyn` (`oiiwgsuxldlczwntcutq`).
+- Root redirect: `hyperquote.net/*` to `https://www.hyperquote.net/$1`.
+- Support-only Email Routing to the Internal Worker, preserving existing root MX
+  and unrelated mailbox routing.
+- One Supabase Cloud project named `hyperquote-production` in `eu-west-1`.
 
-The new portfolio project was provisioned and this checkout linked on 2026-10-05.
-The Supabase CLI login for this account uses the `hyperquote` profile. The retained
-old project `iypuhjnaprojmqbyixrn` is not the deployment target and must remain
-untouched. Provisioning and linking do not apply migrations or configure Auth;
-those remain separate setup steps before the portfolio is ready.
+Portfolio setup is in progress. These are deployment targets, not a claim that
+the revived applications, integrations, or demo accounts are live. Account IDs,
+CLI profiles, historical resource inventories, and provider activation notes
+belong in local operator documentation under the ignored `docs/private/` folder.
 
-If old `Deploy Staging Workers` records still appear in GitHub, they are stale.
-Do not re-enable staging or preview workflows.
+Production schema changes use committed migrations through the Production
+workflow. Production never runs `supabase/seed.sql`; the deploy script initializes
+the separate fictional showcase baseline and its demo accounts.
 
-Production Supabase is migrated only from committed migrations with
-`supabase db push`; production never runs `supabase/seed.sql`.
-
-Cloudflare DNS records and Pipelines were not part of the verified reset
-because the available tokens did not allow full inspection. Re-inventory before
-touching them.
-
-Support email threading is implemented locally and partially prepared in
-Resend. `SUPPORT_EMAIL_HANDOFF.md` is the current source of truth for the
-Resend webhook/domain setup, Cloudflare Email Routing state, and activation
-choices. Do not replace root `hyperquote.net` MX records without confirming the
-impact on all `@hyperquote.net` mail.
-
-Product AI/Lyon behavior remains part of the app and docs. Deleted Lyon-named
-Cloudflare resources must not be recreated automatically.
+`SUPPORT_EMAIL_HANDOFF.md` explains support-email implementation and activation
+requirements. Verify current provider and mail state before activation; changing
+root MX affects all mail on the domain. Preserve unrelated platform resources.
 
 ## Backend Boundary
 
@@ -209,8 +182,8 @@ login breakpoints, tablet hero alignment, launcher controls, and the Info dialog
    must request the `dev` Infisical environment explicitly. Production uses the
    existing Infisical `prod` slug.
 5. HyperQuote runtime secrets must be scoped to `/Projects/HyperQuote`.
-   `/MASTER` is for operator/admin credentials only and must never be injected
-   into app, Supabase, CI, deploy, test, or verification processes.
+   Operator/admin credentials must remain outside this runtime scope and must
+   never be injected into app, Supabase, CI, deploy, test, or verification processes.
 6. Local Supabase URL, anon key, and service-role key still come from
    `supabase status` during local dev because they are generated by the local
    runtime. Production Supabase values live in Infisical `prod`.

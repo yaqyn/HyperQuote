@@ -2,6 +2,8 @@
 
 Generated from `Flow.md` and `Flow.human-tasklist.md`.
 
+Historical/local verification record. Generation assembles recorded evidence; it does not rerun tests or verify a hosted deployment. Read each row's dates and scope before using it as a current readiness claim.
+
 This file is the final evidence ledger for the 520-row human acceptance tasklist. It must not be regenerated as complete unless `Flow.human-tasklist.md` has zero pending rows and zero failed rows.
 
 Clean final baseline used for this ledger:

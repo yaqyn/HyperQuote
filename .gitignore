@@ -18,6 +18,10 @@ dist
 
 # Runtime / local
 .dev.vars
+.dev.vars.*
+
+# Private operator notes and provider handoffs
+/docs/private/
 
 # Agent-local config
 .claude/
@@ -26,6 +30,9 @@ dist
 
 # Environment files — never commit real secrets
 .env
+.env.*
+!.env.example
+!.env.*.example
 .env.local
 .env.*.local
 .envrc

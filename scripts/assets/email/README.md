@@ -1,17 +1,17 @@
 # HyperQuote Email Assets
 
-Source PNG assets for hosted email images.
+Source PNG assets used by the Supabase authentication email templates.
 
-Cloudflare R2 bucket: `hyperquote-email-assets`
-
-Public base URL:
-`https://pub-cbfbae308dae4797b95916396d2ff713.r2.dev`
-
-Hosted layout:
+Expected hosted layout:
 
 - `logos/lyon-black-v2.png`
 - `email/auth-icons/*.png`
 - `email/footer-icons/*.png`
 
-Keep generated Supabase auth templates pointed at hosted HTTPS PNGs, not SVG,
-Google Fonts icons, or `data:` images.
+Email templates require publicly reachable HTTPS PNGs. Avoid SVG, Google Fonts
+icons, and `data:` images because email-client support varies.
+
+The historical provider location is recorded in ignored local operator notes.
+Before activating email, verify the image URLs in `supabase/templates/` and their
+hosting configuration. Creating a new asset-hosting resource requires an
+explicit architecture decision.

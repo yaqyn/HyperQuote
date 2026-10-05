@@ -3,6 +3,9 @@
 Use this file for repo working rules. Use `STACK.md` for stack and backend
 facts.
 
+When interacting with Cloudflare, use the `cf` CLI unless the project has a
+Wrangler configuration file.
+
 ## Document Map
 
 - `STACK.md` is the source of truth for stack, runtime, backend, and external
@@ -10,7 +13,8 @@ facts.
 - `BACKEND_FLOW.md` defines backend workflow contracts and app/server
   boundaries.
 - `SUPPORT_EMAIL_HANDOFF.md` records the current support-email threading
-  implementation, Resend setup, Cloudflare mail state, and activation choices.
+  implementation and activation requirements. Account-specific provider state
+  belongs in ignored local operator notes.
 - `Flow.md` is the product workflow spec. `Flow.evidence.md` and
   `Flow.human-tasklist.md` are generated proof/checklist artifacts.
 - `packages/docs/src/content/docs/` contains customer-facing product docs, not
@@ -32,14 +36,12 @@ HyperQuote hosted architecture is reopened as production-only. Do not create
 staging, preview, or Cloudflare Pages deploy paths unless the user explicitly
 reopens architecture again.
 
-Leave the retained non-HyperQuote Cloudflare resources alone unless the user
-names them directly: the `modern` Worker, `modern` R2 bucket, `modern_*`
-Secrets Store entries, and `othren-assets` R2 bucket. Also leave the GitHub
-repos `Yaqyn-Modern/Modern`, `yaqyn/qv`, and `Yaqyn-Modern/HyperQuote`.
+Leave unrelated Cloudflare resources and GitHub repositories alone. Consult
+`docs/private/OPERATIONS.md` when present before hosted operations; it records
+local account targets and retained-resource constraints.
 
 Production deploys are source-controlled in `.github/workflows/production.yml`.
-If GitHub still lists old `Deploy Staging Workers` records, treat those as
-stale disabled records from old workflow files. Do not re-enable staging.
+Do not re-enable historical staging workflows.
 
 Production uses one Supabase Cloud project, `hyperquote-production`, in
 `eu-west-1`. Local Supabase remains the development and proof backend.
@@ -127,8 +129,8 @@ runs with `concurrency: production` and performs, in order:
 Do not push unless the user explicitly asks. When a push is requested, run the
 local verification that matches the blast radius first, commit coherently, push
 `main`, then find the run with
-`gh run list --repo Yaqyn-Modern/HyperQuote --branch main`. Watch it with
-`gh run watch <run-id> --repo Yaqyn-Modern/HyperQuote --exit-status`.
+`gh run list --branch main` after verifying this checkout's origin points to the
+intended repository. Watch it with `gh run watch <run-id> --exit-status`.
 After GitHub succeeds, run `bun run smoke:production` locally when practical
 before claiming the production path is healthy.
 
@@ -225,8 +227,8 @@ requests an operator override and the risk is understood.
   commands use the Infisical `dev` environment explicitly; production uses the
   existing `prod` slug.
 - HyperQuote runtime secrets must be read only from
-  `/Projects/HyperQuote`. The `/MASTER` folder is reserved for operator/admin
-  credentials and must never be injected into app, Supabase, CI, deploy, test,
+  `/Projects/HyperQuote`. Operator/admin credentials must stay outside that
+  runtime scope and must never be injected into app, Supabase, CI, deploy, test,
   or verification processes.
 - Local Supabase URL, anon key, and service-role key come from local Supabase
   status during local dev. Do not store those generated local values in
@@ -248,8 +250,9 @@ requests an operator override and the risk is understood.
   CI deploys do not need a Supabase account access token.
 - `SUPABASE_ACCESS_TOKEN` is only for the admin-only
   `bun run configure:supabase:production` path that pushes Supabase Auth/project
-  config. Use it transiently from `/MASTER` only when needed for account
-  administration, and do not store it in `/Projects/HyperQuote` or GitHub.
+  config. Use it transiently from the operator's private credential source only
+  when needed for account administration, and do not store it in
+  `/Projects/HyperQuote` or GitHub.
 - Never print, log, paste, write, commit, or expose secrets or master tokens.
   Master credentials are for account administration only.
 - Ask before destructive operations, billing changes, public repo creation,
@@ -260,8 +263,8 @@ requests an operator override and the risk is understood.
 
 ## Git And Local Workflow
 
-- For commits, use `Abdulrahman M. Yaqyn <Yaqyn@pm.me>` as author and
-  committer. Verify local `git config` first and set it if needed.
+- Verify local Git author and committer configuration before committing. Use
+  the repository owner's configured identity and any local operator instructions.
 - Use small coherent commits when committing is part of the task. Do not commit
   exploratory, broken, or incomplete work unless asked for a checkpoint.
 - After completing a requested code or config change, automatically make a
