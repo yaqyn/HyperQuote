@@ -5,10 +5,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import process from 'node:process'
 import {
-	configuredEnvValue,
 	missingEnvNames,
-	optionalRuntimeSecretNamesForApp,
 	requiredRuntimeSecretNamesForApp,
+	runtimeSecretPayloadForApp,
 	selectedProductionApps,
 } from './production-config.mjs'
 
@@ -24,20 +23,16 @@ for (const app of apps) {
 		)
 		process.exit(1)
 	}
-	const optionalSecretNames = optionalRuntimeSecretNamesForApp(app).filter(
-		(name) => configuredEnvValue(process.env[name]),
-	)
-	const secretNames = [...requiredSecretNames, ...optionalSecretNames]
+	const payload = runtimeSecretPayloadForApp(app)
 
 	const tempDir = mkdtempSync(join(tmpdir(), 'hyperquote-worker-secrets-'))
 	const secretFile = join(tempDir, `${app.id}.json`)
 	try {
-		const payload = Object.fromEntries(
-			secretNames.map((name) => [name, process.env[name]]),
-		)
 		writeFileSync(secretFile, JSON.stringify(payload), { mode: 0o600 })
 
-		console.log(`Syncing ${secretNames.length} secrets for ${app.workerName}.`)
+		console.log(
+			`Syncing ${Object.keys(payload).length} secrets for ${app.workerName}.`,
+		)
 		const result = spawnSync(
 			'wrangler',
 			['secret', 'bulk', secretFile, '--config', app.wranglerConfig],

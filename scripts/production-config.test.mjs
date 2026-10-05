@@ -7,9 +7,20 @@ import {
 	productionAppById,
 	productionBuildEnv,
 	requiredRuntimeSecretNamesForApp,
+	runtimeSecretPayloadForApp,
 } from './production-config.mjs'
 
 describe('optional production providers', () => {
+	test('blanks unconfigured managed secrets instead of retaining old credentials', () => {
+		const payload = runtimeSecretPayloadForApp(productionAppById('internal'), {
+			RESEND_API_KEY: 'FILL_ME',
+			USE_AI: 'false',
+		})
+		expect(payload.RESEND_API_KEY).toBe('')
+		expect(payload.RESEND_WEBHOOK_SECRET).toBe('')
+		expect(payload.GROQ_API_KEY).toBe('')
+		expect(payload.USE_AI).toBe('false')
+	})
 	test('rejects credential placeholders', () => {
 		expect(configuredEnvValue(' FILL_ME ')).toBe('')
 		expect(missingEnvNames(['KEY'], { KEY: 'FILL_ME' })).toEqual(['KEY'])

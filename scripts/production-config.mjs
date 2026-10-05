@@ -153,6 +153,16 @@ export function configuredEnvValue(value) {
 	return trimmed === 'FILL_ME' ? '' : trimmed
 }
 
+export function runtimeSecretPayloadForApp(app, env = process.env) {
+	const names = [
+		...requiredRuntimeSecretNamesForApp(app),
+		...optionalRuntimeSecretNamesForApp(app),
+	]
+	return Object.fromEntries(
+		names.map((name) => [name, configuredEnvValue(env[name])]),
+	)
+}
+
 export function missingEnvNames(names, env = process.env) {
 	return names.filter((name) => !configuredEnvValue(env[name]))
 }
