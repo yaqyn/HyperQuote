@@ -368,25 +368,21 @@ function EmptyDesk({
 	const shortcuts = [
 		{
 			command: '/plan-quote',
-			description: t('chatShortcuts.planDescription'),
 			icon: Sparkles,
 			title: t('chatShortcuts.planTitle'),
 		},
 		{
 			command: '/search-products',
-			description: t('chatShortcuts.searchDescription'),
 			icon: PackageSearch,
 			title: t('chatShortcuts.searchTitle'),
 		},
 		{
 			command: '/edit-cart',
-			description: t('chatShortcuts.cartDescription'),
 			icon: ShoppingCart,
 			title: t('chatShortcuts.cartTitle'),
 		},
 		{
 			command: '/commands',
-			description: t('chatShortcuts.commandsDescription'),
 			icon: Command,
 			run: true,
 			title: t('chatShortcuts.commandsTitle'),
@@ -433,18 +429,16 @@ function EmptyDesk({
 								key={shortcut.command}
 								type="button"
 								onClick={() => onCommand(shortcut.command, shortcut.run)}
-								className="group flex min-h-20 items-center gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3 text-start transition-[border-color,background-color,transform] hover:-translate-y-0.5 hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)]"
+								className="relative flex min-h-12 items-center justify-center rounded-lg border border-[var(--p-border)] bg-[var(--p-card)] px-10 py-3 text-center transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)]"
 							>
-								<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--p-border)] bg-[var(--p-surface-subtle)] text-[var(--p-accent)] transition-colors group-hover:bg-[var(--p-card)]">
+								<span
+									className="absolute start-3 text-[var(--p-accent)]"
+									aria-hidden
+								>
 									<Icon size={16} strokeWidth={1.7} />
 								</span>
-								<span className="min-w-0 flex-1 text-center">
-									<span className="block text-[13px] font-semibold leading-5 text-[var(--p-text)]">
-										{shortcut.title}
-									</span>
-									<span className="mt-0.5 block text-[12px] leading-5 text-[var(--p-text-muted)]">
-										{shortcut.description}
-									</span>
+								<span className="min-w-0 text-[13px] font-medium leading-5 text-[var(--p-text)]">
+									{shortcut.title}
 								</span>
 							</button>
 						)

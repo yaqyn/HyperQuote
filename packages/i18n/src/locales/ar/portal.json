@@ -1,13 +1,9 @@
 {
 	"chatShortcuts": {
 		"planTitle": "خطط عرض سعر",
-		"planDescription": "اختر المواد المطلوبة",
 		"searchTitle": "ابحث عن منتجات",
-		"searchDescription": "ابحث في الكتالوج",
 		"cartTitle": "عدّل السلة",
-		"cartDescription": "حدّث الأصناف والكميات",
-		"commandsTitle": "كل الأوامر",
-		"commandsDescription": "استكشف أدوات ليون"
+		"commandsTitle": "كل الأوامر"
 	},
 	"quoteFlow": {
 		"eyebrow": "طلب عرض سعر",

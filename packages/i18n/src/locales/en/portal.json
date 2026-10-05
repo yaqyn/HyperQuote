@@ -1,13 +1,9 @@
 {
 	"chatShortcuts": {
 		"planTitle": "Plan a quote",
-		"planDescription": "Choose your materials",
 		"searchTitle": "Find products",
-		"searchDescription": "Search the catalog",
 		"cartTitle": "Edit cart",
-		"cartDescription": "Update items and quantities",
-		"commandsTitle": "All commands",
-		"commandsDescription": "Explore Lyon’s tools"
+		"commandsTitle": "All commands"
 	},
 	"quoteFlow": {
 		"eyebrow": "Quote request",
