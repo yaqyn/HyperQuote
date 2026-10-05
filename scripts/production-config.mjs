@@ -63,7 +63,7 @@ const commonRuntimeSecretNames = [
 	'SUPABASE_URL',
 ]
 
-const aiRuntimeSecretNames = ['GROQ_API_KEY', 'USE_AI']
+const aiRuntimeSecretNames = ['GROQ_API_KEY', 'GROQ_MODEL', 'USE_AI']
 
 const supportRuntimeSecretNames = [
 	'RESEND_API_KEY',

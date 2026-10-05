@@ -13,6 +13,19 @@ import {
 } from './production-config.mjs'
 
 describe('optional production providers', () => {
+	test('syncs the selected Groq model to AI-enabled Workers', () => {
+		for (const app of ['website', 'portal', 'internal']) {
+			const payload = runtimeSecretPayloadForApp(productionAppById(app), {
+				GROQ_MODEL: 'openai/gpt-oss-120b',
+				USE_AI: '1',
+			})
+			expect(payload.GROQ_MODEL).toBe('openai/gpt-oss-120b')
+			expect(payload.USE_AI).toBe('1')
+		}
+		expect(
+			optionalRuntimeSecretNamesForApp(productionAppById('driver')),
+		).not.toContain('GROQ_MODEL')
+	})
 	test('removes temporary secret payloads when Wrangler fails to start', () => {
 		const payloadDirectories = () =>
 			readdirSync(tmpdir()).filter((name) =>
