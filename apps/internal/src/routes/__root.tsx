@@ -2,6 +2,7 @@ import {
 	installableAppLinks,
 	installableAppMeta,
 } from '@hyperquote/ui/head/pwa'
+import { PortfolioShell } from '@hyperquote/ui/navigation/PortfolioShell'
 import { registerServiceWorker } from '@hyperquote/ui/pwa/service-worker'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
@@ -152,7 +153,9 @@ function RootComponent() {
 			<body className="bg-[var(--color-surface)] text-[var(--color-text)] font-[var(--font-inter)]">
 				<QueryClientProvider client={queryClient}>
 					<I18nProvider locale="en">
-						<Outlet />
+						<PortfolioShell app="internal" env={import.meta.env}>
+							<Outlet />
+						</PortfolioShell>
 					</I18nProvider>
 				</QueryClientProvider>
 				<SelectionCopy isDisabled={isAuthScreen} />

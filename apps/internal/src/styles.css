@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@hyperquote/ui/navigation/portfolio.css";
 @plugin "tailwindcss-react-aria-components";
 
 :root {

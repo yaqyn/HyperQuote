@@ -1,4 +1,13 @@
 {
+	"portfolio": {
+		"title": "عرض تجريبي لمشروع HyperQuote",
+		"navigation": "استكشف تطبيقات HyperQuote",
+		"website": "الموقع",
+		"portal": "بوابة العملاء",
+		"internal": "الإدارة",
+		"driver": "السائق",
+		"unavailable": "لم يتم إعداد رابط العرض بعد"
+	},
 	"greeting": "مرحبا",
 	"greeting_morning": "صباح الخير",
 	"greeting_afternoon": "مساء الخير",

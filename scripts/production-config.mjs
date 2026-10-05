@@ -102,10 +102,12 @@ export function selectedProductionApps(selection) {
 
 export function productionBuildEnv(app, env = process.env) {
 	return {
+		VITE_PORTFOLIO_MODE: env.VITE_PORTFOLIO_MODE ?? 'false',
+		VITE_DRIVER_URL: env.VITE_DRIVER_URL ?? productionUrls.driver,
 		VITE_DRIVER_API_BASE: productionUrls.driver,
-		VITE_INTERNAL_URL: productionUrls.internal,
+		VITE_INTERNAL_URL: env.VITE_INTERNAL_URL ?? productionUrls.internal,
 		VITE_MAPTILER_KEY: env.VITE_MAPTILER_KEY ?? env.MAPTILER_KEY ?? '',
-		VITE_PORTAL_URL: productionUrls.portal,
+		VITE_PORTAL_URL: env.VITE_PORTAL_URL ?? productionUrls.portal,
 		VITE_ROAD_ROUTE_ENDPOINT:
 			env.VITE_ROAD_ROUTE_ENDPOINT ??
 			env.ROAD_ROUTE_ENDPOINT ??
@@ -124,7 +126,7 @@ export function productionBuildEnv(app, env = process.env) {
 		VITE_SUPPORT_WHATSAPP_E164:
 			env.VITE_SUPPORT_WHATSAPP_E164 ?? env.SUPPORT_WHATSAPP_E164 ?? '',
 		VITE_USE_AI: env.VITE_USE_AI ?? env.USE_AI ?? 'true',
-		VITE_WEBSITE_URL: productionUrls.website,
+		VITE_WEBSITE_URL: env.VITE_WEBSITE_URL ?? productionUrls.website,
 	}
 }
 

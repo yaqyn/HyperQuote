@@ -1,4 +1,13 @@
 {
+	"portfolio": {
+		"title": "HyperQuote portfolio demo",
+		"navigation": "Explore the HyperQuote apps",
+		"website": "Website",
+		"portal": "Portal",
+		"internal": "Internal",
+		"driver": "Driver",
+		"unavailable": "Demo link not configured yet"
+	},
 	"greeting": "Welcome",
 	"greeting_morning": "Good morning",
 	"greeting_afternoon": "Good afternoon",

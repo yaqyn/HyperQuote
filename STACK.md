@@ -173,6 +173,20 @@ the four production apps above unless a new production surface is designed.
 
 ## Local Workflow
 
+### Portfolio Navigation
+
+All four apps share a portfolio navigation bar, including their sign-in screens.
+It is enabled by default in Vite development. Set `VITE_PORTFOLIO_MODE=false`
+to hide it locally, or `VITE_PORTFOLIO_MODE=true` to include it in a hosted
+portfolio build. Hosted builds keep it disabled unless explicitly enabled.
+
+The destinations use `VITE_WEBSITE_URL`, `VITE_PORTAL_URL`,
+`VITE_INTERNAL_URL`, and `VITE_DRIVER_URL`. Local development falls back to
+ports 3000–3003; hosted portfolio links must use HTTPS. The Worker build script
+forwards these settings from the build environment. Changing them requires
+rebuilding the apps. Navigation uses the current tab and preserves each app's
+normal authentication requirements.
+
 1. Start or reset local Supabase with `bun run db:start` or `bun run db:reset`.
 2. Start all app surfaces with `bun run dev`.
 3. Use ports: website `3000`, portal `3001`, internal `3002`, driver `3003`.

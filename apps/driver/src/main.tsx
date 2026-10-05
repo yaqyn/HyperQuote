@@ -1,3 +1,4 @@
+import { PortfolioShell } from '@hyperquote/ui/navigation/PortfolioShell'
 import { registerServiceWorker } from '@hyperquote/ui/pwa/service-worker'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from '@tanstack/react-router'
@@ -23,7 +24,9 @@ if (!root) throw new Error('Driver app root was not found.')
 createRoot(root).render(
 	<StrictMode>
 		<QueryClientProvider client={queryClient}>
-			<RouterProvider router={router} />
+			<PortfolioShell app="driver" env={import.meta.env}>
+				<RouterProvider router={router} />
+			</PortfolioShell>
 		</QueryClientProvider>
 	</StrictMode>,
 )

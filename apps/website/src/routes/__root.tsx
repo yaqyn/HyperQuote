@@ -2,6 +2,7 @@ import {
 	installableAppLinks,
 	installableAppMeta,
 } from '@hyperquote/ui/head/pwa'
+import { PortfolioShell } from '@hyperquote/ui/navigation/PortfolioShell'
 import { registerServiceWorker } from '@hyperquote/ui/pwa/service-worker'
 import {
 	createRootRoute,
@@ -117,10 +118,12 @@ function RootComponent() {
 					<OfflineBanner />
 					<SkipLink />
 					<I18nProvider locale={locale}>
-						<Outlet />
-						<ChatWidget />
-						<SelectionCopy />
-						<SiteContextMenu />
+						<PortfolioShell app="website" env={import.meta.env}>
+							<Outlet />
+							<ChatWidget />
+							<SelectionCopy />
+							<SiteContextMenu />
+						</PortfolioShell>
 					</I18nProvider>
 				</I18nextProvider>
 				<Scripts />

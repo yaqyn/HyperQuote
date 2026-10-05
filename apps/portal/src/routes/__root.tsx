@@ -2,6 +2,7 @@ import {
 	installableAppLinks,
 	installableAppMeta,
 } from '@hyperquote/ui/head/pwa'
+import { PortfolioShell } from '@hyperquote/ui/navigation/PortfolioShell'
 import { registerServiceWorker } from '@hyperquote/ui/pwa/service-worker'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
@@ -203,7 +204,9 @@ function RootComponent() {
 					<I18nextProvider i18n={i18n}>
 						<SkipLink />
 						<I18nProvider locale={locale}>
-							<Outlet />
+							<PortfolioShell app="portal" env={import.meta.env}>
+								<Outlet />
+							</PortfolioShell>
 						</I18nProvider>
 					</I18nextProvider>
 				</QueryClientProvider>

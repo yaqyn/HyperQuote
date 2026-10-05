@@ -1,0 +1,105 @@
+body:has(.hq-portfolio-bar) {
+	--hq-portfolio-height: calc(52px + env(safe-area-inset-top, 0px));
+	--hq-portfolio-viewport: calc(100dvh - var(--hq-portfolio-height));
+}
+
+.hq-portfolio-bar {
+	position: fixed;
+	inset-block-start: 0;
+	inset-inline: 0;
+	z-index: 85;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	box-sizing: border-box;
+	block-size: var(--hq-portfolio-height);
+	padding-block: env(safe-area-inset-top, 0px) 0;
+	padding-inline: 20px;
+	border-block-end: 1px solid #334155;
+	background: #0f172a;
+	color: #f8fafc;
+	font:
+		500 13px / 1.2 system-ui,
+		sans-serif;
+}
+
+.hq-portfolio-title {
+	margin: 0;
+}
+
+.hq-portfolio-links {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.hq-portfolio-links a,
+.hq-portfolio-links span {
+	display: block;
+	padding-block: 10px;
+	padding-inline: 12px;
+	border-radius: 6px;
+	color: #cbd5e1;
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.hq-portfolio-links a:hover {
+	background: #1e293b;
+	color: #fff;
+}
+
+.hq-portfolio-links a[aria-current] {
+	background: #2563eb;
+	color: #fff;
+}
+
+.hq-portfolio-links a:focus-visible {
+	outline: 2px solid #93c5fd;
+	outline-offset: 2px;
+}
+
+.hq-portfolio-links span {
+	opacity: 0.5;
+}
+
+.hq-portfolio-surface {
+	position: relative;
+	margin-block-start: var(--hq-portfolio-height);
+	min-block-size: var(--hq-portfolio-viewport);
+}
+
+/* Keep dashboard windows and fixed panels inside the remaining viewport. */
+.hq-portfolio-surface:not([data-portfolio-app="website"]) {
+	block-size: var(--hq-portfolio-viewport);
+	transform: translateZ(0);
+}
+
+.hq-portfolio-surface .h-dvh {
+	height: var(--hq-portfolio-viewport);
+}
+
+.hq-portfolio-surface .min-h-dvh,
+.hq-portfolio-surface .min-h-screen,
+.hq-portfolio-surface .auth-layout,
+.hq-portfolio-surface .atelier-page {
+	min-height: var(--hq-portfolio-viewport);
+}
+
+@media (max-width: 639px) {
+	body:has(.hq-portfolio-bar) {
+		--hq-portfolio-height: calc(80px + env(safe-area-inset-top, 0px));
+	}
+
+	.hq-portfolio-bar {
+		flex-direction: column;
+		justify-content: center;
+		gap: 4px;
+		padding-inline: 8px;
+	}
+
+	.hq-portfolio-title {
+		font-size: 11px;
+	}
+}

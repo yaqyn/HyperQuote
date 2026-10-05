@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@hyperquote/ui/navigation/portfolio.css";
 @import "../../../essential/brand/fonts/font-face.css";
 @source "../../../packages/ui/src";
 
