@@ -88,6 +88,7 @@ for (const [app, port, path] of [
 		const bounds = await dock.boundingBox()
 		if (!bounds) throw new Error('Portfolio dock is missing')
 		expect(bounds.x).toBeGreaterThanOrEqual(0)
+		expect(bounds.x).toBeLessThanOrEqual(20)
 		expect(bounds.x + bounds.width).toBeLessThanOrEqual(320)
 		await dock
 			.getByRole('button', { name: 'About the project and demo access' })

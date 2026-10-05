@@ -126,7 +126,6 @@ export function PortfolioShell({
 						onClick={() => setExpanded(true)}
 					>
 						<AppIcon app={app} />
-						<span className="hq-portfolio-orbit" aria-hidden />
 					</button>
 				) : (
 					<div className="hq-portfolio-actions">

@@ -1,19 +1,16 @@
 .hq-portfolio-launcher {
 	position: fixed;
 	inset-block-end: max(18px, env(safe-area-inset-bottom));
-	inset-inline-start: 50%;
-	translate: -50% 0;
+	left: max(18px, env(safe-area-inset-left));
 	z-index: 85;
 	inline-size: 56px;
 	block-size: 56px;
 	padding: 5px;
 	box-sizing: border-box;
-	border: 1px solid rgb(255 255 255 / 16%);
-	border-radius: 19px;
-	background: linear-gradient(155deg, rgb(42 47 58 / 95%), rgb(12 16 24 / 97%));
-	box-shadow:
-		0 10px 32px rgb(0 0 0 / 22%),
-		inset 0 1px 0 rgb(255 255 255 / 12%);
+	border: 1px solid rgb(255 255 255 / 10%);
+	border-radius: 28px;
+	background: rgb(19 24 33 / 94%);
+	box-shadow: 0 4px 16px rgb(0 0 0 / 14%);
 	backdrop-filter: blur(20px);
 	color: #d8e0ee;
 	transition:
@@ -21,12 +18,9 @@
 		border-radius 320ms ease;
 }
 
-[dir="rtl"].hq-portfolio-launcher {
-	translate: 50% 0;
-}
 .hq-portfolio-launcher[data-expanded="true"] {
 	inline-size: 284px;
-	border-radius: 20px;
+	border-radius: 28px;
 }
 
 .hq-portfolio-toggle,
@@ -41,7 +35,7 @@
 	flex: 0 0 44px;
 	padding: 0;
 	border: 0;
-	border-radius: 14px;
+	border-radius: 22px;
 	background: transparent;
 	color: inherit;
 	text-decoration: none;
@@ -52,19 +46,10 @@
 }
 
 .hq-portfolio-toggle {
-	background: linear-gradient(145deg, #377af8, #1749b9);
-	color: #fff;
-	box-shadow: inset 0 1px 0 rgb(255 255 255 / 25%);
+	color: #f1f5f9;
 }
-.hq-portfolio-orbit {
-	position: absolute;
-	inset-block-start: 7px;
-	inset-inline-end: 7px;
-	inline-size: 4px;
-	block-size: 4px;
-	border-radius: 50%;
-	background: #bfdbfe;
-	box-shadow: 0 0 8px #93c5fd;
+.hq-portfolio-toggle:hover {
+	background: rgb(255 255 255 / 7%);
 }
 .hq-portfolio-actions {
 	display: flex;
@@ -73,15 +58,14 @@
 	animation: hq-portfolio-reveal 260ms ease both;
 }
 .hq-portfolio-actions [aria-current] {
-	background: rgb(59 130 246 / 20%);
-	color: #93c5fd;
-	box-shadow: inset 0 0 0 1px rgb(96 165 250 / 24%);
+	background: rgb(96 165 250 / 12%);
+	color: #a8ccff;
 }
 .hq-portfolio-actions a:hover,
 .hq-portfolio-actions button:hover {
 	background: rgb(255 255 255 / 10%);
 	color: #fff;
-	transform: translateY(-2px);
+	transform: translateY(-1px);
 }
 .hq-portfolio-launcher :focus-visible,
 .hq-portfolio-info-header button:focus-visible {
