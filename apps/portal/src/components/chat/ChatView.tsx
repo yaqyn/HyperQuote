@@ -364,39 +364,32 @@ function EmptyDesk({
 	isArabic: boolean
 	onCommand: (command: string, run?: boolean) => void
 }) {
+	const { t } = useTranslation('portal')
 	const shortcuts = [
 		{
 			command: '/plan-quote',
-			description: isArabic
-				? 'احكي ليون عن المشروع والمواد'
-				: 'Describe the project and materials',
+			description: t('chatShortcuts.planDescription'),
 			icon: Sparkles,
-			title: isArabic ? 'خطط عرض سعر' : 'Plan a quote',
+			title: t('chatShortcuts.planTitle'),
 		},
 		{
 			command: '/search-products',
-			description: isArabic
-				? 'ابحث بالنوع أو الشركة أو المواصفة'
-				: 'Find by type, company, or specification',
+			description: t('chatShortcuts.searchDescription'),
 			icon: PackageSearch,
-			title: isArabic ? 'ابحث عن منتجات' : 'Search products',
+			title: t('chatShortcuts.searchTitle'),
 		},
 		{
 			command: '/edit-cart',
-			description: isArabic
-				? 'زوّد أو اخصم أو غيّر بند'
-				: 'Add, deduct, set, or remove an item',
+			description: t('chatShortcuts.cartDescription'),
 			icon: ShoppingCart,
-			title: isArabic ? 'عدّل السلة' : 'Edit the cart',
+			title: t('chatShortcuts.cartTitle'),
 		},
 		{
 			command: '/commands',
-			description: isArabic
-				? 'شاهد كل ما يستطيع ليون تنفيذه'
-				: 'See everything Lyon can help with',
+			description: t('chatShortcuts.commandsDescription'),
 			icon: Command,
 			run: true,
-			title: isArabic ? 'كل الأوامر' : 'All commands',
+			title: t('chatShortcuts.commandsTitle'),
 		},
 	]
 	return (
@@ -440,16 +433,16 @@ function EmptyDesk({
 								key={shortcut.command}
 								type="button"
 								onClick={() => onCommand(shortcut.command, shortcut.run)}
-								className="group flex min-h-20 items-start gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3 transition-[border-color,background-color,transform] hover:-translate-y-0.5 hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)]"
+								className="group flex min-h-20 items-center gap-3 rounded-xl border border-[var(--p-border)] bg-[var(--p-card)] p-3 text-start transition-[border-color,background-color,transform] hover:-translate-y-0.5 hover:border-[var(--p-border-strong)] hover:bg-[var(--p-hover)]"
 							>
 								<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--p-border)] bg-[var(--p-surface-subtle)] text-[var(--p-accent)] transition-colors group-hover:bg-[var(--p-card)]">
 									<Icon size={16} strokeWidth={1.7} />
 								</span>
-								<span className="min-w-0">
-									<span className="block text-[13px] font-semibold text-[var(--p-text)]">
+								<span className="min-w-0 flex-1">
+									<span className="block text-[13px] font-semibold leading-5 text-[var(--p-text)]">
 										{shortcut.title}
 									</span>
-									<span className="mt-1 block text-[11px] leading-4 text-[var(--p-text-muted)]">
+									<span className="mt-0.5 block text-[12px] leading-5 text-[var(--p-text-muted)]">
 										{shortcut.description}
 									</span>
 								</span>
