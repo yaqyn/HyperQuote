@@ -2,6 +2,7 @@ import { MapPin } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import type { MapLayerMouseEvent, MapRef } from 'react-map-gl/maplibre'
 import MapGL, { Marker, NavigationControl } from 'react-map-gl/maplibre'
+import { loadMapLibre } from '../maps/maplibre-runtime'
 import { createMapLibreStyle } from '../maps/maplibre-style'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
@@ -47,7 +48,7 @@ export function QuoteLocationMap({
 		<div className="relative h-full min-h-[250px] w-full overflow-hidden bg-[var(--site-concrete,var(--color-surface))]">
 			<MapGL
 				ref={mapRef}
-				mapLib={import('maplibre-gl')}
+				mapLib={loadMapLibre()}
 				mapStyle={MAP_STYLE}
 				initialViewState={{
 					latitude: center.latitude,
@@ -56,10 +57,7 @@ export function QuoteLocationMap({
 				}}
 				minZoom={5}
 				maxZoom={19}
-				maxBounds={[
-					[24.6, 21.7],
-					[36.9, 31.8],
-				]}
+				maxBounds={[24.6, 21.7, 36.9, 31.8]}
 				attributionControl={false}
 				cursor="crosshair"
 				onClick={handleMapClick}

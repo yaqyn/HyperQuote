@@ -6,6 +6,8 @@
  *
  * MUST be wrapped in ClientOnly at call site.
  */
+
+import { loadMapLibre } from '@hyperquote/ui/maps/maplibre-runtime'
 import {
 	buildOpenStreetMapTileView,
 	type GeoPoint,
@@ -263,6 +265,7 @@ export function DispatchMap({
 			)}
 			<div className="h-full w-full">
 				<MapGL
+					mapLib={loadMapLibre()}
 					ref={mapRef}
 					mapStyle={MAP_STYLE}
 					initialViewState={{

@@ -1,3 +1,4 @@
+import { loadMapLibre } from '@hyperquote/ui/maps/maplibre-runtime'
 import {
 	buildOpenStreetMapTileView,
 	type GeoPoint,
@@ -266,6 +267,7 @@ export function DeliveryMap({ currentLocation, delivery }: DeliveryMapProps) {
 				/>
 			)}
 			<MapGL
+				mapLib={loadMapLibre()}
 				ref={mapRef}
 				mapStyle={MAP_STYLE}
 				initialViewState={{

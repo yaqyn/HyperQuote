@@ -7,6 +7,7 @@
  * MUST be wrapped in ClientOnly at call site.
  */
 import { buildDetailedQuoteLocationName } from '@hyperquote/quote-cart/checkout'
+import { loadMapLibre } from '@hyperquote/ui/maps/maplibre-runtime'
 import type { FeatureCollection } from 'geojson'
 import { Search, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -361,6 +362,7 @@ export function DeliveryMap({
 				className={`absolute inset-0 transition-opacity duration-500 dark:[&_.maplibregl-canvas]:invert dark:[&_.maplibregl-canvas]:hue-rotate-180 dark:[&_.maplibregl-canvas]:brightness-95 dark:[&_.maplibregl-canvas]:contrast-90 dark:[&_.maplibregl-canvas]:saturate-50 ${mapLoaded ? 'opacity-100' : 'opacity-0'}`}
 			>
 				<MapGL
+					mapLib={loadMapLibre()}
 					ref={mapRef}
 					mapStyle={MAP_STYLE}
 					initialViewState={{

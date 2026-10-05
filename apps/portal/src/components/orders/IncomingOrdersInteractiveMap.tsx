@@ -1,3 +1,4 @@
+import { loadMapLibre } from '@hyperquote/ui/maps/maplibre-runtime'
 import { MapPin, Truck } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useEffect, useRef, useState } from 'react'
@@ -75,6 +76,7 @@ export function IncomingOrdersInteractiveMap({
 				}`}
 			>
 				<MapGL
+					mapLib={loadMapLibre()}
 					ref={mapRef}
 					mapStyle={MAP_STYLE}
 					initialViewState={{

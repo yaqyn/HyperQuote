@@ -14,6 +14,7 @@
 		"./logging/redacted-error": "./src/logging/redacted-error.ts",
 		"./market/QuantityPopover": "./src/market/QuantityPopover.ts",
 		"./maps/maplibre-style": "./src/maps/maplibre-style.ts",
+		"./maps/maplibre-runtime": "./src/maps/maplibre-runtime.ts",
 		"./maps/osm": "./src/maps/osm.ts",
 		"./maps/road-route": "./src/maps/road-route.ts",
 		"./navigation/back-button": "./src/navigation/back-button.ts",
@@ -44,7 +45,7 @@
 		"maplibre-gl": "^6.4.1",
 		"motion": "^12.38.0",
 		"react-aria-components": "^1.17.0",
-		"react-map-gl": "^8.1.1",
+		"react-map-gl": "8.1.3",
 		"tailwind-merge": "^3.6.0"
 	},
 	"peerDependencies": {
