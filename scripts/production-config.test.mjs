@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
+import { readdirSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import {
 	configuredEnvValue,
 	missingEnvNames,
@@ -11,6 +13,28 @@ import {
 } from './production-config.mjs'
 
 describe('optional production providers', () => {
+	test('removes temporary secret payloads when Wrangler fails to start', () => {
+		const payloadDirectories = () =>
+			readdirSync(tmpdir()).filter((name) =>
+				name.startsWith('hyperquote-worker-secrets-'),
+			)
+		const before = payloadDirectories()
+		const result = spawnSync(
+			process.execPath,
+			['scripts/sync-worker-secrets.mjs', 'driver'],
+			{
+				env: {
+					PATH: '/nonexistent',
+					COOKIE_DOMAIN: '.example.test',
+					SUPABASE_ANON_KEY: 'test-anon-key',
+					SUPABASE_SERVICE_ROLE_KEY: 'test-service-role-key',
+					SUPABASE_URL: 'https://example.test',
+				},
+			},
+		)
+		expect(result.status).toBe(1)
+		expect(payloadDirectories()).toEqual(before)
+	})
 	test('blanks unconfigured managed secrets instead of retaining old credentials', () => {
 		const payload = runtimeSecretPayloadForApp(productionAppById('internal'), {
 			RESEND_API_KEY: 'FILL_ME',

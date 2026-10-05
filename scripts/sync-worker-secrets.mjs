@@ -27,6 +27,7 @@ for (const app of apps) {
 
 	const tempDir = mkdtempSync(join(tmpdir(), 'hyperquote-worker-secrets-'))
 	const secretFile = join(tempDir, `${app.id}.json`)
+	let exitStatus = 0
 	try {
 		writeFileSync(secretFile, JSON.stringify(payload), { mode: 0o600 })
 
@@ -41,8 +42,9 @@ for (const app of apps) {
 				stdio: 'inherit',
 			},
 		)
-		if (result.status !== 0) process.exit(result.status ?? 1)
+		exitStatus = result.status ?? 1
 	} finally {
 		rmSync(tempDir, { force: true, recursive: true })
 	}
+	if (exitStatus !== 0) process.exit(exitStatus)
 }
