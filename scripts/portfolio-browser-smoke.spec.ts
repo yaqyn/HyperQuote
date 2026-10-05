@@ -9,10 +9,17 @@ test.use({
 	},
 })
 
+const origins = {
+	website: process.env.PORTFOLIO_WEBSITE_URL ?? 'http://localhost:3000',
+	portal: process.env.PORTFOLIO_PORTAL_URL ?? 'http://localhost:3001',
+	internal: process.env.PORTFOLIO_INTERNAL_URL ?? 'http://localhost:3002',
+	driver: process.env.PORTFOLIO_DRIVER_URL ?? 'http://localhost:3003',
+}
+
 test('portal keeps a compact desktop card and full-screen tablet/mobile login', async ({
 	page,
 }) => {
-	await page.goto('http://localhost:3001/login')
+	await page.goto(`${origins.portal}/login`)
 	await expect(page.locator('.atelier-page')).toBeVisible({ timeout: 15_000 })
 	for (const width of [1214, 1024, 941, 640, 390, 320]) {
 		await page.setViewportSize({ width, height: 967 })
@@ -44,7 +51,7 @@ test('portal keeps a compact desktop card and full-screen tablet/mobile login', 
 test('website tablet hero and material list share the viewport centre', async ({
 	page,
 }) => {
-	await page.goto('http://localhost:3000')
+	await page.goto(origins.website)
 	await expect(page.locator('h1')).toBeVisible()
 	for (const width of [768, 941, 1023]) {
 		await page.setViewportSize({ width, height: 967 })
@@ -59,17 +66,17 @@ test('website tablet hero and material list share the viewport centre', async ({
 	}
 })
 
-for (const [app, port, path] of [
-	['website', 3000, '/'],
-	['portal', 3001, '/login'],
-	['internal', 3002, '/login'],
-	['driver', 3003, '/'],
+for (const [app, path] of [
+	['website', '/'],
+	['portal', '/login'],
+	['internal', '/login'],
+	['driver', '/'],
 ] as const) {
 	test(`${app} launcher expands into five icons and opens accessible demo info`, async ({
 		page,
 	}) => {
 		await page.setViewportSize({ width: 320, height: 740 })
-		await page.goto(`http://localhost:${port}${path}`)
+		await page.goto(`${origins[app]}${path}`)
 		const dock = page.getByRole('navigation', {
 			name: 'Explore the HyperQuote apps',
 		})
