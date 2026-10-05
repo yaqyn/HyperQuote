@@ -1,103 +1,133 @@
+![HyperQuote — Build the Future, Faster.](docs/readme/cover.gif)
+
 # HyperQuote
 
-A building-materials platform for Egypt, connecting customer material lists and
-quote requests with sales, inventory, finance, warehouse, dispatch, and delivery.
-This repository is being prepared as a portfolio demonstration of the full
-workflow across four applications.
+**The connected workspace for building-materials procurement.**
 
-## Explore the applications
+From the first material list to the final delivery, HyperQuote brings customers,
+sales teams, operations, and drivers into one coordinated workflow. Built for
+Egypt’s construction industry, it keeps quotations, stock, payments, and site
+deliveries moving together.
 
-| Application | Purpose | Intended demo URL | Local URL |
-| --- | --- | --- | --- |
-| Website | Browse materials and build a list | [www.hyperquote.net](https://www.hyperquote.net) | http://localhost:3000 |
-| Portal | Request quotes and follow customer orders | [portal.hyperquote.net](https://portal.hyperquote.net) | http://localhost:3001 |
-| Internal | Manage sales, inventory, finance, warehouse, and dispatch | [internal.hyperquote.net](https://internal.hyperquote.net) | http://localhost:3002 |
-| Driver | Follow assignments and record delivery outcomes | [driver.hyperquote.net](https://driver.hyperquote.net) | http://localhost:3003 |
+[Explore HyperQuote](https://www.hyperquote.net) ·
+[Customer portal](https://portal.hyperquote.net) ·
+[Internal workspace](https://internal.hyperquote.net) ·
+[Driver app](https://driver.hyperquote.net)
 
-Hosted setup is in progress. The URLs above are intended deployment addresses;
-they have not yet been verified for the revived portfolio deployment. Provisioning
-a database alone does not make the applications or demo logins ready.
+## <img src="docs/readme/icons/website.svg" width="24" height="24" alt=""> Find the right materials
 
-In portfolio mode, a floating app icon expands into an app switcher and an Info
-dialog with project context and fictional demo-login instructions. Local
-development enables it by default; hosted builds require
-`VITE_PORTFOLIO_MODE=true`. The account seed and Info dialog share
-[`supabase/showcase-accounts.json`](supabase/showcase-accounts.json).
+![HyperQuote website — materials and project planning](docs/readme/screenshots/website-home.png)
 
-## What the project demonstrates
+Browse the material catalog, search by product and specification, and build a
+list around your project. Start before signing in, then save your list or submit
+it as a quote request with your quantities and delivery details.
 
-- Customer material lists, saved drafts, quote requests, and order tracking.
-- Role-based employee workflows for sales, stock, payments, warehouse, and dispatch.
-- Driver assignments, delivery progress, and delivery verification.
-- English and Arabic customer surfaces, light and dark themes, and installable PWAs.
-- Support conversations with email threading and permission-aware Lyon AI assistance.
-- Server-enforced ownership and role boundaries, transactional business actions,
-  and activity history.
+**One customer account connects the website and portal.** Your work follows you
+from discovery to order management.
 
-External features such as AI, email, and phone OTP require their respective
-provider configuration. Their presence in the source does not imply that the
-hosted integrations are currently active.
+<details>
+<summary>Explore the catalog and search experience</summary>
 
-## Architecture
+![Building-material catalog](docs/readme/screenshots/browse-products.png)
+![Product search and filters](docs/readme/screenshots/market-search.png)
 
-The website, portal, and internal applications use React and TanStack Start.
-The driver application uses Vite and Capacitor. Bun workspaces and Turborepo
-coordinate the monorepo; shared packages provide UI, authentication, types,
-internationalization, forms, and runtime helpers.
+</details>
 
-Supabase provides Postgres, Auth, and Storage. Application data passes through
-server functions or API handlers that enforce account, role, and ownership
-boundaries. Browser clients use Supabase Auth only; business-table access stays
-behind the server boundary. The four hosted applications run on Cloudflare
-Workers. Infisical supplies runtime and deployment credentials.
+## <img src="docs/readme/icons/portal.svg" width="24" height="24" alt=""> Keep every request in view
 
-```text
-apps/       website, portal, internal, and driver
-packages/   shared UI, auth, types, i18n, and product documentation
-supabase/   schema migrations, configuration, and fictional showcase data
-scripts/    development, verification, and deployment tooling
-```
+![Customer portal — Lyon and the draft desk](docs/readme/screenshots/portal-lyon.png)
 
-## Run locally
+Prepare and save drafts, submit quote requests, review order details, and follow
+delivery updates from your customer workspace. Turn a previous order into a new
+editable draft without changing the original.
 
-Prerequisites: Bun `1.3.11`, a working Docker-compatible runtime, Supabase CLI,
-and Infisical CLI. The CI workflow pins CLI versions; check its configuration
-when installing tools.
+**Lyon, your planning assistant**, helps you find products, shape a material
+list, and edit your cart in plain language. AI-generated estimates remain
+editable starting points—not engineering specifications or purchasing decisions.
 
-1. Install dependencies with `bun install --frozen-lockfile`.
-2. Log in to Infisical and link `.infisical.json` to your own project. Configure
-   its `dev` environment under `/Projects/HyperQuote`; see
-   `scripts/verify-infisical-env.mjs` for required provider groups.
-3. Run `bun run secrets:check:dev`, then `bun run db:start`.
-4. For a disposable local database, run `bun run db:reset`, followed by
-   `bun run db:seed:showcase` and `bun run db:verify:showcase`.
-5. Run `bun run dev` and open the local URLs above.
+<details>
+<summary>See Lyon turn a request into a working draft</summary>
 
-`db:reset` replaces local application data. Local Supabase keys come from the
-local runtime; the development scripts provide them to the applications.
-Production credentials must never be placed in browser-prefixed variables.
-The tracked `.env.example` files explain variable names using placeholder values.
+![Lyon guides material selection](docs/readme/screenshots/portal-lyon-action.png)
+![AI-assisted material draft](docs/readme/screenshots/portal-ai-draft.png)
+![Public website assistant](docs/readme/screenshots/website-ai.png)
 
-## Verification and deployment
+Website Lyon explains public information and guides visitors. Account-specific
+planning and actions belong in the signed-in portal.
 
-Useful checks include `bun run check:ci`, `bun run typecheck`, `bun run test`,
-and `bun run db:api-boundary`. With all four apps running,
-`bun run portfolio:browser-smoke` checks login layouts and portfolio navigation.
-The workflow files define the complete hosted quality gate.
+</details>
 
-Pushes to `main` run the Production workflow: checks, database migrations and
-showcase initialization, Worker secret synchronization, Cloudflare rule setup,
-four Worker deployments, and live smoke checks. Pull requests and other branches
-run checks. Hosted deployment uses a single production environment.
+## <img src="docs/readme/icons/internal.svg" width="24" height="24" alt=""> Give every team a connected workspace
 
-## Project documentation
+![Sales workspace — quotation and delivery address selection](docs/readme/screenshots/internal-sales.png)
 
-- [Stack and setup](STACK.md)
-- [Backend boundaries and contracts](BACKEND_FLOW.md)
-- [Product workflow specification](Flow.md)
-- [Support email implementation](SUPPORT_EMAIL_HANDOFF.md)
-- [Historical acceptance checklist](Flow.human-tasklist.md)
-- [Historical verification evidence](Flow.evidence.md)
+A customer request becomes a coordinated operation, with a workspace for each team.
 
-The acceptance files contain evidence from the earlier local verification run.
-They are retained for traceability and do not certify the current hosted setup.
+- **Sales** — refine quantities, pricing, and delivery details; preserve quote revisions and customer notes.
+- **Inventory** — manage products, supplier records, stock, and reservations.
+- **Finance** — review payments and approvals before orders move forward.
+- **Warehouse & dispatch** — prepare handoffs and coordinate driver assignments.
+- **Customer service & management** — handle support, search operational records, and follow activity.
+
+Role-based access keeps responsibilities clear. Recorded changes and controlled
+handoffs give teams a shared history instead of disconnected updates.
+
+<details>
+<summary>Inventory, finance, and management views</summary>
+
+![Inventory workspace](docs/readme/screenshots/internal-inventory.png)
+![Finance workspace](docs/readme/screenshots/internal-finance.png)
+![Management workspace and Lyon assistance](docs/readme/screenshots/internal-ceo.png)
+
+</details>
+
+## <img src="docs/readme/icons/driver.svg" width="24" height="24" alt=""> Carry the workflow to the site
+
+![Driver workspace — map-first view awaiting an assignment](docs/readme/screenshots/driver-idle.png)
+
+Drivers have a dedicated, map-first experience for delivery assignments,
+destinations, progress, and completion. Delivery verification connects the site
+handoff back to the operational record.
+
+The view above shows a driver awaiting an active delivery. Live assignments,
+tracking, and delivery actions require a network connection.
+
+## One request. One connected journey.
+
+**Choose materials → request a quote → confirm → approve payment → prepare → dispatch → deliver.**
+
+Customers follow their own requests while each team works on the same underlying
+operation. Access is scoped to the account and role, and critical transitions
+are validated before the order moves to the next stage.
+
+## Designed for the way your team works
+
+**English & Arabic** on customer and driver surfaces. **Light & dark themes**.
+**Installable apps**. Integrated help and product documentation.
+Context-aware Lyon assistance respects the information available to each user.
+
+<details>
+<summary>Product documentation</summary>
+
+![HyperQuote help and documentation](docs/readme/screenshots/docs.png)
+![Product guide inside HyperQuote](docs/readme/screenshots/docs-inside.png)
+
+</details>
+
+## Experience HyperQuote
+
+| Experience | Open |
+| --- | --- |
+| Discover materials | [Website](https://www.hyperquote.net) |
+| Plan and follow orders | [Customer portal](https://portal.hyperquote.net) |
+| Explore the operation | [Internal workspace](https://internal.hyperquote.net) |
+| Follow the delivery journey | [Driver app](https://driver.hyperquote.net) |
+
+Open the floating app switcher, then **Info**, for demonstration accounts and
+walkthrough tips. The public showcase uses fictional data and shared accounts;
+please do not enter personal information or place real orders. AI, email, and
+phone features depend on their connected services.
+
+---
+
+Designed and developed by **[Abdulrahman M. Yaqyn](https://yaqyn.dev)**.

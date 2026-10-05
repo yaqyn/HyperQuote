@@ -23,6 +23,7 @@
 		"lint": "turbo lint",
 		"typecheck": "turbo typecheck",
 		"format": "biome format --write .",
+		"readme:cover": "bun scripts/generate-readme-cover.mjs",
 		"check": "biome check --write .",
 		"check:ci": "biome check .",
 		"pwa:generate": "node scripts/generate-pwa-assets.mjs && node scripts/generate-service-workers.mjs",
