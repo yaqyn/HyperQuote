@@ -19,6 +19,8 @@ if (missing.length > 0) {
 	process.exit(1)
 }
 
+verifyDatabaseConnection()
+if (process.argv.includes('--check-connection')) process.exit(0)
 run('supabase', ['migration', 'list', '--db-url', dbUrl])
 run('supabase', ['db', 'push', '--db-url', dbUrl, '--yes'])
 run(
@@ -57,6 +59,30 @@ function run(command, args, extraEnv = {}) {
 		stdio: 'inherit',
 	})
 	if (result.status !== 0) process.exit(result.status ?? 1)
+}
+
+function verifyDatabaseConnection() {
+	const result = spawnSync(
+		'psql',
+		[dbUrl, '-X', '-v', 'ON_ERROR_STOP=1', '-tAc', 'select 1'],
+		{
+			cwd: repoRoot,
+			env: { ...process.env, PGCONNECT_TIMEOUT: '15' },
+			encoding: 'utf8',
+			timeout: 20_000,
+		},
+	)
+	if (result.status !== 0) {
+		const password = decodeURIComponent(new URL(dbUrl).password)
+		let details = `${result.stderr ?? ''}${result.error?.message ?? ''}`
+		for (const value of [dbUrl, password]) {
+			if (value) details = details.replaceAll(value, '<redacted>')
+		}
+		console.error('Production database connection preflight failed.')
+		console.error(details.trim())
+		process.exit(1)
+	}
+	console.log('Production database connection preflight passed.')
 }
 
 function supabaseCliEnv() {
