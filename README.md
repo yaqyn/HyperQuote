@@ -114,6 +114,17 @@ Context-aware Lyon assistance respects the information available to each user.
 
 </details>
 
+## A connected foundation
+
+![HyperQuote database — connected customer, order, inventory, payment, and delivery records](docs/readme/database.svg)
+
+One shared database keeps customer requests, quotations, stock reservations,
+payments, and deliveries connected. Each handoff retains its context, so teams
+can trace an order from the original request to its delivery record.
+
+[Explore the database design](docs/DATABASE.md) — relationships, workflow
+integrity, and access boundaries, without exposing live customer records.
+
 ## Experience HyperQuote
 
 | Experience | Open |

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="470" viewBox="0 0 1100 470" role="img" aria-labelledby="title desc">
+  <title id="title">HyperQuote connected database</title>
+  <desc id="desc">A business overview: customer requests become quotations and orders. Orders connect inventory, payments, warehouse handoffs, and deliveries. Roles and activity history span the workflow. This overview is not a complete foreign-key diagram.</desc>
+  <rect width="1100" height="470" rx="16" fill="#101010"/>
+  <g font-family="Arial, sans-serif">
+    <text x="45" y="49" fill="#fff" font-size="23" font-weight="700">One database. Every handoff connected.</text>
+    <text x="45" y="76" fill="#a3a3a3" font-size="13">CUSTOMER CONTEXT → COMMERCIAL WORKFLOW → SITE DELIVERY</text>
+    <g stroke="#2563eb" stroke-width="2" fill="none">
+      <path d="M255 155H310M520 155H575M785 155H840"/>
+      <path d="M945 195V233H150V263M945 233H415V263M945 233H680V263M945 233V263"/>
+    </g>
+    <g fill="#171717" stroke="#404040">
+      <rect x="45" y="110" width="210" height="85" rx="8"/>
+      <rect x="310" y="110" width="210" height="85" rx="8"/>
+      <rect x="575" y="110" width="210" height="85" rx="8"/>
+      <rect x="840" y="110" width="210" height="85" rx="8" stroke="#2563eb"/>
+      <rect x="45" y="263" width="210" height="85" rx="8"/>
+      <rect x="310" y="263" width="210" height="85" rx="8"/>
+      <rect x="575" y="263" width="210" height="85" rx="8"/>
+      <rect x="840" y="263" width="210" height="85" rx="8"/>
+      <rect x="45" y="386" width="1005" height="43" rx="8"/>
+    </g>
+    <g fill="#fff" font-size="19" font-weight="700">
+      <text x="65" y="143">Customers</text><text x="330" y="143">Requests</text>
+      <text x="595" y="143">Quotations</text><text x="860" y="143">Orders</text>
+      <text x="65" y="296">Inventory</text><text x="330" y="296">Payments</text>
+      <text x="595" y="296">Warehouse</text><text x="860" y="296">Deliveries</text>
+    </g>
+    <g fill="#a3a3a3" font-size="13">
+      <text x="65" y="172">Projects · addresses</text><text x="330" y="172">Materials · quantities</text>
+      <text x="595" y="172">Items · revisions</text><text x="860" y="172">Confirmed commitments</text>
+      <text x="65" y="325">Products · reservations</text><text x="330" y="325">Finance · accounting</text>
+      <text x="595" y="325">Loading · handoffs</text><text x="860" y="325">Drivers · trucks</text>
+      <text x="65" y="412">ROLE-BASED ACCESS</text><text x="395" y="412">ACTIVITY HISTORY</text><text x="752" y="412">SUPPORTING EVIDENCE</text>
+    </g>
+  </g>
+</svg>
