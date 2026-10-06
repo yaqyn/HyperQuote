@@ -35,7 +35,7 @@ from discovery to order management.
 
 ## <img src="docs/readme/icons/portal.svg" width="24" height="24" alt=""> Keep every request in view
 
-![Customer portal — Lyon and the draft desk](docs/readme/screenshots/portal-lyon.png)
+![Customer portal — Lyon turns a material request into an editable draft](docs/readme/screenshots/portal-ai-draft.png)
 
 Prepare and save drafts, submit quote requests, review order details, and follow
 delivery updates from your customer workspace. Turn a previous order into a new
@@ -49,7 +49,7 @@ editable starting points—not engineering specifications or purchasing decision
 <summary>See Lyon turn a request into a working draft</summary>
 
 ![Lyon guides material selection](docs/readme/screenshots/portal-lyon-action.png)
-![AI-assisted material draft](docs/readme/screenshots/portal-ai-draft.png)
+![Customer portal — Lyon and the draft desk](docs/readme/screenshots/portal-lyon.png)
 ![Public website assistant](docs/readme/screenshots/website-ai.png)
 
 Website Lyon explains public information and guides visitors. Account-specific
@@ -73,7 +73,9 @@ Role-based access keeps responsibilities clear. Recorded changes and controlled
 handoffs give teams a shared history instead of disconnected updates.
 
 <details>
-<summary>Inventory, finance, and management views</summary>
+<summary>Internal home, inventory, finance, and management views</summary>
+
+![Internal home — access the operational workspaces](docs/readme/screenshots/internal-home.png)
 
 ![Inventory workspace](docs/readme/screenshots/internal-inventory.png)
 ![Finance workspace](docs/readme/screenshots/internal-finance.png)
