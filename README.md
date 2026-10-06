@@ -114,7 +114,8 @@ Context-aware Lyon assistance respects the information available to each user.
 
 </details>
 
-## A connected foundation
+<details>
+<summary>Behind the workflow — the connected database</summary>
 
 ![HyperQuote database — connected customer, order, inventory, payment, and delivery records](docs/readme/database.svg)
 
@@ -124,6 +125,8 @@ can trace an order from the original request to its delivery record.
 
 [Explore the database design](docs/DATABASE.md) — relationships, workflow
 integrity, and access boundaries, without exposing live customer records.
+
+</details>
 
 ## Experience HyperQuote
 
