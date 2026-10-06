@@ -107,7 +107,7 @@ the four production apps above unless a new production surface is designed.
 | Validation | Zod `^4.4.3` | Keep schemas on Zod 4 |
 | i18n | i18next `^26.2.0`, react-i18next `^17.0.8` | Shared singleton plus app-local namespaces |
 | Maps | maplibre-gl `^5.24.0`, react-map-gl `^8.1.1` | Client-only wrappers for SSR |
-| Driver native | Capacitor `^8.3.4` | Driver app only |
+| Driver native | Capacitor `8.4.3` | Core, CLI, Android, and iOS pinned together |
 | Quality | Biome `^2.4.15`, Vitest `^4.1.6`, Knip `^6.14.1` | Use repo scripts first |
 
 ## Integration Rules
