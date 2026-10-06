@@ -25,17 +25,22 @@ it as a quote request with your quantities and delivery details.
 **One customer account connects the website and portal.** Your work follows you
 from discovery to order management.
 
-<details>
-<summary>Explore the catalog and search experience</summary>
+![Browse products — building-material catalog](docs/readme/screenshots/browse-products.png)
 
-![Building-material catalog](docs/readme/screenshots/browse-products.png)
+<details>
+<summary>Expand — product search and desktop presentation</summary>
+
 ![Product search and filters](docs/readme/screenshots/market-search.png)
+
+<img src="docs/readme/imagery/website-laptop.png" width="720" alt="HyperQuote website presented on a graphite laptop with blue brand accents">
+
+<sub>Website Home presented in an illustrative laptop setting.</sub>
 
 </details>
 
 ## <img src="docs/readme/icons/portal.svg" width="24" height="24" alt=""> Keep every request in view
 
-![Customer portal — Lyon turns a material request into an editable draft](docs/readme/screenshots/portal-ai-draft.png)
+![Customer portal — Lyon and the draft desk](docs/readme/screenshots/portal-lyon.png)
 
 Prepare and save drafts, submit quote requests, review order details, and follow
 delivery updates from your customer workspace. Turn a previous order into a new
@@ -45,11 +50,12 @@ editable draft without changing the original.
 list, and edit your cart in plain language. AI-generated estimates remain
 editable starting points—not engineering specifications or purchasing decisions.
 
-<details>
-<summary>See Lyon turn a request into a working draft</summary>
+![Lyon in action — guided material selection](docs/readme/screenshots/portal-lyon-action.png)
 
-![Lyon guides material selection](docs/readme/screenshots/portal-lyon-action.png)
-![Customer portal — Lyon and the draft desk](docs/readme/screenshots/portal-lyon.png)
+<details>
+<summary>Expand — AI draft and website assistant</summary>
+
+![Lyon turns a material request into an editable draft](docs/readme/screenshots/portal-ai-draft.png)
 ![Public website assistant](docs/readme/screenshots/website-ai.png)
 
 Website Lyon explains public information and guides visitors. Account-specific
@@ -59,7 +65,7 @@ planning and actions belong in the signed-in portal.
 
 ## <img src="docs/readme/icons/internal.svg" width="24" height="24" alt=""> Give every team a connected workspace
 
-![Sales workspace — quotation and delivery address selection](docs/readme/screenshots/internal-sales.png)
+![Management workspace — operational search and Lyon assistance](docs/readme/screenshots/internal-ceo.png)
 
 A customer request becomes a coordinated operation, with a workspace for each team.
 
@@ -72,14 +78,15 @@ A customer request becomes a coordinated operation, with a workspace for each te
 Role-based access keeps responsibilities clear. Recorded changes and controlled
 handoffs give teams a shared history instead of disconnected updates.
 
+![Inventory workspace — materials, availability, and stock levels](docs/readme/screenshots/internal-inventory.png)
+
 <details>
-<summary>Internal home, inventory, finance, and management views</summary>
+<summary>Expand — internal home, sales, and finance</summary>
 
 ![Internal home — access the operational workspaces](docs/readme/screenshots/internal-home.png)
 
-![Inventory workspace](docs/readme/screenshots/internal-inventory.png)
+![Sales workspace — quotation and delivery address selection](docs/readme/screenshots/internal-sales.png)
 ![Finance workspace](docs/readme/screenshots/internal-finance.png)
-![Management workspace and Lyon assistance](docs/readme/screenshots/internal-ceo.png)
 
 </details>
 
@@ -102,17 +109,27 @@ Customers follow their own requests while each team works on the same underlying
 operation. Access is scoped to the account and role, and critical transitions
 are validated before the order moves to the next stage.
 
+<table>
+<tr>
+<td width="50%"><img src="docs/readme/imagery/loading-dock.png" width="360" alt="Illustrative materials warehouse with blue loading bays and staged pallets"></td>
+<td width="50%"><img src="docs/readme/imagery/materials-truck.png" width="360" alt="Illustrative blue delivery truck carrying secured building materials"></td>
+</tr>
+</table>
+
+<sub>From warehouse to site. Concept imagery—not the client’s actual facilities or fleet.</sub>
+
 ## Designed for the way your team works
 
 **English & Arabic** on customer and driver surfaces. **Light & dark themes**.
 **Installable apps**. Integrated help and product documentation.
 Context-aware Lyon assistance respects the information available to each user.
 
+![Product guide inside HyperQuote](docs/readme/screenshots/docs-inside.png)
+
 <details>
-<summary>Product documentation</summary>
+<summary>Expand — documentation home</summary>
 
 ![HyperQuote help and documentation](docs/readme/screenshots/docs.png)
-![Product guide inside HyperQuote](docs/readme/screenshots/docs-inside.png)
 
 </details>
 
