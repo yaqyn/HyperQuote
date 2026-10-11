@@ -1,20 +1,43 @@
 ![HyperQuote — Build the Future, Faster.](docs/readme/cover.gif)
 
-# HyperQuote
+# HyperQuote — Building-materials procurement
 
-> **The connected workspace for building-materials procurement.**
+**A connected workspace for building-materials procurement.**
 
 From the first material list to the final delivery, HyperQuote brings customers,
 sales teams, operations, and drivers into one coordinated workflow. Built for
 Egypt’s construction industry, it keeps quotations, stock, payments, and site
 deliveries moving together.
 
+**Showcase:** fictional data and shared demonstration accounts; avoid personal information and real orders.
+
 [Explore HyperQuote](https://www.hyperquote.net) ·
 [Customer portal](https://portal.hyperquote.net) ·
 [Internal workspace](https://internal.hyperquote.net) ·
 [Driver app](https://driver.hyperquote.net)
 
-## <img src="docs/readme/icons/website.svg" width="24" height="24" alt=""> Find the right materials
+## <img src="docs/readme/icons/features.svg" width="24" height="24" alt=""> Features
+
+- Build a material list and submit it as a quote request.
+- Keep drafts, quotations, payments, and delivery records connected.
+- Give sales, inventory, finance, and dispatch role-specific workspaces.
+- Carry assignments and delivery verification into the driver experience.
+
+## <img src="docs/readme/icons/launch.svg" width="24" height="24" alt=""> Try the showcase
+
+| Experience | Open |
+| --- | --- |
+| Discover materials | [Website](https://www.hyperquote.net) |
+| Plan and follow orders | [Customer portal](https://portal.hyperquote.net) |
+| Explore the operation | [Internal workspace](https://internal.hyperquote.net) |
+| Follow the delivery journey | [Driver app](https://driver.hyperquote.net) |
+
+Open the floating app switcher, then **Info**, for demonstration accounts and
+walkthrough tips. The public showcase uses fictional data and shared accounts;
+please do not enter personal information or place real orders. AI, email, and
+phone features depend on their connected services.
+
+## <img src="docs/readme/icons/catalog.svg" width="24" height="24" alt=""> Material catalog
 
 ![HyperQuote website — materials and project planning](docs/readme/screenshots/website-home.png)
 
@@ -38,7 +61,7 @@ from discovery to order management.
 
 </details>
 
-## <img src="docs/readme/icons/portal.svg" width="24" height="24" alt=""> Keep every request in view
+## <img src="docs/readme/icons/portal.svg" width="24" height="24" alt=""> Customer portal
 
 ![Customer portal — Lyon and the draft desk](docs/readme/screenshots/portal-lyon.png)
 
@@ -48,7 +71,7 @@ editable draft without changing the original.
 
 **Lyon, your planning assistant**, helps you find products, shape a material
 list, and edit your cart in plain language. AI-generated estimates remain
-editable starting points—not engineering specifications or purchasing decisions.
+editable starting points. They require review before use as specifications or purchasing decisions.
 
 ![Lyon in action — guided material selection](docs/readme/screenshots/portal-lyon-action.png)
 
@@ -63,7 +86,7 @@ planning and actions belong in the signed-in portal.
 
 </details>
 
-## <img src="docs/readme/icons/internal.svg" width="24" height="24" alt=""> Give every team a connected workspace
+## <img src="docs/readme/icons/operations.svg" width="24" height="24" alt=""> Operations workspace
 
 ![Management workspace — operational search and Lyon assistance](docs/readme/screenshots/internal-ceo.png)
 
@@ -90,7 +113,7 @@ handoffs give teams a shared history instead of disconnected updates.
 
 </details>
 
-## <img src="docs/readme/icons/driver.svg" width="24" height="24" alt=""> Carry the workflow to the site
+## <img src="docs/readme/icons/delivery.svg" width="24" height="24" alt=""> Delivery workspace
 
 ![Driver workspace — map-first view awaiting an assignment](docs/readme/screenshots/driver-idle.png)
 
@@ -101,7 +124,7 @@ handoff back to the operational record.
 The view above shows a driver awaiting an active delivery. Live assignments,
 tracking, and delivery actions require a network connection.
 
-## <img src="docs/readme/icons/flow.svg" width="24" height="24" alt=""> One request. One connected journey.
+## <img src="docs/readme/icons/workflow.svg" width="24" height="24" alt=""> Order workflow
 
 **Choose materials → request a quote → confirm → approve payment → prepare → dispatch → deliver.**
 
@@ -109,16 +132,14 @@ Customers follow their own requests while each team works on the same underlying
 operation. Access is scoped to the account and role, and critical transitions
 are validated before the order moves to the next stage.
 
-<table>
-<tr>
-<td width="50%"><img src="docs/readme/imagery/loading-dock.png" width="360" alt="Illustrative materials warehouse with blue loading bays and staged pallets"></td>
-<td width="50%"><img src="docs/readme/imagery/materials-truck.png" width="360" alt="Illustrative blue delivery truck carrying secured building materials"></td>
-</tr>
-</table>
+<p align="left">
+  <img src="docs/readme/imagery/loading-dock.png" width="360" alt="Illustrative materials warehouse with blue loading bays and staged pallets">
+  <img src="docs/readme/imagery/materials-truck.png" width="360" alt="Illustrative blue delivery truck carrying secured building materials">
+</p>
 
 <sub>From warehouse to site. Concept imagery—not the client’s actual facilities or fleet.</sub>
 
-## <img src="docs/readme/icons/project.svg" width="24" height="24" alt=""> Designed for the way your team works
+## <img src="docs/readme/icons/architecture.svg" width="24" height="24" alt=""> Features and architecture
 
 **English & Arabic** on customer and driver surfaces. **Light & dark themes**.
 **Installable apps**. Integrated help and product documentation.
@@ -146,20 +167,6 @@ can trace an order from the original request to its delivery record.
 integrity, and access boundaries, without exposing live customer records.
 
 </details>
-
-## <img src="docs/readme/icons/run.svg" width="24" height="24" alt=""> Experience HyperQuote
-
-| Experience | Open |
-| --- | --- |
-| Discover materials | [Website](https://www.hyperquote.net) |
-| Plan and follow orders | [Customer portal](https://portal.hyperquote.net) |
-| Explore the operation | [Internal workspace](https://internal.hyperquote.net) |
-| Follow the delivery journey | [Driver app](https://driver.hyperquote.net) |
-
-Open the floating app switcher, then **Info**, for demonstration accounts and
-walkthrough tips. The public showcase uses fictional data and shared accounts;
-please do not enter personal information or place real orders. AI, email, and
-phone features depend on their connected services.
 
 ---
 
