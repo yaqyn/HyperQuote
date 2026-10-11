@@ -2,7 +2,7 @@
 
 # HyperQuote
 
-**The connected workspace for building-materials procurement.**
+> **The connected workspace for building-materials procurement.**
 
 From the first material list to the final delivery, HyperQuote brings customers,
 sales teams, operations, and drivers into one coordinated workflow. Built for
@@ -101,7 +101,7 @@ handoff back to the operational record.
 The view above shows a driver awaiting an active delivery. Live assignments,
 tracking, and delivery actions require a network connection.
 
-## One request. One connected journey.
+## <img src="docs/readme/icons/flow.svg" width="24" height="24" alt=""> One request. One connected journey.
 
 **Choose materials → request a quote → confirm → approve payment → prepare → dispatch → deliver.**
 
@@ -118,7 +118,7 @@ are validated before the order moves to the next stage.
 
 <sub>From warehouse to site. Concept imagery—not the client’s actual facilities or fleet.</sub>
 
-## Designed for the way your team works
+## <img src="docs/readme/icons/project.svg" width="24" height="24" alt=""> Designed for the way your team works
 
 **English & Arabic** on customer and driver surfaces. **Light & dark themes**.
 **Installable apps**. Integrated help and product documentation.
@@ -147,7 +147,7 @@ integrity, and access boundaries, without exposing live customer records.
 
 </details>
 
-## Experience HyperQuote
+## <img src="docs/readme/icons/run.svg" width="24" height="24" alt=""> Experience HyperQuote
 
 | Experience | Open |
 | --- | --- |
@@ -163,4 +163,4 @@ phone features depend on their connected services.
 
 ---
 
-Designed and developed by **[Abdulrahman M. Yaqyn](https://yaqyn.dev)**.
+Designed and developed by **[Abdulrahman M. Yaqyn](https://yaqyn.github.io/folio-static-site/)**.
