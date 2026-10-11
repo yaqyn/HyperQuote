@@ -139,7 +139,7 @@ are validated before the order moves to the next stage.
 
 <sub>From warehouse to site. Concept imagery—not the client’s actual facilities or fleet.</sub>
 
-## <img src="docs/readme/icons/architecture.svg" width="24" height="24" alt=""> Features and architecture
+## <img src="docs/readme/icons/architecture.svg" width="24" height="24" alt=""> Architecture
 
 **English & Arabic** on customer and driver surfaces. **Light & dark themes**.
 **Installable apps**. Integrated help and product documentation.
