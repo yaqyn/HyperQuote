@@ -39,7 +39,7 @@ phone features depend on their connected services.
 
 ## <img src="docs/readme/icons/catalog.svg" width="24" height="24" alt=""> Material catalog
 
-![HyperQuote website — materials and project planning](docs/readme/screenshots/website-home.png)
+![HyperQuote website — materials and project planning](docs/readme/screenshots/website-home.webp)
 
 Browse the material catalog, search by product and specification, and build a
 list around your project. Start before signing in, then save your list or submit
@@ -48,14 +48,14 @@ it as a quote request with your quantities and delivery details.
 **One customer account connects the website and portal.** Your work follows you
 from discovery to order management.
 
-![Browse products — building-material catalog](docs/readme/screenshots/browse-products.png)
+![Browse products — building-material catalog](docs/readme/screenshots/browse-products.webp)
 
 <details>
 <summary>Expand — product search and desktop presentation</summary>
 
-![Product search and filters](docs/readme/screenshots/market-search.png)
+![Product search and filters](docs/readme/screenshots/market-search.webp)
 
-<img src="docs/readme/imagery/website-laptop.png" width="720" alt="HyperQuote website presented on a graphite laptop with blue brand accents">
+<img src="docs/readme/imagery/website-laptop.webp" width="720" alt="HyperQuote website presented on a graphite laptop with blue brand accents">
 
 <sub>Website Home presented in an illustrative laptop setting.</sub>
 
@@ -73,13 +73,13 @@ editable draft without changing the original.
 list, and edit your cart in plain language. AI-generated estimates remain
 editable starting points. They require review before use as specifications or purchasing decisions.
 
-![Lyon in action — guided material selection](docs/readme/screenshots/portal-lyon-action.png)
+![Lyon in action — guided material selection](docs/readme/screenshots/portal-lyon-action.webp)
 
 <details>
 <summary>Expand — AI draft and website assistant</summary>
 
-![Lyon turns a material request into an editable draft](docs/readme/screenshots/portal-ai-draft.png)
-![Public website assistant](docs/readme/screenshots/website-ai.png)
+![Lyon turns a material request into an editable draft](docs/readme/screenshots/portal-ai-draft.webp)
+![Public website assistant](docs/readme/screenshots/website-ai.webp)
 
 Website Lyon explains public information and guides visitors. Account-specific
 planning and actions belong in the signed-in portal.
@@ -88,7 +88,7 @@ planning and actions belong in the signed-in portal.
 
 ## <img src="docs/readme/icons/operations.svg" width="24" height="24" alt=""> Operations workspace
 
-![Management workspace — operational search and Lyon assistance](docs/readme/screenshots/internal-ceo.png)
+![Management workspace — operational search and Lyon assistance](docs/readme/screenshots/internal-ceo.webp)
 
 A customer request becomes a coordinated operation, with a workspace for each team.
 
@@ -101,21 +101,21 @@ A customer request becomes a coordinated operation, with a workspace for each te
 Role-based access keeps responsibilities clear. Recorded changes and controlled
 handoffs give teams a shared history instead of disconnected updates.
 
-![Inventory workspace — materials, availability, and stock levels](docs/readme/screenshots/internal-inventory.png)
+![Inventory workspace — materials, availability, and stock levels](docs/readme/screenshots/internal-inventory.webp)
 
 <details>
 <summary>Expand — internal home, sales, and finance</summary>
 
 ![Internal home — access the operational workspaces](docs/readme/screenshots/internal-home.png)
 
-![Sales workspace — quotation and delivery address selection](docs/readme/screenshots/internal-sales.png)
-![Finance workspace](docs/readme/screenshots/internal-finance.png)
+![Sales workspace — quotation and delivery address selection](docs/readme/screenshots/internal-sales.webp)
+![Finance workspace](docs/readme/screenshots/internal-finance.webp)
 
 </details>
 
 ## <img src="docs/readme/icons/delivery.svg" width="24" height="24" alt=""> Delivery workspace
 
-![Driver workspace — map-first view awaiting an assignment](docs/readme/screenshots/driver-idle.png)
+![Driver workspace — map-first view awaiting an assignment](docs/readme/screenshots/driver-idle.webp)
 
 Drivers have a dedicated, map-first experience for delivery assignments,
 destinations, progress, and completion. Delivery verification connects the site
@@ -133,8 +133,8 @@ operation. Access is scoped to the account and role, and critical transitions
 are validated before the order moves to the next stage.
 
 <p align="left">
-  <img src="docs/readme/imagery/loading-dock.png" width="360" alt="Illustrative materials warehouse with blue loading bays and staged pallets">
-  <img src="docs/readme/imagery/materials-truck.png" width="360" alt="Illustrative blue delivery truck carrying secured building materials">
+  <img src="docs/readme/imagery/loading-dock.webp" width="360" alt="Illustrative materials warehouse with blue loading bays and staged pallets">
+  <img src="docs/readme/imagery/materials-truck.webp" width="360" alt="Illustrative blue delivery truck carrying secured building materials">
 </p>
 
 <sub>From warehouse to site. Concept imagery—not the client’s actual facilities or fleet.</sub>
@@ -145,7 +145,7 @@ are validated before the order moves to the next stage.
 **Installable apps**. Integrated help and product documentation.
 Context-aware Lyon assistance respects the information available to each user.
 
-![Product guide inside HyperQuote](docs/readme/screenshots/docs-inside.png)
+![Product guide inside HyperQuote](docs/readme/screenshots/docs-inside.webp)
 
 <details>
 <summary>Expand — documentation home</summary>
