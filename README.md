@@ -1,0 +1,170 @@
+![HyperQuote — Build the Future, Faster.](docs/readme/cover.gif)
+
+# HyperQuote — Building-materials procurement
+
+**A connected workspace for building-materials procurement.**
+
+From the first material list to the final delivery, HyperQuote brings customers,
+sales teams, operations, and drivers into one coordinated workflow. Built for
+Egypt’s construction industry, it keeps quotations, stock, payments, and site
+deliveries moving together.
+
+**Proprietary client project.** The public portfolio contains selected
+presentation materials only. Source code and deployment configuration remain private.
+
+**Showcase:** fictional data and shared demonstration accounts; avoid personal information and real orders.
+
+[Explore HyperQuote](https://www.hyperquote.net) ·
+[Customer portal](https://portal.hyperquote.net) ·
+[Internal workspace](https://internal.hyperquote.net) ·
+[Driver app](https://driver.hyperquote.net)
+
+## <img src="docs/readme/icons/features.svg" width="24" height="24" alt=""> Features
+
+- Build a material list and submit it as a quote request.
+- Keep drafts, quotations, payments, and delivery records connected.
+- Give sales, inventory, finance, and dispatch role-specific workspaces.
+- Carry assignments and delivery verification into the driver experience.
+
+## <img src="docs/readme/icons/launch.svg" width="24" height="24" alt=""> Try the showcase
+
+| Experience | Open |
+| --- | --- |
+| Discover materials | [Website](https://www.hyperquote.net) |
+| Plan and follow orders | [Customer portal](https://portal.hyperquote.net) |
+| Explore the operation | [Internal workspace](https://internal.hyperquote.net) |
+| Follow the delivery journey | [Driver app](https://driver.hyperquote.net) |
+
+Open the floating app switcher, then **Info**, for demonstration accounts and
+walkthrough tips. The public showcase uses fictional data and shared accounts;
+please do not enter personal information or place real orders. AI, email, and
+phone features depend on their connected services.
+
+## <img src="docs/readme/icons/catalog.svg" width="24" height="24" alt=""> Material catalog
+
+![HyperQuote website — materials and project planning](docs/readme/screenshots/website-home.webp)
+
+Browse the material catalog, search by product and specification, and build a
+list around your project. Start before signing in, then save your list or submit
+it as a quote request with your quantities and delivery details.
+
+**One customer account connects the website and portal.** Your work follows you
+from discovery to order management.
+
+![Browse products — building-material catalog](docs/readme/screenshots/browse-products.webp)
+
+<details>
+<summary>Expand — product search and desktop presentation</summary>
+
+![Product search and filters](docs/readme/screenshots/market-search.webp)
+
+<img src="docs/readme/imagery/website-laptop.webp" width="720" alt="HyperQuote website presented on a graphite laptop with blue brand accents">
+
+<sub>Website Home presented in an illustrative laptop setting.</sub>
+
+</details>
+
+## <img src="docs/readme/icons/portal.svg" width="24" height="24" alt=""> Customer portal
+
+![Customer portal — Lyon and the draft desk](docs/readme/screenshots/portal-lyon.png)
+
+Prepare and save drafts, submit quote requests, review order details, and follow
+delivery updates from your customer workspace. Turn a previous order into a new
+editable draft without changing the original.
+
+**Lyon, your planning assistant**, helps you find products, shape a material
+list, and edit your cart in plain language. AI-generated estimates remain
+editable starting points. They require review before use as specifications or purchasing decisions.
+
+![Lyon in action — guided material selection](docs/readme/screenshots/portal-lyon-action.webp)
+
+<details>
+<summary>Expand — AI draft and website assistant</summary>
+
+![Lyon turns a material request into an editable draft](docs/readme/screenshots/portal-ai-draft.webp)
+![Public website assistant](docs/readme/screenshots/website-ai.webp)
+
+Website Lyon explains public information and guides visitors. Account-specific
+planning and actions belong in the signed-in portal.
+
+</details>
+
+## <img src="docs/readme/icons/operations.svg" width="24" height="24" alt=""> Operations workspace
+
+![Management workspace — operational search and Lyon assistance](docs/readme/screenshots/internal-ceo.webp)
+
+A customer request becomes a coordinated operation, with a workspace for each team.
+
+- **Sales** — refine quantities, pricing, and delivery details; preserve quote revisions and customer notes.
+- **Inventory** — manage products, supplier records, stock, and reservations.
+- **Finance** — review payments and approvals before orders move forward.
+- **Warehouse & dispatch** — prepare handoffs and coordinate driver assignments.
+- **Customer service & management** — handle support, search operational records, and follow activity.
+
+Role-based access keeps responsibilities clear. Recorded changes and controlled
+handoffs give teams a shared history instead of disconnected updates.
+
+![Inventory workspace — materials, availability, and stock levels](docs/readme/screenshots/internal-inventory.webp)
+
+<details>
+<summary>Expand — internal home, sales, and finance</summary>
+
+![Internal home — access the operational workspaces](docs/readme/screenshots/internal-home.png)
+
+![Sales workspace — quotation and delivery address selection](docs/readme/screenshots/internal-sales.webp)
+![Finance workspace](docs/readme/screenshots/internal-finance.webp)
+
+</details>
+
+## <img src="docs/readme/icons/delivery.svg" width="24" height="24" alt=""> Delivery workspace
+
+![Driver workspace — map-first view awaiting an assignment](docs/readme/screenshots/driver-idle.webp)
+
+Drivers have a dedicated, map-first experience for delivery assignments,
+destinations, progress, and completion. Delivery verification connects the site
+handoff back to the operational record.
+
+The view above shows a driver awaiting an active delivery. Live assignments,
+tracking, and delivery actions require a network connection.
+
+## <img src="docs/readme/icons/workflow.svg" width="24" height="24" alt=""> Order workflow
+
+**Choose materials → request a quote → confirm → approve payment → prepare → dispatch → deliver.**
+
+Customers follow their own requests while each team works on the same underlying
+operation. Access is scoped to the account and role, and critical transitions
+are validated before the order moves to the next stage.
+
+<p align="left">
+  <img src="docs/readme/imagery/loading-dock.webp" width="360" alt="Illustrative materials warehouse with blue loading bays and staged pallets">
+  <img src="docs/readme/imagery/materials-truck.webp" width="360" alt="Illustrative blue delivery truck carrying secured building materials">
+</p>
+
+<sub>From warehouse to site. Concept imagery—not the client’s actual facilities or fleet.</sub>
+
+## <img src="docs/readme/icons/architecture.svg" width="24" height="24" alt=""> Architecture
+
+**English & Arabic** on customer and driver surfaces. **Light & dark themes**.
+**Installable apps**. Integrated help and product documentation.
+Context-aware Lyon assistance respects the information available to each user.
+
+![Product guide inside HyperQuote](docs/readme/screenshots/docs-inside.webp)
+
+<details>
+<summary>Expand — documentation home</summary>
+
+![HyperQuote help and documentation](docs/readme/screenshots/docs.png)
+
+</details>
+
+
+---
+
+Designed and developed by **[Abdulrahman M. Yaqyn](https://yaqyn.github.io/folio-static-site/)**.
+
+## Rights and publication
+
+Copyright (c) 2026 Abdulrahman M. Yaqyn. All rights reserved.
+HyperQuote is proprietary client software. Use and distribution require written
+permission or an applicable written agreement. Third-party materials retain
+their own licenses. See [LICENSE](LICENSE).
